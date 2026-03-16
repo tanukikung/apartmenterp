@@ -860,6 +860,16 @@ model InvoiceDelivery {
   viewedAt     DateTime?
   errorMessage String?
   createdBy    String? // adminUser.id
+
+  /// Snapshot: which DocumentTemplate was active when this delivery was created.
+  /// Persisted at delivery creation time so template edits do NOT mutate the
+  /// historical record of what was sent.  The PDF itself is regenerated on each
+  /// request, but this field lets ops verify which template version was live.
+  documentTemplateId   String?
+  /// SHA-256 hex of DocumentTemplate.body at delivery creation time.
+  /// Proves body content at the moment of send, independent of later edits.
+  documentTemplateHash String?
+
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
 
@@ -867,6 +877,7 @@ model InvoiceDelivery {
 
   @@index([invoiceId])
   @@index([channel, status])
+  @@index([documentTemplateId])
   @@map("invoice_deliveries")
 }
 

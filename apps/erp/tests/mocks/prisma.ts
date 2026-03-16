@@ -37,6 +37,12 @@ export function mockPrismaClient() {
 
     // Templates
     documentTemplate:    model(),   // ← Phase 5: template CRUD + audit
+    documentTemplateVersion: model(),
+    documentTemplateFieldDefinition: model(),
+    documentGenerationJob: model(),
+    documentGenerationTarget: model(),
+    generatedDocument: model(),
+    generatedDocumentFile: model(),
     messageTemplate:     model(),
 
     // Comms
@@ -63,6 +69,12 @@ export function mockPrismaClient() {
         floor:              prisma.floor,
         tenant:             prisma.tenant,
         documentTemplate:   prisma.documentTemplate,
+        documentTemplateVersion: prisma.documentTemplateVersion,
+        documentTemplateFieldDefinition: prisma.documentTemplateFieldDefinition,
+        documentGenerationJob: prisma.documentGenerationJob,
+        documentGenerationTarget: prisma.documentGenerationTarget,
+        generatedDocument: prisma.generatedDocument,
+        generatedDocumentFile: prisma.generatedDocumentFile,
         messageTemplate:    prisma.messageTemplate,
         conversation:       prisma.conversation,
         message:            prisma.message,

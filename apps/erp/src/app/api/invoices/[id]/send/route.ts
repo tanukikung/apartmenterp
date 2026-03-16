@@ -1,7 +1,9 @@
+import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getInvoiceService } from '@/modules/invoices/invoice.service';
 import { sendInvoiceSchema } from '@/modules/invoices/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { requireRole } from '@/lib/auth/guards';
 import { getOutboxProcessor } from '@/lib/outbox';
 import { logAudit } from '@/modules/audit';
 import { logger } from '@/lib/utils/logger';
@@ -10,6 +12,11 @@ import { prisma, isLineConfigured } from '@/lib';
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    // ── Auth: ADMIN or STAFF only ─────────────────────────────────────────────
+    const session = requireRole(req, ['ADMIN', 'STAFF']);
+    const actorId = session.sub;
+    const actorRole = session.role;
+
     const { id } = params;
     const body = await req.json().catch(() => ({}));
     const input = sendInvoiceSchema.parse(body);
@@ -37,7 +44,11 @@ export const POST = asyncHandler(
     const lineConfigured = isLineConfigured();
 
     if (!lineConfigured) {
-      logger.warn({ type: 'invoice_send_line_not_configured', invoiceId: id });
+      logger.warn({
+        type: 'invoice_send_line_not_configured',
+        invoiceId: id,
+        actorId,
+      });
     }
 
     const initialStatus = lineConfigured && lineUserId ? 'PENDING' : 'FAILED';
@@ -46,6 +57,24 @@ export const POST = asyncHandler(
       : !lineUserId
         ? 'No LINE account linked to the tenant'
         : null;
+
+    // ── Resolve the active DocumentTemplate for INVOICE type ─────────────────
+    // Capture a snapshot (templateId + body hash) so we can prove which template
+    // was active at delivery creation time, even if the template is edited later.
+    let docTemplate: { id: string; body: string } | null = null;
+    try {
+      docTemplate = await prisma.documentTemplate.findFirst({
+        where: { type: 'INVOICE' },
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, body: true },
+      });
+    } catch {
+      // Non-blocking — proceed without template snapshot
+    }
+    const documentTemplateId = docTemplate?.id ?? null;
+    const documentTemplateHash = docTemplate?.body
+      ? createHash('sha256').update(docTemplate.body).digest('hex')
+      : null;
 
     let deliveryId: string | null = null;
     try {
@@ -56,7 +85,11 @@ export const POST = asyncHandler(
           status: initialStatus,
           recipientRef: lineUserId,
           errorMessage: initialError,
-          createdBy: 'system',
+          createdBy: actorId,
+          // Snapshot of which DocumentTemplate was active at send time.
+          // Template edits after this point do NOT change these fields.
+          ...(documentTemplateId ? { documentTemplateId } : {}),
+          ...(documentTemplateHash ? { documentTemplateHash } : {}),
         },
       });
       deliveryId = delivery.id;
@@ -107,27 +140,33 @@ export const POST = asyncHandler(
     }
 
     await logAudit({
-      actorId: 'system',
-      actorRole: 'ADMIN',
+      actorId,
+      actorRole,
       action: 'INVOICE_SEND_REQUESTED',
       entityType: 'INVOICE',
       entityId: id,
       metadata: {
         pdfUrl: link,
-        templateId: resolvedTemplateId,
+        messageTemplateId: resolvedTemplateId,
+        documentTemplateId,
+        documentTemplateHash,
         lineConfigured,
         deliveryStatus: initialStatus,
-        lineUserId,
+        // Note: lineUserId intentionally omitted from audit to avoid PII in logs.
+        hasLineRecipient: lineUserId !== null,
       },
     });
 
     logger.info({
-      type: 'invoice_sent_api',
+      type: 'invoice_send_requested',
       invoiceId: id,
-      templateId: resolvedTemplateId,
+      actorId,
+      messageTemplateId: resolvedTemplateId,
+      documentTemplateId,
       lineConfigured,
-      lineUserId,
+      hasLineRecipient: lineUserId !== null,
       deliveryStatus: initialStatus,
+      deliveryId,
     });
 
     return NextResponse.json({
@@ -138,10 +177,13 @@ export const POST = asyncHandler(
         : 'Invoice marked as sent, but LINE delivery could not be queued automatically',
       meta: {
         lineConfigured,
+        hasLineRecipient: lineUserId !== null,
         deliveryStatus: initialStatus,
-        templateId: resolvedTemplateId,
+        messageTemplateId: resolvedTemplateId,
+        documentTemplateId,
         deliveryId,
-        lineUserId,
+        // lineUserId intentionally excluded — PII; use deliveryId to look up
+        // recipient details in the admin delivery record if needed.
       },
     } as ApiResponse<typeof invoice>);
   },
