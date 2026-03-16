@@ -460,7 +460,7 @@ export default function UploadStatementPage() {
                   <p className="text-sm text-green-700 mt-1">{successMessage}</p>
                 </div>
                 <div className="flex gap-3 mt-2">
-                  <Link href="/admin/payments/review" className="admin-button admin-button-primary">
+                  <Link href="/admin/payments/review-match" className="admin-button admin-button-primary">
                     Review Queue
                   </Link>
                   <Link href="/admin/payments" className="admin-button">
