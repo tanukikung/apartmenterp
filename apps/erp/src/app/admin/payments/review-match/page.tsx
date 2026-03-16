@@ -862,10 +862,10 @@ export default function PaymentReviewMatchPage() {
     setPaymentsLoading(true);
     setPaymentsError(null);
     try {
-      const res = await fetch('/api/payments?status=UNMATCHED&pageSize=50');
+      const res = await fetch('/api/payments?status=PENDING&pageSize=50');
       const json = await res.json();
-      // Support both { data: [...] } and { payments: [...] } shapes
-      const rows: Payment[] = json.data ?? json.payments ?? [];
+      // Support both paginated { data: { data: [...] } } and flat { data: [...] } shapes
+      const rows: Payment[] = Array.isArray(json.data) ? json.data : (json.data?.data ?? json.payments ?? []);
       setPayments(rows);
     } catch (err) {
       setPaymentsError(err instanceof Error ? err.message : 'Failed to load payments');
@@ -884,8 +884,8 @@ export default function PaymentReviewMatchPage() {
         fetch('/api/invoices?status=OVERDUE&pageSize=50').then((r) => r.json()),
       ]);
 
-      const sentRows: Invoice[] = sentRes.data ?? sentRes.invoices ?? [];
-      const overdueRows: Invoice[] = overdueRes.data ?? overdueRes.invoices ?? [];
+      const sentRows: Invoice[] = Array.isArray(sentRes.data) ? sentRes.data : (sentRes.data?.data ?? sentRes.invoices ?? []);
+      const overdueRows: Invoice[] = Array.isArray(overdueRes.data) ? overdueRes.data : (overdueRes.data?.data ?? overdueRes.invoices ?? []);
 
       // Deduplicate by id in case API returns both in one call
       const seen = new Set<string>();

@@ -27,7 +27,10 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
   if (!user || !user.isActive || !verifyPassword(body.password, user.passwordHash)) {
     if (isForm) {
-      return NextResponse.redirect(new URL('/login?error=Invalid%20username%20or%20password', req.url));
+      // 303 See Other forces the browser to GET the redirect target (Post/Redirect/Get).
+      // Default 307 would re-POST, which Next.js 14 misidentifies as a URL-encoded
+      // Server Action and crashes with "TypeError: Invalid URL" on origin: null.
+      return NextResponse.redirect(new URL('/login?error=Invalid%20username%20or%20password', req.url), 303);
     }
     throw new UnauthorizedError('Invalid username or password');
   }
@@ -35,7 +38,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 12;
   const redirectTo = user.forcePasswordChange ? '/change-password' : '/admin/dashboard';
   const res = isForm
-    ? NextResponse.redirect(new URL(redirectTo, req.url))
+    ? NextResponse.redirect(new URL(redirectTo, req.url), 303)
     : NextResponse.json({
     success: true,
     data: {

@@ -14,11 +14,26 @@ function sameOrigin(req: NextRequest): boolean {
   const origin = req.headers.get('origin');
   const referer = req.headers.get('referer');
   const base = process.env.NEXTAUTH_URL || process.env.APP_BASE_URL || '';
-  if (!base) return true;
+
+  // Also derive the expected origin from the request's own Host header so the
+  // CSRF check works when the server runs on a different port than APP_BASE_URL
+  // (e.g. dev server on :3002 while .env still says :3001).
+  const host = req.headers.get('host');
+  const proto = req.headers.get('x-forwarded-proto') || 'http';
+  const requestBase = host ? `${proto}://${host}` : '';
+
+  if (!base && !requestBase) return true;
   try {
     const o = new URL(origin || referer || '');
-    const b = new URL(base);
-    return o.origin === b.origin;
+    if (base) {
+      const b = new URL(base);
+      if (o.origin === b.origin) return true;
+    }
+    if (requestBase) {
+      const rb = new URL(requestBase);
+      if (o.origin === rb.origin) return true;
+    }
+    return false;
   } catch {
     return true;
   }
@@ -31,6 +46,9 @@ export async function middleware(req: NextRequest) {
   const requestId = existingId || (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 
   // Rate limiting handled in asyncHandler at API layer (Node runtime)
+
+  // Paths that are exempt from CSRF origin checks (safe state-clearing operations)
+  const CSRF_EXEMPT_PATHS = new Set(['/api/auth/logout']);
 
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     const cronHeader = req.headers.get('x-cron-secret');
@@ -48,7 +66,7 @@ export async function middleware(req: NextRequest) {
         },
       });
     }
-    if (!sameOrigin(req)) {
+    if (!CSRF_EXEMPT_PATHS.has(url.pathname) && !sameOrigin(req)) {
       return new NextResponse('CSRF Forbidden', { status: 403, headers: { 'x-request-id': requestId } });
     }
   }

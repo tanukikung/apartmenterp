@@ -4,6 +4,9 @@ import { createPaymentSchema, type CreatePaymentInput } from '@/modules/payments
 import { getPaymentService } from '@/modules/payments/payment.service';
 import { logger } from '@/lib/utils/logger';
 import { prisma } from '@/lib';
+import { PaymentStatus } from '@prisma/client';
+
+const VALID_PAYMENT_STATUSES: string[] = Object.values(PaymentStatus);
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const { searchParams } = new URL(req.url);
@@ -13,7 +16,15 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const skip = (page - 1) * pageSize;
 
   const where: Record<string, unknown> = {};
-  if (status) where.status = status;
+  if (status) {
+    if (!VALID_PAYMENT_STATUSES.includes(status)) {
+      return NextResponse.json(
+        { success: false, error: { message: `Invalid status value: "${status}". Valid values are: ${VALID_PAYMENT_STATUSES.join(', ')}`, code: 'INVALID_STATUS', name: 'ValidationError', statusCode: 400 } },
+        { status: 400 }
+      );
+    }
+    where.status = status;
+  }
 
   const [payments, total] = await Promise.all([
     prisma.payment.findMany({

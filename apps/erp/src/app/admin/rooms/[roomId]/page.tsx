@@ -886,7 +886,7 @@ function MaintenanceTab({ roomId }: { roomId: string }) {
       const res = await fetch(`/api/admin/maintenance`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.message ?? 'Failed to load maintenance tickets');
-      const all: MaintenanceTicket[] = json.data ?? [];
+      const all: MaintenanceTicket[] = Array.isArray(json.data) ? json.data : (json.data?.data ?? []);
       // Filter client-side by roomId since the API doesn't support roomId param
       const filtered = all.filter(t => t.roomId === roomId);
       setTickets(filtered);

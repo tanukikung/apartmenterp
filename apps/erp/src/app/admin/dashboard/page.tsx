@@ -260,7 +260,7 @@ export default function AdminDashboardPage() {
           safe('/api/analytics/revenue'),
           safe('/api/invoices?status=OVERDUE&pageSize=5'),
           safe('/api/invoices?pageSize=10&sortBy=createdAt&sortOrder=desc'),
-          safe('/api/payments?status=UNMATCHED&pageSize=5'),
+          safe('/api/payments?status=PENDING&pageSize=5'),
           safe('/api/admin/maintenance?status=OPEN&pageSize=5'),
           safe('/api/conversations?pageSize=3'),
           safe('/api/audit-logs?pageSize=5'),
