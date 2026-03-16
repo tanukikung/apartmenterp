@@ -1,0 +1,1 @@
+-- No-op. Admin auth tables are included in 0001_init baseline.

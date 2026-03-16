@@ -1146,6 +1146,53 @@ model StaffRegistrationRequest {
   @@map("staff_registration_requests")
 }
 
+// ── Document Templates ──────────────────────────────────────────────────────
+// User-editable templates for invoices, contracts, receipts, and notices.
+
+enum DocumentTemplateType {
+  INVOICE
+  CONTRACT
+  RECEIPT
+  NOTICE
+  OTHER
+}
+
+model DocumentTemplate {
+  id        String               @id @default(uuid())
+  name      String
+  type      DocumentTemplateType @default(INVOICE)
+  subject   String?
+  body      String               @db.Text
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@index([type])
+  @@map("document_templates")
+}
+
+// ── Message Templates ───────────────────────────────────────────────────────
+// User-editable LINE message templates for invoice sends, reminders, notices.
+
+enum MessageTemplateType {
+  INVOICE_SEND
+  PAYMENT_REMINDER
+  OVERDUE_NOTICE
+  CUSTOM
+}
+
+model MessageTemplate {
+  id        String              @id @default(uuid())
+  name      String
+  type      MessageTemplateType @default(CUSTOM)
+  body      String              @db.Text
+  variables String[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([type])
+  @@map("message_templates")
+}
+
 // ── Tenant LINE Registration Requests ──────────────────────────────────────
 // Created when a tenant registers via LINE bot. Admin reviews and approves /
 // rejects / requests correction. On approval a Tenant record is linked.

@@ -1,0 +1,372 @@
+import { ZodError } from 'zod';
+// Avoid importing Prisma runtime types here to remain Edge-safe
+import { NextResponse, type NextRequest } from 'next/server';
+import { logger } from './logger';
+import { redisRateLimit } from '@/infrastructure/redis';
+import { mapPrismaError } from '@/lib/errors/prismaErrorMapper';
+
+// ============================================================================
+// Custom Error Classes
+// ============================================================================
+
+/**
+ * Base application error
+ */
+export class AppError extends Error {
+  public readonly code: string;
+  public readonly statusCode: number;
+  public readonly isOperational: boolean;
+  public readonly details?: Record<string, unknown>;
+
+  constructor(
+    message: string,
+    code: string = 'INTERNAL_ERROR',
+    statusCode: number = 500,
+    details?: Record<string, unknown>
+  ) {
+    super(message);
+    this.name = this.constructor.name;
+    this.code = code;
+    this.statusCode = statusCode;
+    this.isOperational = true;
+    this.details = details;
+    
+    Error.captureStackTrace(this, this.constructor);
+  }
+
+  toJSON(): Record<string, unknown> {
+    return {
+      name: this.name,
+      message: this.message,
+      code: this.code,
+      statusCode: this.statusCode,
+      ...(this.details && { details: this.details }),
+    };
+  }
+}
+
+/**
+ * Bad Request Error (400)
+ */
+export class BadRequestError extends AppError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(message, 'BAD_REQUEST', 400, details);
+  }
+}
+
+/**
+ * Unauthorized Error (401)
+ */
+export class UnauthorizedError extends AppError {
+  constructor(message: string = 'Unauthorized') {
+    super(message, 'UNAUTHORIZED', 401);
+  }
+}
+
+/**
+ * Forbidden Error (403)
+ */
+export class ForbiddenError extends AppError {
+  constructor(message: string = 'Forbidden') {
+    super(message, 'FORBIDDEN', 403);
+  }
+}
+
+/**
+ * Not Found Error (404)
+ */
+export class NotFoundError extends AppError {
+  constructor(resource: string, id?: string) {
+    const message = id ? `${resource} with id ${id} not found` : `${resource} not found`;
+    super(message, 'NOT_FOUND', 404);
+  }
+}
+
+/**
+ * Conflict Error (409)
+ */
+export class ConflictError extends AppError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(message, 'CONFLICT', 409, details);
+  }
+}
+
+/**
+ * Validation Error (422)
+ */
+export class ValidationError extends AppError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(message, 'VALIDATION_ERROR', 422, details);
+  }
+}
+
+/**
+ * Rate Limit Error (429)
+ */
+export class RateLimitError extends AppError {
+  constructor(message: string = 'Too many requests') {
+    super(message, 'RATE_LIMIT_EXCEEDED', 429);
+  }
+}
+
+/**
+ * Database Error
+ */
+export class DatabaseError extends AppError {
+  constructor(error: Error, context?: Record<string, unknown>) {
+    super(
+      'Database operation failed',
+      'DATABASE_ERROR',
+      500,
+      { originalError: error.message, ...context }
+    );
+  }
+}
+
+/**
+ * External Service Error
+ */
+export class ExternalServiceError extends AppError {
+  constructor(service: string, error: Error) {
+    super(
+      `${service} service unavailable`,
+      'EXTERNAL_SERVICE_ERROR',
+      503,
+      { service, originalError: error.message }
+    );
+  }
+}
+
+// ============================================================================
+// Error Handler
+// ============================================================================
+
+export interface ErrorResponse {
+  success: false;
+  error: {
+    name: string;
+    message: string;
+    code: string;
+    statusCode: number;
+    details?: Record<string, unknown>;
+    requestId?: string;
+  };
+}
+
+export interface SuccessResponse<T> {
+  success: true;
+  data: T;
+}
+
+export type ApiResponse<T> = SuccessResponse<T> | ErrorResponse;
+
+/**
+ * Format error for API response
+ */
+export function formatError(
+  error: unknown,
+  requestId?: string
+): ErrorResponse {
+  // Handle Zod validation errors
+  if (error instanceof ZodError) {
+    const details: Record<string, string[]> = {};
+    error.errors.forEach((err) => {
+      const path = err.path.join('.');
+      if (!details[path]) {
+        details[path] = [];
+      }
+      details[path].push(err.message);
+    });
+
+    return {
+      success: false,
+      error: {
+        name: 'ValidationError',
+        message: 'Invalid request data',
+        code: 'VALIDATION_ERROR',
+        statusCode: 422,
+        details,
+        requestId,
+      },
+    };
+  }
+
+  // Handle Prisma errors
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    (error as { name: unknown }).name === 'PrismaClientKnownRequestError' &&
+    'code' in error &&
+    'message' in error
+  ) {
+    const e = error as { code: string; message: string };
+    logger.error({ type: 'prisma_error', code: e.code, message: e.message });
+    const mapped = mapPrismaError(e);
+    if (mapped) {
+      return {
+        success: false,
+        error: {
+          name: 'DatabaseError',
+          message: mapped.message,
+          code: e.code,
+          statusCode: mapped.status,
+          requestId,
+        },
+      };
+    }
+
+    return {
+      success: false,
+      error: {
+        name: 'DatabaseError',
+        message: 'Database operation failed',
+        code: e.code,
+        statusCode: 500,
+        requestId,
+      },
+    };
+  }
+
+  // Handle operational AppError
+  if (error instanceof AppError) {
+    return {
+      success: false,
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        statusCode: error.statusCode,
+        details: error.details,
+        requestId,
+      },
+    };
+  }
+
+  // Handle unknown errors
+  const unknownError = error as Error;
+  logger.error({
+    type: 'unhandled_error',
+    name: unknownError.name,
+    message: unknownError.message,
+    stack: unknownError.stack,
+  });
+
+  return {
+    success: false,
+    error: {
+      name: 'InternalServerError',
+      message: process.env.NODE_ENV === 'production'
+        ? 'An unexpected error occurred'
+        : unknownError.message,
+      code: 'INTERNAL_ERROR',
+      statusCode: 500,
+      requestId,
+    },
+  };
+}
+
+/**
+ * Safe JSON parse
+ */
+export function safeJSONParse<T>(json: string, fallback: T): T {
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+export function asyncHandler<Params extends Record<string, string> = Record<string, string>>(
+  handler: (req: NextRequest, context?: { params: Params }) => Promise<NextResponse> | NextResponse
+): (req: NextRequest, context?: { params: Params }) => Promise<NextResponse>;
+export function asyncHandler<Params extends Record<string, string> = Record<string, string>>(
+  handler: (
+    req: {
+      params: Params;
+      body: unknown;
+      query: Record<string, unknown>;
+    },
+    res: { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } }
+  ) => Promise<void>
+): (
+  req: {
+    params: Params;
+    body: unknown;
+    query: Record<string, unknown>;
+  },
+  res: { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } }
+) => Promise<void>;
+export function asyncHandler<Params extends Record<string, string> = Record<string, string>>(
+  handler:
+    | ((
+        req: NextRequest,
+        context?: { params: Params }
+      ) => Promise<NextResponse> | NextResponse)
+    | ((
+        req: {
+          params: Params;
+          body: unknown;
+          query: Record<string, unknown>;
+        },
+        res: { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } }
+      ) => Promise<void>)
+) {
+  return async (...args: unknown[]): Promise<NextResponse | void> => {
+    try {
+      const [req, resOrContext] = args as [unknown, unknown?];
+
+      const isNextStyle =
+        typeof req === 'object' &&
+        req !== null &&
+        ('headers' in req || 'url' in req || 'json' in req || 'text' in req);
+
+      if (isNextStyle || typeof resOrContext === 'undefined') {
+        if (process.env.NODE_ENV !== 'test') {
+          const r = req as NextRequest;
+          const url = new URL(r.url);
+          const xff = r.headers.get('x-forwarded-for');
+          const ip = xff ? xff.split(',')[0].trim() : '0.0.0.0';
+          const windowMs = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
+          const maxPerWindow = Number(process.env.RATE_LIMIT_MAX || 120);
+          const limitWindowSeconds = Math.ceil(windowMs / 1000);
+          const key = `${ip}:${url.pathname}`;
+          const count = await redisRateLimit(key, maxPerWindow, limitWindowSeconds).catch(() => 0);
+          if (count > maxPerWindow) {
+            return NextResponse.json(
+              { success: false, error: 'Too Many Requests' },
+              { status: 429 }
+            );
+          }
+        }
+        return await (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(req as NextRequest, resOrContext as { params: Params } | undefined);
+      }
+
+      await (handler as (req: { params: Params; body: unknown; query: Record<string, unknown> }, res: { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } }) => Promise<void>)(req as { params: Params; body: unknown; query: Record<string, unknown> }, resOrContext as { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } });
+    } catch (error) {
+      const [, resOrContext] = args as [unknown, unknown?];
+
+      if (resOrContext && typeof (resOrContext as { status?: unknown }).status === 'function') {
+        const response = formatError(error);
+        return (resOrContext as { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } })
+          .status(response.error.statusCode)
+          .json(response);
+      }
+
+      const response = formatError(error);
+      return NextResponse.json(response, {
+        status: response.error.statusCode,
+      });
+    }
+  };
+}
+
+/**
+ * Check if error is operational (expected)
+ */
+export function isOperationalError(error: Error): boolean {
+  if (error instanceof AppError) {
+    return error.isOperational;
+  }
+  return false;
+}

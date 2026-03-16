@@ -1,0 +1,8 @@
+{
+  "name": "apartment-system",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "ai-team"
+  ]
+}

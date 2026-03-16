@@ -1,0 +1,82 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { prisma } from '@/lib';
+
+vi.useFakeTimers();
+
+vi.mock('@/lib', async () => {
+  const actual = await vi.importActual<any>('@/lib');
+  return {
+    ...actual,
+    prisma: {
+      invoice: {
+        aggregate: vi.fn(),
+        count: vi.fn(),
+        groupBy: vi.fn(),
+      },
+      room: {
+        count: vi.fn(),
+      },
+    },
+  };
+});
+
+describe('Analytics API', () => {
+  beforeEach(() => {
+    (prisma.invoice.aggregate as any).mockReset();
+    (prisma.invoice.count as any).mockReset();
+    (prisma.invoice.groupBy as any).mockReset();
+    (prisma.room.count as any).mockReset();
+  });
+
+  it('summary aggregates monthly revenue and invoice counts', async () => {
+    const now = new Date('2026-03-15T12:00:00Z');
+    vi.setSystemTime(now);
+    (prisma.invoice.aggregate as any).mockResolvedValue({ _sum: { total: 1234.56 } });
+    (prisma.invoice.count as any)
+      .mockResolvedValueOnce(5)  // unpaid
+      .mockResolvedValueOnce(10) // paid
+      .mockResolvedValueOnce(2); // overdue
+    const mod = await import('@/app/api/analytics/summary/route');
+    const res: Response = await (mod as any).GET({} as any);
+    expect(res.ok).toBe(true);
+    const body = await res.json();
+    expect(body.data.monthlyRevenue).toBe(1234.56);
+    expect(body.data.unpaidInvoices).toBe(5);
+    expect(body.data.paidInvoices).toBe(10);
+    expect(body.data.overdueInvoices).toBe(2);
+  });
+
+  it('revenue returns 12 months grouped by year/month', async () => {
+    const now = new Date('2026-03-01T00:00:00Z');
+    vi.setSystemTime(now);
+    (prisma.invoice.groupBy as any).mockResolvedValue([
+      { year: 2026, month: 3, _sum: { total: 200 } },
+      { year: 2026, month: 2, _sum: { total: 100 } },
+    ]);
+    const mod = await import('@/app/api/analytics/revenue/route');
+    const res: Response = await (mod as any).GET({} as any);
+    expect(res.ok).toBe(true);
+    const body = await res.json();
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data).toHaveLength(12);
+    const march = body.data.find((p: any) => p.year === 2026 && p.month === 3);
+    const feb = body.data.find((p: any) => p.year === 2026 && p.month === 2);
+    expect(march.total).toBe(200);
+    expect(feb.total).toBe(100);
+  });
+
+  it('occupancy counts rooms by status', async () => {
+    (prisma.room.count as any)
+      .mockResolvedValueOnce(30) // total
+      .mockResolvedValueOnce(20) // occupied
+      .mockResolvedValueOnce(10); // vacant
+    const mod = await import('@/app/api/analytics/occupancy/route');
+    const res: Response = await (mod as any).GET({} as any);
+    expect(res.ok).toBe(true);
+    const body = await res.json();
+    expect(body.data.totalRooms).toBe(30);
+    expect(body.data.occupiedRooms).toBe(20);
+    expect(body.data.vacantRooms).toBe(10);
+  });
+});
+

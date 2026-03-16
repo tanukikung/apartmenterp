@@ -1,0 +1,32 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { asyncHandler, type ApiResponse, NotFoundError } from '@/lib/utils/errors';
+import { prisma, logger } from '@/lib';
+
+export const GET = asyncHandler(async (_req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+  const { id: conversationId } = params;
+  const conversation = await prisma.conversation.findUnique({ where: { id: conversationId } });
+  if (!conversation) {
+    throw new NotFoundError('Conversation', conversationId);
+  }
+  if (!conversation.roomId) {
+    return NextResponse.json(
+      { success: true, data: null } as ApiResponse<null>
+    );
+  }
+  const inv = await prisma.invoice.findFirst({
+    where: { roomId: conversation.roomId },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, status: true, dueDate: true, total: true },
+  });
+  logger.info({ type: 'latest_invoice_lookup', conversationId, found: Boolean(inv) });
+  type LatestInvoice = { id: string; status: string; dueDate: string | null; totalAmount: number };
+  const data: LatestInvoice | null = inv
+    ? {
+        id: inv.id,
+        status: (inv.status as unknown as string),
+        dueDate: inv.dueDate ? inv.dueDate.toISOString() : null,
+        totalAmount: Number(inv.total),
+      }
+    : null;
+  return NextResponse.json({ success: true, data } as ApiResponse<LatestInvoice | null>);
+});

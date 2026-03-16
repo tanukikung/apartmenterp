@@ -1,0 +1,1 @@
+-- No-op. forcePasswordChange is included in 0001_init baseline.

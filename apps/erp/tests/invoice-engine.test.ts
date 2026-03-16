@@ -1,0 +1,131 @@
+import { describe, it, expect, vi } from 'vitest';
+import { getInvoiceService } from '@/modules/invoices/invoice.service';
+import { prisma } from '@/lib/db/client';
+import { mockPrisma } from './helpers/prismaMock';
+
+vi.mock('@/lib/db/client', () => {
+  const prismaMock = {
+    billingRecord: { findUnique: vi.fn(), update: vi.fn() },
+    invoice: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    invoiceVersion: { create: vi.fn() },
+    billingItem: { findMany: vi.fn() },
+    outboxEvent: { create: vi.fn() },
+    auditLog: { create: vi.fn() },
+    $transaction: vi.fn(async (fn: any) =>
+      fn({
+        invoice: { create: vi.fn().mockResolvedValue({ id: 'inv-1', roomId: 'room-1', billingRecordId: 'br-1', year: 2026, month: 3, version: 1, status: 'GENERATED', subtotal: 1000, total: 1000, dueDate: new Date(), issuedAt: new Date() }) },
+        invoiceVersion: { create: vi.fn() },
+        billingRecord: { update: vi.fn() },
+        outboxEvent: { create: vi.fn() },
+        auditLog: { create: vi.fn() },
+      })
+    ),
+  };
+  return { prisma: prismaMock };
+});
+
+describe('Invoice Engine', () => {
+  it('creates invoice from locked billing and writes outbox', async () => {
+    const svc = getInvoiceService();
+    const dueDate = new Date();
+    const { billingFindUnique, invoiceFindFirst } = mockPrisma();
+    billingFindUnique.mockResolvedValue({
+      id: 'br-1',
+      roomId: 'room-1',
+      year: 2026,
+      month: 3,
+      dueDay: dueDate.getDate(),
+      status: 'LOCKED',
+      subtotal: 1000,
+      room: { roomNumber: '101', floor: {} },
+      items: [],
+    } as any);
+    invoiceFindFirst.mockResolvedValue(null as any);
+    const result = await svc.generateInvoiceFromBilling('br-1');
+    expect(result.id).toBeDefined();
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires confirm when regenerating if invoice exists', async () => {
+    const svc = getInvoiceService();
+    const { billingFindUnique, invoiceFindFirst } = mockPrisma();
+    billingFindUnique.mockResolvedValue({
+      id: 'br-1',
+      roomId: 'room-1',
+      year: 2026,
+      month: 3,
+      dueDay: 5,
+      status: 'LOCKED',
+      subtotal: 1000,
+      room: { roomNumber: '101', floor: {} },
+      items: [],
+    } as any);
+    invoiceFindFirst.mockResolvedValue({ id: 'inv-1', version: 1 } as any);
+    await expect(svc.generateInvoiceFromBilling('br-1')).rejects.toThrow(/already exists/i);
+  });
+
+  it('increments version when generating with confirm path', async () => {
+    const svc = getInvoiceService();
+    const { billingFindUnique, invoiceFindFirst } = mockPrisma();
+    billingFindUnique.mockResolvedValue({
+      id: 'br-1',
+      roomId: 'room-1',
+      year: 2026,
+      month: 3,
+      dueDay: 5,
+      status: 'LOCKED',
+      subtotal: 1000,
+      room: { roomNumber: '101', floor: {} },
+      items: [],
+    } as any);
+    invoiceFindFirst.mockResolvedValue({ id: 'inv-1', version: 1 } as any);
+    const txMocks: any = {
+      invoice: { create: vi.fn().mockResolvedValue({ id: 'inv-2', roomId: 'room-1', billingRecordId: 'br-1', year: 2026, month: 3, version: 2, status: 'GENERATED', subtotal: 1000, total: 1000, dueDate: new Date(), issuedAt: new Date(), room: {} }) },
+      invoiceVersion: { create: vi.fn() },
+      billingRecord: { update: vi.fn() },
+      outboxEvent: { create: vi.fn() },
+    };
+    (prisma.$transaction as any).mockImplementationOnce(async (fn: any) => fn(txMocks));
+    const res = await svc.generateInvoice({ billingRecordId: 'br-1' });
+    expect(res.version).toBe(2);
+    expect(txMocks.invoice.create).toHaveBeenCalled();
+  });
+});
+
+vi.mock('@/modules/invoices/invoice.service', async () => {
+  const actual = await vi.importActual<any>('@/modules/invoices/invoice.service');
+  return {
+    ...actual,
+    getInvoiceService: () => {
+      const real = actual.getInvoiceService();
+      (real as any).getInvoicePreview = vi.fn().mockResolvedValue({
+        invoiceId: 'inv-1',
+        version: 1,
+        year: 2026,
+        month: 3,
+        buildingName: 'Test Building',
+        roomNumber: '101',
+        tenantName: 'John Doe',
+        items: [
+          { typeCode: 'RENT', typeName: 'Rent', description: null, quantity: 1, unitPrice: 1000, total: 1000 },
+        ],
+        subtotal: 1000,
+        totalAmount: 1000,
+        dueDate: '2026-03-05',
+      });
+      return real;
+    },
+  };
+});
+
+describe('Invoice PDF endpoint', () => {
+  it('returns a PDF response', async () => {
+    const mod = await import('@/app/api/invoices/[id]/pdf/route');
+    const res: Response = await (mod as any).GET({ url: 'http://localhost/api/invoices/inv-1/pdf' } as any, { params: { id: 'inv-1' } });
+    expect(res.headers.get('content-type')).toBe('application/pdf');
+    const ab = await res.arrayBuffer();
+    const bytes = new Uint8Array(ab);
+    const header = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+    expect(header).toBe('%PDF'.slice(0, 4));
+  });
+});

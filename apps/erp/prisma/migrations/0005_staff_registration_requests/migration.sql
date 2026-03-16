@@ -1,0 +1,1 @@
+-- No-op. Staff registration request tables are included in 0001_init baseline.

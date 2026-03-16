@@ -1,0 +1,1 @@
+-- No-op. Maintenance tables are included in 0001_init baseline.

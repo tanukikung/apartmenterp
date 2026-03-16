@@ -1,0 +1,48 @@
+import { describe, it, expect, vi } from 'vitest';
+import { getEventBus, EventTypes, prisma, sendInvoiceMessage } from '@/lib';
+
+vi.mock('@/lib', async () => {
+  const actual = await vi.importActual<any>('@/lib');
+  return {
+    ...actual,
+    sendInvoiceMessage: vi.fn(),
+    prisma: {
+      invoice: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'inv-1',
+          year: 2026,
+          month: 3,
+          total: 1234.5,
+          dueDate: new Date('2026-03-05T00:00:00Z'),
+          room: {
+            roomNumber: '101',
+            roomTenants: [
+              { tenant: { lineUserId: 'U123' } },
+            ],
+          },
+        }),
+      },
+    },
+  };
+});
+
+describe('Invoice notification via outbox', () => {
+  it('subscribes to INVOICE_GENERATED and sends LINE message', async () => {
+    await import('@/modules/messaging/invoice-notifier');
+    const bus = getEventBus();
+    await bus.publish(
+      EventTypes.INVOICE_GENERATED,
+      'Invoice',
+      'inv-1',
+      { invoiceId: 'inv-1' } as unknown as Record<string, unknown>
+    );
+    expect(sendInvoiceMessage).toHaveBeenCalled();
+    const args = (sendInvoiceMessage as any).mock.calls[0];
+    expect(args[0]).toBe('U123');
+    expect(args[1]).toMatchObject({
+      roomNumber: '101',
+      total: '1234.50',
+      dueDate: '2026-03-05',
+    });
+  });
+});
