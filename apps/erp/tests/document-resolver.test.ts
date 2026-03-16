@@ -5,11 +5,11 @@ import { getDocumentResolverService } from '@/modules/documents/resolver.service
 
 describe('document resolver service', () => {
   beforeEach(() => {
-    prisma.room.findMany.mockReset();
+    (prisma.room.findMany as any).mockReset();
   });
 
   it('aggregates room, tenant, billing, invoice, and payment data into render context', async () => {
-    prisma.room.findMany.mockResolvedValue([
+    (prisma.room.findMany as any).mockResolvedValue([
       {
         id: 'room-1',
         roomNumber: '3201',

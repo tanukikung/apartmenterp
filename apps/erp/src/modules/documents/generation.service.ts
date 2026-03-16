@@ -619,7 +619,7 @@ export class DocumentGenerationService {
     ]);
 
     return {
-      data: documents.map(mapGeneratedDocument),
+      data: documents.map((document) => mapGeneratedDocument(document)),
       total,
       page: query.page,
       pageSize: query.pageSize,
