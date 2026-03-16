@@ -1,627 +1,437 @@
 'use client';
 
-import React, { useCallback, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useMemo, useRef, useState } from 'react';
 import {
-  CheckCircle,
-  ChevronDown,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronRight,
   FileSpreadsheet,
   Loader2,
+  RefreshCw,
   UploadCloud,
-  XCircle,
 } from 'lucide-react';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface ParsedRow {
-  rowNo?: number;
+type PreviewLineItem = {
   roomNumber: string;
-  description?: string;
-  quantity: number;
-  unitPrice: number;
   year: number;
   month: number;
-}
-
-interface PreviewRow {
-  rowNo: number;
-  roomNumber: string;
-  description: string;
+  typeCode: string;
   quantity: number;
   unitPrice: number;
-  amount: number;
-  status: 'VALID' | 'ERROR';
-  errorMessage?: string;
-}
+  description?: string;
+};
 
-interface PreviewData {
-  rows: ParsedRow[];
-  preview: { roomNumber: string; year: number; month: number; total: number; count: number }[];
-  warnings: { roomNumber: string; year: number; month: number; expectedTotal: number; calculatedTotal: number; difference: number }[];
-}
+type PreviewGroup = {
+  roomNumber: string;
+  year: number;
+  month: number;
+  total: number;
+  count: number;
+};
 
-interface ImportResult {
+type PreviewWarning = {
+  roomNumber: string;
+  year: number;
+  month: number;
+  expectedTotal: number;
+  calculatedTotal: number;
+  difference: number;
+};
+
+type PreviewResult = {
+  rows: PreviewLineItem[];
+  preview: PreviewGroup[];
+  warnings: PreviewWarning[];
+  batch: {
+    id: string;
+    status: string;
+    totalRows: number;
+    validRows: number;
+    invalidRows: number;
+    warningRows: number;
+    billingCycleId: string;
+  };
+};
+
+type ExecuteResult = {
   batchId: string;
   cycleId: string;
-  imported?: number;
-  totalImported?: number;
-  [key: string]: unknown;
+  totalImported: number;
+};
+
+function money(value: number) {
+  return new Intl.NumberFormat('th-TH', {
+    style: 'currency',
+    currency: 'THB',
+    maximumFractionDigits: 2,
+  }).format(value);
 }
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const THAI_MONTHS = [
-  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
-];
-
-const CURRENT_YEAR = new Date().getFullYear();
-const YEARS = [CURRENT_YEAR - 2, CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1, CURRENT_YEAR + 2];
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function buildPreviewRows(rows: ParsedRow[], warnings: PreviewData['warnings']): PreviewRow[] {
-  const warningMap = new Map(
-    warnings.map((w) => [`${w.roomNumber}:${w.year}:${w.month}`, w]),
-  );
-
-  return rows.map((r, i) => {
-    const amount = r.quantity * r.unitPrice;
-    const warnKey = `${r.roomNumber}:${r.year}:${r.month}`;
-    const warn = warningMap.get(warnKey);
-
-    return {
-      rowNo: r.rowNo ?? i + 1,
-      roomNumber: r.roomNumber,
-      description: r.description ?? '',
-      quantity: r.quantity,
-      unitPrice: r.unitPrice,
-      amount,
-      status: warn ? 'ERROR' : 'VALID',
-      errorMessage: warn
-        ? `Total mismatch: expected ${warn.expectedTotal.toFixed(2)}, got ${warn.calculatedTotal.toFixed(2)}`
-        : undefined,
-    };
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
-  const steps = [
-    { n: 1, label: 'Upload' },
-    { n: 2, label: 'Preview' },
-    { n: 3, label: 'Done' },
-  ] as const;
-
-  return (
-    <div className="flex items-center gap-0 mb-8">
-      {steps.map((s, idx) => {
-        const done = current > s.n;
-        const active = current === s.n;
-        return (
-          <React.Fragment key={s.n}>
-            <div className="flex flex-col items-center gap-1">
-              <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-colors ${
-                  done
-                    ? 'bg-green-600 border-green-600 text-white'
-                    : active
-                    ? 'bg-blue-600 border-blue-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-400'
-                }`}
-              >
-                {done ? <CheckCircle className="w-4 h-4" /> : s.n}
-              </div>
-              <span
-                className={`text-xs font-medium ${
-                  active ? 'text-blue-600' : done ? 'text-green-600' : 'text-gray-400'
-                }`}
-              >
-                {s.label}
-              </span>
-            </div>
-            {idx < steps.length - 1 && (
-              <div
-                className={`flex-1 h-0.5 mx-2 mt-[-12px] ${
-                  current > s.n ? 'bg-green-500' : 'bg-gray-200'
-                }`}
-              />
-            )}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-}
-
-function ValidationBadge({ status }: { status: 'VALID' | 'ERROR' }) {
-  return status === 'VALID' ? (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-      <CheckCircle className="w-3 h-3" /> Valid
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-      <XCircle className="w-3 h-3" /> Error
-    </span>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main page
-// ---------------------------------------------------------------------------
 
 export default function BillingImportPage() {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [result, setResult] = useState<ExecuteResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [executing, setExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Step 1 state
-  const [file, setFile] = useState<File | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const [year, setYear] = useState(CURRENT_YEAR);
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const buildingId = 'seed-building-main';
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const totals = useMemo(() => {
+    if (!preview) return { rooms: 0, totalAmount: 0 };
+    return {
+      rooms: preview.preview.length,
+      totalAmount: preview.preview.reduce((sum, row) => sum + row.total, 0),
+    };
+  }, [preview]);
 
-  // Step 2 state
-  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
-  const [rawFormData, setRawFormData] = useState<FormData | null>(null);
-
-  // Step 3 state
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
-
-  // -------------------------------------------------------------------------
-  // Drag & drop
-  // -------------------------------------------------------------------------
-
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragging(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped) setFile(dropped);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback(() => setDragging(false), []);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (selected) setFile(selected);
-  };
-
-  // -------------------------------------------------------------------------
-  // Upload & preview
-  // -------------------------------------------------------------------------
-
-  const handleUploadPreview = async () => {
+  async function handlePreview() {
     if (!file) {
-      setError('Please select a file first.');
+      setError('Select an Excel file before previewing.');
       return;
     }
-    setError(null);
-    setLoading(true);
 
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('year', String(year));
-    fd.append('month', String(month));
-    fd.append('buildingId', buildingId);
+    setLoading(true);
+    setError(null);
+    setResult(null);
 
     try {
-      // Try preview endpoint first
-      let res = await fetch('/api/billing/import/preview', {
-        method: 'POST',
-        body: fd,
-      });
+      const formData = new FormData();
+      formData.append('file', file);
 
-      if (!res.ok && res.status === 404) {
-        // Fallback: use execute directly and skip preview step
-        res = await fetch('/api/billing/import/execute', {
-          method: 'POST',
-          body: fd,
-        });
-        if (!res.ok) throw new Error(`Import failed: ${res.status}`);
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error?.message ?? 'Import failed');
-        setImportResult(json.data as ImportResult);
-        setStep(3);
-        return;
+      const response = await fetch('/api/billing/import/preview', {
+        method: 'POST',
+        body: formData,
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        throw new Error(json.error?.message ?? 'Unable to preview import batch');
       }
 
-      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error?.message ?? 'Preview failed');
-
-      const data = json.data as PreviewData;
-      const rows = buildPreviewRows(data.rows, data.warnings ?? []);
-      setPreviewRows(rows);
-
-      // Store form data for execute step
-      const fd2 = new FormData();
-      fd2.append('file', file);
-      fd2.append('year', String(year));
-      fd2.append('month', String(month));
-      fd2.append('buildingId', buildingId);
-      setRawFormData(fd2);
-
-      setStep(2);
+      setPreview(json.data as PreviewResult);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      setPreview(null);
+      setError(err instanceof Error ? err.message : 'Unable to preview import batch');
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  // -------------------------------------------------------------------------
-  // Confirm import
-  // -------------------------------------------------------------------------
+  async function handleExecute() {
+    if (!preview?.batch.id) return;
 
-  const handleConfirmImport = async () => {
-    if (!rawFormData) return;
+    setExecuting(true);
     setError(null);
-    setLoading(true);
 
     try {
-      const res = await fetch('/api/billing/import/execute', {
+      const response = await fetch('/api/billing/import/execute', {
         method: 'POST',
-        body: rawFormData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchId: preview.batch.id }),
       });
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        throw new Error(json.error?.message ?? 'Unable to execute import batch');
+      }
 
-      if (!res.ok) throw new Error(`Execute failed: ${res.status}`);
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error?.message ?? 'Import execute failed');
-
-      setImportResult(json.data as ImportResult);
-      setStep(3);
+      setResult(json.data as ExecuteResult);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed');
+      setError(err instanceof Error ? err.message : 'Unable to execute import batch');
     } finally {
-      setLoading(false);
+      setExecuting(false);
     }
-  };
+  }
 
-  // -------------------------------------------------------------------------
-  // Reset
-  // -------------------------------------------------------------------------
-
-  const handleReset = () => {
-    setStep(1);
+  function resetAll() {
     setFile(null);
-    setPreviewRows([]);
-    setRawFormData(null);
-    setImportResult(null);
+    setPreview(null);
+    setResult(null);
     setError(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  // -------------------------------------------------------------------------
-  // Stats derived from previewRows
-  // -------------------------------------------------------------------------
-
-  const validCount = previewRows.filter((r) => r.status === 'VALID').length;
-  const errorCount = previewRows.filter((r) => r.status === 'ERROR').length;
-
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
+    if (fileRef.current) fileRef.current.value = '';
+  }
 
   return (
     <main className="admin-page">
-      {/* Page header */}
       <section className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">Excel Import Wizard</h1>
+          <h1 className="admin-page-title">Billing Import</h1>
           <p className="admin-page-subtitle">
-            Import billing data from Excel files into the system.
+            Upload the monthly Excel workbook, validate every room, then commit the batch into billing records.
           </p>
+        </div>
+        <div className="admin-toolbar">
+          <a href="/billing-import-template.xlsx" className="admin-button">
+            Download Template
+          </a>
+          <Link href="/admin/billing/batches" className="admin-button">
+            View Batches
+          </Link>
         </div>
       </section>
 
-      <div className="max-w-4xl mx-auto p-6">
-        <StepIndicator current={step} />
+      {error ? (
+        <div className="auth-alert auth-alert-error flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      ) : null}
 
-        {/* Error banner */}
-        {error && (
-          <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* ---------------------------------------------------------------- */}
-        {/* STEP 1: Upload                                                   */}
-        {/* ---------------------------------------------------------------- */}
-        {step === 1 && (
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-8 space-y-6">
-            <h2 className="text-lg font-semibold text-gray-900">Step 1: Upload Excel File</h2>
-
-            {/* Drag & Drop Zone */}
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
-              className={`relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-14 cursor-pointer transition-colors ${
-                dragging
-                  ? 'border-blue-400 bg-blue-50'
-                  : file
-                  ? 'border-green-400 bg-green-50'
-                  : 'border-gray-300 bg-gray-50 hover:border-blue-300 hover:bg-blue-50'
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                className="hidden"
-                onChange={handleFileChange}
-              />
+      <section className="admin-card">
+        <div className="admin-card-header">
+          <div className="admin-card-title">1. Upload Workbook</div>
+        </div>
+        <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div
+            onClick={() => fileRef.current?.click()}
+            className={`flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-[2rem] border-2 border-dashed px-6 py-10 text-center transition-all ${
+              file
+                ? 'border-emerald-300 bg-emerald-50/80'
+                : 'border-slate-300 bg-slate-50 hover:border-indigo-300 hover:bg-indigo-50/60'
+            }`}
+          >
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            />
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-white shadow-sm">
               {file ? (
-                <>
-                  <FileSpreadsheet className="h-12 w-12 text-green-500" />
-                  <p className="text-base font-medium text-green-700">{file.name}</p>
-                  <p className="text-sm text-green-600">
-                    {(file.size / 1024).toFixed(1)} KB &mdash; click to change
-                  </p>
-                </>
+                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
               ) : (
-                <>
-                  <UploadCloud className="h-12 w-12 text-gray-400" />
-                  <p className="text-base font-medium text-gray-700">
-                    Drag &amp; drop your Excel file here
-                  </p>
-                  <p className="text-sm text-blue-600 underline">Or click to browse</p>
-                </>
+                <UploadCloud className="h-8 w-8 text-slate-400" />
               )}
             </div>
-
-            {/* File requirements */}
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 space-y-1">
-              <p className="font-semibold">File requirements:</p>
-              <p>Excel format (.xlsx or .xls)</p>
-              <p>Column A: Room Number &bull; Column B: Description &bull; Column C: Quantity &bull; Column D: Unit Price</p>
+            <div className="text-lg font-semibold text-slate-900">
+              {file ? file.name : 'Drop or choose the Excel file'}
             </div>
-
-            {/* Year / Month / Building */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Year */}
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Year</label>
-                <div className="relative">
-                  <select
-                    value={year}
-                    onChange={(e) => setYear(Number(e.target.value))}
-                    className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2 pr-8 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    {YEARS.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              {/* Month */}
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Month</label>
-                <div className="relative">
-                  <select
-                    value={month}
-                    onChange={(e) => setMonth(Number(e.target.value))}
-                    className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2 pr-8 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    {THAI_MONTHS.map((name, idx) => (
-                      <option key={idx + 1} value={idx + 1}>
-                        {idx + 1} – {name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              {/* Building ID (readonly) */}
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Building ID</label>
-                <input
-                  type="text"
-                  value={buildingId}
-                  readOnly
-                  className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            {/* Upload button */}
-            <button
-              onClick={handleUploadPreview}
-              disabled={loading || !file}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Uploading…
-                </>
-              ) : (
-                <>
-                  <UploadCloud className="h-4 w-4" /> Upload &amp; Preview
-                </>
-              )}
-            </button>
+            <p className="mt-2 max-w-md text-sm text-slate-500">
+              The importer now stages the workbook into a batch first, validates room matches and totals, then allows commit only when blocking issues are cleared.
+            </p>
           </div>
-        )}
 
-        {/* ---------------------------------------------------------------- */}
-        {/* STEP 2: Preview                                                  */}
-        {/* ---------------------------------------------------------------- */}
-        {step === 2 && (
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-8 space-y-6">
-            <h2 className="text-lg font-semibold text-gray-900">Step 2: Preview &amp; Confirm</h2>
-
-            {/* Summary banner */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-center">
-                <p className="text-2xl font-bold text-gray-900">{previewRows.length}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Total Rows Found</p>
+          <div className="space-y-4 rounded-[2rem] border border-slate-200 bg-slate-50/80 p-5">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Workflow
               </div>
-              <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-center">
-                <p className="text-2xl font-bold text-green-700">{validCount}</p>
-                <p className="text-xs text-green-600 mt-0.5">Valid Rows</p>
-              </div>
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center">
-                <p className="text-2xl font-bold text-red-700">{errorCount}</p>
-                <p className="text-xs text-red-600 mt-0.5">Rows with Errors</p>
+              <div className="mt-3 space-y-3 text-sm text-slate-600">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">1</span>
+                  Upload workbook
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">2</span>
+                  Review staged rows
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">3</span>
+                  Commit validated batch
+                </div>
               </div>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50">
+            <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              `TotalAmount` mismatches are treated as warnings and execution is blocked until the source file is corrected.
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => void handlePreview()}
+                disabled={loading || !file}
+                className="admin-button admin-button-primary flex flex-1 items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+                {loading ? 'Previewing...' : 'Preview Batch'}
+              </button>
+              <button type="button" onClick={resetAll} className="admin-button">
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {preview ? (
+        <section className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="admin-kpi">
+              <div className="admin-kpi-label">Batch ID</div>
+              <div className="mt-2 font-mono text-xs text-slate-600">{preview.batch.id}</div>
+            </div>
+            <div className="admin-kpi">
+              <div className="admin-kpi-label">Billing Cycle</div>
+              <div className="admin-kpi-value">{preview.batch.billingCycleId.slice(0, 8)}…</div>
+            </div>
+            <div className="admin-kpi">
+              <div className="admin-kpi-label">Rooms</div>
+              <div className="admin-kpi-value">{totals.rooms}</div>
+            </div>
+            <div className="admin-kpi">
+              <div className="admin-kpi-label">Valid / Error</div>
+              <div className="admin-kpi-value">
+                {preview.batch.validRows} / {preview.batch.invalidRows}
+              </div>
+            </div>
+            <div className="admin-kpi">
+              <div className="admin-kpi-label">Batch Total</div>
+              <div className="admin-kpi-value">{money(totals.totalAmount)}</div>
+            </div>
+          </div>
+
+          {preview.warnings.length > 0 ? (
+            <section className="admin-card overflow-hidden border-amber-200">
+              <div className="admin-card-header">
+                <div className="admin-card-title text-amber-800">Warnings That Block Import</div>
+                <span className="admin-badge border-amber-300 bg-amber-50 text-amber-700">
+                  {preview.warnings.length} room{preview.warnings.length === 1 ? '' : 's'}
+                </span>
+              </div>
+              <div className="overflow-auto">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Room</th>
+                      <th>Expected Total</th>
+                      <th>Calculated Total</th>
+                      <th>Difference</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.warnings.map((warning) => (
+                      <tr key={`${warning.roomNumber}-${warning.year}-${warning.month}`}>
+                        <td className="font-semibold text-slate-800">{warning.roomNumber}</td>
+                        <td>{money(warning.expectedTotal)}</td>
+                        <td>{money(warning.calculatedTotal)}</td>
+                        <td className="font-semibold text-amber-700">{money(warning.difference)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
+
+          <section className="admin-card overflow-hidden">
+            <div className="admin-card-header">
+              <div className="admin-card-title">Room Preview</div>
+              <div className="admin-toolbar">
+                <Link href={`/admin/billing/batches/${preview.batch.id}/office`} className="admin-button">
+                  Edit In ONLYOFFICE
+                </Link>
+                <Link href={`/admin/billing/batches/${preview.batch.id}`} className="admin-button">
+                  Open Batch Detail
+                </Link>
+              </div>
+            </div>
+            <div className="overflow-auto">
+              <table className="admin-table">
+                <thead>
                   <tr>
-                    {['Row #', 'Room', 'Description', 'Qty', 'Unit Price', 'Amount', 'Status'].map(
-                      (h) => (
-                        <th
-                          key={h}
-                          className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide"
-                        >
-                          {h}
-                        </th>
-                      ),
-                    )}
+                    <th>Room</th>
+                    <th>Period</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                    <th>Review</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 bg-white">
-                  {previewRows.map((row) => (
-                    <tr
-                      key={row.rowNo}
-                      className={row.status === 'ERROR' ? 'bg-red-50' : undefined}
-                    >
-                      <td className="px-4 py-2.5 text-gray-500">{row.rowNo}</td>
-                      <td className="px-4 py-2.5 font-medium text-gray-900">{row.roomNumber}</td>
-                      <td className="px-4 py-2.5 text-gray-700 max-w-[200px] truncate">
-                        {row.description || <span className="text-gray-400 italic">—</span>}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-gray-700">{row.quantity}</td>
-                      <td className="px-4 py-2.5 text-right text-gray-700">
-                        {row.unitPrice.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-medium text-gray-900">
-                        {row.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="space-y-1">
-                          <ValidationBadge status={row.status} />
-                          {row.errorMessage && (
-                            <p className="text-xs text-red-600">{row.errorMessage}</p>
+                <tbody>
+                  {preview.preview.map((group) => {
+                    const groupWarnings = preview.warnings.find(
+                      (warning) =>
+                        warning.roomNumber === group.roomNumber &&
+                        warning.year === group.year &&
+                        warning.month === group.month,
+                    );
+
+                    return (
+                      <tr key={`${group.roomNumber}-${group.year}-${group.month}`}>
+                        <td className="font-semibold text-slate-800">{group.roomNumber}</td>
+                        <td>
+                          {group.month}/{group.year}
+                        </td>
+                        <td>{group.count}</td>
+                        <td>{money(group.total)}</td>
+                        <td>
+                          {groupWarnings ? (
+                            <span className="admin-badge border-amber-300 bg-amber-50 text-amber-700">
+                              Total mismatch
+                            </span>
+                          ) : (
+                            <span className="admin-badge admin-status-good">Ready</span>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+          </section>
 
-            {/* Actions */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleConfirmImport}
-                disabled={loading || validCount === 0}
-                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Importing…
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4" /> Confirm Import
-                  </>
-                )}
-              </button>
-              <button
-                onClick={handleReset}
-                disabled={loading}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-              >
-                Cancel / Re-upload
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ---------------------------------------------------------------- */}
-        {/* STEP 3: Done                                                     */}
-        {/* ---------------------------------------------------------------- */}
-        {step === 3 && importResult && (
-          <div className="rounded-xl border border-green-200 bg-green-50 shadow-sm p-10 flex flex-col items-center gap-6 text-center">
-            <CheckCircle className="h-16 w-16 text-green-500" />
-            <div>
-              <h2 className="text-2xl font-bold text-green-800">Import Complete</h2>
-              <p className="mt-1 text-sm text-green-700">
-                Your billing data has been successfully imported.
-              </p>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-6 w-full max-w-sm">
-              <div className="rounded-lg border border-green-200 bg-white px-4 py-3">
-                <p className="text-2xl font-bold text-gray-900">
-                  {importResult.totalImported ?? importResult.imported ?? '—'}
+          <section className="admin-card">
+            <div className="flex flex-wrap items-center justify-between gap-3 p-5">
+              <div>
+                <div className="text-base font-semibold text-slate-900">2. Commit Staged Batch</div>
+                <p className="mt-1 text-sm text-slate-500">
+                  Execution writes validated staged rows into live billing records and links them back to this batch for audit.
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">Records Imported</p>
               </div>
-              <div className="rounded-lg border border-green-200 bg-white px-4 py-3">
-                <p className="text-xs font-mono text-gray-400 truncate">
-                  {importResult.cycleId ?? '—'}
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">Billing Cycle ID</p>
+              <div className="flex gap-3">
+                <Link href={`/admin/billing/batches/${preview.batch.id}/office`} className="admin-button">
+                  Open Workbook
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void handlePreview()}
+                  disabled={loading}
+                  className="admin-button flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh Preview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleExecute()}
+                  disabled={executing || preview.warnings.length > 0 || preview.batch.invalidRows > 0}
+                  className="admin-button admin-button-primary flex items-center gap-2"
+                >
+                  {executing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
+                  {executing ? 'Executing...' : 'Commit Batch'}
+                </button>
               </div>
             </div>
+          </section>
+        </section>
+      ) : null}
 
-            {/* Links */}
-            <div className="flex flex-wrap justify-center gap-3">
-              {importResult.cycleId && (
-                <a
-                  href={`/admin/billing/${importResult.cycleId}`}
-                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-                >
-                  View Billing Cycle
-                </a>
-              )}
-              {importResult.batchId && (
-                <a
-                  href={`/admin/billing/batches/${importResult.batchId}`}
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  View Batch
-                </a>
-              )}
-              <button
-                onClick={handleReset}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Import Another
-              </button>
+      {result ? (
+        <section className="admin-card border-emerald-200 bg-emerald-50/70">
+          <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-[1.5rem] bg-white shadow-sm">
+                <CheckCircle2 className="h-7 w-7 text-emerald-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-emerald-900">Import complete</h2>
+                <p className="mt-1 text-sm text-emerald-800">
+                  {result.totalImported} billing record{result.totalImported === 1 ? '' : 's'} created from batch {result.batchId}.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link href={`/admin/billing/${result.cycleId}`} className="admin-button admin-button-primary">
+                Open Billing Cycle
+              </Link>
+              <Link href={`/admin/billing/batches/${result.batchId}`} className="admin-button">
+                Open Batch Detail
+              </Link>
             </div>
           </div>
-        )}
-      </div>
+        </section>
+      ) : null}
     </main>
   );
 }

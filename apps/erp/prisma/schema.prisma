@@ -440,7 +440,7 @@ model BillingRecord {
   policySnapshot BillingPolicySnapshot? @relation(fields: [policySnapshotId], references: [id])
   importBatch    BillingImportBatch?    @relation("BatchBillingRecords", fields: [importBatchId], references: [id])
   // Reverse side of billing_import_rows.importedBillingRecord (FK lives there)
-  importRow      BillingImportRow?      @relation("ImportRowBillingRecord")
+  importRows     BillingImportRow[]     @relation("ImportRowBillingRecord")
 
   @@unique([roomId, year, month])
   @@index([roomId])
@@ -663,8 +663,9 @@ model BillingImportRow {
   matchedContractId String? // resolved Contract.id
 
   // ── Post-import link ────────────────────────────────────────────
-  // FK lives HERE (one-to-one). BillingRecord.importRow is the back-ref.
-  importedBillingRecordId String? @unique
+  // FK lives HERE (many rows can map to the same billing record).
+  // BillingRecord.importRows is the back-ref.
+  importedBillingRecordId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

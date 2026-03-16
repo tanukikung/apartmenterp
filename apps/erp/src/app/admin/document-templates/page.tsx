@@ -132,10 +132,16 @@ export default function DocumentTemplatesPage() {
                     <td>
                       <div className="flex items-center gap-2">
                         <Link
+                          href={`/admin/document-templates/${tpl.id}/office`}
+                          className="admin-button flex items-center gap-1 text-xs"
+                        >
+                          <Pencil className="h-3 w-3" /> ONLYOFFICE
+                        </Link>
+                        <Link
                           href={`/admin/document-templates/${tpl.id}/edit`}
                           className="admin-button flex items-center gap-1 text-xs"
                         >
-                          <Pencil className="h-3 w-3" /> Edit
+                          Settings
                         </Link>
                         <button
                           className="admin-button flex items-center gap-1 text-xs text-red-600 hover:text-red-700"

@@ -794,11 +794,12 @@ export class BillingService {
   async listBillingRecords(
     query: ListBillingRecordsQuery
   ): Promise<BillingRecordsListResponse> {
-    const { roomId, year, month, status, page, pageSize, sortBy, sortOrder } = query;
+    const { roomId, billingCycleId, year, month, status, page, pageSize, sortBy, sortOrder } = query;
 
     const where: Record<string, unknown> = {};
 
     if (roomId) where.roomId = roomId;
+    if (billingCycleId) where.billingCycleId = billingCycleId;
     if (year) where.year = year;
     if (month) where.month = month;
     if (status) where.status = status;

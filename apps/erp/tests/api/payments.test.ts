@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import http from 'http';
 import supertest from 'supertest';
+import { signSessionToken } from '@/lib/auth/session';
 
 describe('Payment API routes', () => {
   let server: http.Server;
@@ -91,7 +92,7 @@ describe('Payment API routes', () => {
 
     const res = await request
       .post('/api/payments')
-      .set('Cookie', 'role=ADMIN')
+      .set('Cookie', buildAuthCookie('ADMIN'))
       .send({ invoiceId: '11111111-1111-1111-1111-111111111111', amount: 1000, method: 'CASH' })
       .set('Content-Type', 'application/json');
 
@@ -115,7 +116,7 @@ describe('Payment API routes', () => {
 
     const res = await request
       .post('/api/payments/match/confirm')
-      .set('Cookie', 'role=STAFF')
+      .set('Cookie', buildAuthCookie('STAFF'))
       .send({ transactionId: 'txn-1', invoiceId: 'inv-789' })
       .set('Content-Type', 'application/json');
 
@@ -136,7 +137,7 @@ describe('Payment API routes', () => {
 
     const res = await request
       .post('/api/payments/match/reject')
-      .set('Cookie', 'role=ADMIN')
+      .set('Cookie', buildAuthCookie('ADMIN'))
       .send({ transactionId: 'txn-2', rejectReason: 'Invalid' })
       .set('Content-Type', 'application/json');
 
@@ -145,20 +146,34 @@ describe('Payment API routes', () => {
     expect(res.body?.success).toBe(true);
   });
 
-  it('invalid role returns 403', async () => {
+  it('unauthenticated returns 401 and invalid role returns 403', async () => {
     const res2 = await request
       .post('/api/payments/match/confirm')
       .send({ transactionId: 't', invoiceId: 'i' })
       .set('Content-Type', 'application/json');
-    expect(res2.status).toBe(403);
+    expect(res2.status).toBe(401);
 
     const res3 = await request
       .post('/api/payments/match/reject')
+      .set('Cookie', buildAuthCookie('TENANT' as any))
       .send({ transactionId: 't', rejectReason: 'x' })
       .set('Content-Type', 'application/json');
     expect(res3.status).toBe(403);
   });
 });
+
+function buildAuthCookie(role: 'ADMIN' | 'STAFF' | 'TENANT'): string {
+  const token = signSessionToken({
+    sub: `test-${role.toLowerCase()}`,
+    username: `${role.toLowerCase()}-user`,
+    displayName: `${role} User`,
+    role: role as any,
+    forcePasswordChange: false,
+    exp: Math.floor(Date.now() / 1000) + 60 * 60,
+  });
+
+  return `auth_session=${token}; role=${role}`;
+}
 
 function parseCookieHeader(header?: string): Record<string, string> {
   const result: Record<string, string> = {};

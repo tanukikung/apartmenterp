@@ -73,6 +73,14 @@ type ImportPreview = {
     calculatedTotal: number;
     difference: number;
   }>;
+  batch: {
+    id: string;
+    status: string;
+    totalRows: number;
+    validRows: number;
+    invalidRows: number;
+    billingCycleId: string;
+  };
 };
 
 function money(amount: number): string {
@@ -169,15 +177,27 @@ export default function BillingManager() {
   };
 
   const onImport = async () => {
-    if (!file) return;
+    if (!file && !preview?.batch.id) return;
+    if (preview?.warnings.length) {
+      setError('Fix preview warnings before import');
+      return;
+    }
     setIsImporting(true);
     setMessage(null);
     setError(null);
     try {
-      const form = new FormData();
-      form.append('file', file);
-      const res = await fetch('/api/billing/import/execute', { method: 'POST', body: form });
-      const json = (await res.json()) as ApiResponse<{ created: Array<{ billingRecordId: string }> }>;
+      const res = preview?.batch.id
+        ? await fetch('/api/billing/import/execute', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ batchId: preview.batch.id }),
+          })
+        : await (() => {
+            const form = new FormData();
+            if (file) form.append('file', file);
+            return fetch('/api/billing/import/execute', { method: 'POST', body: form });
+          })();
+      const json = (await res.json()) as ApiResponse<{ created: Array<{ billingRecordId: string }>; batchId?: string }>;
       if (!json.success) throw new Error(json.error?.message || 'Import failed');
       setMessage(`Import complete: ${json.data?.created.length ?? 0} record(s) created`);
       setPreview(null);
@@ -242,8 +262,8 @@ export default function BillingManager() {
                 <div className="mt-2 text-2xl font-semibold text-slate-900">{records?.total ?? 0}</div>
               </div>
               <div className="rounded-3xl border border-sky-100 bg-sky-50/70 p-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Preview groups</div>
-                <div className="mt-2 text-2xl font-semibold text-slate-900">{preview?.preview.length ?? 0}</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Preview batch</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">{preview?.batch.id || '-'}</div>
               </div>
               <div className="rounded-3xl border border-amber-100 bg-amber-50/70 p-3">
                 <div className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Total warnings</div>
@@ -293,30 +313,49 @@ export default function BillingManager() {
                     ))}
                   </tbody>
                 </table>
+                <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                  Import is blocked while warnings exist in batch <span className="font-mono text-xs">{preview.batch.id}</span>.
+                </div>
               </div>
             ) : (
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Room</th>
-                    <th>Year</th>
-                    <th>Month</th>
-                    <th>Items</th>
-                    <th>Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preview.preview.map((group) => (
-                    <tr key={`${group.roomNumber}:${group.year}:${group.month}`}>
-                      <td>{group.roomNumber}</td>
-                      <td>{group.year}</td>
-                      <td>{group.month}</td>
-                      <td>{group.count}</td>
-                      <td>{money(group.total)}</td>
+              <div className="space-y-4">
+                <div className="grid gap-3 p-4 sm:grid-cols-3">
+                  <div className="rounded-3xl border border-emerald-100 bg-emerald-50/70 p-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Preview groups</div>
+                    <div className="mt-2 text-2xl font-semibold text-slate-900">{preview.preview.length}</div>
+                  </div>
+                  <div className="rounded-3xl border border-sky-100 bg-sky-50/70 p-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Valid rows</div>
+                    <div className="mt-2 text-2xl font-semibold text-slate-900">{preview.batch.validRows}</div>
+                  </div>
+                  <div className="rounded-3xl border border-rose-100 bg-rose-50/70 p-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Invalid rows</div>
+                    <div className="mt-2 text-2xl font-semibold text-slate-900">{preview.batch.invalidRows}</div>
+                  </div>
+                </div>
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Room</th>
+                      <th>Year</th>
+                      <th>Month</th>
+                      <th>Items</th>
+                      <th>Subtotal</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {preview.preview.map((group) => (
+                      <tr key={`${group.roomNumber}:${group.year}:${group.month}`}>
+                        <td>{group.roomNumber}</td>
+                        <td>{group.year}</td>
+                        <td>{group.month}</td>
+                        <td>{group.count}</td>
+                        <td>{money(group.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </section>

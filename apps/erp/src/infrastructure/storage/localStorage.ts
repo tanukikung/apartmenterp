@@ -1,11 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import os from 'node:os';
 import { type StorageDriver, type UploadParams, type UploadResult } from './types';
+import { resolveUploadDir } from '@/lib/runtime-paths';
 
 function baseDir(): string {
-  const dir = process.env.UPLOAD_DIR || path.join(os.tmpdir(), 'apartment-erp-uploads');
-  return dir;
+  return resolveUploadDir();
 }
 
 function safeJoin(base: string, key: string): string {
@@ -37,4 +36,3 @@ export class LocalStorage implements StorageDriver {
     await fs.rm(dest, { force: true });
   }
 }
-

@@ -79,6 +79,7 @@ export type LockBillingInput = z.infer<typeof lockBillingSchema>;
 
 export const listBillingRecordsQuerySchema = z.object({
   roomId: z.string().uuid().optional(),
+  billingCycleId: z.string().optional(),
   year: z.coerce.number().int().min(2000).max(2100).optional(),
   month: z.coerce.number().int().min(1).max(12).optional(),
   status: billingStatusSchema.optional(),

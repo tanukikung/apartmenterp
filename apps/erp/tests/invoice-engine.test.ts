@@ -5,21 +5,31 @@ import { mockPrisma } from './helpers/prismaMock';
 
 vi.mock('@/lib/db/client', () => {
   const prismaMock = {
-    billingRecord: { findUnique: vi.fn(), update: vi.fn() },
-    invoice: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
-    invoiceVersion: { create: vi.fn() },
-    billingItem: { findMany: vi.fn() },
-    outboxEvent: { create: vi.fn() },
-    auditLog: { create: vi.fn() },
+    billingRecord:    { findUnique: vi.fn(), update: vi.fn() },
+    invoice:          { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    invoiceVersion:   { create: vi.fn() },
+    billingItem:      { findMany: vi.fn() },
+    outboxEvent:      { create: vi.fn() },
+    auditLog:         { create: vi.fn() },
+    // Required by GET /api/invoices/[id]/pdf — returns null so no template applied
+    documentTemplate: { findFirst: vi.fn().mockResolvedValue(null) },
     $transaction: vi.fn(async (fn: any) =>
       fn({
-        invoice: { create: vi.fn().mockResolvedValue({ id: 'inv-1', roomId: 'room-1', billingRecordId: 'br-1', year: 2026, month: 3, version: 1, status: 'GENERATED', subtotal: 1000, total: 1000, dueDate: new Date(), issuedAt: new Date() }) },
+        invoice:        { create: vi.fn().mockResolvedValue({ id: 'inv-1', roomId: 'room-1', billingRecordId: 'br-1', year: 2026, month: 3, version: 1, status: 'GENERATED', subtotal: 1000, total: 1000, dueDate: new Date(), issuedAt: new Date() }) },
         invoiceVersion: { create: vi.fn() },
-        billingRecord: { update: vi.fn() },
-        outboxEvent: { create: vi.fn() },
-        auditLog: { create: vi.fn() },
+        billingRecord:  { update: vi.fn() },
+        outboxEvent:    { create: vi.fn() },
+        auditLog:       { create: vi.fn() },
       })
     ),
+  };
+  return { prisma: prismaMock };
+});
+
+// The PDF route also does dynamic import('@/lib') — alias it to the same mock
+vi.mock('@/lib', () => {
+  const prismaMock = {
+    documentTemplate: { findFirst: vi.fn().mockResolvedValue(null) },
   };
   return { prisma: prismaMock };
 });

@@ -6,45 +6,67 @@ import { getOutboxProcessor } from '@/lib/outbox';
 import { logAudit } from '@/modules/audit';
 import { logger } from '@/lib/utils/logger';
 import type { Json } from '@/types/prisma-json';
-
-// ============================================================================
-// POST /api/invoices/[id]/send - Mark invoice as sent
-// ============================================================================
+import { prisma, isLineConfigured } from '@/lib';
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
     const { id } = params;
     const body = await req.json().catch(() => ({}));
-    
     const input = sendInvoiceSchema.parse(body);
 
     const invoiceService = getInvoiceService();
     const invoice = await invoiceService.markInvoiceSent(id, input);
 
-    // Record delivery attempt in invoice_deliveries
+    const invoiceContext = await prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        room: {
+          include: {
+            roomTenants: {
+              where: { role: 'PRIMARY', moveOutDate: null },
+              include: { tenant: true },
+              take: 1,
+            },
+          },
+        },
+      },
+    });
+
+    const primaryTenant = invoiceContext?.room?.roomTenants?.[0]?.tenant || null;
+    const lineUserId = primaryTenant?.lineUserId || null;
+    const lineConfigured = isLineConfigured();
+
+    if (!lineConfigured) {
+      logger.warn({ type: 'invoice_send_line_not_configured', invoiceId: id });
+    }
+
+    const initialStatus = lineConfigured && lineUserId ? 'PENDING' : 'FAILED';
+    const initialError = !lineConfigured
+      ? 'LINE is not configured'
+      : !lineUserId
+        ? 'No LINE account linked to the tenant'
+        : null;
+
+    let deliveryId: string | null = null;
     try {
-      const { prisma } = await import('@/lib');
-      await prisma.invoiceDelivery.create({
+      const delivery = await prisma.invoiceDelivery.create({
         data: {
           invoiceId: id,
           channel: (input.channel as 'LINE' | 'PDF' | 'PRINT') ?? 'LINE',
-          status: 'SENT',
-          sentAt: new Date(),
+          status: initialStatus,
+          recipientRef: lineUserId,
+          errorMessage: initialError,
           createdBy: 'system',
         },
       });
+      deliveryId = delivery.id;
     } catch {
-      // Non-blocking - delivery record failure should not fail the send
+      // Non-blocking
     }
 
-    // ── MessageTemplate runtime lookup ───────────────────────────────────────
-    // If templateId was supplied in the request body, use that record.
-    // Otherwise fall back to the most-recently-updated INVOICE_SEND template so
-    // outbox events always carry a rendered body when a template exists in DB.
     let templateBody: string | null = null;
     let resolvedTemplateId: string | null = null;
     try {
-      const { prisma } = await import('@/lib');
       const msgTemplate = input.templateId
         ? await prisma.messageTemplate.findUnique({ where: { id: input.templateId } })
         : await prisma.messageTemplate.findFirst({
@@ -61,23 +83,28 @@ export const POST = asyncHandler(
 
     const baseUrl = process.env.APP_BASE_URL || '';
     const link = `${baseUrl}/api/invoices/${encodeURIComponent(id)}/pdf`;
-    const processor = getOutboxProcessor();
-    await processor.writeOne(
-      'Invoice',
-      id,
-      'InvoiceSendRequested',
-      {
-        invoiceId: id,
-        pdfUrl: link,
-        roomId: invoice.room?.id,
-        roomNumber: invoice.room?.roomNumber,
-        totalAmount: invoice.totalAmount,
-        dueDate: invoice.dueDate?.toISOString?.() ?? null,
-        // Template fields: outbox processor uses these to compose the LINE message.
-        templateId: resolvedTemplateId,
-        templateBody: templateBody,
-      } as unknown as Json
-    );
+
+    if (lineConfigured && lineUserId) {
+      const processor = getOutboxProcessor();
+      await processor.writeOne(
+        'Invoice',
+        id,
+        'InvoiceSendRequested',
+        {
+          invoiceId: id,
+          deliveryId,
+          lineUserId,
+          pdfUrl: link,
+          roomId: invoice.room?.id,
+          roomNumber: invoice.room?.roomNumber,
+          totalAmount: invoice.totalAmount,
+          dueDate: invoice.dueDate?.toISOString?.() ?? null,
+          templateId: resolvedTemplateId,
+          templateBody,
+          lineConfigured,
+        } as unknown as Json,
+      );
+    }
 
     await logAudit({
       actorId: 'system',
@@ -85,19 +112,37 @@ export const POST = asyncHandler(
       action: 'INVOICE_SEND_REQUESTED',
       entityType: 'INVOICE',
       entityId: id,
-      metadata: { pdfUrl: link, templateId: resolvedTemplateId },
+      metadata: {
+        pdfUrl: link,
+        templateId: resolvedTemplateId,
+        lineConfigured,
+        deliveryStatus: initialStatus,
+        lineUserId,
+      },
     });
 
     logger.info({
       type: 'invoice_sent_api',
       invoiceId: id,
       templateId: resolvedTemplateId,
+      lineConfigured,
+      lineUserId,
+      deliveryStatus: initialStatus,
     });
 
     return NextResponse.json({
       success: true,
       data: invoice,
-      message: 'Invoice marked as sent',
+      message: lineConfigured && lineUserId
+        ? 'Invoice queued for LINE delivery'
+        : 'Invoice marked as sent, but LINE delivery could not be queued automatically',
+      meta: {
+        lineConfigured,
+        deliveryStatus: initialStatus,
+        templateId: resolvedTemplateId,
+        deliveryId,
+        lineUserId,
+      },
     } as ApiResponse<typeof invoice>);
-  }
+  },
 );

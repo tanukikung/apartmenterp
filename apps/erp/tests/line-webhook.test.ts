@@ -1,24 +1,37 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { prisma } from '@/lib';
 
+vi.mock('@/lib/line/client', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    verifyLineSignature: vi.fn(() => true),
+    getLineUserProfile: vi.fn().mockResolvedValue({
+      userId: 'U123',
+      displayName: 'Test User',
+      pictureUrl: null,
+      statusMessage: null,
+    }),
+  };
+});
+
 vi.mock('@/lib', async () => {
   const actual = await vi.importActual<any>('@/lib');
   return {
     ...actual,
-    verifyLineSignature: vi.fn(() => true),
-    parseWebhookEvent: vi.fn((raw: any) => raw),
     prisma: {
       lineUser: {
         findUnique: vi.fn(),
         create: vi.fn().mockResolvedValue({ id: 'lu-1', lineUserId: 'U123', displayName: 'Unknown' }),
+        update: vi.fn().mockResolvedValue({ id: 'lu-1', lineUserId: 'U123', displayName: 'Test User' }),
       },
       conversation: {
         findUnique: vi.fn(),
         create: vi.fn().mockResolvedValue({ id: 'c-1', lineUserId: 'U123' }),
-        update: vi.fn(),
+        update: vi.fn().mockResolvedValue({ id: 'c-1', lineUserId: 'U123' }),
       },
       message: {
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'm-1' }),
       },
     },
   };
@@ -37,10 +50,14 @@ describe('LINE Webhook', () => {
     const body = JSON.stringify({
       events: [
         {
-          userId: 'U123',
-          messageText: 'Hello',
+          type: 'message',
+          source: { userId: 'U123' },
           timestamp: Date.now(),
-          messageId: 'M1',
+          message: {
+            id: 'M1',
+            type: 'text',
+            text: 'Hello',
+          },
         },
       ],
     });

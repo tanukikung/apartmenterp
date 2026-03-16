@@ -199,9 +199,20 @@ export class InvoiceService {
     const invoice = await prisma.invoice.findUnique({
       where: { id },
       include: {
-        room: true,
+        room: {
+          include: {
+            roomTenants: {
+              where: { role: 'PRIMARY', moveOutDate: null },
+              include: { tenant: true },
+              take: 1,
+            },
+          },
+        },
         versions: {
           orderBy: { version: 'desc' },
+        },
+        deliveries: {
+          orderBy: { createdAt: 'desc' },
         },
       },
     });
@@ -295,8 +306,17 @@ export class InvoiceService {
     const invoice = await prisma.invoice.findFirst({
       where: { roomId, year, month },
       include: {
-        room: true,
+        room: {
+          include: {
+            roomTenants: {
+              where: { role: 'PRIMARY', moveOutDate: null },
+              include: { tenant: true },
+              take: 1,
+            },
+          },
+        },
         versions: { orderBy: { version: 'desc' } },
+        deliveries: { orderBy: { createdAt: 'desc' } },
       },
     });
 
@@ -323,11 +343,12 @@ export class InvoiceService {
    * List invoices
    */
   async listInvoices(query: ListInvoicesQuery): Promise<InvoicesListResponse> {
-    const { roomId, year, month, status, page, pageSize, sortBy, sortOrder } = query;
+    const { roomId, billingCycleId, year, month, status, page, pageSize, sortBy, sortOrder } = query;
 
     const where: Record<string, unknown> = {};
 
     if (roomId) where.roomId = roomId;
+    if (billingCycleId) where.billingRecord = { is: { billingCycleId } };
     if (year) where.year = year;
     if (month) where.month = month;
     if (status) where.status = status;
@@ -337,8 +358,17 @@ export class InvoiceService {
     const invoices = await prisma.invoice.findMany({
       where,
       include: {
-        room: true,
+        room: {
+          include: {
+            roomTenants: {
+              where: { role: 'PRIMARY', moveOutDate: null },
+              include: { tenant: true },
+              take: 1,
+            },
+          },
+        },
         versions: { orderBy: { version: 'desc' }, take: 1 },
+        deliveries: { orderBy: { createdAt: 'desc' } },
       },
       orderBy: { [sortBy]: sortOrder },
       skip: (page - 1) * pageSize,
@@ -413,9 +443,18 @@ export class InvoiceService {
           sentAt: new Date(),
           sentBy,
         },
-        include: {
-          room: true,
+      include: {
+          room: {
+            include: {
+              roomTenants: {
+                where: { role: 'PRIMARY', moveOutDate: null },
+                include: { tenant: true },
+                take: 1,
+              },
+            },
+          },
           versions: { orderBy: { version: 'desc' }, take: 1 },
+          deliveries: { orderBy: { createdAt: 'desc' } },
         },
       });
       await tx.outboxEvent.create({
@@ -495,8 +534,17 @@ export class InvoiceService {
         viewedAt: new Date(),
       },
       include: {
-        room: true,
+        room: {
+          include: {
+            roomTenants: {
+              where: { role: 'PRIMARY', moveOutDate: null },
+              include: { tenant: true },
+              take: 1,
+            },
+          },
+        },
         versions: { orderBy: { version: 'desc' }, take: 1 },
+        deliveries: { orderBy: { createdAt: 'desc' } },
       },
     });
 
@@ -560,8 +608,17 @@ export class InvoiceService {
         paidAt,
       },
       include: {
-        room: true,
+        room: {
+          include: {
+            roomTenants: {
+              where: { role: 'PRIMARY', moveOutDate: null },
+              include: { tenant: true },
+              take: 1,
+            },
+          },
+        },
         versions: { orderBy: { version: 'desc' }, take: 1 },
+        deliveries: { orderBy: { createdAt: 'desc' } },
       },
     });
 
@@ -664,7 +721,20 @@ export class InvoiceService {
       paidAt?: Date | null;
       createdAt: Date;
       updatedAt: Date;
-      room?: { id: string; roomNumber: string; floorId: string };
+      room?: {
+        id: string;
+        roomNumber: string;
+        floorId: string;
+        roomTenants?: Array<{
+          tenant?: {
+            id?: string | null;
+            firstName?: string | null;
+            lastName?: string | null;
+            phone?: string | null;
+            lineUserId?: string | null;
+          } | null;
+        }>;
+      };
       versions?: Array<{
         id: string;
         invoiceId: string;
@@ -674,11 +744,28 @@ export class InvoiceService {
         changeNote: string | null;
         createdAt: Date;
       }>;
+      deliveries?: Array<{
+        id: string;
+        channel: string;
+        status: string;
+        recipientRef: string | null;
+        sentAt: Date | null;
+        viewedAt: Date | null;
+        errorMessage: string | null;
+        createdAt: Date;
+      }>;
     },
     items: InvoiceItemSnapshot[]
   ): InvoiceResponse {
+    const primaryTenant = invoice.room?.roomTenants?.[0]?.tenant;
+    const tenantName = primaryTenant
+      ? `${primaryTenant.firstName ?? ''} ${primaryTenant.lastName ?? ''}`.trim() || null
+      : null;
+    const invoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.room?.roomNumber ?? invoice.roomId.slice(0, 6)}-V${invoice.version}`;
+
     return {
       id: invoice.id,
+      invoiceNumber,
       roomId: invoice.roomId,
       billingRecordId: invoice.billingRecordId,
       year: invoice.year,
@@ -702,6 +789,25 @@ export class InvoiceService {
             floorId: invoice.room.floorId,
           }
         : undefined,
+      tenant: primaryTenant?.id
+        ? {
+            id: primaryTenant.id,
+            fullName: tenantName ?? 'Unknown tenant',
+            phone: primaryTenant.phone ?? '-',
+          }
+        : null,
+      tenantName,
+      lineUserId: primaryTenant?.lineUserId ?? null,
+      deliveries: (invoice.deliveries ?? []).map((delivery) => ({
+        id: delivery.id,
+        channel: delivery.channel,
+        status: delivery.status,
+        recipientRef: delivery.recipientRef,
+        sentAt: delivery.sentAt,
+        viewedAt: delivery.viewedAt,
+        errorMessage: delivery.errorMessage,
+        createdAt: delivery.createdAt,
+      })),
       items,
       versions: (invoice.versions ?? []).map((v) => ({
         id: v.id,

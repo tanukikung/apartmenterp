@@ -54,6 +54,12 @@ export class PaymentMatchingService {
         const matchResult = await this.attemptMatch(transaction.id);
         if (matchResult) {
           matched++;
+        } else {
+          // No match found — move to NEED_REVIEW so admins can manually assign
+          await prisma.paymentTransaction.update({
+            where: { id: transaction.id },
+            data: { status: 'NEED_REVIEW' },
+          });
         }
       } catch (error) {
         logger.error({
@@ -95,8 +101,8 @@ export class PaymentMatchingService {
       where: {
         status: { in: ['GENERATED', 'SENT', 'VIEWED'] },
         dueDate: {
-          gte: new Date(transaction.transactionDate.getTime() - 30 * 24 * 60 * 60 * 1000), // 30 days before
-          lte: new Date(transaction.transactionDate.getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days after
+          gte: new Date(transaction.transactionDate.getTime() - 30 * 24 * 60 * 60 * 1000), // 30 days before tx
+          lte: new Date(transaction.transactionDate.getTime() + 45 * 24 * 60 * 60 * 1000), // 45 days after tx (early-pay window)
         },
       },
       include: {

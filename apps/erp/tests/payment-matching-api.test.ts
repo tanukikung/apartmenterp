@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { signSessionToken } from '@/lib/auth/session';
 
 const confirmMock = vi.fn();
 const rejectMock = vi.fn();
@@ -38,6 +39,7 @@ describe('Payment Matching API', () => {
       formData: async () => ({
         get: (k: string) => (k === 'file' ? (fakeFile as unknown as File) : null),
       }),
+      cookies: makeCookieStore('ADMIN'),
     };
     const res: Response = await (mod as any).POST(req);
     expect(res.ok).toBe(true);
@@ -52,11 +54,11 @@ describe('Payment Matching API', () => {
     const body = { transactionId: '11111111-1111-1111-1111-111111111111', invoiceId: '22222222-2222-2222-2222-222222222222' };
     const req: any = { 
       json: async () => body,
-      cookies: { get: (k: string) => ({ name: k, value: 'ADMIN' }) },
+      cookies: makeCookieStore('ADMIN'),
     };
     const res: Response = await (mod as any).POST(req);
     expect(res.ok).toBe(true);
-    expect(confirmMock).toHaveBeenCalledWith(body.transactionId, body.invoiceId, 'system');
+    expect(confirmMock).toHaveBeenCalledWith(body.transactionId, body.invoiceId, 'test-admin');
   });
 
   it('rejects a match', async () => {
@@ -64,10 +66,33 @@ describe('Payment Matching API', () => {
     const body = { transactionId: '11111111-1111-1111-1111-111111111111', rejectReason: 'Mismatch' };
     const req: any = { 
       json: async () => body,
-      cookies: { get: (k: string) => ({ name: k, value: 'STAFF' }) },
+      cookies: makeCookieStore('STAFF'),
     };
     const res: Response = await (mod as any).POST(req);
     expect(res.ok).toBe(true);
-    expect(rejectMock).toHaveBeenCalledWith(body.transactionId, 'system', 'Mismatch');
+    expect(rejectMock).toHaveBeenCalledWith(body.transactionId, 'test-staff', 'Mismatch');
   });
 });
+
+function makeCookieStore(role: 'ADMIN' | 'STAFF') {
+  const token = signSessionToken({
+    sub: `test-${role.toLowerCase()}`,
+    username: `${role.toLowerCase()}-user`,
+    displayName: `${role} User`,
+    role,
+    forcePasswordChange: false,
+    exp: Math.floor(Date.now() / 1000) + 60 * 60,
+  });
+
+  const cookies: Record<string, string> = {
+    auth_session: token,
+    role,
+  };
+
+  return {
+    get: (key: string) => {
+      const value = cookies[key];
+      return value ? { name: key, value } : undefined;
+    },
+  };
+}

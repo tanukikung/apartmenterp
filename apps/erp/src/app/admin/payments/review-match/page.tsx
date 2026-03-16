@@ -9,7 +9,6 @@ import {
   Calendar,
   Check,
   CheckCircle2,
-  CreditCard,
   FileText,
   Hash,
   Loader2,
@@ -25,10 +24,10 @@ import {
 
 type Payment = {
   id: string;
-  referenceNumber: string | null;
+  reference: string | null;
   amount: number;
-  paymentDate: string;
-  bankAccount: string | null;
+  transactionDate: string;
+  description: string | null;
   status: string;
 };
 
@@ -242,9 +241,9 @@ function PaymentsPanel({
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
-      p.referenceNumber?.toLowerCase().includes(q) ||
+      p.reference?.toLowerCase().includes(q) ||
       String(p.amount).includes(q) ||
-      p.bankAccount?.toLowerCase().includes(q)
+      p.description?.toLowerCase().includes(q)
     );
   });
 
@@ -287,7 +286,7 @@ function PaymentsPanel({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-slate-800 truncate">
-                            {payment.referenceNumber ?? 'No ref'}
+                            {payment.reference ?? 'No ref'}
                           </span>
                           <span className="shrink-0 inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
                             UNMATCHED
@@ -297,12 +296,11 @@ function PaymentsPanel({
                         <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {fmtDate(payment.paymentDate)}
+                            {fmtDate(payment.transactionDate)}
                           </span>
-                          {payment.bankAccount ? (
-                            <span className="flex items-center gap-1">
-                              <CreditCard className="h-3 w-3" />
-                              {payment.bankAccount}
+                          {payment.description ? (
+                            <span className="flex items-center gap-1 truncate max-w-[200px]">
+                              {payment.description}
                             </span>
                           ) : null}
                         </div>
@@ -784,20 +782,19 @@ function SelectedPaymentCard({ payment }: { payment: Payment }) {
         {money(payment.amount)}
       </div>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
-        {payment.referenceNumber ? (
+        {payment.reference ? (
           <span className="flex items-center gap-1">
             <Hash className="h-3 w-3" />
-            {payment.referenceNumber}
+            {payment.reference}
           </span>
         ) : null}
         <span className="flex items-center gap-1">
           <Calendar className="h-3 w-3" />
-          {fmtDate(payment.paymentDate)}
+          {fmtDate(payment.transactionDate)}
         </span>
-        {payment.bankAccount ? (
+        {payment.description ? (
           <span className="flex items-center gap-1">
-            <CreditCard className="h-3 w-3" />
-            {payment.bankAccount}
+            {payment.description}
           </span>
         ) : null}
       </div>
@@ -862,10 +859,10 @@ export default function PaymentReviewMatchPage() {
     setPaymentsLoading(true);
     setPaymentsError(null);
     try {
-      const res = await fetch('/api/payments?status=PENDING&pageSize=50');
+      const res = await fetch('/api/payments/review?limit=50&offset=0');
       const json = await res.json();
-      // Support both paginated { data: { data: [...] } } and flat { data: [...] } shapes
-      const rows: Payment[] = Array.isArray(json.data) ? json.data : (json.data?.data ?? json.payments ?? []);
+      // Review endpoint returns { data: { transactions: [...], total: N } }
+      const rows: Payment[] = json.data?.transactions ?? [];
       setPayments(rows);
     } catch (err) {
       setPaymentsError(err instanceof Error ? err.message : 'Failed to load payments');
@@ -944,12 +941,12 @@ export default function PaymentReviewMatchPage() {
   async function handleConfirm(): Promise<MatchResult | null> {
     if (!selectedPayment || !selectedInvoice) return null;
     try {
-      const res = await fetch(`/api/payments/${selectedPayment.id}/match`, {
+      const res = await fetch('/api/payments/match/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          transactionId: selectedPayment.id,
           invoiceId: selectedInvoice.id,
-          confirmedBy: 'admin',
         }),
       });
       if (!res.ok) {

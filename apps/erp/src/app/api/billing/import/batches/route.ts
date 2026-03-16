@@ -1,0 +1,30 @@
+import { NextRequest, NextResponse } from 'next/server';
+import type { BillingImportBatchStatus } from '@prisma/client';
+import { requireAuthSession } from '@/lib/auth/guards';
+import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
+import { listBillingImportBatches } from '@/modules/billing/import-batch.service';
+
+export const dynamic = 'force-dynamic';
+
+const VALID_STATUSES: BillingImportBatchStatus[] = ['UPLOADED', 'VALIDATED', 'IMPORTED', 'FAILED'];
+
+export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireAuthSession(req);
+
+  const { searchParams } = req.nextUrl;
+  const statusParam = searchParams.get('status');
+  const status =
+    statusParam && VALID_STATUSES.includes(statusParam as BillingImportBatchStatus)
+      ? (statusParam as BillingImportBatchStatus)
+      : undefined;
+
+  const page = Number(searchParams.get('page') ?? '1');
+  const pageSize = Number(searchParams.get('pageSize') ?? '25');
+
+  const result = await listBillingImportBatches({ status, page, pageSize });
+
+  return NextResponse.json({
+    success: true,
+    data: result,
+  } as ApiResponse<typeof result>);
+});

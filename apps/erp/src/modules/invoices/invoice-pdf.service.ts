@@ -1,11 +1,24 @@
-import { PDFDocument, rgb, StandardFonts, type PDFPage, type PDFFont } from 'pdf-lib';
-import * as fs from 'fs/promises';
+/**
+ * invoice-pdf.service.ts — Legacy InvoicePDFService with QR, cache, storage.
+ *
+ * IMPORTANT: This service previously used StandardFonts.Helvetica (WinAnsi,
+ * U+0000–U+00FF only) which crashes on Thai text.  It has been migrated to
+ * use Sarabun TTF via @pdf-lib/fontkit — the same font as the active pdf.ts
+ * path — so that all code paths are Thai-safe.
+ *
+ * Font paths are imported from pdf-config.ts (single source of truth).
+ */
+import { PDFDocument, rgb, type PDFPage, type PDFFont } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
+import { readFileSync } from 'fs';
+import * as fsPromises from 'fs/promises';
 import * as path from 'path';
 import { prisma } from '@/lib';
 import { logger } from '@/lib/utils/logger';
 import { NotFoundError } from '@/lib/utils/errors';
 import * as QRCode from 'qrcode';
 import { config } from '@/config';
+import { PDF_CONFIG } from './pdf-config';
 
 interface InvoicePDFData {
   apartmentName: string;
@@ -36,10 +49,10 @@ export class InvoicePDFService {
     this.ensureDirectories();
   }
 
-  private async ensureDirectories() {
+  private async ensureDirectories(): Promise<void> {
     try {
-      await fs.mkdir(this.storagePath, { recursive: true });
-      await fs.mkdir(this.cachePath, { recursive: true });
+      await fsPromises.mkdir(this.storagePath, { recursive: true });
+      await fsPromises.mkdir(this.cachePath, { recursive: true });
     } catch (error) {
       logger.error({
         type: 'invoice_storage_mkdir_failed',
@@ -55,10 +68,7 @@ export class InvoicePDFService {
     // Check cache first
     const cachedPDF = await this.getCachedPDF(invoiceId);
     if (cachedPDF) {
-      logger.info({
-        type: 'invoice_pdf_cached_hit',
-        invoiceId,
-      });
+      logger.info({ type: 'invoice_pdf_cached_hit', invoiceId });
       return cachedPDF;
     }
 
@@ -75,23 +85,16 @@ export class InvoicePDFService {
           },
         },
         billingRecord: {
-          include: {
-            items: true,
-          },
+          include: { items: true },
         },
       },
     });
 
-    if (!invoice) {
-      throw new NotFoundError('Invoice', invoiceId);
-    }
+    if (!invoice) throw new NotFoundError('Invoice', invoiceId);
 
     const primaryTenant = invoice.room.roomTenants[0]?.tenant;
-    if (!primaryTenant) {
-      throw new Error('No active tenant found for room');
-    }
+    if (!primaryTenant) throw new Error('No active tenant found for room');
 
-    // Prepare PDF data
     const computedInvoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.room.roomNumber}-V${invoice.version}`;
     const pdfData: InvoicePDFData = {
       apartmentName: config.app.name,
@@ -115,19 +118,11 @@ export class InvoicePDFService {
       }),
     };
 
-    // Generate PDF
     const pdfBuffer = await this.createPDF(pdfData, options);
-
-    // Cache the PDF
     await this.cachePDF(invoiceId, pdfBuffer);
-    // Persist a copy under storage for long-term retrieval
     await this.saveToStorage(invoiceId, pdfBuffer);
 
-    logger.info({
-      type: 'invoice_pdf_generated',
-      invoiceId,
-      size: pdfBuffer.length,
-    });
+    logger.info({ type: 'invoice_pdf_generated', invoiceId, size: pdfBuffer.length });
     return pdfBuffer;
   }
 
@@ -136,53 +131,42 @@ export class InvoicePDFService {
     options: PDFGenerationOptions
   ): Promise<Buffer> {
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
+
+    // ── Register fontkit + embed Sarabun (Thai-safe Unicode TTF) ─────────────
+    pdfDoc.registerFontkit(fontkit);
+    const regularBytes = readFileSync(PDF_CONFIG.fontPaths.regular());
+    const boldBytes    = readFileSync(PDF_CONFIG.fontPaths.bold());
+    const font     = await pdfDoc.embedFont(regularBytes);
+    const boldFont = await pdfDoc.embedFont(boldBytes);
+
+    const page = pdfDoc.addPage([PDF_CONFIG.page.width, PDF_CONFIG.page.height]); // A4
     const { height } = page.getSize();
 
-    // Load fonts
-    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const helveticaBoldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-    // Colors
-    const black = rgb(0, 0, 0);
-    const gray = rgb(0.5, 0.5, 0.5);
+    const black     = rgb(0, 0, 0);
+    const gray      = rgb(0.5, 0.5, 0.5);
     const lightGray = rgb(0.95, 0.95, 0.95);
-    // const blue = rgb(0.2, 0.4, 0.8);
 
     let yPosition = height - 50;
 
-    // Header
-    this.drawHeader(page, data, helveticaBoldFont, black, yPosition);
+    this.drawHeader(page, data, boldFont, black, yPosition);
     yPosition -= 100;
 
-    // Invoice info
-    this.drawInvoiceInfo(page, data, helveticaFont, helveticaBoldFont, gray, black, yPosition);
+    this.drawInvoiceInfo(page, data, font, boldFont, gray, black, yPosition);
     yPosition -= 80;
 
-    // Billing items table
     yPosition = this.drawBillingItems(
-      page,
-      data.billingItems,
-      helveticaFont,
-      helveticaBoldFont,
-      gray,
-      black,
-      lightGray,
-      yPosition
+      page, data.billingItems, font, boldFont, gray, black, lightGray, yPosition
     );
 
-    // Total
     yPosition -= 30;
-    this.drawTotal(page, data.totalAmount, helveticaBoldFont, black, yPosition);
+    this.drawTotal(page, data.totalAmount, boldFont, black, yPosition);
 
-    // QR Code
     if (options.includeQRCode !== false) {
       yPosition -= 100;
-      await this.drawQRCode(pdfDoc, page, data.qrCodeData, yPosition);
+      await this.drawQRCode(pdfDoc, page, data.qrCodeData, yPosition, font);
     }
 
-    // Footer
-    this.drawFooter(page, helveticaFont, gray, 50);
+    this.drawFooter(page, font, gray, 50);
 
     const pdfBytes = await pdfDoc.save();
     return Buffer.from(pdfBytes);
@@ -196,32 +180,10 @@ export class InvoicePDFService {
     y: number
   ): void {
     const { width } = page.getSize();
-    
-    // Company name
-    page.drawText(data.apartmentName, {
-      x: 50,
-      y,
-      size: 24,
-      font: boldFont,
-      color,
-    });
-
-    // Invoice title
-    page.drawText('INVOICE', {
-      x: width - 150,
-      y,
-      size: 24,
-      font: boldFont,
-      color,
-    });
-
-    // Invoice number
+    page.drawText(data.apartmentName, { x: 50, y, size: 24, font: boldFont, color });
+    page.drawText('INVOICE', { x: width - 150, y, size: 24, font: boldFont, color });
     page.drawText(`Invoice #: ${data.invoiceNumber}`, {
-      x: width - 150,
-      y: y - 30,
-      size: 12,
-      font: boldFont,
-      color,
+      x: width - 150, y: y - 30, size: 12, font: boldFont, color,
     });
   }
 
@@ -235,66 +197,15 @@ export class InvoicePDFService {
     y: number
   ): void {
     const { width } = page.getSize();
+    page.drawText('Bill To:', { x: 50, y, size: 12, font: boldFont, color: gray });
+    page.drawText(data.tenantName, { x: 50, y: y - 20, size: 14, font: boldFont, color: black });
+    page.drawText(`Room ${data.roomNumber}`, { x: 50, y: y - 40, size: 12, font, color: black });
 
-    // Left column - Bill To
-    page.drawText('Bill To:', {
-      x: 50,
-      y,
-      size: 12,
-      font: boldFont,
-      color: gray,
-    });
-
-    page.drawText(data.tenantName, {
-      x: 50,
-      y: y - 20,
-      size: 14,
-      font: boldFont,
-      color: black,
-    });
-
-    page.drawText(`Room ${data.roomNumber}`, {
-      x: 50,
-      y: y - 40,
-      size: 12,
-      font,
-      color: black,
-    });
-
-    // Right column - Invoice Details
     const rightX = width - 150;
-    
-    page.drawText('Invoice Date:', {
-      x: rightX,
-      y,
-      size: 12,
-      font: boldFont,
-      color: gray,
-    });
-    
-    page.drawText(new Date().toLocaleDateString(), {
-      x: rightX,
-      y: y - 20,
-      size: 12,
-      font,
-      color: black,
-    });
-
-    page.drawText('Due Date:', {
-      x: rightX,
-      y: y - 40,
-      size: 12,
-      font: boldFont,
-      color: gray,
-    });
-    
-    page.drawText(data.dueDate.toLocaleDateString(), {
-      x: rightX,
-      y: y - 60,
-      size: 12,
-      font,
-      color: black,
-    });
+    page.drawText('Invoice Date:', { x: rightX, y, size: 12, font: boldFont, color: gray });
+    page.drawText(new Date().toLocaleDateString(), { x: rightX, y: y - 20, size: 12, font, color: black });
+    page.drawText('Due Date:', { x: rightX, y: y - 40, size: 12, font: boldFont, color: gray });
+    page.drawText(data.dueDate.toLocaleDateString(), { x: rightX, y: y - 60, size: 12, font, color: black });
   }
 
   private drawBillingItems(
@@ -308,70 +219,27 @@ export class InvoicePDFService {
     startY: number
   ): number {
     const { width } = page.getSize();
-    const headers = ['Description', 'Quantity', 'Unit Price', 'Total'];
-    // const columnWidths = [250, 80, 100, 100];
-    const columnX = [50, 300, 380, 480];
-
+    const headers  = ['Description', 'Quantity', 'Unit Price', 'Total'];
+    const columnX  = [50, 300, 380, 480];
     let y = startY;
 
-    // Table header
-    page.drawRectangle({
-      x: 50,
-      y: y + 10,
-      width: width - 100,
-      height: 30,
-      color: lightGray,
-    });
-
+    // Table header background
+    page.drawRectangle({ x: 50, y: y + 10, width: width - 100, height: 30, color: lightGray });
     headers.forEach((header, i) => {
-      page.drawText(header, {
-        x: columnX[i],
-        y: y,
-        size: 12,
-        font: boldFont,
-        color: black,
-      });
+      page.drawText(header, { x: columnX[i], y, size: 12, font: boldFont, color: black });
     });
-
     y -= 20;
 
-    // Table rows
     items.forEach((item) => {
       y -= 20;
-      
-      page.drawText(item.description, {
-        x: columnX[0],
-        y,
-        size: 11,
-        font,
-        color: black,
-      });
-      
-      page.drawText(item.quantity.toString(), {
-        x: columnX[1],
-        y,
-        size: 11,
-        font,
-        color: black,
-      });
-      
-      page.drawText(`฿${item.amount.toFixed(2)}`, {
-        x: columnX[2],
-        y,
-        size: 11,
-        font,
-        color: black,
-      });
-      
-      page.drawText(`฿${item.total.toFixed(2)}`, {
-        x: columnX[3],
-        y,
-        size: 11,
-        font,
-        color: black,
-      });
+      page.drawText(item.description, { x: columnX[0], y, size: 11, font, color: black });
+      page.drawText(item.quantity.toString(), { x: columnX[1], y, size: 11, font, color: black });
+      page.drawText(`฿${item.amount.toFixed(2)}`, { x: columnX[2], y, size: 11, font, color: black });
+      page.drawText(`฿${item.total.toFixed(2)}`, { x: columnX[3], y, size: 11, font, color: black });
     });
 
+    // suppress unused variable warning
+    void gray;
     return y - 20;
   }
 
@@ -383,35 +251,24 @@ export class InvoicePDFService {
     y: number
   ): void {
     const { width } = page.getSize();
-    
-    page.drawText('Total:', {
-      x: width - 200,
-      y,
-      size: 14,
-      font: boldFont,
-      color: black,
-    });
-    
-    page.drawText(`฿${total.toFixed(2)}`, {
-      x: width - 120,
-      y,
-      size: 14,
-      font: boldFont,
-      color: black,
-    });
+    page.drawText('Total:', { x: width - 200, y, size: 14, font: boldFont, color: black });
+    page.drawText(`฿${total.toFixed(2)}`, { x: width - 120, y, size: 14, font: boldFont, color: black });
   }
 
+  /**
+   * Draw QR code image and "Scan to pay" label using the provided Sarabun font.
+   * The `font` parameter must originate from the same PDFDocument instance
+   * (registered via fontkit + embedFont) so Thai-safe rendering is guaranteed.
+   */
   private async drawQRCode(
     pdfDoc: PDFDocument,
     page: PDFPage,
     qrData: string,
-    y: number
+    y: number,
+    font: PDFFont
   ): Promise<void> {
     try {
-      const qrCodeDataURL = await QRCode.toDataURL(qrData, {
-        width: 100,
-        margin: 1,
-      });
+      const qrCodeDataURL = await QRCode.toDataURL(qrData, { width: 100, margin: 1 });
       const base64 = qrCodeDataURL.split(',')[1];
       const imageBytes = Uint8Array.from(Buffer.from(base64, 'base64'));
       const qrImage = await pdfDoc.embedPng(imageBytes);
@@ -422,12 +279,12 @@ export class InvoicePDFService {
         width: qrDims.width,
         height: qrDims.height,
       });
-      const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      // Use the passed Sarabun font — no StandardFonts.Helvetica anywhere
       page.drawText('Scan to pay', {
         x: 50,
         y: y - qrDims.height - 20,
         size: 10,
-        font: helvetica,
+        font,
         color: rgb(0, 0, 0),
       });
     } catch (error) {
@@ -447,7 +304,6 @@ export class InvoicePDFService {
     const footerText = 'Thank you for your business!';
     const { width } = page.getSize();
     const textWidth = font.widthOfTextAtSize(footerText, 10);
-    
     page.drawText(footerText, {
       x: (width - textWidth) / 2,
       y,
@@ -464,8 +320,6 @@ export class InvoicePDFService {
     dueDate: Date;
     room: { roomNumber: string };
   }): string {
-    // Generate QR code data for payment
-    // This could be a payment link, bank account info, etc.
     return JSON.stringify({
       invoiceId: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
@@ -478,17 +332,14 @@ export class InvoicePDFService {
   private async getCachedPDF(invoiceId: string): Promise<Buffer | null> {
     try {
       const cacheFile = path.join(this.cachePath, `${invoiceId}.pdf`);
-      const exists = await fs.access(cacheFile).then(() => true).catch(() => false);
-      
+      const exists = await fsPromises.access(cacheFile).then(() => true).catch(() => false);
       if (exists) {
-        const stats = await fs.stat(cacheFile);
+        const stats = await fsPromises.stat(cacheFile);
         const cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours
-        
         if (Date.now() - stats.mtime.getTime() < cacheExpiry) {
-          return await fs.readFile(cacheFile);
+          return await fsPromises.readFile(cacheFile);
         }
       }
-      
       return null;
     } catch (error) {
       logger.error({
@@ -503,9 +354,7 @@ export class InvoicePDFService {
   private async cachePDF(invoiceId: string, pdfBuffer: Buffer): Promise<void> {
     try {
       const cacheFile = path.join(this.cachePath, `${invoiceId}.pdf`);
-      await fs.writeFile(cacheFile, pdfBuffer);
-      
-      // Clean up old cache files (keep last 100)
+      await fsPromises.writeFile(cacheFile, pdfBuffer);
       await this.cleanupCache();
     } catch (error) {
       logger.error({
@@ -519,12 +368,8 @@ export class InvoicePDFService {
   private async saveToStorage(invoiceId: string, pdfBuffer: Buffer): Promise<void> {
     try {
       const filePath = path.join(this.storagePath, `${invoiceId}.pdf`);
-      await fs.writeFile(filePath, pdfBuffer);
-      logger.info({
-        type: 'invoice_pdf_stored',
-        invoiceId,
-        path: filePath,
-      });
+      await fsPromises.writeFile(filePath, pdfBuffer);
+      logger.info({ type: 'invoice_pdf_stored', invoiceId, path: filePath });
     } catch (error) {
       logger.error({
         type: 'invoice_pdf_store_failed',
@@ -536,28 +381,20 @@ export class InvoicePDFService {
 
   private async cleanupCache(): Promise<void> {
     try {
-      const files = await fs.readdir(this.cachePath);
+      const files = await fsPromises.readdir(this.cachePath);
       const fileStats = await Promise.all(
         files.map(async (file) => {
           const filePath = path.join(this.cachePath, file);
-          const stats = await fs.stat(filePath);
+          const stats = await fsPromises.stat(filePath);
           return { file, stats };
         })
       );
-      
-      // Sort by modification time (oldest first)
       fileStats.sort((a, b) => a.stats.mtime.getTime() - b.stats.mtime.getTime());
-      
-      // Remove files if more than 100
       const filesToRemove = fileStats.slice(0, -100);
       await Promise.all(
-        filesToRemove.map(({ file }) => fs.unlink(path.join(this.cachePath, file)))
+        filesToRemove.map(({ file }) => fsPromises.unlink(path.join(this.cachePath, file)))
       );
-      
-      logger.info({
-        type: 'invoice_pdf_cache_cleanup',
-        removed: filesToRemove.length,
-      });
+      logger.info({ type: 'invoice_pdf_cache_cleanup', removed: filesToRemove.length });
     } catch (error) {
       logger.error({
         type: 'invoice_pdf_cache_cleanup_failed',
@@ -570,20 +407,12 @@ export class InvoicePDFService {
     try {
       if (invoiceId) {
         const cacheFile = path.join(this.cachePath, `${invoiceId}.pdf`);
-        await fs.unlink(cacheFile).catch(() => {}); // Ignore if doesn't exist
-        logger.info({
-          type: 'invoice_pdf_cache_cleared',
-          invoiceId,
-        });
+        await fsPromises.unlink(cacheFile).catch(() => {});
+        logger.info({ type: 'invoice_pdf_cache_cleared', invoiceId });
       } else {
-        // Clear all cache
-        const files = await fs.readdir(this.cachePath);
-        await Promise.all(
-          files.map(file => fs.unlink(path.join(this.cachePath, file)))
-        );
-        logger.info({
-          type: 'invoice_pdf_cache_cleared_all',
-        });
+        const files = await fsPromises.readdir(this.cachePath);
+        await Promise.all(files.map((file) => fsPromises.unlink(path.join(this.cachePath, file))));
+        logger.info({ type: 'invoice_pdf_cache_cleared_all' });
       }
     } catch (error) {
       logger.error({

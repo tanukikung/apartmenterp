@@ -4,51 +4,71 @@ type Fn = ReturnType<typeof vi.fn>;
 
 function model() {
   return {
-    findUnique: vi.fn(),
-    findFirst: vi.fn(),
-    findMany: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-    deleteMany: vi.fn(),
-    count: vi.fn(),
-    aggregate: vi.fn(),
-    groupBy: vi.fn(),
+    findUnique:  vi.fn(),
+    findFirst:   vi.fn(),
+    findMany:    vi.fn(),
+    create:      vi.fn(),
+    update:      vi.fn(),
+    delete:      vi.fn(),
+    deleteMany:  vi.fn(),
+    count:       vi.fn(),
+    aggregate:   vi.fn(),
+    groupBy:     vi.fn(),
+    upsert:      vi.fn(),
   };
 }
 
 export function mockPrismaClient() {
   const prisma = {
-    invoice: model(),
-    invoiceVersion: model(),
-    billingRecord: model(),
-    billingItem: model(),
-    payment: model(),
-    paymentTransaction: model(),
-    outboxEvent: model(),
-    room: model(),
-    floor: model(),
-    tenant: model(),
-    conversation: model(),
-    message: model(),
-    lineUser: model(),
-    uploadedFile: model(),
+    // Core billing / invoices
+    invoice:             model(),
+    invoiceVersion:      model(),
+    invoiceDelivery:     model(),   // ← Phase 3: delivery lifecycle tracking
+    billingRecord:       model(),
+    billingItem:         model(),
+    payment:             model(),
+    paymentTransaction:  model(),
+    outboxEvent:         model(),
+
+    // Property
+    room:                model(),
+    floor:               model(),
+    tenant:              model(),
+
+    // Templates
+    documentTemplate:    model(),   // ← Phase 5: template CRUD + audit
+    messageTemplate:     model(),
+
+    // Comms
+    conversation:        model(),
+    message:             model(),
+    lineUser:            model(),
+
+    // Misc
+    uploadedFile:        model(),
+    auditLog:            model(),
+
+    // Prisma transaction helper
     $transaction: vi.fn(async (fn: (tx: any) => any) => {
-      const tx = {
-        invoice: prisma.invoice,
-        invoiceVersion: prisma.invoiceVersion,
-        billingRecord: prisma.billingRecord,
-        billingItem: prisma.billingItem,
-        payment: prisma.payment,
+      const tx: Record<string, ReturnType<typeof model>> = {
+        invoice:            prisma.invoice,
+        invoiceVersion:     prisma.invoiceVersion,
+        invoiceDelivery:    prisma.invoiceDelivery,
+        billingRecord:      prisma.billingRecord,
+        billingItem:        prisma.billingItem,
+        payment:            prisma.payment,
         paymentTransaction: prisma.paymentTransaction,
-        outboxEvent: prisma.outboxEvent,
-        room: prisma.room,
-        floor: prisma.floor,
-        tenant: prisma.tenant,
-        conversation: prisma.conversation,
-        message: prisma.message,
-        lineUser: prisma.lineUser,
-        uploadedFile: prisma.uploadedFile,
+        outboxEvent:        prisma.outboxEvent,
+        room:               prisma.room,
+        floor:              prisma.floor,
+        tenant:             prisma.tenant,
+        documentTemplate:   prisma.documentTemplate,
+        messageTemplate:    prisma.messageTemplate,
+        conversation:       prisma.conversation,
+        message:            prisma.message,
+        lineUser:           prisma.lineUser,
+        uploadedFile:       prisma.uploadedFile,
+        auditLog:           prisma.auditLog,
       };
       return fn(tx);
     }),

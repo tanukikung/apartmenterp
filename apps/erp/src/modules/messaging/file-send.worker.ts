@@ -18,12 +18,11 @@ async function handleFileSend(payload: LineSendFileRequested): Promise<void> {
     if (contentType.startsWith('image/')) {
       await sendLineImageMessage(lineUserId, fileUrl);
     } else if (contentType === 'application/pdf') {
-      const text = `📄 ${name || 'Document'}\n${fileUrl}`;
-      await sendLineMessage(lineUserId, text);
+      await sendLineMessage(lineUserId, `Document: ${name || 'PDF'}\n${fileUrl}`);
     } else {
-      const text = `📎 ${name || 'File'}\n${fileUrl}`;
-      await sendLineMessage(lineUserId, text);
+      await sendLineMessage(lineUserId, `File: ${name || 'Attachment'}\n${fileUrl}`);
     }
+
     await prisma.message.update({
       where: { id: messageId },
       data: {
@@ -32,12 +31,8 @@ async function handleFileSend(payload: LineSendFileRequested): Promise<void> {
         } as unknown as Prisma.InputJsonValue,
       },
     });
-    logger.info({
-      type: 'line_file_sent',
-      conversationId,
-      messageId,
-      contentType,
-    });
+
+    logger.info({ type: 'line_file_sent', conversationId, messageId, contentType });
   } catch (err) {
     await prisma.message.update({
       where: { id: messageId },
@@ -62,82 +57,129 @@ export function registerFileSendWorker(options?: { allowInTest?: boolean }): voi
   if (process.env.NODE_ENV === 'test' && !options?.allowInTest) return;
   if (registered) return;
   registered = true;
+
   const bus = getEventBus();
+
   bus.subscribe('LineSendFileRequested', async (evt: unknown) => {
-    const e = evt as { payload?: unknown };
-    const p = (e && (e as { payload?: unknown }).payload) as LineSendFileRequested | undefined;
-    if (!p) return;
-    await handleFileSend(p);
+    const payload = (evt as { payload?: LineSendFileRequested })?.payload;
+    if (!payload) return;
+    await handleFileSend(payload);
   });
-  
+
   bus.subscribe('InvoiceSendRequested', async (evt: unknown) => {
-    const e = evt as { payload?: unknown };
-    const p = (e && (e as { payload?: unknown }).payload) as {
-      invoiceId: string;
-      pdfUrl: string;
-      roomId?: string | null;
-      roomNumber?: string | null;
-      totalAmount?: number | null;
-      dueDate?: string | null;
-    } | undefined;
-    if (!p) return;
+    const payload = (evt as {
+      payload?: {
+        invoiceId: string;
+        deliveryId?: string | null;
+        lineUserId?: string | null;
+        pdfUrl: string;
+        roomId?: string | null;
+        roomNumber?: string | null;
+        totalAmount?: number | null;
+        dueDate?: string | null;
+      };
+    })?.payload;
+    if (!payload) return;
+
     try {
-      let conversation = null as Awaited<ReturnType<typeof prisma.conversation.findFirst>> | null;
-      if (p.roomId) {
-        conversation = await prisma.conversation.findFirst({ where: { roomId: p.roomId } });
+      let targetLineUserId = payload.lineUserId || null;
+      let conversationId: string | null = null;
+
+      if (!targetLineUserId && payload.roomId) {
+        const conversation = await prisma.conversation.findFirst({ where: { roomId: payload.roomId } });
+        targetLineUserId = conversation?.lineUserId || null;
+        conversationId = conversation?.id || null;
       }
-      if (!conversation) {
-        conversation = await prisma.conversation.findFirst({ orderBy: { lastMessageAt: 'desc' } });
+
+      if (!targetLineUserId) {
+        throw new Error('No LINE recipient resolved for invoice delivery');
       }
-      if (!conversation) return;
-      const lines: string[] = ['🧾 Invoice available'];
-      if (p.roomNumber) lines.push(`Room ${p.roomNumber}`);
-      if (p.totalAmount != null) lines.push(`Amount ${p.totalAmount}`);
-      if (p.dueDate) lines.push(`Due ${new Date(p.dueDate).toLocaleDateString()}`);
-      lines.push(p.pdfUrl);
-      await sendLineMessage(conversation.lineUserId, lines.join(' • '));
-      logger.info({ type: 'invoice_link_sent', invoiceId: p.invoiceId, conversationId: conversation.id });
+
+      const parts: string[] = ['Invoice available'];
+      if (payload.roomNumber) parts.push(`Room ${payload.roomNumber}`);
+      if (payload.totalAmount != null) parts.push(`Amount ${payload.totalAmount}`);
+      if (payload.dueDate) parts.push(`Due ${new Date(payload.dueDate).toLocaleDateString()}`);
+      parts.push(payload.pdfUrl);
+
+      await sendLineMessage(targetLineUserId, parts.join(' | '));
+
+      if (payload.deliveryId) {
+        await prisma.invoiceDelivery.update({
+          where: { id: payload.deliveryId },
+          data: {
+            status: 'SENT',
+            sentAt: new Date(),
+            recipientRef: targetLineUserId,
+            errorMessage: null,
+          },
+        });
+      }
+
+      logger.info({
+        type: 'invoice_link_sent',
+        invoiceId: payload.invoiceId,
+        conversationId,
+        lineUserId: targetLineUserId,
+      });
     } catch (err) {
-      logger.error({ type: 'invoice_link_failed', invoiceId: p?.invoiceId, error: err instanceof Error ? err.message : String(err) });
+      if (payload.deliveryId) {
+        await prisma.invoiceDelivery.update({
+          where: { id: payload.deliveryId },
+          data: {
+            status: 'FAILED',
+            errorMessage: err instanceof Error ? err.message : String(err),
+          },
+        }).catch(() => undefined);
+      }
+
+      logger.error({
+        type: 'invoice_link_failed',
+        invoiceId: payload.invoiceId,
+        error: err instanceof Error ? err.message : String(err),
+      });
       throw err;
     }
   });
-  
+
   bus.subscribe('ReceiptSendRequested', async (evt: unknown) => {
-    const e = evt as { payload?: unknown };
-    const p = (e && (e as { payload?: unknown }).payload) as {
-      conversationId: string;
-      downloadLink?: string;
-      roomNumber?: string;
-      amount?: number;
-      paidDate?: string;
-    } | undefined;
-    if (!p) return;
+    const payload = (evt as {
+      payload?: {
+        conversationId: string;
+        downloadLink?: string;
+        roomNumber?: string;
+        amount?: number;
+        paidDate?: string;
+      };
+    })?.payload;
+    if (!payload) return;
+
     try {
-      const conversation = await prisma.conversation.findUnique({ where: { id: p.conversationId } });
+      const conversation = await prisma.conversation.findUnique({ where: { id: payload.conversationId } });
       if (!conversation) return;
+
       const parts: string[] = ['Receipt available'];
-      if (p.roomNumber) parts.push(`Room ${p.roomNumber}`);
-      if (typeof p.amount === 'number') parts.push(`Amount ${p.amount}`);
-      if (p.paidDate) parts.push(`Paid ${p.paidDate}`);
-      if (p.downloadLink) parts.push(p.downloadLink);
-      await sendLineMessage(conversation.lineUserId, parts.join(' • '));
-      logger.info({ type: 'receipt_message_sent', conversationId: p.conversationId });
+      if (payload.roomNumber) parts.push(`Room ${payload.roomNumber}`);
+      if (typeof payload.amount === 'number') parts.push(`Amount ${payload.amount}`);
+      if (payload.paidDate) parts.push(`Paid ${payload.paidDate}`);
+      if (payload.downloadLink) parts.push(payload.downloadLink);
+
+      await sendLineMessage(conversation.lineUserId, parts.join(' | '));
+      logger.info({ type: 'receipt_message_sent', conversationId: payload.conversationId });
     } catch (err) {
       logger.error({ type: 'receipt_message_failed', error: err instanceof Error ? err.message : String(err) });
       throw err;
     }
   });
-  
+
   bus.subscribe('ManualReminderSendRequested', async (evt: unknown) => {
-    const e = evt as { payload?: unknown };
-    const p = (e && (e as { payload?: unknown }).payload) as { conversationId: string; text: string } | undefined;
-    if (!p) return;
+    const payload = (evt as { payload?: { conversationId: string; text: string } })?.payload;
+    if (!payload) return;
+
     try {
-      const conversation = await prisma.conversation.findUnique({ where: { id: p.conversationId } });
+      const conversation = await prisma.conversation.findUnique({ where: { id: payload.conversationId } });
       if (!conversation) return;
-      await sendLineMessage(conversation.lineUserId, p.text);
-      logger.info({ type: 'manual_reminder_sent', conversationId: p.conversationId });
+      await sendLineMessage(conversation.lineUserId, payload.text);
+      logger.info({ type: 'manual_reminder_sent', conversationId: payload.conversationId });
     } catch (err) {
       logger.error({ type: 'manual_reminder_failed', error: err instanceof Error ? err.message : String(err) });
       throw err;

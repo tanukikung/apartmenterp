@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
 import { requireAuthSession, requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { logAudit } from '@/modules/audit';
 import { DocumentTemplateType } from '@prisma/client';
 import { z } from 'zod';
 
@@ -13,11 +14,14 @@ const VALID_TYPES: DocumentTemplateType[] = [
   'OTHER',
 ];
 
+/** Max characters for the template body — prevents runaway PDF generation. */
+const BODY_MAX_CHARS = 100_000;
+
 const createSchema = z.object({
-  name: z.string().min(1).max(255),
-  type: z.enum(['INVOICE', 'CONTRACT', 'RECEIPT', 'NOTICE', 'OTHER']).default('INVOICE'),
+  name:    z.string().min(1).max(255),
+  type:    z.enum(['INVOICE', 'CONTRACT', 'RECEIPT', 'NOTICE', 'OTHER']).default('INVOICE'),
   subject: z.string().max(500).optional(),
-  body: z.string().min(1),
+  body:    z.string().min(1).max(BODY_MAX_CHARS),
 });
 
 // ── GET /api/document-templates ───────────────────────────────────────────────
@@ -67,10 +71,24 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
   const template = await prisma.documentTemplate.create({
     data: {
-      name: parsed.data.name,
-      type: parsed.data.type,
+      name:    parsed.data.name,
+      type:    parsed.data.type,
       subject: parsed.data.subject,
-      body: parsed.data.body,
+      body:    parsed.data.body,
+    },
+  });
+
+  // Audit: template created
+  await logAudit({
+    actorId:    'system',
+    actorRole:  'ADMIN',
+    action:     'DOCUMENT_TEMPLATE_CREATED',
+    entityType: 'DOCUMENT_TEMPLATE',
+    entityId:   template.id,
+    metadata: {
+      name: template.name,
+      type: template.type,
+      bodyLength: template.body.length,
     },
   });
 

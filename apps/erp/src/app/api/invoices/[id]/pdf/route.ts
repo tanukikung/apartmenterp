@@ -4,6 +4,7 @@ import { generateInvoicePdf } from '@/modules/invoices/pdf';
 import { asyncHandler } from '@/lib/utils/errors';
 import { prisma } from '@/lib/db/client';
 import { logger } from '@/lib/utils/logger';
+import { documentTemplateHtmlToText } from '@/lib/templates/document-template';
 
 // ── GET /api/invoices/[id]/pdf ─────────────────────────────────────────────
 // Generates a PDF for the invoice.  Looks up the most-recently-updated INVOICE
@@ -32,7 +33,7 @@ export const GET = asyncHandler(
     }
 
     const pdfBytes = await generateInvoicePdf(preview, {
-      notes: template?.body ?? undefined,
+      notes: template?.body ? documentTemplateHtmlToText(template.body) : undefined,
       templateId: template?.id ?? undefined,
     });
 

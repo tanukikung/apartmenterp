@@ -213,6 +213,8 @@ export default function AdminBillingPage() {
         const raw = json.data ?? json;
         const list: BillingCycle[] = Array.isArray(raw)
           ? raw
+          : Array.isArray(raw?.data)
+          ? raw.data
           : Array.isArray(raw?.cycles)
           ? raw.cycles
           : Array.isArray(raw?.items)
@@ -246,12 +248,22 @@ export default function AdminBillingPage() {
     setGenerating((prev) => ({ ...prev, [cycleId]: 'loading' }));
     setGenerateErrors((prev) => ({ ...prev, [cycleId]: '' }));
     try {
-      const res = await fetch(`/api/billing-cycles/${cycleId}/generate-invoices`, {
+      // cycleId is actually a billing record ID.
+      // Step 1: Lock the record (idempotent — ok if already LOCKED)
+      const lockRes = await fetch(`/api/billing/${cycleId}/lock`, { method: 'POST' });
+      const lockJson = await lockRes.json().catch(() => ({}));
+      if (!lockRes.ok && lockJson.error?.code !== 'CONFLICT') {
+        throw new Error(lockJson.error?.message ?? 'Failed to lock billing record');
+      }
+      // Step 2: Generate the invoice
+      const res = await fetch('/api/invoices/generate?confirm=true', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ billingRecordId: cycleId }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.success === false) {
-        throw new Error(json.error?.message ?? json.message ?? 'Failed to generate invoices');
+        throw new Error(json.error?.message ?? json.message ?? 'Failed to generate invoice');
       }
       setGenerating((prev) => ({ ...prev, [cycleId]: 'done' }));
       // Reload to pick up new invoice counts

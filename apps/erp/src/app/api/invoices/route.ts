@@ -15,6 +15,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   
   const query = {
     roomId: url.searchParams.get('roomId') || undefined,
+    billingCycleId: url.searchParams.get('billingCycleId') || undefined,
     year: url.searchParams.get('year') || undefined,
     month: url.searchParams.get('month') || undefined,
     status: url.searchParams.get('status') || undefined,

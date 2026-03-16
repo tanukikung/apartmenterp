@@ -1,11 +1,11 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import os from 'node:os';
 import { logger } from '@/lib/utils/logger';
+import { resolveBackupDir } from '../src/lib/runtime-paths';
 
 export function backupDir(): string {
-  return process.env.BACKUP_DIR || path.join(os.tmpdir(), 'apartment-erp-backups');
+  return resolveBackupDir();
 }
 
 export function buildPgDumpArgs(databaseUrl: string): string[] {

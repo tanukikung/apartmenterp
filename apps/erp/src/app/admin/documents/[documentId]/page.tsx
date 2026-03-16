@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Building2, Calendar, DollarSign, Download, FileText, User } from 'lucide-react';
+import { ArrowLeft, Building2, Calendar, DollarSign, Download, FileText, Send, User } from 'lucide-react';
 
 type InvoiceItem = {
   id: string;
   description: string;
-  amount: number;
+  unitPrice: number;
+  total: number;
   quantity: number;
 };
 
@@ -29,13 +30,25 @@ type Invoice = {
     fullName: string;
     phone: string;
   } | null;
+  tenantName?: string | null;
+  lineUserId?: string | null;
+  deliveries?: Array<{
+    id: string;
+    channel: string;
+    status: string;
+    recipientRef: string | null;
+    sentAt: string | null;
+    viewedAt: string | null;
+    errorMessage: string | null;
+    createdAt: string;
+  }>;
   items?: InvoiceItem[];
 };
 
 function statusBadgeClass(status: string): string {
   if (status === 'PAID') return 'admin-badge admin-status-good';
-  if (status === 'OVERDUE') return 'admin-badge admin-status-error';
-  if (status === 'UNPAID') return 'admin-badge admin-status-warn';
+  if (status === 'OVERDUE') return 'admin-badge admin-status-bad';
+  if (status === 'SENT' || status === 'VIEWED') return 'admin-badge admin-status-warn';
   return 'admin-badge';
 }
 
@@ -44,7 +57,8 @@ export default function DocumentDetailPage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pdfMsg, setPdfMsg] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -64,8 +78,28 @@ export default function DocumentDetailPage() {
   }, [documentId]);
 
   function handleDownloadPdf() {
-    setPdfMsg('PDF generation is not available in this environment.');
-    setTimeout(() => setPdfMsg(null), 4000);
+    window.open(`/api/invoices/${documentId}/pdf`, '_blank');
+  }
+
+  async function handleSendLine() {
+    setSending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/invoices/${documentId}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sendToLine: true }),
+      }).then((r) => r.json());
+      if (!res.success) throw new Error((res.error?.message as string | undefined) || 'Unable to send document');
+      setMessage('Document queued for LINE delivery');
+      const refreshed = await fetch(`/api/invoices/${documentId}`, { cache: 'no-store' }).then((r) => r.json());
+      if (refreshed.success) setInvoice(refreshed.data as Invoice);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to send document');
+    } finally {
+      setSending(false);
+    }
   }
 
   if (loading) {
@@ -76,7 +110,7 @@ export default function DocumentDetailPage() {
     );
   }
 
-  if (error || !invoice) {
+  if (!invoice) {
     return (
       <main className="admin-page">
         <div className="auth-alert auth-alert-error">{error ?? 'Document not found'}</div>
@@ -92,10 +126,11 @@ export default function DocumentDetailPage() {
     currency: 'THB',
     maximumFractionDigits: 0,
   }).format(invoice.totalAmount);
+  const lineDeliveries = invoice.deliveries?.filter((delivery) => delivery.channel === 'LINE') ?? [];
+  const latestLineDelivery = lineDeliveries[0] ?? null;
 
   return (
     <main className="admin-page">
-      {/* Header */}
       <section className="admin-page-header">
         <div className="flex items-center gap-3">
           <Link
@@ -111,6 +146,15 @@ export default function DocumentDetailPage() {
           </div>
         </div>
         <div className="admin-toolbar">
+          <button
+            className="admin-button flex items-center gap-2"
+            onClick={() => void handleSendLine()}
+            disabled={sending || !invoice.lineUserId || invoice.status === 'PAID'}
+            title={!invoice.lineUserId ? 'Tenant has no LINE account linked' : undefined}
+          >
+            <Send className="h-4 w-4" />
+            {sending ? 'Sending...' : latestLineDelivery?.status === 'FAILED' ? 'Retry LINE' : invoice.lineUserId ? 'Send via LINE' : 'No LINE Linked'}
+          </button>
           <button className="admin-button flex items-center gap-2" onClick={handleDownloadPdf}>
             <Download className="h-4 w-4" />
             Download PDF
@@ -118,12 +162,11 @@ export default function DocumentDetailPage() {
         </div>
       </section>
 
-      {pdfMsg ? <div className="auth-alert auth-alert-error">{pdfMsg}</div> : null}
+      {message ? <div className="auth-alert auth-alert-success">{message}</div> : null}
+      {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        {/* Main details */}
         <div className="space-y-6">
-          {/* Invoice summary card */}
           <section className="admin-card">
             <div className="admin-card-header">
               <div className="admin-card-title flex items-center gap-2">
@@ -168,7 +211,6 @@ export default function DocumentDetailPage() {
             </div>
           </section>
 
-          {/* Line items */}
           <section className="admin-card overflow-hidden">
             <div className="admin-card-header">
               <div className="admin-card-title">Line Items</div>
@@ -193,7 +235,7 @@ export default function DocumentDetailPage() {
                             style: 'currency',
                             currency: 'THB',
                             maximumFractionDigits: 0,
-                          }).format(item.amount)}
+                          }).format(item.total ?? item.unitPrice)}
                         </td>
                       </tr>
                     ))}
@@ -212,9 +254,7 @@ export default function DocumentDetailPage() {
           </section>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-4">
-          {/* Room */}
           <section className="admin-card">
             <div className="admin-card-header">
               <div className="admin-card-title flex items-center gap-1.5">
@@ -228,10 +268,7 @@ export default function DocumentDetailPage() {
                   {invoice.room.floor && (
                     <div className="text-sm text-slate-500">Floor {invoice.room.floor.floorNumber}</div>
                   )}
-                  <Link
-                    href={`/admin/rooms/${invoice.room.id}`}
-                    className="admin-button block w-full text-center text-xs"
-                  >
+                  <Link href={`/admin/rooms/${invoice.room.id}`} className="admin-button block w-full text-center text-xs">
                     View Room →
                   </Link>
                 </div>
@@ -241,7 +278,6 @@ export default function DocumentDetailPage() {
             </div>
           </section>
 
-          {/* Tenant */}
           <section className="admin-card">
             <div className="admin-card-header">
               <div className="admin-card-title flex items-center gap-1.5">
@@ -253,20 +289,67 @@ export default function DocumentDetailPage() {
                 <div className="space-y-2">
                   <div className="font-semibold text-slate-900">{invoice.tenant.fullName}</div>
                   <div className="text-sm text-slate-500">{invoice.tenant.phone}</div>
-                  <Link
-                    href={`/admin/tenants/${invoice.tenant.id}`}
-                    className="admin-button block w-full text-center text-xs"
-                  >
+                  <div className="text-xs text-slate-400">LINE: {invoice.lineUserId ? 'Linked' : 'Not linked'}</div>
+                  <Link href={`/admin/tenants/${invoice.tenant.id}`} className="admin-button block w-full text-center text-xs">
                     View Tenant →
                   </Link>
                 </div>
               ) : (
-                <div className="text-sm text-slate-400">No tenant linked</div>
+                <div className="text-sm text-slate-400">{invoice.tenantName ?? 'No tenant linked'}</div>
               )}
             </div>
           </section>
 
-          {/* Amount */}
+          <section className="admin-card">
+            <div className="admin-card-header">
+              <div className="admin-card-title flex items-center gap-1.5">
+                <FileText className="h-4 w-4 text-slate-400" /> LINE Delivery
+              </div>
+            </div>
+            <div className="space-y-3 p-4">
+              <div className="text-sm text-slate-500">
+                Recipient readiness: <span className="font-medium text-slate-800">{invoice.lineUserId ? 'Linked' : 'Missing LINE link'}</span>
+              </div>
+              {lineDeliveries.length === 0 ? (
+                <div className="text-sm text-slate-400">No LINE delivery attempts recorded yet.</div>
+              ) : (
+                <div className="space-y-2">
+                  {lineDeliveries.map((delivery) => (
+                    <div key={delivery.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <span
+                          className={`admin-badge ${
+                            delivery.status === 'SENT' || delivery.status === 'VIEWED'
+                              ? 'admin-status-good'
+                              : delivery.status === 'FAILED'
+                              ? 'admin-status-bad'
+                              : 'admin-status-warn'
+                          }`}
+                        >
+                          {delivery.status}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          {new Date(delivery.createdAt).toLocaleString('th-TH')}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-xs text-slate-500">Recipient: {delivery.recipientRef ?? '—'}</div>
+                      {delivery.sentAt ? (
+                        <div className="mt-1 text-xs text-slate-500">
+                          Sent: {new Date(delivery.sentAt).toLocaleString('th-TH')}
+                        </div>
+                      ) : null}
+                      {delivery.errorMessage ? (
+                        <div className="mt-2 rounded-xl bg-red-50 px-2.5 py-2 text-xs text-red-600">
+                          {delivery.errorMessage}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
           <section className="admin-card">
             <div className="admin-card-header">
               <div className="admin-card-title flex items-center gap-1.5">

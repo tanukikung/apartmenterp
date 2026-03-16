@@ -32,6 +32,17 @@ type Invoice = {
   } | null;
   tenantName?: string;
   roomNumber?: string;
+  lineUserId?: string | null;
+  deliveries?: Array<{
+    id: string;
+    channel: string;
+    status: string;
+    recipientRef: string | null;
+    sentAt: string | null;
+    viewedAt: string | null;
+    errorMessage: string | null;
+    createdAt: string;
+  }>;
 };
 
 type TabType = 'all' | 'invoices' | 'receipts' | 'contracts';
@@ -57,6 +68,10 @@ function roomNum(inv: Invoice): string {
 
 function docNumber(inv: Invoice): string {
   return inv.invoiceNumber ?? `INV-${inv.year}-${String(inv.month).padStart(2, '0')}-${inv.id.slice(0, 6).toUpperCase()}`;
+}
+
+function latestLineDelivery(inv: Invoice) {
+  return inv.deliveries?.find((delivery) => delivery.channel === 'LINE') ?? null;
 }
 
 /** Classify document type based on invoice status. */
@@ -167,6 +182,7 @@ export default function AdminDocumentsPage() {
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'Failed to send document');
       setMessage('Document sent via LINE');
+      await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send document');
     } finally {
@@ -234,27 +250,28 @@ export default function AdminDocumentsPage() {
         <div className="overflow-auto">
           <table className="admin-table">
             <thead>
-              <tr>
-                <th>Type</th>
-                <th>Document #</th>
-                <th>Room</th>
-                <th>Tenant</th>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
+                <tr>
+                  <th>Type</th>
+                  <th>Document #</th>
+                  <th>Room</th>
+                  <th>Tenant</th>
+                  <th>LINE</th>
+                  <th>Date</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
+                  <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
                     Loading documents...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
+                  <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
                     No documents found.
                   </td>
                 </tr>
@@ -262,6 +279,7 @@ export default function AdminDocumentsPage() {
                 filtered.map((inv) => {
                   const type = docType(inv);
                   const dateStr = inv.paidAt ?? inv.sentAt ?? inv.dueDate;
+                  const delivery = latestLineDelivery(inv);
                   return (
                     <tr key={inv.id}>
                       {/* Type icon */}
@@ -292,6 +310,41 @@ export default function AdminDocumentsPage() {
                       {/* Tenant */}
                       <td>{tenantName(inv)}</td>
 
+                      {/* LINE */}
+                      <td>
+                        <div className="space-y-1">
+                          <div>
+                            {inv.lineUserId ? (
+                              <span className="admin-badge admin-status-good">Linked</span>
+                            ) : (
+                              <span className="admin-badge">Not linked</span>
+                            )}
+                          </div>
+                          {delivery ? (
+                            <div className="text-xs text-slate-500">
+                              <span
+                                className={`inline-flex rounded-full px-2 py-0.5 ${
+                                  delivery.status === 'SENT' || delivery.status === 'VIEWED'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : delivery.status === 'FAILED'
+                                    ? 'bg-red-100 text-red-600'
+                                    : 'bg-amber-100 text-amber-700'
+                                }`}
+                              >
+                                {delivery.status}
+                              </span>
+                              {delivery.errorMessage ? (
+                                <div className="mt-1 max-w-[180px] truncate text-red-500" title={delivery.errorMessage}>
+                                  {delivery.errorMessage}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-400">No delivery yet</div>
+                          )}
+                        </div>
+                      </td>
+
                       {/* Date */}
                       <td>
                         <span className="text-sm text-slate-600">
@@ -320,6 +373,13 @@ export default function AdminDocumentsPage() {
                       <td>
                         <div className="flex items-center gap-2">
                           <a
+                            href={`/admin/documents/${inv.id}`}
+                            className="admin-button flex items-center gap-1.5 text-xs"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            Detail
+                          </a>
+                          <a
                             href={`/api/invoices/${inv.id}/pdf`}
                             target="_blank"
                             rel="noreferrer"
@@ -331,11 +391,18 @@ export default function AdminDocumentsPage() {
                           {inv.status !== 'PAID' && (
                             <button
                               onClick={() => void sendDocument(inv.id)}
-                              disabled={working === `send:${inv.id}`}
+                              disabled={working === `send:${inv.id}` || !inv.lineUserId}
                               className="admin-button flex items-center gap-1.5 text-xs"
+                              title={!inv.lineUserId ? 'Tenant has no LINE account linked' : undefined}
                             >
                               <Send className="h-3.5 w-3.5" />
-                              {working === `send:${inv.id}` ? 'Sending...' : 'Send'}
+                              {working === `send:${inv.id}`
+                                ? 'Sending...'
+                                : !inv.lineUserId
+                                ? 'No LINE'
+                                : delivery?.status === 'FAILED'
+                                ? 'Retry'
+                                : 'Send'}
                             </button>
                           )}
                         </div>

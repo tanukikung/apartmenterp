@@ -47,6 +47,7 @@ export type PayInvoiceInput = z.infer<typeof payInvoiceSchema>;
 
 export const listInvoicesQuerySchema = z.object({
   roomId: z.string().uuid().optional(),
+  billingCycleId: z.string().optional(),
   year: z.coerce.number().int().min(2000).max(2100).optional(),
   month: z.coerce.number().int().min(1).max(12).optional(),
   status: invoiceStatusSchema.optional(),
@@ -64,6 +65,7 @@ export type ListInvoicesQuery = z.infer<typeof listInvoicesQuerySchema>;
 
 export interface InvoiceResponse {
   id: string;
+  invoiceNumber: string;
   roomId: string;
   billingRecordId: string;
   year: number;
@@ -85,8 +87,27 @@ export interface InvoiceResponse {
     roomNumber: string;
     floorId: string;
   };
+  tenant?: {
+    id: string;
+    fullName: string;
+    phone: string;
+  } | null;
+  tenantName?: string | null;
+  lineUserId?: string | null;
+  deliveries?: InvoiceDeliveryResponse[];
   items?: InvoiceItemSnapshot[];
   versions?: InvoiceVersionResponse[];
+}
+
+export interface InvoiceDeliveryResponse {
+  id: string;
+  channel: string;
+  status: string;
+  recipientRef: string | null;
+  sentAt: Date | null;
+  viewedAt: Date | null;
+  errorMessage: string | null;
+  createdAt: Date;
 }
 
 export interface InvoiceItemSnapshot {

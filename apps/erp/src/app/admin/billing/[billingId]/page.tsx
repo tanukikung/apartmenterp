@@ -27,7 +27,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-type CycleStatus = 'DRAFT' | 'ACTIVE' | 'CLOSED' | 'CANCELLED';
+type CycleStatus = 'OPEN' | 'IMPORTED' | 'LOCKED' | 'INVOICED' | 'CLOSED';
 
 type BillingCycle = {
   id: string;
@@ -62,7 +62,7 @@ type BillingRecord = {
   _expanded?: boolean;
 };
 
-type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+type InvoiceStatus = 'DRAFT' | 'GENERATED' | 'SENT' | 'VIEWED' | 'PAID' | 'OVERDUE' | 'CANCELLED';
 
 type Invoice = {
   id: string;
@@ -78,23 +78,22 @@ type Invoice = {
 
 type ImportBatch = {
   id: string;
-  filename?: string;
-  originalFilename?: string;
+  sourceFilename?: string;
   importedAt?: string;
   createdAt?: string;
   totalRows?: number;
   validRows?: number;
   invalidRows?: number;
+  warningRows?: number;
   rows?: ImportRow[];
 };
 
 type ImportRow = {
   id: string;
-  rowNumber?: number;
+  rowNo?: number;
   roomNumber?: string;
-  status?: string;
-  errorMessage?: string | null;
-  data?: Record<string, unknown>;
+  validationStatus?: string;
+  validationErrors?: Array<{ message?: string }>;
 };
 
 type ActiveTab = 'records' | 'invoices' | 'batch';
@@ -143,10 +142,11 @@ function fmtDateTime(iso: string | null | undefined): string {
 
 function cycleBadgeClass(status: CycleStatus): string {
   switch (status) {
-    case 'ACTIVE': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-    case 'DRAFT': return 'bg-amber-100 text-amber-700 border-amber-200';
     case 'CLOSED': return 'bg-slate-100 text-slate-600 border-slate-200';
-    case 'CANCELLED': return 'bg-red-100 text-red-700 border-red-200';
+    case 'IMPORTED': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    case 'LOCKED': return 'bg-blue-100 text-blue-700 border-blue-200';
+    case 'INVOICED': return 'bg-violet-100 text-violet-700 border-violet-200';
+    case 'OPEN': return 'bg-amber-100 text-amber-700 border-amber-200';
     default: return 'bg-slate-100 text-slate-600 border-slate-200';
   }
 }
@@ -251,6 +251,7 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
     setError(null);
     const urls = [
       `/api/billing-records?billingCycleId=${cycleId}&pageSize=100`,
+      `/api/billing?billingCycleId=${cycleId}&pageSize=100`,
       `/api/billing/${cycleId}/records`,
     ];
     (async () => {
@@ -258,7 +259,8 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
         try {
           const res = await fetch(url, { cache: 'no-store' }).then((r) => r.json());
           if (res.success) {
-            const list: BillingRecord[] = res.data?.data ?? res.data ?? [];
+            const raw = res.data?.data ?? res.data ?? [];
+            const list: BillingRecord[] = Array.isArray(raw) ? raw : [];
             setRecords(list);
             setLoading(false);
             return;
@@ -267,6 +269,15 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
           // try next url
         }
       }
+      // Last resort: the cycleId may itself be a single billing record ID
+      try {
+        const res = await fetch(`/api/billing/${cycleId}`, { cache: 'no-store' }).then((r) => r.json());
+        if (res.success && res.data) {
+          setRecords([res.data as BillingRecord]);
+          setLoading(false);
+          return;
+        }
+      } catch { /* ignore */ }
       setError('Unable to load billing records.');
       setLoading(false);
     })();
@@ -450,7 +461,7 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
   }
 
   async function sendAllUnsent() {
-    const unsent = invoices.filter((inv) => inv.status === 'DRAFT');
+    const unsent = invoices.filter((inv) => inv.status === 'DRAFT' || inv.status === 'GENERATED');
     if (unsent.length === 0) return;
     setSendingAll(true);
     setMessage(null);
@@ -472,7 +483,7 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
     await load();
   }
 
-  const unsentCount = invoices.filter((inv) => inv.status === 'DRAFT').length;
+  const unsentCount = invoices.filter((inv) => inv.status === 'DRAFT' || inv.status === 'GENERATED').length;
 
   if (loading) {
     return <div className="py-12 text-center text-sm text-slate-500">Loading invoices...</div>;
@@ -545,7 +556,7 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
                   <td className="text-slate-500 text-sm">{fmtDateTime(inv.sentAt)}</td>
                   <td>
                     <div className="flex items-center gap-2">
-                      {(inv.status === 'DRAFT' || inv.status === 'SENT') && (
+                      {(inv.status === 'DRAFT' || inv.status === 'GENERATED' || inv.status === 'SENT') && (
                         <button
                           onClick={() => void sendInvoice(inv.id)}
                           disabled={sending === inv.id}
@@ -556,11 +567,13 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
                         </button>
                       )}
                       <Link
-                        href={`/admin/invoices/${inv.id}`}
+                        href={`/api/invoices/${inv.id}/pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
-                        View
+                        PDF
                       </Link>
                     </div>
                   </td>
@@ -586,7 +599,7 @@ function BatchTab({ batchId }: { batchId: string }) {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch(`/api/billing/batches/${batchId}`, { cache: 'no-store' })
+    fetch(`/api/billing/import/batches/${batchId}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((res) => {
         if (res.success) {
@@ -619,11 +632,11 @@ function BatchTab({ batchId }: { batchId: string }) {
   }
 
   const rows = batch.rows ?? [];
-  const filename = batch.filename ?? batch.originalFilename ?? 'Unknown file';
+  const filename = batch.sourceFilename ?? 'Unknown file';
   const importedAt = batch.importedAt ?? batch.createdAt;
   const totalRows = batch.totalRows ?? rows.length;
-  const validRows = batch.validRows ?? rows.filter((r) => !r.errorMessage).length;
-  const invalidRows = batch.invalidRows ?? rows.filter((r) => !!r.errorMessage).length;
+  const validRows = batch.validRows ?? rows.filter((r) => r.validationStatus === 'VALID').length;
+  const invalidRows = batch.invalidRows ?? rows.filter((r) => r.validationStatus === 'ERROR').length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -669,10 +682,11 @@ function BatchTab({ batchId }: { batchId: string }) {
             </thead>
             <tbody>
               {rows.map((row, idx) => {
-                const isValid = !row.errorMessage;
+                const firstError = row.validationErrors?.[0]?.message ?? null;
+                const isValid = row.validationStatus !== 'ERROR';
                 return (
                   <tr key={row.id}>
-                    <td className="tabular-nums text-slate-500">{row.rowNumber ?? idx + 1}</td>
+                    <td className="tabular-nums text-slate-500">{row.rowNo ?? idx + 1}</td>
                     <td className="font-semibold text-slate-800">{row.roomNumber ?? '-'}</td>
                     <td>
                       {isValid ? (
@@ -688,7 +702,7 @@ function BatchTab({ batchId }: { batchId: string }) {
                       )}
                     </td>
                     <td className="text-sm text-red-600">
-                      {row.errorMessage ? row.errorMessage : <span className="text-slate-300">—</span>}
+                      {firstError ? firstError : <span className="text-slate-300">—</span>}
                     </td>
                   </tr>
                 );
