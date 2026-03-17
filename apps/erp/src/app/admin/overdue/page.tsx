@@ -18,6 +18,12 @@ type OverdueInvoice = {
   dueDate: string;
   totalAmount: number;
   status: string;
+  /** Year of the billing period — present in InvoiceResponse */
+  year?: number;
+  /** Month of the billing period — present in InvoiceResponse */
+  month?: number;
+  /** BillingCycle ID — populated by listInvoices when a cycle exists */
+  billingCycleId?: string | null;
   room?: { roomNumber: string } | null;
   contract?: {
     tenant?: {
@@ -394,7 +400,11 @@ export default function AdminOverduePage() {
                               {working === `remind:${inv.id}` ? 'Sending...' : 'Send Reminder'}
                             </button>
                             <Link
-                              href={`/admin/invoices`}
+                              href={
+                                inv.billingCycleId
+                                  ? `/admin/billing/${inv.billingCycleId}?tab=invoices`
+                                  : `/admin/invoices`
+                              }
                               className="admin-button flex items-center gap-1.5 text-xs"
                             >
                               View Invoice

@@ -369,6 +369,8 @@ export class InvoiceService {
         },
         versions: { orderBy: { version: 'desc' }, take: 1 },
         deliveries: { orderBy: { createdAt: 'desc' } },
+        // Fetch billingCycleId so callers can deep-link to the billing cycle
+        billingRecord: { select: { billingCycleId: true } },
       },
       orderBy: { [sortBy]: sortOrder },
       skip: (page - 1) * pageSize,
@@ -390,7 +392,10 @@ export class InvoiceService {
             unitPrice: Number(item.unitPrice),
             total: Number(item.amount),
           }));
-          return this.formatInvoiceResponse(inv, items);
+          const formatted = this.formatInvoiceResponse(inv, items);
+          // Attach billingCycleId from the joined billingRecord (additive field)
+          formatted.billingCycleId = inv.billingRecord?.billingCycleId ?? null;
+          return formatted;
         })
       ),
       total,

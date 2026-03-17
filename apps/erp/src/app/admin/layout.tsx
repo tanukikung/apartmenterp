@@ -23,6 +23,7 @@ import {
   Server,
   Layers,
   Cpu,
+  ScrollText,
 } from 'lucide-react';
 
 type NavItem =
@@ -31,29 +32,37 @@ type NavItem =
 
 const nav: NavItem[] = [
   { type: 'link', href: '/admin/dashboard',  label: 'Dashboard',    icon: LayoutDashboard },
+
   { type: 'divider', label: 'Property' },
-  { type: 'link', href: '/admin/floors',     label: 'Floors',        icon: Building2 },
-  { type: 'link', href: '/admin/rooms',      label: 'Rooms',         icon: DoorOpen },
-  { type: 'link', href: '/admin/tenants',               label: 'Tenants',         icon: Users },
-  { type: 'link', href: '/admin/tenant-registrations',  label: 'Registrations',   icon: UserPlus },
+  { type: 'link', href: '/admin/floors',    label: 'Floors',         icon: Building2 },
+  { type: 'link', href: '/admin/rooms',     label: 'Rooms',          icon: DoorOpen },
+  { type: 'link', href: '/admin/tenants',              label: 'Tenants',       icon: Users },
+  { type: 'link', href: '/admin/tenant-registrations', label: 'Registrations', icon: UserPlus },
+
   { type: 'divider', label: 'Finance' },
-  { type: 'link', href: '/admin/billing',    label: 'Billing',       icon: Receipt },
-  { type: 'link', href: '/admin/documents',  label: 'Documents',     icon: Layers },
-  { type: 'link', href: '/admin/documents/generate', label: 'Generate Docs', icon: FileText },
-  { type: 'link', href: '/admin/payments',   label: 'Payments',      icon: CreditCard },
-  { type: 'link', href: '/admin/overdue',    label: 'Overdue',       icon: AlertTriangle },
+  { type: 'link', href: '/admin/billing',   label: 'Billing',        icon: Receipt },
+  { type: 'link', href: '/admin/invoices',  label: 'Invoices',       icon: ScrollText },
+  { type: 'link', href: '/admin/payments',  label: 'Payments',       icon: CreditCard },
+  { type: 'link', href: '/admin/overdue',   label: 'Overdue',        icon: AlertTriangle },
+
+  { type: 'divider', label: 'Documents' },
+  { type: 'link', href: '/admin/templates',          label: 'Doc Templates', icon: FilePlus },
+  { type: 'link', href: '/admin/documents',          label: 'Generated Docs', icon: Layers },
+  { type: 'link', href: '/admin/documents/generate', label: 'Generate New',   icon: FileText },
+
   { type: 'divider', label: 'Communication' },
-  { type: 'link', href: '/admin/chat',                label: 'Chat',              icon: MessageSquare },
-  { type: 'link', href: '/admin/message-templates',  label: 'Msg Templates',     icon: FileEdit },
-  { type: 'link', href: '/admin/templates',          label: 'Doc Templates',     icon: FilePlus },
+  { type: 'link', href: '/admin/chat',               label: 'Chat',           icon: MessageSquare },
+  { type: 'link', href: '/admin/message-templates',  label: 'Msg Templates',  icon: FileEdit },
+
   { type: 'divider', label: 'Intelligence' },
-  { type: 'link', href: '/admin/reports',    label: 'Reports',       icon: BarChart2 },
-  { type: 'link', href: '/admin/audit-logs', label: 'Audit Logs',    icon: ClipboardList },
+  { type: 'link', href: '/admin/reports',    label: 'Reports',        icon: BarChart2 },
+  { type: 'link', href: '/admin/audit-logs', label: 'Audit Logs',     icon: ClipboardList },
+
   { type: 'divider', label: 'System' },
-  { type: 'link', href: '/admin/settings',   label: 'Settings',      icon: Settings },
-  { type: 'link', href: '/admin/system',     label: 'System',        icon: Server },
-  { type: 'link', href: '/admin/system-health', label: 'Health',     icon: FileText },
-  { type: 'link', href: '/admin/system-jobs',   label: 'Jobs',        icon: Cpu },
+  { type: 'link', href: '/admin/settings',      label: 'Settings', icon: Settings },
+  { type: 'link', href: '/admin/system',        label: 'System',   icon: Server },
+  { type: 'link', href: '/admin/system-health', label: 'Health',   icon: FileText },
+  { type: 'link', href: '/admin/system-jobs',   label: 'Jobs',     icon: Cpu },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -721,13 +721,21 @@ function BatchTab({ batchId }: { batchId: string }) {
 
 export default function BillingCycleDetailPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const billingId = params?.billingId as string;
+
+  // Support deep-linking to a specific tab via ?tab=invoices|records|batch
+  const initialTab = ((): ActiveTab => {
+    const t = searchParams?.get('tab');
+    if (t === 'invoices' || t === 'records' || t === 'batch') return t;
+    return 'records';
+  })();
 
   const [cycle, setCycle] = useState<BillingCycle | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('records');
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
 
   const load = useCallback(async () => {
     if (!billingId) return;

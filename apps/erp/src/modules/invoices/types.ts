@@ -68,6 +68,9 @@ export interface InvoiceResponse {
   invoiceNumber: string;
   roomId: string;
   billingRecordId: string;
+  /** Populated when fetched via listInvoices; null when the billing record
+   *  has no cycle (standalone record) or when fetched by ID only. */
+  billingCycleId?: string | null;
   year: number;
   month: number;
   version: number;

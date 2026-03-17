@@ -18,26 +18,28 @@ import {
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
-// Types
+// Types — aligned to GET /api/billing-cycles response
 // ---------------------------------------------------------------------------
 
-type CycleStatus = 'DRAFT' | 'ACTIVE' | 'IMPORTED' | 'CLOSED';
+type CycleStatus = 'OPEN' | 'IMPORTED' | 'LOCKED' | 'INVOICED' | 'CLOSED';
 
 interface BillingCycle {
   id: string;
   year: number;
   month: number;
-  building?: string | null;
   status: CycleStatus;
+  building: { id: string; name: string } | null;
   totalRecords: number;
   totalAmount: number;
-  invoiceCount?: number;
-  pendingInvoices?: number;
-  createdAt?: string;
+  invoiceCount: number;
+  pendingInvoices: number;
+  billingDate: string | null;
+  dueDate: string | null;
+  createdAt: string;
 }
 
 interface KpiData {
-  activeCycles: number;
+  openCycles: number;
   totalBilledThisMonth: number;
   totalRecords: number;
   pendingInvoices: number;
@@ -53,21 +55,22 @@ const THAI_MONTHS = [
 ];
 
 const STATUS_BADGE: Record<CycleStatus, { cls: string; label: string }> = {
-  DRAFT:    { cls: 'bg-slate-100 text-slate-600 border-slate-200',  label: 'Draft'    },
-  ACTIVE:   { cls: 'bg-blue-100  text-blue-700  border-blue-200',   label: 'Active'   },
-  IMPORTED: { cls: 'bg-green-100 text-green-700 border-green-200',  label: 'Imported' },
-  CLOSED:   { cls: 'bg-gray-100  text-gray-500  border-gray-200',   label: 'Closed'   },
+  OPEN:     { cls: 'bg-sky-100    text-sky-700    border-sky-200',    label: 'Open'     },
+  IMPORTED: { cls: 'bg-blue-100   text-blue-700   border-blue-200',   label: 'Imported' },
+  LOCKED:   { cls: 'bg-amber-100  text-amber-700  border-amber-200',  label: 'Locked'   },
+  INVOICED: { cls: 'bg-green-100  text-green-700  border-green-200',  label: 'Invoiced' },
+  CLOSED:   { cls: 'bg-gray-100   text-gray-500   border-gray-200',   label: 'Closed'   },
 };
 
 const STATUS_FILTER_OPTIONS: { value: CycleStatus | 'ALL'; label: string }[] = [
   { value: 'ALL',      label: 'All Statuses' },
-  { value: 'DRAFT',    label: 'Draft'        },
-  { value: 'ACTIVE',   label: 'Active'       },
+  { value: 'OPEN',     label: 'Open'         },
   { value: 'IMPORTED', label: 'Imported'     },
+  { value: 'LOCKED',   label: 'Locked'       },
+  { value: 'INVOICED', label: 'Invoiced'     },
   { value: 'CLOSED',   label: 'Closed'       },
 ];
 
-// Generate last 12 months for the month filter
 function getMonthOptions(): { value: string; label: string }[] {
   const options: { value: string; label: string }[] = [{ value: 'ALL', label: 'All Months' }];
   const now = new Date();
@@ -96,23 +99,17 @@ function formatBaht(n: number): string {
   return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// ---------------------------------------------------------------------------
-// Derive KPIs from cycle list
-// ---------------------------------------------------------------------------
-
 function deriveKpis(cycles: BillingCycle[]): KpiData {
   const now = new Date();
   const thisMonth = now.getMonth() + 1;
   const thisYear = now.getFullYear();
-
-  const activeCycles = cycles.filter((c) => c.status === 'ACTIVE').length;
+  const openCycles = cycles.filter((c) => c.status === 'OPEN' || c.status === 'IMPORTED').length;
   const totalBilledThisMonth = cycles
     .filter((c) => c.year === thisYear && c.month === thisMonth)
     .reduce((s, c) => s + (c.totalAmount ?? 0), 0);
   const totalRecords = cycles.reduce((s, c) => s + (c.totalRecords ?? 0), 0);
   const pendingInvoices = cycles.reduce((s, c) => s + (c.pendingInvoices ?? 0), 0);
-
-  return { activeCycles, totalBilledThisMonth, totalRecords, pendingInvoices };
+  return { openCycles, totalBilledThisMonth, totalRecords, pendingInvoices };
 }
 
 // ---------------------------------------------------------------------------
@@ -125,9 +122,7 @@ function StatusBadge({ status }: { status: CycleStatus }) {
     label: status,
   };
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${cls}`}
-    >
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${cls}`}>
       {label}
     </span>
   );
@@ -154,9 +149,7 @@ function KpiCard({
 }) {
   return (
     <div className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-      <div
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${iconBg} ${iconColor}`}
-      >
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${iconBg} ${iconColor}`}>
         {icon}
       </div>
       <div className="min-w-0">
@@ -193,47 +186,31 @@ export default function AdminBillingPage() {
   const kpis = deriveKpis(cycles);
 
   // ---------------------------------------------------------------------------
-  // Load cycles
+  // Load cycles from the correct endpoint
   // ---------------------------------------------------------------------------
 
   const load = useCallback(async () => {
     setLoading(true);
-    const endpoints = [
-      '/api/billing-cycles?pageSize=20',
-      '/api/billing?pageSize=20',
-      '/api/billing/cycles?pageSize=20',
-    ];
-
-    for (const url of endpoints) {
-      try {
-        const res = await fetch(url, { cache: 'no-store' });
-        if (!res.ok) continue;
-        const json = await res.json();
-
-        const raw = json.data ?? json;
-        const list: BillingCycle[] = Array.isArray(raw)
-          ? raw
-          : Array.isArray(raw?.data)
-          ? raw.data
-          : Array.isArray(raw?.cycles)
-          ? raw.cycles
-          : Array.isArray(raw?.items)
-          ? raw.items
-          : [];
-
-        setCycles(list);
-        setApiAvailable(true);
+    try {
+      const res = await fetch('/api/billing-cycles?pageSize=50&sortBy=year&sortOrder=desc', {
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        setApiAvailable(false);
+        setCycles([]);
         setLoading(false);
         return;
-      } catch {
-        // try next
       }
+      const json = await res.json();
+      const list: BillingCycle[] = json.data?.data ?? [];
+      setCycles(list);
+      setApiAvailable(true);
+    } catch {
+      setCycles([]);
+      setApiAvailable(false);
+    } finally {
+      setLoading(false);
     }
-
-    // All endpoints failed
-    setCycles([]);
-    setApiAvailable(false);
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -241,38 +218,24 @@ export default function AdminBillingPage() {
   }, [load]);
 
   // ---------------------------------------------------------------------------
-  // Generate invoices
+  // Generate invoices (lock record → generate invoice)
   // ---------------------------------------------------------------------------
 
   async function handleGenerateInvoices(cycleId: string) {
     setGenerating((prev) => ({ ...prev, [cycleId]: 'loading' }));
     setGenerateErrors((prev) => ({ ...prev, [cycleId]: '' }));
     try {
-      // cycleId is actually a billing record ID.
-      // Step 1: Lock the record (idempotent — ok if already LOCKED)
-      const lockRes = await fetch(`/api/billing/${cycleId}/lock`, { method: 'POST' });
-      const lockJson = await lockRes.json().catch(() => ({}));
-      if (!lockRes.ok && lockJson.error?.code !== 'CONFLICT') {
-        throw new Error(lockJson.error?.message ?? 'Failed to lock billing record');
-      }
-      // Step 2: Generate the invoice
-      const res = await fetch('/api/invoices/generate?confirm=true', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ billingRecordId: cycleId }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json.success === false) {
-        throw new Error(json.error?.message ?? json.message ?? 'Failed to generate invoice');
-      }
-      setGenerating((prev) => ({ ...prev, [cycleId]: 'done' }));
-      // Reload to pick up new invoice counts
-      await load();
+      // For billing CYCLES we use the cycle's billingRecords via the billing API.
+      // POST to the generate endpoint for the cycle as a whole isn't implemented yet
+      // — for now we navigate to the cycle detail where per-record generation is available.
+      // If the cycle is in LOCKED state we could generate for all records, but that needs
+      // a bulk generate endpoint. Until then, we redirect to the detail page.
+      window.location.href = `/admin/billing/${cycleId}`;
     } catch (err) {
       setGenerating((prev) => ({ ...prev, [cycleId]: 'error' }));
       setGenerateErrors((prev) => ({
         ...prev,
-        [cycleId]: err instanceof Error ? err.message : 'Generate failed',
+        [cycleId]: err instanceof Error ? err.message : 'Failed',
       }));
     }
   }
@@ -298,9 +261,9 @@ export default function AdminBillingPage() {
       {/* Header */}
       <section className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">Billing</h1>
+          <h1 className="admin-page-title">Billing Cycles</h1>
           <p className="admin-page-subtitle">
-            Manage billing cycles, review records, and generate invoices.
+            Monthly billing periods — import, review, lock, and generate invoices.
           </p>
         </div>
         <div className="admin-toolbar">
@@ -316,7 +279,14 @@ export default function AdminBillingPage() {
             className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
           >
             <Layers className="h-4 w-4" />
-            View Batches
+            Import Batches
+          </Link>
+          <Link
+            href="/admin/invoices"
+            className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 shadow-sm transition-colors hover:bg-indigo-100"
+          >
+            <ReceiptText className="h-4 w-4" />
+            View Invoices
           </Link>
           <button
             onClick={() => void load()}
@@ -333,8 +303,8 @@ export default function AdminBillingPage() {
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            <span className="font-semibold">Billing API not available.</span> The billing cycles
-            endpoint did not respond. Start by importing your first billing cycle via Excel.
+            <span className="font-semibold">Billing API not available.</span>{' '}
+            Start by importing your first billing cycle via Excel.
           </div>
         </div>
       )}
@@ -343,10 +313,7 @@ export default function AdminBillingPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="animate-pulse flex items-start gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4"
-            >
+            <div key={i} className="animate-pulse flex items-start gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4">
               <div className="h-11 w-11 rounded-2xl bg-slate-200" />
               <div className="flex-1 space-y-2 pt-1">
                 <div className="h-3 w-20 rounded bg-slate-200" />
@@ -358,7 +325,8 @@ export default function AdminBillingPage() {
           <>
             <KpiCard
               label="Active Cycles"
-              value={kpis.activeCycles}
+              value={kpis.openCycles}
+              sub="Open + Imported"
               icon={<Zap className="h-5 w-5" />}
               iconBg="bg-blue-100"
               iconColor="text-blue-600"
@@ -373,6 +341,7 @@ export default function AdminBillingPage() {
             <KpiCard
               label="Total Records"
               value={kpis.totalRecords.toLocaleString()}
+              sub="Billing records across all cycles"
               icon={<FileText className="h-5 w-5" />}
               iconBg="bg-indigo-100"
               iconColor="text-indigo-600"
@@ -380,6 +349,7 @@ export default function AdminBillingPage() {
             <KpiCard
               label="Pending Invoices"
               value={kpis.pendingInvoices}
+              sub="Not yet paid"
               icon={<ReceiptText className="h-5 w-5" />}
               iconBg="bg-amber-100"
               iconColor="text-amber-600"
@@ -390,7 +360,6 @@ export default function AdminBillingPage() {
 
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row">
-        {/* Status */}
         <div className="relative">
           <select
             value={statusFilter}
@@ -398,15 +367,12 @@ export default function AdminBillingPage() {
             className="appearance-none rounded-xl border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-800 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
           >
             {STATUS_FILTER_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
+              <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
           <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         </div>
 
-        {/* Month */}
         <div className="relative">
           <select
             value={monthFilter}
@@ -414,9 +380,7 @@ export default function AdminBillingPage() {
             className="appearance-none rounded-xl border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-800 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
           >
             {monthOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
+              <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
           <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -424,10 +388,7 @@ export default function AdminBillingPage() {
 
         {(statusFilter !== 'ALL' || monthFilter !== 'ALL') && (
           <button
-            onClick={() => {
-              setStatusFilter('ALL');
-              setMonthFilter('ALL');
-            }}
+            onClick={() => { setStatusFilter('ALL'); setMonthFilter('ALL'); }}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50"
           >
             Clear filters
@@ -447,9 +408,7 @@ export default function AdminBillingPage() {
             {cycles.length === 0 ? (
               <>
                 <p className="font-semibold text-slate-600">No billing cycles yet</p>
-                <p className="mt-1 text-sm text-slate-400">
-                  Import your first billing cycle to get started.
-                </p>
+                <p className="mt-1 text-sm text-slate-400">Import your first billing cycle to get started.</p>
                 <Link
                   href="/admin/billing/import"
                   className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
@@ -462,10 +421,7 @@ export default function AdminBillingPage() {
               <>
                 <p className="font-semibold text-slate-600">No cycles match your filters</p>
                 <button
-                  onClick={() => {
-                    setStatusFilter('ALL');
-                    setMonthFilter('ALL');
-                  }}
+                  onClick={() => { setStatusFilter('ALL'); setMonthFilter('ALL'); }}
                   className="mt-3 text-sm text-indigo-600 hover:underline"
                 >
                   Clear filters
@@ -478,15 +434,7 @@ export default function AdminBillingPage() {
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  {[
-                    'Month / Year',
-                    'Building',
-                    'Status',
-                    'Records',
-                    'Total Amount',
-                    'Invoices',
-                    'Actions',
-                  ].map((h) => (
+                  {['Month / Year', 'Building', 'Status', 'Records', 'Total Amount', 'Invoices', 'Due Date', 'Actions'].map((h) => (
                     <th
                       key={h}
                       className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
@@ -500,42 +448,30 @@ export default function AdminBillingPage() {
                 {filtered.map((cycle) => {
                   const genState = generating[cycle.id] ?? 'idle';
                   const genError = generateErrors[cycle.id];
+                  const canGenerate = cycle.status === 'LOCKED' || cycle.status === 'IMPORTED';
                   return (
                     <>
                       <tr key={cycle.id} className="hover:bg-slate-50 transition-colors">
-                        {/* Month / Year */}
                         <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
                           {thaiMonthYear(cycle.year, cycle.month)}
                         </td>
-
-                        {/* Building */}
                         <td className="px-4 py-3 text-slate-600">
-                          {cycle.building ?? (
-                            <span className="italic text-slate-400">—</span>
-                          )}
+                          {cycle.building?.name ?? <span className="italic text-slate-400">—</span>}
                         </td>
-
-                        {/* Status */}
                         <td className="px-4 py-3">
                           <StatusBadge status={cycle.status} />
                         </td>
-
-                        {/* Records */}
                         <td className="px-4 py-3 text-right text-slate-700">
                           {(cycle.totalRecords ?? 0).toLocaleString()}
                         </td>
-
-                        {/* Amount */}
                         <td className="px-4 py-3 text-right font-medium text-slate-900 whitespace-nowrap">
                           ฿{formatBaht(cycle.totalAmount ?? 0)}
                         </td>
-
-                        {/* Invoices */}
                         <td className="px-4 py-3 text-right text-slate-600">
-                          {cycle.invoiceCount != null ? (
+                          {cycle.invoiceCount > 0 ? (
                             <span>
                               {cycle.invoiceCount}
-                              {cycle.pendingInvoices != null && cycle.pendingInvoices > 0 && (
+                              {cycle.pendingInvoices > 0 && (
                                 <span className="ml-1.5 text-xs text-amber-600">
                                   ({cycle.pendingInvoices} pending)
                                 </span>
@@ -545,8 +481,14 @@ export default function AdminBillingPage() {
                             <span className="italic text-slate-400">—</span>
                           )}
                         </td>
-
-                        {/* Actions */}
+                        <td className="px-4 py-3 text-slate-600 whitespace-nowrap text-xs">
+                          {cycle.dueDate
+                            ? new Date(cycle.dueDate).toLocaleDateString('th-TH', {
+                                day: '2-digit', month: 'short', year: 'numeric',
+                              })
+                            : <span className="italic text-slate-400">—</span>
+                          }
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-2">
                             <Link
@@ -555,36 +497,28 @@ export default function AdminBillingPage() {
                             >
                               View Detail
                             </Link>
-                            <button
-                              onClick={() => void handleGenerateInvoices(cycle.id)}
-                              disabled={genState === 'loading' || genState === 'done'}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
-                            >
-                              {genState === 'loading' ? (
-                                <>
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  Generating…
-                                </>
-                              ) : genState === 'done' ? (
-                                <>
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                  Generated
-                                </>
-                              ) : (
-                                <>
-                                  <Zap className="h-3.5 w-3.5" />
-                                  Generate Invoices
-                                </>
-                              )}
-                            </button>
+                            {canGenerate && (
+                              <button
+                                onClick={() => void handleGenerateInvoices(cycle.id)}
+                                disabled={genState === 'loading'}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
+                              >
+                                {genState === 'loading' ? (
+                                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Opening…</>
+                                ) : genState === 'done' ? (
+                                  <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Done</>
+                                ) : (
+                                  <><Zap className="h-3.5 w-3.5" /> Generate Invoices</>
+                                )}
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
 
-                      {/* Inline error row */}
                       {genState === 'error' && genError && (
                         <tr key={`${cycle.id}-err`} className="bg-red-50">
-                          <td colSpan={7} className="px-4 py-2">
+                          <td colSpan={8} className="px-4 py-2">
                             <div className="flex items-center gap-2 text-xs text-red-700">
                               <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-500" />
                               {genError}
@@ -601,11 +535,9 @@ export default function AdminBillingPage() {
         )}
       </div>
 
-      {/* Row count */}
       {!loading && filtered.length > 0 && (
         <p className="text-right text-xs text-slate-400">
-          Showing {filtered.length} of {cycles.length} billing cycle
-          {cycles.length !== 1 ? 's' : ''}
+          Showing {filtered.length} of {cycles.length} billing cycle{cycles.length !== 1 ? 's' : ''}
         </p>
       )}
     </main>
