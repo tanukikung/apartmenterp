@@ -25,6 +25,18 @@ import {
 
 // ============================================================================
 // Invoice Service
+//
+// Domain boundary (see src/lib/domain-boundaries.ts for full reference):
+//
+//   Invoice  = financial delivery/lifecycle entity tied 1:1 to a BillingRecord.
+//              Lifecycle: DRAFT → GENERATED → SENT → VIEWED → PAID | OVERDUE
+//
+//   This service manages ONLY the Invoice lifecycle and its delivery records.
+//   It does NOT manage GeneratedDocument (template rendering engine) or
+//   BillingRecord/BillingCycle (upstream billing truth).
+//
+//   Single send command: markInvoiceSent() — all UI surfaces must call this
+//   via POST /api/invoices/[id]/send; do not duplicate send logic elsewhere.
 // ============================================================================
 
 export class InvoiceService {

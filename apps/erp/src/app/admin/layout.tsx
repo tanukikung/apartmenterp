@@ -26,10 +26,33 @@ import {
   ScrollText,
 } from 'lucide-react';
 
+/**
+ * NavItem `exact` flag — when true, the item is highlighted only on an exact
+ * pathname match (or with a trailing slash).  Use this whenever a nav entry's
+ * href is a strict prefix of another entry's href in the same nav list.
+ *
+ * Current exact-match entries:
+ *   /admin/system    — would otherwise swallow /admin/system-health, /admin/system-jobs
+ *   /admin/documents — would otherwise swallow /admin/documents/generate
+ */
 type NavItem =
-  | { type: 'link'; href: string; label: string; icon: React.ElementType }
+  | { type: 'link'; href: string; label: string; icon: React.ElementType; exact?: boolean }
   | { type: 'divider'; label: string };
 
+// ---------------------------------------------------------------------------
+// Domain boundaries (read-only reference — do not add cross-domain actions)
+//
+//  BillingCycle      monthly operational container per building
+//  BillingRecord     per-room financial truth for a period
+//  Invoice           financial delivery/lifecycle entity (DRAFT→PAID)
+//  GeneratedDocument rendered template artifact (GENERATED→EXPORTED)
+//
+//  /admin/billing          cycle list — import, lock, navigate to detail
+//  /admin/billing/[id]     cycle-scoped action center (generate, bulk send)
+//  /admin/invoices         cross-cycle monitoring/search (read + convenience send)
+//  /admin/documents        GeneratedDocument viewer — NOT invoice lifecycle
+//  /admin/documents/generate  document template rendering engine
+// ---------------------------------------------------------------------------
 const nav: NavItem[] = [
   { type: 'link', href: '/admin/dashboard',  label: 'Dashboard',    icon: LayoutDashboard },
 
@@ -47,7 +70,8 @@ const nav: NavItem[] = [
 
   { type: 'divider', label: 'Documents' },
   { type: 'link', href: '/admin/templates',          label: 'Doc Templates', icon: FilePlus },
-  { type: 'link', href: '/admin/documents',          label: 'Generated Docs', icon: Layers },
+  // exact: true — prevents /admin/documents/generate from also highlighting this entry
+  { type: 'link', href: '/admin/documents',          label: 'Generated Docs', icon: Layers,   exact: true },
   { type: 'link', href: '/admin/documents/generate', label: 'Generate New',   icon: FileText },
 
   { type: 'divider', label: 'Communication' },
@@ -60,7 +84,8 @@ const nav: NavItem[] = [
 
   { type: 'divider', label: 'System' },
   { type: 'link', href: '/admin/settings',      label: 'Settings', icon: Settings },
-  { type: 'link', href: '/admin/system',        label: 'System',   icon: Server },
+  // exact: true — prevents /admin/system-health, /admin/system-jobs swallowing this entry
+  { type: 'link', href: '/admin/system',        label: 'System',   icon: Server, exact: true },
   { type: 'link', href: '/admin/system-health', label: 'Health',   icon: FileText },
   { type: 'link', href: '/admin/system-jobs',   label: 'Jobs',     icon: Cpu },
 ];
@@ -94,9 +119,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
               );
             }
-            // Exact match for short hrefs that are prefixes of others
-            const exactMatch = item.href === '/admin/system';
-            const active = exactMatch
+            // Use exact matching when the item has `exact: true` (href is a
+            // strict prefix of another nav entry and must not swallow it).
+            const active = item.exact
               ? pathname === item.href || pathname === item.href + '/'
               : pathname?.startsWith(item.href);
             return (
