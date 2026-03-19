@@ -1,7 +1,9 @@
 import { startOutboxWorker } from '@/infrastructure/outbox/outbox.processor';
 import { setWorkerHeartbeat, getRedisClient } from '@/infrastructure/redis';
+import { runStartupChecks } from '@/lib/config/startup-check';
 
 async function bootstrapWorker(): Promise<void> {
+  runStartupChecks();
   if (process.env.NODE_ENV === 'test') return;
   const { bootstrapMessagingRuntime } = await import('@/modules/messaging/bootstrap');
   await bootstrapMessagingRuntime();

@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { Download } from 'lucide-react';
+import { exportToCsv } from '@/lib/utils/export-csv';
 
 type ReviewTransaction = {
   id: string;
@@ -65,6 +67,53 @@ export default function AdminPaymentsIndexPage() {
           <p className="admin-page-subtitle">Live payment-matching queue from the backend, split by manual review and auto-matched transactions.</p>
         </div>
         <div className="admin-toolbar">
+          <button
+            onClick={() => {
+              const reviewRows = (review?.transactions ?? []).map((t) => ({
+                date: t.transactionDate,
+                room: t.invoice?.room?.roomNumber ?? '',
+                tenant:
+                  t.invoice?.room?.roomTenants
+                    ?.map((rt) => `${rt.tenant?.firstName ?? ''} ${rt.tenant?.lastName ?? ''}`.trim())
+                    .filter(Boolean)
+                    .join(', ') ?? '',
+                amount: t.amount,
+                status: t.status,
+                reference: t.reference ?? t.description ?? '',
+                bank: '',
+                queue: 'Review',
+              }));
+              const matchedRows = (matched?.transactions ?? []).map((t) => ({
+                date: t.transactionDate,
+                room: t.invoice?.room?.roomNumber ?? '',
+                tenant:
+                  t.invoice?.room?.roomTenants
+                    ?.map((rt) => `${rt.tenant?.firstName ?? ''} ${rt.tenant?.lastName ?? ''}`.trim())
+                    .filter(Boolean)
+                    .join(', ') ?? '',
+                amount: t.amount,
+                status: t.status,
+                reference: t.reference ?? t.description ?? '',
+                bank: '',
+                queue: 'Auto Matched',
+              }));
+              exportToCsv('payments-export', [...reviewRows, ...matchedRows], [
+                { key: 'date',      header: 'Date' },
+                { key: 'room',      header: 'Room No' },
+                { key: 'tenant',    header: 'Tenant' },
+                { key: 'amount',    header: 'Amount' },
+                { key: 'status',    header: 'Status' },
+                { key: 'reference', header: 'Reference' },
+                { key: 'bank',      header: 'Bank' },
+                { key: 'queue',     header: 'Queue' },
+              ]);
+            }}
+            className="admin-button flex items-center gap-2"
+            disabled={loading}
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
           <Link href="/admin/payments/upload-statement" className="admin-button">Upload Statement</Link>
           <Link href="/admin/payments/review-match" className="admin-button admin-button-primary">Open Review Queue</Link>
         </div>

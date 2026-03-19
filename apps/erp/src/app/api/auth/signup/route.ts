@@ -4,6 +4,10 @@ import { asyncHandler, ApiResponse, BadRequestError, ConflictError } from '@/lib
 import { prisma } from '@/lib/db/client';
 import { hashPassword } from '@/lib/auth/password';
 import { setAuthCookies } from '@/lib/auth/session';
+import { RateLimiter } from '@/lib/utils/rate-limit';
+
+// 10 signup attempts per hour per IP
+const signupLimiter = new RateLimiter();
 
 const signUpSchema = z.object({
   username: z.string().min(3).max(32).regex(/^[a-zA-Z0-9._-]+$/),
@@ -14,6 +18,15 @@ const signUpSchema = z.object({
 });
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = signupLimiter.check(`signup:${ip}`, 10, 60 * 60 * 1000);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many signup attempts. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+
   const body = signUpSchema.parse(await req.json());
   if (body.password !== body.confirmPassword) {
     throw new BadRequestError('Passwords do not match');

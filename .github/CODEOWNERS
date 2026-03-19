@@ -1,0 +1,15 @@
+# Default owners for everything in the repository.
+# These owners will be requested for review on any PR
+# unless a more specific rule below matches first.
+*  @owner
+
+# Database schema and migrations — any change here can be irreversible.
+# Explicit owner review required before merging.
+apps/erp/prisma/  @owner
+
+# Authentication and session handling — security-critical paths.
+apps/erp/src/app/api/auth/  @owner
+apps/erp/src/lib/auth/  @owner
+
+# Request middleware controls CSP, rate-limiting, and auth guards.
+apps/erp/src/middleware.ts  @owner

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContractService } from '@/modules/contracts/contract.service';
-import { updateContractSchema } from '@/modules/contracts/types';
-import { asyncHandler, ApiResponse, formatError, AppError } from '@/lib/utils/errors';
+import { updateContractSchema, terminateContractSchema } from '@/modules/contracts/types';
+import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { requireRole } from '@/lib/auth/guards';
+import { getRequestIp } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
+import { logAudit } from '@/modules/audit/audit.service';
+
+export const dynamic = 'force-dynamic';
 
 // ============================================================================
 // GET /api/contracts/[id] - Get contract by ID
@@ -10,6 +15,8 @@ import { logger } from '@/lib/utils/logger';
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN', 'STAFF']);
+
     const { id } = params;
 
     const contractService = getContractService();
@@ -23,11 +30,13 @@ export const GET = asyncHandler(
 );
 
 // ============================================================================
-// PATCH /api/contracts/[id] - Update contract
+// PATCH /api/contracts/[id] - Update contract fields
 // ============================================================================
 
 export const PATCH = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    const session = requireRole(req, ['ADMIN']);
+
     const { id } = params;
     const body = await req.json();
 
@@ -39,6 +48,20 @@ export const PATCH = asyncHandler(
     logger.info({
       type: 'contract_updated_api',
       contractId: contract.id,
+      actorId: session.sub,
+    });
+
+    await logAudit({
+      actorId: session.sub,
+      actorRole: session.role,
+      action: 'CONTRACT_UPDATED',
+      entityType: 'Contract',
+      entityId: contract.id,
+      metadata: {
+        roomNo: contract.roomNo,
+        changes: input,
+      },
+      ipAddress: getRequestIp(req),
     });
 
     return NextResponse.json({
@@ -50,20 +73,46 @@ export const PATCH = asyncHandler(
 );
 
 // ============================================================================
-// DELETE /api/contracts/[id] - Delete contract
+// DELETE /api/contracts/[id] - Terminate contract
 // ============================================================================
 
 export const DELETE = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    const session = requireRole(req, ['ADMIN']);
+
     const { id } = params;
+    const body = await req.json().catch(() => ({}));
+
+    const input = terminateContractSchema.parse(body);
+
+    const contractService = getContractService();
+    const contract = await contractService.terminateContract(id, input, session.sub);
+
     logger.info({
-      type: 'contract_delete_not_implemented',
-      contractId: id,
+      type: 'contract_terminated_api',
+      contractId: contract.id,
+      actorId: session.sub,
+      terminationDate: input.terminationDate,
     });
 
-    return NextResponse.json(
-      formatError(new AppError('Delete not implemented', 'NOT_IMPLEMENTED', 501)),
-      { status: 501 }
-    );
+    await logAudit({
+      actorId: session.sub,
+      actorRole: session.role,
+      action: 'CONTRACT_TERMINATED',
+      entityType: 'Contract',
+      entityId: contract.id,
+      metadata: {
+        roomNo: contract.roomNo,
+        terminationDate: input.terminationDate,
+        terminationReason: input.terminationReason,
+      },
+      ipAddress: getRequestIp(req),
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: contract,
+      message: 'Contract terminated successfully',
+    } as ApiResponse<typeof contract>);
   }
 );

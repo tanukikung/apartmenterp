@@ -4,74 +4,108 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 export default function ForgotPasswordPage() {
-  const [value, setValue] = useState('');
-  const [message, setMessage] = useState<string | null>(null);
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
-  async function submit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
+    setLoading(true);
     setError(null);
-    setMessage(null);
 
     try {
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usernameOrEmail: value }),
-      }).then((r) => r.json());
+        body: JSON.stringify({ usernameOrEmail }),
+      });
 
-      if (res.success) {
-        setMessage(res.message || 'Reset request created');
-      } else {
-        setError(res.error?.message || res.error || 'Unable to prepare reset');
+      const data: { success?: boolean; error?: { message?: string } | string } = await res.json();
+
+      if (!data.success) {
+        const msg =
+          typeof data.error === 'string'
+            ? data.error
+            : (data.error as { message?: string })?.message ?? 'Failed to submit reset request';
+        throw new Error(msg);
       }
-    } catch {
-      setError('Unable to prepare reset');
+
+      setSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   }
 
   return (
     <main className="auth-shell">
+      <div className="soft-orb soft-orb-pink left-[10%] top-[12%] h-44 w-44" />
+      <div className="soft-orb soft-orb-blue bottom-[14%] right-[12%] h-40 w-40" />
+
       <section className="auth-card">
         <div className="auth-brand">
           <div className="auth-brand-mark">AE</div>
           <div>
             <div className="auth-brand-title">Apartment ERP</div>
-            <div className="auth-brand-subtitle">Password Reset</div>
+            <div className="auth-brand-subtitle">Password Recovery</div>
           </div>
         </div>
 
-        <div className="auth-header">
-          <h1>Forgot password</h1>
-          <p>Enter your username or email. The request will be recorded and an administrator can issue your reset link.</p>
-        </div>
+        {success ? (
+          <>
+            <div className="auth-header">
+              <h1>Request Submitted</h1>
+            </div>
 
-        <form onSubmit={submit} className="auth-form">
-          <label className="auth-label">
-            <span>Username or Email</span>
-            <input
-              className="auth-input"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="Enter your username or email"
-            />
-          </label>
+            <div className="auth-alert auth-alert-success">
+              Reset request submitted. Contact your system administrator — they will share the reset
+              link with you directly.
+            </div>
 
-          {message ? <div className="auth-alert auth-alert-success">{message}</div> : null}
-          {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
+            <div className="auth-links">
+              <Link href="/login">← Back to Sign In</Link>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="auth-header">
+              <h1>Forgot Password?</h1>
+              <p>Enter your username or email — an admin will generate a reset link.</p>
+            </div>
 
-          <button type="submit" disabled={submitting} className="auth-button auth-button-primary">
-            {submitting ? 'Submitting...' : 'Submit Reset Request'}
-          </button>
-        </form>
+            <form onSubmit={(e) => void handleSubmit(e)} className="auth-form">
+              <label className="auth-label">
+                <span>Username or Email</span>
+                <input
+                  className="auth-input"
+                  type="text"
+                  value={usernameOrEmail}
+                  onChange={(e) => setUsernameOrEmail(e.target.value)}
+                  placeholder="Enter your username or email"
+                  autoComplete="username"
+                  required
+                  minLength={1}
+                />
+              </label>
 
-        <div className="auth-links auth-links-single">
-          <Link href="/login">Back to sign in</Link>
-        </div>
+              {error && <div className="auth-alert auth-alert-error">{error}</div>}
+
+              <button
+                type="submit"
+                className="auth-button auth-button-primary"
+                disabled={loading}
+              >
+                {loading ? 'Submitting…' : 'Send Reset Request'}
+              </button>
+            </form>
+
+            <div className="auth-links">
+              <Link href="/login">← Back to Sign In</Link>
+            </div>
+          </>
+        )}
       </section>
     </main>
   );

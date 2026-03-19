@@ -1,0 +1,61 @@
+# Notebook-side Docker Compose — ONLYOFFICE + Cloudflare Tunnel
+#
+# This runs on YOUR NOTEBOOK ONLY.
+# The ERP app and database live on Vercel / Render — they are NOT here.
+#
+# What this does:
+#   onlyoffice  — ONLYOFFICE Document Server (the editor engine)
+#   cloudflared — Cloudflare Tunnel client that exposes ONLYOFFICE publicly
+#                 at docs.your-domain.com without any port forwarding or public IP
+#
+# Setup (one-time, ~10 minutes)
+# ──────────────────────────────
+#   1. Copy docker/.env.notebook.example → docker/.env.notebook and fill in values.
+#   2. Create a Cloudflare Tunnel in the dashboard — see docs/onlyoffice-ops.md.
+#   3. docker compose -f docker/docker-compose.notebook.yml --env-file docker/.env.notebook up -d
+#
+# That's it. Once running:
+#   - docs.your-domain.com  → ONLYOFFICE on your notebook (via Cloudflare Tunnel)
+#   - app.your-domain.com   → ERP on Vercel/Render (unchanged)
+
+version: '3.8'
+
+services:
+
+  # ── ONLYOFFICE Document Server ──────────────────────────────────────────────
+  # The editor engine. Does NOT store business data — that lives in the ERP app.
+  # JWT_SECRET here must match ONLYOFFICE_JWT_SECRET in the ERP app env vars.
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    restart: unless-stopped
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: "${ONLYOFFICE_JWT_SECRET}"
+      JWT_HEADER: Authorization
+      JWT_IN_BODY: "true"
+    volumes:
+      # All four mounts keep ONLYOFFICE data outside the ephemeral container layer.
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_logs:/var/log/onlyoffice
+      - onlyoffice_cache:/var/lib/onlyoffice
+      - onlyoffice_db:/var/lib/postgresql
+
+  # ── Cloudflare Tunnel ────────────────────────────────────────────────────────
+  # Routes docs.your-domain.com → http://onlyoffice:80 (internal Docker network).
+  # No port forwarding, no public IP, no router config required.
+  #
+  # TUNNEL_TOKEN comes from the Cloudflare Zero Trust dashboard.
+  # In the dashboard, set the tunnel's public hostname service URL to:
+  #   http://onlyoffice:80
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - onlyoffice
+
+volumes:
+  onlyoffice_data:
+  onlyoffice_logs:
+  onlyoffice_cache:
+  onlyoffice_db:

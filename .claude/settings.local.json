@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(npm test:*)",
+      "Bash(npx vitest:*)",
+      "Bash(node -e \":*)",
+      "Bash(npx tsx -e \":*)",
+      "Bash(npx tsx --tsconfig tsconfig.json -e \":*)",
+      "Bash(node --loader ts-node/esm src/modules/billing/import-parser.ts)",
+      "Bash(python3 -c \":*)",
+      "Bash(ls src/app/api/payments/[id]/)",
+      "Bash(cat tests/stabilization/*.test.ts)",
+      "Bash(curl -s http://localhost:3001/api/health)",
+      "Bash(curl -s http://localhost:3002/api/health)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(ls /d/apartment_erp/apps/erp/src/app/api/settings/bank-accounts/[id]/)",
+      "Bash(python3 -c \"import sys,json; p=json.load\\(sys.stdin\\); print\\(json.dumps\\(p.get\\(''''scripts'''',{}\\), indent=2\\)\\)\")",
+      "Bash(npx prisma:*)",
+      "Bash(cmd /c \"npx prisma migrate dev --name baseline --skip-seed\")",
+      "Bash(/d/apartment_erp/apps/erp/prisma/migrations/migration_lock.toml:*)",
+      "Bash(ls /d/apartment_erp/apps/erp/src/app/api/contracts/[id]/)"
+    ]
+  }
+}

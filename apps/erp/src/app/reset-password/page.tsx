@@ -7,7 +7,9 @@ export default function ResetPasswordPage({
 }) {
   return (
     <main className="auth-shell">
-      <ResetPasswordForm token={searchParams?.token || ''} />
+      <div className="soft-orb soft-orb-pink left-[10%] top-[12%] h-44 w-44" />
+      <div className="soft-orb soft-orb-blue bottom-[14%] right-[12%] h-40 w-40" />
+      <ResetPasswordForm token={searchParams?.token ?? ''} />
     </main>
   );
 }

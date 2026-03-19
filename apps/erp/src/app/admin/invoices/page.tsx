@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Download,
   ExternalLink,
   FileText,
   Inbox,
@@ -32,6 +33,7 @@ import {
   Search,
   Send,
 } from 'lucide-react';
+import { exportToCsv } from '@/lib/utils/export-csv';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -256,6 +258,38 @@ export default function AdminInvoicesPage() {
           </p>
         </div>
         <div className="admin-toolbar">
+          <button
+            onClick={() => {
+              exportToCsv(
+                'invoices-export',
+                filtered.map((inv) => ({
+                  invoiceNumber: inv.invoiceNumber,
+                  room: inv.room?.roomNumber ?? '',
+                  tenant: inv.tenantName ?? '',
+                  period: fmtPeriod(inv.year, inv.month),
+                  amount: inv.totalAmount,
+                  status: STATUS_META[inv.status]?.label ?? inv.status,
+                  dueDate: inv.dueDate,
+                  paidDate: inv.paidAt ?? '',
+                })),
+                [
+                  { key: 'invoiceNumber', header: 'Invoice No' },
+                  { key: 'room',          header: 'Room' },
+                  { key: 'tenant',        header: 'Tenant' },
+                  { key: 'period',        header: 'Period' },
+                  { key: 'amount',        header: 'Amount' },
+                  { key: 'status',        header: 'Status' },
+                  { key: 'dueDate',       header: 'Due Date' },
+                  { key: 'paidDate',      header: 'Paid Date' },
+                ],
+              );
+            }}
+            disabled={loading || filtered.length === 0}
+            className="admin-button flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
           <button
             onClick={() => void load(page, statusFilter)}
             disabled={loading}
