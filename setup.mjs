@@ -1,0 +1,332 @@
+#!/usr/bin/env node
+/**
+ * Apartment ERP — Interactive Setup Wizard
+ * Run from the monorepo root: node setup.mjs
+ */
+
+import readline from 'readline';
+import { execSync, spawnSync } from 'child_process';
+import { existsSync, writeFileSync, readFileSync } from 'fs';
+import { randomBytes } from 'crypto';
+import { createConnection } from 'net';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+// ─── ANSI colours ────────────────────────────────────────────────────────────
+const C = {
+  reset:   '\x1b[0m',
+  bold:    '\x1b[1m',
+  dim:     '\x1b[2m',
+  red:     '\x1b[31m',
+  green:   '\x1b[32m',
+  yellow:  '\x1b[33m',
+  blue:    '\x1b[34m',
+  magenta: '\x1b[35m',
+  cyan:    '\x1b[36m',
+  white:   '\x1b[37m',
+  bgBlue:  '\x1b[44m',
+};
+
+const bold  = (s) => `${C.bold}${s}${C.reset}`;
+const green = (s) => `${C.green}${s}${C.reset}`;
+const red   = (s) => `${C.red}${s}${C.reset}`;
+const yellow= (s) => `${C.yellow}${s}${C.reset}`;
+const blue  = (s) => `${C.blue}${s}${C.reset}`;
+const cyan  = (s) => `${C.cyan}${s}${C.reset}`;
+const dim   = (s) => `${C.dim}${s}${C.reset}`;
+
+// ─── Paths ────────────────────────────────────────────────────────────────────
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT      = __dirname;
+const ERP_DIR   = path.join(ROOT, 'apps', 'erp');
+const ENV_PATH  = path.join(ERP_DIR, '.env');
+
+// ─── Spinner ──────────────────────────────────────────────────────────────────
+function spinner(msg) {
+  const frames = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
+  let i = 0;
+  process.stdout.write('  ');
+  const id = setInterval(() => {
+    process.stdout.write(`\r  ${C.cyan}${frames[i++ % frames.length]}${C.reset}  ${msg}`);
+  }, 80);
+  return {
+    stop(result = '', ok = true) {
+      clearInterval(id);
+      const icon = ok ? green('✅') : red('❌');
+      process.stdout.write(`\r  ${icon}  ${result || msg}\n`);
+    },
+  };
+}
+
+// ─── Banner ───────────────────────────────────────────────────────────────────
+function printBanner() {
+  console.log();
+  console.log(`${C.bold}${C.cyan}  ╔══════════════════════════════════════════════════════╗${C.reset}`);
+  console.log(`${C.bold}${C.cyan}  ║${C.reset}  ${C.bold}${C.white}🏢  Apartment ERP — Setup Wizard${C.reset}                  ${C.bold}${C.cyan}║${C.reset}`);
+  console.log(`${C.bold}${C.cyan}  ║${C.reset}  ${dim('Interactive installer for the apartment management')}  ${C.bold}${C.cyan}║${C.reset}`);
+  console.log(`${C.bold}${C.cyan}  ║${C.reset}  ${dim('system. This will configure, install, and migrate.')}  ${C.bold}${C.cyan}║${C.reset}`);
+  console.log(`${C.bold}${C.cyan}  ╚══════════════════════════════════════════════════════╝${C.reset}`);
+  console.log();
+}
+
+// ─── Step header ─────────────────────────────────────────────────────────────
+function printStep(n, title) {
+  console.log();
+  console.log(`  ${C.bold}${C.white}━━━  Step ${n}: ${title}  ━━━${C.reset}`);
+  console.log();
+}
+
+// ─── readline helper ─────────────────────────────────────────────────────────
+function createRL() {
+  return readline.createInterface({ input: process.stdin, output: process.stdout });
+}
+
+async function ask(rl, question, defaultVal = '') {
+  return new Promise((resolve) => {
+    const hint = defaultVal ? dim(` [${defaultVal}]`) : '';
+    rl.question(`  ${cyan('?')}  ${question}${hint}: `, (ans) => {
+      resolve(ans.trim() || defaultVal);
+    });
+  });
+}
+
+async function confirm(rl, question, defaultYes = true) {
+  const hint = defaultYes ? 'Y/n' : 'y/N';
+  const ans = await ask(rl, `${question} ${dim(`(${hint})`)}`, defaultYes ? 'y' : 'n');
+  return ans.toLowerCase().startsWith('y');
+}
+
+// ─── Node version check ───────────────────────────────────────────────────────
+function checkNodeVersion() {
+  const [major] = process.versions.node.split('.').map(Number);
+  if (major < 18) {
+    console.log(`  ${red('❌')}  Node.js ${bold('≥18')} is required. You have ${process.version}.`);
+    console.log(`       ${yellow('⚠️')}  Install it from https://nodejs.org`);
+    process.exit(1);
+  }
+  console.log(`  ${green('✅')}  Node.js ${bold(process.version)} — OK`);
+}
+
+// ─── TCP connectivity check ───────────────────────────────────────────────────
+function checkTCP(host, port, timeoutMs = 3000) {
+  return new Promise((resolve) => {
+    const sock = createConnection({ host, port });
+    const timer = setTimeout(() => { sock.destroy(); resolve(false); }, timeoutMs);
+    sock.on('connect', () => { clearTimeout(timer); sock.destroy(); resolve(true); });
+    sock.on('error',   () => { clearTimeout(timer); resolve(false); });
+  });
+}
+
+function parseDBUrl(url) {
+  try {
+    const u = new URL(url);
+    return { host: u.hostname || 'localhost', port: parseInt(u.port || '5432', 10) };
+  } catch {
+    return { host: 'localhost', port: 5432 };
+  }
+}
+
+// ─── .env writer ─────────────────────────────────────────────────────────────
+function writeEnv(config) {
+  const lines = [
+    '# Generated by setup.mjs',
+    `DATABASE_URL="${config.databaseUrl}"`,
+    `NEXTAUTH_SECRET="${config.nextauthSecret}"`,
+    `NEXTAUTH_URL="${config.nextauthUrl}"`,
+    `APP_BASE_URL="${config.appBaseUrl}"`,
+  ];
+  if (config.lineChannelId)          lines.push(`LINE_CHANNEL_ID="${config.lineChannelId}"`);
+  if (config.lineChannelSecret)      lines.push(`LINE_CHANNEL_SECRET="${config.lineChannelSecret}"`);
+  if (config.lineAccessToken)        lines.push(`LINE_ACCESS_TOKEN="${config.lineAccessToken}"`);
+  if (config.lineChannelAccessToken) lines.push(`LINE_CHANNEL_ACCESS_TOKEN="${config.lineChannelAccessToken}"`);
+  if (config.redisUrl)               lines.push(`REDIS_URL="${config.redisUrl}"`);
+  lines.push('');
+  writeFileSync(ENV_PATH, lines.join('\n'), 'utf8');
+}
+
+// ─── run helper ──────────────────────────────────────────────────────────────
+function run(cmd, opts = {}) {
+  return spawnSync(cmd, { shell: true, stdio: 'inherit', ...opts });
+}
+
+function runCapture(cmd, opts = {}) {
+  return spawnSync(cmd, { shell: true, encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'], ...opts });
+}
+
+// ─── MAIN ─────────────────────────────────────────────────────────────────────
+async function main() {
+  printBanner();
+
+  // ── Pre-flight checks ──────────────────────────────────────────────────────
+  console.log(`  ${bold('Pre-flight checks')}`);
+  console.log();
+  checkNodeVersion();
+
+  // ── STEP 1: Environment ───────────────────────────────────────────────────
+  printStep(1, 'Environment Configuration');
+
+  const rl = createRL();
+
+  let config = {
+    databaseUrl:          'postgresql://postgres:password@localhost:5432/apartment_erp',
+    nextauthSecret:       randomBytes(32).toString('hex'),
+    nextauthUrl:          'http://localhost:3000',
+    appBaseUrl:           'http://localhost:3000',
+    lineChannelId:        '',
+    lineChannelSecret:    '',
+    lineAccessToken:      '',
+    lineChannelAccessToken:'',
+    redisUrl:             '',
+  };
+
+  const envExists = existsSync(ENV_PATH);
+  if (envExists) {
+    console.log(`  ${yellow('⚠️')}   An existing ${bold('.env')} was found at ${dim(ENV_PATH)}`);
+    const useExisting = await confirm(rl, 'Use existing .env file?', true);
+    if (useExisting) {
+      console.log(`  ${blue('ℹ️')}   Keeping existing .env — skipping environment step.`);
+      // Parse existing DATABASE_URL for connectivity check
+      try {
+        const raw = readFileSync(ENV_PATH, 'utf8');
+        const match = raw.match(/^DATABASE_URL="?([^"\n]+)"?/m);
+        if (match) config.databaseUrl = match[1];
+      } catch { /* ignore */ }
+      goto_step2: {
+        // skip to step 2
+        await runInstallAndMigrate(rl, config);
+        rl.close();
+        return;
+      }
+    }
+  }
+
+  // Gather env values
+  console.log(`  ${blue('ℹ️')}   Press ${bold('Enter')} to accept defaults. Leave optional fields empty to skip.\n`);
+
+  config.databaseUrl    = await ask(rl, 'DATABASE_URL', config.databaseUrl);
+  const autoSecret      = randomBytes(32).toString('hex');
+  const secretInput     = await ask(rl, `NEXTAUTH_SECRET ${dim('(auto-generated if blank)')}`, '');
+  config.nextauthSecret = secretInput || autoSecret;
+  config.nextauthUrl    = await ask(rl, 'NEXTAUTH_URL', config.nextauthUrl);
+  config.appBaseUrl     = await ask(rl, 'APP_BASE_URL', config.appBaseUrl);
+
+  console.log(`\n  ${dim('─── LINE Integration (optional) ───')}`);
+  config.lineChannelId          = await ask(rl, 'LINE_CHANNEL_ID        (Enter to skip)', '');
+  config.lineChannelSecret      = await ask(rl, 'LINE_CHANNEL_SECRET    (Enter to skip)', '');
+  config.lineAccessToken        = await ask(rl, 'LINE_ACCESS_TOKEN      (Enter to skip)', '');
+  config.lineChannelAccessToken = await ask(rl, 'LINE_CHANNEL_ACCESS_TOKEN (Enter to skip)', '');
+
+  console.log(`\n  ${dim('─── Redis (optional) ───')}`);
+  config.redisUrl = await ask(rl, 'REDIS_URL (Enter to skip)', '');
+
+  // Write .env
+  writeEnv(config);
+  console.log(`\n  ${green('✅')}  .env written to ${bold(ENV_PATH)}`);
+
+  // Check PostgreSQL connectivity
+  console.log();
+  const { host, port } = parseDBUrl(config.databaseUrl);
+  const spin = spinner(`Checking PostgreSQL connectivity at ${bold(`${host}:${port}`)} …`);
+  const reachable = await checkTCP(host, port);
+  if (reachable) {
+    spin.stop(`PostgreSQL is reachable at ${bold(`${host}:${port}`)}`, true);
+  } else {
+    spin.stop(`Cannot reach PostgreSQL at ${bold(`${host}:${port}`)}`, false);
+    console.log(`  ${yellow('⚠️')}   The database host is not reachable right now.`);
+    console.log(`       ${dim('Migration may fail. Make sure PostgreSQL is running before proceeding.')}`);
+    const proceed = await confirm(rl, 'Continue anyway?', false);
+    if (!proceed) {
+      console.log(`\n  ${yellow('⚠️')}  Setup aborted. Start PostgreSQL and re-run setup.mjs.\n`);
+      rl.close();
+      process.exit(0);
+    }
+  }
+
+  await runInstallAndMigrate(rl, config);
+  rl.close();
+}
+
+// ─── Steps 2–4 ───────────────────────────────────────────────────────────────
+async function runInstallAndMigrate(rl, config) {
+  // ── STEP 2: Install Dependencies ─────────────────────────────────────────
+  printStep(2, 'Install Dependencies');
+
+  const spin2 = spinner('Running npm install from workspace root …');
+  const r2 = run('npm install', { cwd: ROOT, stdio: 'pipe' });
+  if (r2.status !== 0) {
+    spin2.stop('npm install failed', false);
+    console.log(`  ${yellow('⚠️')}  Continuing — you may need to install deps manually.`);
+  } else {
+    spin2.stop('Dependencies installed', true);
+  }
+
+  // ── STEP 3: Database Setup ─────────────────────────────────────────────────
+  printStep(3, 'Database Setup');
+
+  // prisma generate
+  {
+    const spin = spinner('Running prisma generate …');
+    const r = run('npx prisma generate', { cwd: ERP_DIR, stdio: 'pipe' });
+    if (r.status !== 0) {
+      spin.stop('prisma generate failed', false);
+      console.log(`  ${yellow('⚠️')}  Check your DATABASE_URL and try again.`);
+    } else {
+      spin.stop('Prisma client generated', true);
+    }
+  }
+
+  // prisma migrate deploy
+  {
+    const spin = spinner('Running prisma migrate deploy …');
+    const r = run('npx prisma migrate deploy', { cwd: ERP_DIR });
+    if (r.status !== 0) {
+      spin.stop('prisma migrate deploy failed', false);
+      console.log(`  ${yellow('⚠️')}  Migrations may have partially applied. Check the output above.`);
+    } else {
+      spin.stop('Database migrations applied', true);
+    }
+  }
+
+  // seed?
+  let seeded = false;
+  const doSeed = await confirm(
+    rl,
+    `\n  ${cyan('?')}  Seed initial data? ${dim('(239 rooms, admin account, sample data)')}`,
+    true
+  );
+  if (doSeed) {
+    const spin = spinner('Seeding database …');
+    const r = run('npx prisma db seed', { cwd: ERP_DIR });
+    if (r.status !== 0) {
+      spin.stop('Seed failed (data may already exist — that is OK)', false);
+    } else {
+      spin.stop('Database seeded', true);
+      seeded = true;
+    }
+  }
+
+  // ── STEP 4: Done ───────────────────────────────────────────────────────────
+  printStep(4, 'Done!');
+
+  const url = config.appBaseUrl || 'http://localhost:3000';
+
+  console.log(`  ${green('✅')}  ${bold('Setup complete!')} Your Apartment ERP is ready to run.\n`);
+  console.log(`  ${blue('ℹ️')}   ${bold('Start the dev server:')}`);
+  console.log(`         ${cyan('cd apps/erp && npm run dev')}\n`);
+  console.log(`  ${blue('ℹ️')}   ${bold('Open the admin panel:')}`);
+  console.log(`         ${cyan(`${url}/admin`)}\n`);
+
+  if (seeded) {
+    console.log(`  ${yellow('★')}   ${bold('Default credentials:')}`);
+    console.log(`         Owner  →  username: ${bold('owner')}   password: ${bold('Owner@12345')}`);
+    console.log(`         Staff  →  username: ${bold('staff')}   password: ${bold('Staff@12345')}\n`);
+  }
+
+  console.log(`  ${dim('─────────────────────────────────────────────────────')}`);
+  console.log(`  ${dim('Need help? See README.md or raise a GitHub issue.')}\n`);
+}
+
+main().catch((err) => {
+  console.error(`\n  ${red('❌')}  Unexpected error: ${err.message}\n`);
+  process.exit(1);
+});

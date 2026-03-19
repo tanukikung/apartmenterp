@@ -2,7 +2,18 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { ArrowRight, Receipt, Shield, Users } from 'lucide-react';
+import {
+  ArrowRight,
+  Building2,
+  CreditCard,
+  MessageSquare,
+  Receipt,
+  Shield,
+  Users,
+  Zap,
+} from 'lucide-react';
+
+type StatusDot = 'working' | 'configured' | 'none';
 
 type SettingCategory = {
   id: string;
@@ -12,37 +23,102 @@ type SettingCategory = {
   icon: ReactNode;
   iconBg: string;
   iconColor: string;
+  status?: StatusDot;
 };
 
 const CATEGORIES: SettingCategory[] = [
   {
     id: 'users',
     title: 'Admin Users',
-    description: 'Create and manage operator accounts, display names, and roles.',
+    description: 'Create and manage operator accounts, display names, and access roles.',
     href: '/admin/settings/users',
     icon: <Users className="h-6 w-6" />,
     iconBg: 'bg-violet-100',
     iconColor: 'text-violet-600',
+    status: 'working',
   },
   {
     id: 'billing-policy',
     title: 'Billing Calendar',
-    description: 'Manage the real billing day, due day, and overdue day used by the ERP.',
+    description:
+      'Set the billing day, payment due date, and overdue cutoff used across the ERP.',
     href: '/admin/settings/billing-policy',
     icon: <Receipt className="h-6 w-6" />,
     iconBg: 'bg-rose-100',
     iconColor: 'text-rose-600',
+    status: 'working',
+  },
+  {
+    id: 'building',
+    title: 'Building Profile',
+    description:
+      'Configure building name, address, and contact information printed on documents and invoices.',
+    href: '/admin/settings/building',
+    icon: <Building2 className="h-6 w-6" />,
+    iconBg: 'bg-sky-100',
+    iconColor: 'text-sky-600',
+    status: 'working',
+  },
+  {
+    id: 'bank-accounts',
+    title: 'Bank Accounts',
+    description:
+      'Manage bank accounts used for payment collection, statement imports, and automatic matching.',
+    href: '/admin/settings/bank-accounts',
+    icon: <CreditCard className="h-6 w-6" />,
+    iconBg: 'bg-emerald-100',
+    iconColor: 'text-emerald-600',
+    status: 'working',
+  },
+  {
+    id: 'integrations',
+    title: 'LINE Integration',
+    description:
+      'Connect your LINE Official Account to enable tenant messaging, invoices, and payment receipts.',
+    href: '/admin/settings/integrations',
+    icon: <MessageSquare className="h-6 w-6" />,
+    iconBg: 'bg-green-100',
+    iconColor: 'text-green-600',
+    status: 'configured',
+  },
+  {
+    id: 'automation',
+    title: 'Automation Rules',
+    description:
+      'Schedule automatic billing cycles, payment reminders, database backups, and overdue checks.',
+    href: '/admin/settings/automation',
+    icon: <Zap className="h-6 w-6" />,
+    iconBg: 'bg-purple-100',
+    iconColor: 'text-purple-600',
+    status: 'configured',
   },
   {
     id: 'roles',
     title: 'Roles & Permissions',
-    description: 'Reference the current Owner, Admin, and Staff permission levels.',
+    description:
+      'Review the Owner, Admin, and Staff permission levels and what each role can access.',
     href: '/admin/settings/roles',
     icon: <Shield className="h-6 w-6" />,
     iconBg: 'bg-slate-100',
     iconColor: 'text-slate-600',
+    status: 'working',
   },
 ];
+
+function StatusIndicator({ status }: { status?: StatusDot }) {
+  if (!status || status === 'none') return null;
+  const cls =
+    status === 'working'
+      ? 'bg-emerald-400'
+      : 'bg-amber-400';
+  const label = status === 'working' ? 'Active' : 'Configured';
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className={`inline-block h-2 w-2 rounded-full ${cls}`} />
+      <span className="text-xs font-medium text-slate-500">{label}</span>
+    </span>
+  );
+}
 
 function CategoryCard({ cat }: { cat: SettingCategory }) {
   return (
@@ -64,14 +140,15 @@ function CategoryCard({ cat }: { cat: SettingCategory }) {
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </span>
       </div>
+
       <div>
         <div className="font-semibold leading-snug text-slate-900">{cat.title}</div>
         <p className="mt-1 text-sm leading-relaxed text-slate-500">{cat.description}</p>
       </div>
-      <div className="mt-auto pt-1">
-        <span className="text-xs font-semibold text-indigo-600 group-hover:underline">
-          Open
-        </span>
+
+      <div className="mt-auto flex items-center justify-between pt-1">
+        <span className="text-xs font-semibold text-indigo-600 group-hover:underline">Open</span>
+        <StatusIndicator status={cat.status} />
       </div>
     </Link>
   );
@@ -84,14 +161,9 @@ export default function AdminSettingsPage() {
         <div>
           <h1 className="admin-page-title">Settings</h1>
           <p className="admin-page-subtitle">
-            Only connected settings are listed here. Unsupported configuration pages are hidden.
+            Manage building configuration, integrations, billing rules, and operator accounts.
           </p>
         </div>
-      </section>
-
-      <section className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
-        Hidden in this deployment: Building Info, Bank Accounts, Automation Rules, LINE Integration,
-        and Room Settings. Those pages are intentionally unavailable until backend support exists.
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

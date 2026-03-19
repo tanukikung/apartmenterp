@@ -1,47 +1,121 @@
+##############################################################################
+# Apartment ERP — Docker Compose
+#
+# Quick start:
+#   cp .env.example .env.production   # fill in secrets
+#   docker compose up -d
+#
+# Makefile-style shortcuts (add to a Makefile at repo root if desired):
+#   up:        docker compose up -d
+#   down:      docker compose down
+#   logs:      docker compose logs -f app
+#   migrate:   docker compose run --rm migrate
+#   seed:      docker compose run --rm migrate sh -c "npx prisma db seed"
+#   psql:      docker compose exec postgres psql -U postgres apartment_erp
+##############################################################################
 version: '3.9'
+
 services:
+  # ─── PostgreSQL ───────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: apartment_erp
+      POSTGRES_USER:     ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB:       ${POSTGRES_DB:-apartment_erp}
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-apartment_erp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
+  # ─── Redis (optional — app degrades gracefully without it) ───────────────
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
-  app:
-    build: .
+  # ─── One-shot migration + seed service ───────────────────────────────────
+  # Runs `prisma migrate deploy` then optionally seeds; exits when done.
+  # The `app` service waits for this container to complete successfully
+  # (restart: "on-failure" so compose knows it's done once it exits 0).
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      sh -c "
+        echo '⏳ Waiting for Postgres…' &&
+        npx prisma migrate deploy &&
+        echo '✅ Migrations applied.' &&
+        if [ \"$$SEED_DB\" = 'true' ]; then
+          echo '🌱 Seeding database…' &&
+          npx prisma db seed &&
+          echo '✅ Seed complete.';
+        fi
+      "
     environment:
-      NODE_ENV: production
-      DATABASE_URL: ${DATABASE_URL}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      NEXTAUTH_URL: ${NEXTAUTH_URL}
-      LINE_CHANNEL_ID: ${LINE_CHANNEL_ID}
-      LINE_CHANNEL_SECRET: ${LINE_CHANNEL_SECRET}
-      LINE_ACCESS_TOKEN: ${LINE_ACCESS_TOKEN}
-      LINE_CHANNEL_ACCESS_TOKEN: ${LINE_CHANNEL_ACCESS_TOKEN}
-      APP_BASE_URL: ${APP_BASE_URL}
-      CRON_SECRET: ${CRON_SECRET}
-      CRON_ENABLED: ${CRON_ENABLED:-true}
-      LOG_DIR: /logs
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/apartment_erp}
+      SEED_DB:      ${SEED_DB:-false}
     env_file:
-      - .env.production
-    ports:
-      - "3000:3000"
+      - path: .env.production
+        required: false
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # ─── Next.js application ─────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV:                  production
+      DATABASE_URL:              ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/apartment_erp}
+      NEXTAUTH_SECRET:           ${NEXTAUTH_SECRET:-change-me-in-production}
+      NEXTAUTH_URL:              ${NEXTAUTH_URL:-http://localhost:3000}
+      APP_BASE_URL:              ${APP_BASE_URL:-http://localhost:3000}
+      LINE_CHANNEL_ID:           ${LINE_CHANNEL_ID:-}
+      LINE_CHANNEL_SECRET:       ${LINE_CHANNEL_SECRET:-}
+      LINE_ACCESS_TOKEN:         ${LINE_ACCESS_TOKEN:-}
+      LINE_CHANNEL_ACCESS_TOKEN: ${LINE_CHANNEL_ACCESS_TOKEN:-}
+      CRON_SECRET:               ${CRON_SECRET:-}
+      CRON_ENABLED:              ${CRON_ENABLED:-true}
+      REDIS_URL:                 ${REDIS_URL:-}
+      LOG_DIR:                   /logs
+    env_file:
+      - path: .env.production
+        required: false
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   pgdata: {}
-  logs: {}
-
+  logs:   {}

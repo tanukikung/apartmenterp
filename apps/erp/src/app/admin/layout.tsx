@@ -24,6 +24,7 @@ import {
   Layers,
   Cpu,
   ScrollText,
+  FileSignature,
 } from 'lucide-react';
 
 /**
@@ -66,7 +67,8 @@ const nav: NavItem[] = [
   { type: 'link', href: '/admin/billing',   label: 'Billing',        icon: Receipt },
   { type: 'link', href: '/admin/invoices',  label: 'Invoices',       icon: ScrollText },
   { type: 'link', href: '/admin/payments',  label: 'Payments',       icon: CreditCard },
-  { type: 'link', href: '/admin/overdue',   label: 'Overdue',        icon: AlertTriangle },
+  { type: 'link', href: '/admin/overdue',    label: 'Overdue',        icon: AlertTriangle },
+  { type: 'link', href: '/admin/contracts', label: 'Contracts',      icon: FileSignature },
 
   { type: 'divider', label: 'Documents' },
   { type: 'link', href: '/admin/templates',          label: 'Doc Templates', icon: FilePlus },

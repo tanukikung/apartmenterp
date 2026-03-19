@@ -10,14 +10,18 @@ describe('UI truthfulness static guards', () => {
   it('settings hub only links to connected settings pages', () => {
     const source = readAppFile('src', 'app', 'admin', 'settings', 'page.tsx');
 
+    // Core settings — always present
     expect(source).toContain('/admin/settings/users');
     expect(source).toContain('/admin/settings/billing-policy');
     expect(source).toContain('/admin/settings/roles');
 
-    expect(source).not.toContain('/admin/settings/building');
-    expect(source).not.toContain('/admin/settings/automation');
-    expect(source).not.toContain('/admin/settings/bank-accounts');
-    expect(source).not.toContain('/admin/settings/integrations');
+    // Previously deferred — now fully implemented with real APIs
+    expect(source).toContain('/admin/settings/building');
+    expect(source).toContain('/admin/settings/bank-accounts');
+    expect(source).toContain('/admin/settings/integrations');
+    expect(source).toContain('/admin/settings/automation');
+
+    // Still deferred (no backend) — must NOT appear
     expect(source).not.toContain('/admin/settings/rooms');
   });
 
