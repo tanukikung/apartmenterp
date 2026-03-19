@@ -94,51 +94,58 @@ const nav: NavItem[] = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+
   return (
-    <div className="min-h-screen bg-slate-100 md:grid md:grid-cols-[220px_minmax(0,1fr)]">
-      {/* Sidebar */}
-      <aside className="relative z-20 flex flex-col bg-slate-900 text-white">
+    <div className="min-h-screen bg-slate-100 md:grid md:grid-cols-[240px_minmax(0,1fr)]">
+      {/* ── Sidebar ── */}
+      <aside className="relative z-20 flex flex-col bg-[#111827] text-white">
+
         {/* Brand */}
-        <div className="flex items-center gap-3 border-b border-slate-700/60 px-4 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 shadow-lg">
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-white/5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/30">
             <Building2 size={16} className="text-white" strokeWidth={2.5} />
           </div>
           <div>
-            <div className="text-sm font-semibold text-white leading-tight">Apartment ERP</div>
-            <div className="text-[10px] uppercase tracking-widest text-slate-500">Admin Console</div>
+            <div className="text-sm font-semibold text-white leading-tight tracking-tight">Apartment ERP</div>
+            <div className="text-[10px] uppercase tracking-[0.12em] text-slate-500 mt-0.5">Management Console</div>
           </div>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
+        <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
           {nav.map((item, idx) => {
             if (item.type === 'divider') {
               return (
-                <div key={idx} className="px-3 pt-4 pb-1">
-                  <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-600">
-                    {item.label}
-                  </span>
+                <div key={idx} className="px-3 pt-5 pb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9.5px] font-semibold uppercase tracking-[0.1em] text-slate-600">
+                      {item.label}
+                    </span>
+                    <div className="flex-1 h-px bg-slate-700/50"></div>
+                  </div>
                 </div>
               );
             }
+
             // Use exact matching when the item has `exact: true` (href is a
             // strict prefix of another nav entry and must not swallow it).
             const active = item.exact
               ? pathname === item.href || pathname === item.href + '/'
               : pathname?.startsWith(item.href);
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors
-                  ${active
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                  }`}
+                className={
+                  active
+                    ? 'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
+                    : 'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-400 hover:bg-white/5 hover:text-slate-200 transition-colors duration-150'
+                }
               >
                 <item.icon
                   size={15}
-                  className={active ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}
+                  className={active ? 'text-white' : 'text-slate-500'}
                   strokeWidth={active ? 2.5 : 1.8}
                 />
                 {item.label}
@@ -148,29 +155,48 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-slate-700/60 px-3 py-3">
+        <div className="border-t border-white/5 p-3">
+          <div className="flex items-center gap-3 rounded-lg px-2 py-2.5 mb-1">
+            <div className="h-7 w-7 rounded-full bg-indigo-600/20 flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-semibold text-indigo-400">A</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium text-slate-300 truncate">Administrator</div>
+              <div className="text-[10px] text-slate-600">Owner</div>
+            </div>
+          </div>
           <LogoutButton />
         </div>
       </aside>
 
-      {/* Main */}
-      <div className="relative flex min-w-0 flex-col">
+      {/* ── Main content ── */}
+      <div className="relative flex min-w-0 flex-col bg-slate-50">
         {/* Topbar */}
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 shadow-sm">
-          <div>
-            <div className="text-sm font-semibold text-slate-800">Operations Console</div>
-            <div className="text-xs text-slate-400">Building management · billing · messaging · analytics</div>
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur-sm px-6">
+          {/* Left: page context label */}
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-medium text-slate-800">Operations Console</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
-              Admin
+
+          {/* Right: date + admin badge */}
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs text-slate-400">
+              {new Date().toLocaleDateString('th-TH', {
+                weekday: 'short',
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })}
             </span>
-            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
-              {new Date().toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' })}
-            </span>
+            <div className="h-4 w-px bg-slate-200"></div>
+            <div className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+              <span className="text-xs font-medium text-slate-600">Admin</span>
+            </div>
           </div>
         </header>
-        <main className="flex-1 bg-slate-50">{children}</main>
+
+        <main className="flex-1">{children}</main>
       </div>
     </div>
   );

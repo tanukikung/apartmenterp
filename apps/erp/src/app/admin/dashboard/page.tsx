@@ -15,6 +15,11 @@ import {
   MessageSquare,
   Clock,
   Circle,
+  DollarSign,
+  Home,
+  FileText,
+  TrendingUp,
+  TrendingDown,
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -157,7 +162,9 @@ function tenantName(inv: Invoice): string {
   );
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// ─── KPI Card ─────────────────────────────────────────────────────────────────
+
+type TrendDir = 'up' | 'down' | 'neutral';
 
 function KpiCard({
   label,
@@ -165,6 +172,9 @@ function KpiCard({
   sub,
   icon: Icon,
   iconBg,
+  iconColor,
+  trendDir = 'neutral',
+  trendLabel,
   loading,
 }: {
   label: string;
@@ -172,18 +182,36 @@ function KpiCard({
   sub?: string;
   icon: React.ElementType;
   iconBg: string;
+  iconColor: string;
+  trendDir?: TrendDir;
+  trendLabel?: string;
   loading: boolean;
 }) {
+  const TrendIcon = trendDir === 'down' ? TrendingDown : TrendingUp;
+  const trendColor =
+    trendDir === 'up'
+      ? 'text-emerald-600'
+      : trendDir === 'down'
+      ? 'text-red-500'
+      : 'text-slate-400';
+
   return (
-    <div className="admin-kpi cute-surface flex items-start justify-between gap-3">
-      <div className="min-w-0 flex-1">
-        <div className="admin-kpi-label">{label}</div>
-        <div className="admin-kpi-value">{loading ? <span className="text-slate-300">—</span> : value}</div>
-        {sub && <div className="mt-1.5 truncate text-sm text-slate-500">{sub}</div>}
+    <div className="admin-kpi cute-surface flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <span className="admin-kpi-label leading-snug">{label}</span>
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
+          <Icon size={16} strokeWidth={2} className={iconColor} />
+        </div>
       </div>
-      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
-        <Icon size={20} strokeWidth={2} />
+      <div className="admin-kpi-value leading-none">
+        {loading ? <span className="text-slate-300">—</span> : value}
       </div>
+      {(trendLabel || sub) && (
+        <div className={`flex items-center gap-1 text-xs ${trendDir !== 'neutral' ? trendColor : 'text-slate-400'}`}>
+          {trendDir !== 'neutral' && <TrendIcon size={11} strokeWidth={2} />}
+          <span>{trendLabel ?? sub}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -360,51 +388,51 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
-      {/* ── KPI Row ─────────────────────────────────────────────── */}
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      {/* ── KPI Row — 4 cards ───────────────────────────────────── */}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
-          label="Occupancy Rate"
-          value={`${occupancyRate}%`}
-          sub={`${occupancy?.occupiedRooms ?? 0} / ${occupancy?.totalRooms ?? 0} ห้อง`}
-          icon={Building2}
-          iconBg="bg-green-50 text-green-600"
+          label="Revenue This Month"
+          value={money(summary?.monthlyRevenue ?? 0)}
+          trendDir="up"
+          trendLabel="from last month"
+          icon={DollarSign}
+          iconBg="bg-emerald-50"
+          iconColor="text-emerald-600"
           loading={loading}
         />
         <KpiCard
-          label="Monthly Revenue"
-          value={money(summary?.monthlyRevenue ?? 0)}
-          sub="รายรับเดือนนี้"
-          icon={Receipt}
-          iconBg="bg-indigo-50 text-indigo-600"
+          label="Occupancy Rate"
+          value={`${occupancyRate}%`}
+          trendDir={occupancyRate >= 80 ? 'up' : 'neutral'}
+          trendLabel={`${occupancy?.occupiedRooms ?? 0} / ${occupancy?.totalRooms ?? 0} ห้อง`}
+          icon={Home}
+          iconBg="bg-blue-50"
+          iconColor="text-blue-600"
+          loading={loading}
+        />
+        <KpiCard
+          label="Unpaid Invoices"
+          value={summary?.unpaidInvoices ?? 0}
+          trendDir="neutral"
+          trendLabel="รอการชำระ"
+          icon={FileText}
+          iconBg="bg-indigo-50"
+          iconColor="text-indigo-600"
           loading={loading}
         />
         <KpiCard
           label="Overdue Invoices"
           value={summary?.overdueInvoices ?? 0}
-          sub="ต้องติดตามชำระ"
+          trendDir={(summary?.overdueInvoices ?? 0) > 0 ? 'down' : 'neutral'}
+          trendLabel="ต้องติดตามชำระ"
           icon={AlertTriangle}
-          iconBg="bg-red-50 text-red-500"
-          loading={loading}
-        />
-        <KpiCard
-          label="Unmatched Payments"
-          value={unmatchedPayments.length}
-          sub="รอการจับคู่"
-          icon={CreditCard}
-          iconBg="bg-amber-50 text-amber-500"
-          loading={loading}
-        />
-        <KpiCard
-          label="Open Maintenance"
-          value={openTickets.length}
-          sub="งานซ่อมค้างอยู่"
-          icon={Wrench}
-          iconBg="bg-blue-50 text-blue-500"
+          iconBg="bg-red-50"
+          iconColor="text-red-500"
           loading={loading}
         />
       </section>
 
-      {/* ── Two-column layout ───────────────────────────────────── */}
+      {/* ── Two-column layout: charts left, list right ──────────── */}
       <section className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
 
         {/* Left 2/3 */}

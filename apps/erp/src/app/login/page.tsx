@@ -16,10 +16,12 @@ export default async function LoginPage({
       <div className="soft-orb soft-orb-blue bottom-[14%] right-[12%] h-40 w-40" />
       <section className="auth-card">
         <div className="auth-brand">
-          <div className="auth-brand-mark">AE</div>
+          <div className="auth-brand-mark">
+            <span className="text-sm font-bold tracking-tight leading-none">AE</span>
+          </div>
           <div>
             <div className="auth-brand-title">Apartment ERP</div>
-            <div className="auth-brand-subtitle">Owner and Staff Access</div>
+            <div className="auth-brand-subtitle">Admin Access · v2</div>
           </div>
         </div>
 
