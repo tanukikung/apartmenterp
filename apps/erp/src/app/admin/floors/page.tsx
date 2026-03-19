@@ -4,30 +4,22 @@ import { useEffect, useState } from 'react';
 import { Building2, DoorOpen, Users, AlertTriangle, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
-type Floor = {
-  id: string;
-  floorNumber: number;
-  buildingId: string;
-  createdAt: string;
-  updatedAt: string;
+type FloorOption = {
+  floorNo: number;
+  label: string;
 };
 
-type RoomStatus = 'VACANT' | 'OCCUPIED' | 'MAINTENANCE' | 'SELF_USE' | 'UNAVAILABLE';
-
 type Room = {
-  id: string;
-  roomNumber: string;
-  status: RoomStatus;
-  capacity: number;
-  isActive: boolean;
+  roomNo: string;
+  floorNo: number;
+  roomStatus: 'ACTIVE' | 'INACTIVE';
 };
 
 type FloorStats = {
-  floor: Floor;
+  floor: FloorOption;
   total: number;
-  occupied: number;
-  vacant: number;
-  maintenance: number;
+  active: number;
+  inactive: number;
 };
 
 function occupancyColor(rate: number): string {
@@ -77,11 +69,11 @@ export default function AdminFloorsPage() {
         const floorsRes = await fetch('/api/floors', { cache: 'no-store' }).then((r) => r.json());
         if (!floorsRes.success) throw new Error(floorsRes.error?.message || 'Unable to load floors');
 
-        const floors: Floor[] = floorsRes.data;
+        const floors: FloorOption[] = floorsRes.data;
 
         const roomResults = await Promise.all(
           floors.map((floor) =>
-            fetch(`/api/rooms?floorId=${floor.id}&pageSize=100`, { cache: 'no-store' })
+            fetch(`/api/rooms?floorNo=${floor.floorNo}&pageSize=100`, { cache: 'no-store' })
               .then((r) => r.json())
               .then((res) => {
                 const rooms: Room[] = res.success ? (res.data?.data ?? res.data ?? []) : [];
@@ -93,12 +85,11 @@ export default function AdminFloorsPage() {
         const stats: FloorStats[] = roomResults.map(({ floor, rooms }) => ({
           floor,
           total: rooms.length,
-          occupied: rooms.filter((r) => r.status === 'OCCUPIED').length,
-          vacant: rooms.filter((r) => r.status === 'VACANT').length,
-          maintenance: rooms.filter((r) => r.status === 'MAINTENANCE').length,
+          active: rooms.filter((r) => r.roomStatus === 'ACTIVE').length,
+          inactive: rooms.filter((r) => r.roomStatus === 'INACTIVE').length,
         }));
 
-        stats.sort((a, b) => a.floor.floorNumber - b.floor.floorNumber);
+        stats.sort((a, b) => a.floor.floorNo - b.floor.floorNo);
         setFloorStats(stats);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unable to load floor data');
@@ -114,10 +105,10 @@ export default function AdminFloorsPage() {
     (acc, fs) => ({
       floors: acc.floors + 1,
       rooms: acc.rooms + fs.total,
-      occupied: acc.occupied + fs.occupied,
-      vacant: acc.vacant + fs.vacant,
+      active: acc.active + fs.active,
+      inactive: acc.inactive + fs.inactive,
     }),
-    { floors: 0, rooms: 0, occupied: 0, vacant: 0 }
+    { floors: 0, rooms: 0, active: 0, inactive: 0 }
   );
 
   return (
@@ -162,8 +153,8 @@ export default function AdminFloorsPage() {
         <div className="admin-kpi">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="admin-kpi-label">Occupied Rooms</div>
-              <div className="admin-kpi-value">{loading ? '...' : totals.occupied}</div>
+              <div className="admin-kpi-label">Active Rooms</div>
+              <div className="admin-kpi-value">{loading ? '...' : totals.active}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm">
               <Users className="h-5 w-5 text-emerald-600" />
@@ -174,8 +165,8 @@ export default function AdminFloorsPage() {
         <div className="admin-kpi">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="admin-kpi-label">Vacant Rooms</div>
-              <div className="admin-kpi-value">{loading ? '...' : totals.vacant}</div>
+              <div className="admin-kpi-label">Inactive Rooms</div>
+              <div className="admin-kpi-value">{loading ? '...' : totals.inactive}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 shadow-sm">
               <AlertTriangle className="h-5 w-5 text-sky-500" />
@@ -194,10 +185,10 @@ export default function AdminFloorsPage() {
           </div>
         ) : (
           floorStats.map((fs) => {
-            const rate = fs.total > 0 ? Math.round((fs.occupied / fs.total) * 100) : 0;
+            const rate = fs.total > 0 ? Math.round((fs.active / fs.total) * 100) : 0;
             return (
               <div
-                key={fs.floor.id}
+                key={fs.floor.floorNo}
                 className={`rounded-3xl border p-5 shadow-sm transition-shadow hover:shadow-md ${occupancyColor(rate)}`}
               >
                 {/* Floor header */}
@@ -205,11 +196,11 @@ export default function AdminFloorsPage() {
                   <div className="flex items-center gap-2">
                     <Building2 className={`h-5 w-5 ${occupancyTextColor(rate)}`} />
                     <span className={`text-xl font-bold ${occupancyTextColor(rate)}`}>
-                      ชั้น {fs.floor.floorNumber}
+                      ชั้น {fs.floor.floorNo}
                     </span>
                   </div>
                   <span className="rounded-full border border-white/60 bg-white/70 px-3 py-0.5 text-xs font-semibold text-slate-600 shadow-sm">
-                    {rate}% occupied
+                    {rate}% active
                   </span>
                 </div>
 
@@ -220,16 +211,16 @@ export default function AdminFloorsPage() {
                     <div className="mt-0.5 text-2xl font-bold text-slate-800">{fs.total}</div>
                   </div>
                   <div className="rounded-2xl border border-white/60 bg-white/70 p-3 text-center">
-                    <div className="text-xs font-medium uppercase tracking-wide text-emerald-600">Occupied</div>
-                    <div className="mt-0.5 text-2xl font-bold text-emerald-700">{fs.occupied}</div>
+                    <div className="text-xs font-medium uppercase tracking-wide text-emerald-600">Active</div>
+                    <div className="mt-0.5 text-2xl font-bold text-emerald-700">{fs.active}</div>
                   </div>
                   <div className="rounded-2xl border border-white/60 bg-white/70 p-3 text-center">
-                    <div className="text-xs font-medium uppercase tracking-wide text-sky-600">Vacant</div>
-                    <div className="mt-0.5 text-2xl font-bold text-sky-700">{fs.vacant}</div>
+                    <div className="text-xs font-medium uppercase tracking-wide text-sky-600">Inactive</div>
+                    <div className="mt-0.5 text-2xl font-bold text-sky-700">{fs.inactive}</div>
                   </div>
                   <div className="rounded-2xl border border-white/60 bg-white/70 p-3 text-center">
-                    <div className="text-xs font-medium uppercase tracking-wide text-amber-600">Maintenance</div>
-                    <div className="mt-0.5 text-2xl font-bold text-amber-700">{fs.maintenance}</div>
+                    <div className="text-xs font-medium uppercase tracking-wide text-amber-600">Occupancy</div>
+                    <div className="mt-0.5 text-2xl font-bold text-amber-700">{rate}%</div>
                   </div>
                 </div>
 
@@ -245,7 +236,7 @@ export default function AdminFloorsPage() {
 
                 {/* View Rooms button */}
                 <Link
-                  href={`/admin/floors/${fs.floor.id}`}
+                  href={`/admin/rooms?floorNo=${fs.floor.floorNo}`}
                   className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/60 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-white hover:text-indigo-700"
                 >
                   View Rooms

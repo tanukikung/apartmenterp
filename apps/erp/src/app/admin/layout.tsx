@@ -180,7 +180,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Right: date + admin badge */}
           <div className="flex items-center gap-2.5">
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-slate-400" suppressHydrationWarning>
               {new Date().toLocaleDateString('th-TH', {
                 weekday: 'short',
                 day: '2-digit',

@@ -4,31 +4,37 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type Room = {
+  roomNo: string;
+  floorNo: number;
+  defaultAccountId: string;
+  defaultRuleCode: string;
+  defaultRentAmount: number;
+  hasFurniture: boolean;
+  defaultFurnitureAmount: number;
+  roomStatus: 'ACTIVE' | 'INACTIVE';
+  lineUserId: string | null;
+};
+
+type BankAccount = {
   id: string;
-  floorId: string;
-  roomNumber: string;
-  status: 'VACANT' | 'OCCUPIED' | 'MAINTENANCE';
-  capacity: number;
-  createdAt: string;
-  updatedAt: string;
-  floor?: {
-    id: string;
-    floorNumber: number;
-    buildingId: string;
-  };
+  name: string;
+  bankName: string;
+  bankAccountNo: string;
+};
+
+type BillingRule = {
+  code: string;
+  descriptionTh: string;
 };
 
 type Floor = {
-  id: string;
-  floorNumber: number;
-  buildingId: string;
-  buildingName: string;
+  floorNo: number;
+  label: string;
 };
 
 type RoomStatusCounts = {
-  OCCUPIED: number;
-  VACANT: number;
-  MAINTENANCE: number;
+  ACTIVE: number;
+  INACTIVE: number;
 };
 
 type RoomList = {
@@ -38,30 +44,51 @@ type RoomList = {
 };
 
 const createDefaults = {
-  floorId: '',
-  roomNumber: '',
-  capacity: '2',
-  status: 'VACANT' as Room['status'],
+  roomNo: '',
+  floorNo: '2',
+  defaultAccountId: '',
+  defaultRuleCode: '',
+  defaultRentAmount: '3000',
+  hasFurniture: false,
+  roomStatus: 'ACTIVE' as Room['roomStatus'],
 };
 
-function statusTone(status: Room['status']): string {
-  if (status === 'OCCUPIED') return 'admin-status-good';
-  if (status === 'MAINTENANCE') return 'admin-status-warn';
-  return '';
+function statusTone(status: Room['roomStatus']): string {
+  if (status === 'ACTIVE') return 'admin-status-good';
+  return 'admin-status-warn';
 }
 
 export default function AdminRoomsPage() {
   const [data, setData] = useState<RoomList | null>(null);
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [rules, setRules] = useState<BillingRule[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<string>('');
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [createForm, setCreateForm] = useState(createDefaults);
-  const [editForm, setEditForm] = useState({ roomNumber: '', capacity: '2' });
+  const [editForm, setEditForm] = useState({ defaultRentAmount: '3000', hasFurniture: false, defaultFurnitureAmount: '0', defaultAccountId: '', defaultRuleCode: '', roomStatus: 'ACTIVE' as Room['roomStatus'] });
   const [working, setWorking] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const loadMeta = useCallback(async () => {
+    const [acctRes, rulesRes, floorsRes] = await Promise.all([
+      fetch('/api/bank-accounts', { cache: 'no-store' }).then((r) => r.json()),
+      fetch('/api/billing-rules', { cache: 'no-store' }).then((r) => r.json()),
+      fetch('/api/floors', { cache: 'no-store' }).then((r) => r.json()),
+    ]);
+    if (acctRes.success) {
+      setAccounts(acctRes.data);
+      setCreateForm((prev) => ({ ...prev, defaultAccountId: acctRes.data[0]?.id ?? '' }));
+    }
+    if (rulesRes.success) {
+      setRules(rulesRes.data);
+      setCreateForm((prev) => ({ ...prev, defaultRuleCode: rulesRes.data[0]?.code ?? '' }));
+    }
+    if (floorsRes.success) setFloors(floorsRes.data);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,52 +98,44 @@ export default function AdminRoomsPage() {
         page: '1',
         pageSize: '100',
         ...(search.trim() ? { search: search.trim() } : {}),
-        ...(status ? { status } : {}),
+        ...(statusFilter ? { roomStatus: statusFilter } : {}),
       });
-      const [roomsRes, floorsRes] = await Promise.all([
-        fetch(`/api/rooms?${query.toString()}`, { cache: 'no-store' }).then((r) => r.json()),
-        fetch('/api/floors', { cache: 'no-store' }).then((r) => r.json()),
-      ]);
-      if (!roomsRes.success) throw new Error(roomsRes.error?.message || 'Unable to load rooms');
-      if (!floorsRes.success) throw new Error(floorsRes.error?.message || 'Unable to load floors');
-      setData(roomsRes.data);
-      setFloors(floorsRes.data);
+      const res = await fetch(`/api/rooms?${query.toString()}`, { cache: 'no-store' }).then((r) => r.json());
+      if (!res.success) throw new Error(res.error?.message || 'Unable to load rooms');
+      setData(res.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load rooms');
     } finally {
       setLoading(false);
     }
-  }, [search, status]);
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    void loadMeta();
+  }, [loadMeta]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const selectedRoom = useMemo(
-    () => data?.data.find((room) => room.id === selectedRoomId) || null,
-    [data, selectedRoomId]
-  );
-
   useEffect(() => {
     if (selectedRoom) {
       setEditForm({
-        roomNumber: selectedRoom.roomNumber,
-        capacity: String(selectedRoom.capacity),
+        defaultRentAmount: String(selectedRoom.defaultRentAmount),
+        hasFurniture: selectedRoom.hasFurniture,
+        defaultFurnitureAmount: String(selectedRoom.defaultFurnitureAmount),
+        defaultAccountId: selectedRoom.defaultAccountId,
+        defaultRuleCode: selectedRoom.defaultRuleCode,
+        roomStatus: selectedRoom.roomStatus,
       });
     }
   }, [selectedRoom]);
 
-  const stats = useMemo(() => {
-    // Use the API-provided counts rather than deriving from the current page of
-    // results. data.total is the filtered count; statusCounts are the global
-    // (unfiltered) per-status totals returned by the service.
-    return {
-      total: data?.total ?? 0,
-      occupied: data?.statusCounts?.OCCUPIED ?? 0,
-      vacant: data?.statusCounts?.VACANT ?? 0,
-      maintenance: data?.statusCounts?.MAINTENANCE ?? 0,
-    };
-  }, [data]);
+  const stats = useMemo(() => ({
+    total: data?.total ?? 0,
+    active: data?.statusCounts?.ACTIVE ?? 0,
+    inactive: data?.statusCounts?.INACTIVE ?? 0,
+  }), [data]);
 
   async function createRoom(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -128,15 +147,18 @@ export default function AdminRoomsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          floorId: createForm.floorId,
-          roomNumber: createForm.roomNumber,
-          capacity: Number(createForm.capacity),
-          status: createForm.status,
+          roomNo: createForm.roomNo,
+          floorNo: Number(createForm.floorNo),
+          defaultAccountId: createForm.defaultAccountId,
+          defaultRuleCode: createForm.defaultRuleCode,
+          defaultRentAmount: Number(createForm.defaultRentAmount),
+          hasFurniture: createForm.hasFurniture,
+          roomStatus: createForm.roomStatus,
         }),
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'Unable to create room');
-      setMessage('Room created');
-      setCreateForm(createDefaults);
+      setMessage(`ห้อง ${createForm.roomNo} สร้างสำเร็จ`);
+      setCreateForm((prev) => ({ ...prev, roomNo: '' }));
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create room');
@@ -148,20 +170,23 @@ export default function AdminRoomsPage() {
   async function updateRoom(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selectedRoom) return;
-    setWorking(`edit:${selectedRoom.id}`);
+    setWorking(`edit:${selectedRoom.roomNo}`);
     setMessage(null);
     setError(null);
     try {
-      const res = await fetch(`/api/rooms/${selectedRoom.id}`, {
+      const res = await fetch(`/api/rooms/${encodeURIComponent(selectedRoom.roomNo)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          roomNumber: editForm.roomNumber,
-          capacity: Number(editForm.capacity),
+          defaultRentAmount: Number(editForm.defaultRentAmount),
+          hasFurniture: editForm.hasFurniture,
+          defaultFurnitureAmount: Number(editForm.defaultFurnitureAmount),
+          defaultAccountId: editForm.defaultAccountId,
+          defaultRuleCode: editForm.defaultRuleCode,
         }),
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'Unable to update room');
-      setMessage('Room updated');
+      setMessage(`ห้อง ${selectedRoom.roomNo} อัพเดทสำเร็จ`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update room');
@@ -172,16 +197,17 @@ export default function AdminRoomsPage() {
 
   async function deleteRoom() {
     if (!selectedRoom) return;
-    setWorking(`delete:${selectedRoom.id}`);
+    if (!confirm(`ลบห้อง ${selectedRoom.roomNo}?\nไม่สามารถย้อนกลับได้`)) return;
+    setWorking(`delete:${selectedRoom.roomNo}`);
     setMessage(null);
     setError(null);
     try {
-      const res = await fetch(`/api/rooms/${selectedRoom.id}`, {
+      const res = await fetch(`/api/rooms/${encodeURIComponent(selectedRoom.roomNo)}`, {
         method: 'DELETE',
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'Unable to delete room');
-      setMessage('Room deleted');
-      setSelectedRoomId(null);
+      setMessage(`ห้อง ${selectedRoom.roomNo} ลบสำเร็จ`);
+      setSelectedRoom(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to delete room');
@@ -190,21 +216,21 @@ export default function AdminRoomsPage() {
     }
   }
 
-  async function updateStatus(roomId: string, nextStatus: Room['status'], roomNumber: string) {
-    if (nextStatus === 'MAINTENANCE') {
-      if (!confirm(`Mark room ${roomNumber} as MAINTENANCE?\nThis will block new tenant assignments until status changes.`)) return;
+  async function updateStatus(roomNo: string, nextStatus: Room['roomStatus']) {
+    if (nextStatus === 'INACTIVE') {
+      if (!confirm(`เปลี่ยนห้อง ${roomNo} เป็น INACTIVE?\nจะไม่สามารถจัดสรรผู้เช่าได้จนกว่าจะเปลี่ยนกลับ`)) return;
     }
-    setWorking(`status:${roomId}`);
+    setWorking(`status:${roomNo}`);
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch(`/api/rooms/${roomId}/status`, {
+      const res = await fetch(`/api/rooms/${encodeURIComponent(roomNo)}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus }),
+        body: JSON.stringify({ roomStatus: nextStatus }),
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'Unable to update room status');
-      setMessage('Room status updated');
+      setMessage(`สถานะห้อง ${roomNo} อัพเดทสำเร็จ`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update room status');
@@ -218,15 +244,14 @@ export default function AdminRoomsPage() {
       <section className="admin-page-header">
         <div>
           <h1 className="admin-page-title">Rooms</h1>
-          <p className="admin-page-subtitle">Create, edit, delete, search, and update room status against the real backend.</p>
+          <p className="admin-page-subtitle">จัดการห้องพัก สร้าง แก้ไข ลบ และเปลี่ยนสถานะ</p>
         </div>
         <div className="admin-toolbar">
-          <input value={search} onChange={(e) => setSearch(e.target.value)} className="admin-input w-[240px]" placeholder="Search room number" />
-          <select className="admin-select w-[180px]" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">All statuses</option>
-            <option value="VACANT">Vacant</option>
-            <option value="OCCUPIED">Occupied</option>
-            <option value="MAINTENANCE">Maintenance</option>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} className="admin-input w-[200px]" placeholder="ค้นหาเลขห้อง" />
+          <select className="admin-select w-[160px]" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">ทุกสถานะ</option>
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Inactive</option>
           </select>
           <button onClick={() => void load()} className="admin-button">Refresh</button>
         </div>
@@ -235,64 +260,62 @@ export default function AdminRoomsPage() {
       {message ? <div className="auth-alert auth-alert-success">{message}</div> : null}
       {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="admin-kpi"><div className="admin-kpi-label">Total Rooms</div><div className="admin-kpi-value">{stats.total}</div></div>
-        <div className="admin-kpi"><div className="admin-kpi-label">Occupied</div><div className="admin-kpi-value">{stats.occupied}</div></div>
-        <div className="admin-kpi"><div className="admin-kpi-label">Vacant</div><div className="admin-kpi-value">{stats.vacant}</div></div>
-        <div className="admin-kpi"><div className="admin-kpi-label">Maintenance</div><div className="admin-kpi-value">{stats.maintenance}</div></div>
+      <section className="grid gap-4 md:grid-cols-3">
+        <div className="admin-kpi"><div className="admin-kpi-label">ทั้งหมด</div><div className="admin-kpi-value">{stats.total}</div></div>
+        <div className="admin-kpi"><div className="admin-kpi-label">Active</div><div className="admin-kpi-value">{stats.active}</div></div>
+        <div className="admin-kpi"><div className="admin-kpi-label">Inactive</div><div className="admin-kpi-value">{stats.inactive}</div></div>
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_420px]">
         <section className="admin-card overflow-hidden">
           <div className="admin-card-header">
-            <div className="admin-card-title">Room Register</div>
-            <span className="admin-badge">{data?.total ?? 0} records</span>
+            <div className="admin-card-title">ทะเบียนห้องพัก</div>
+            <span className="admin-badge">{data?.total ?? 0} ห้อง</span>
           </div>
           <div className="overflow-auto">
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Room</th>
-                  <th>Floor</th>
-                  <th>Status</th>
-                  <th>Capacity</th>
-                  <th>Updated</th>
-                  <th>Actions</th>
+                  <th>เลขห้อง</th>
+                  <th>ชั้น</th>
+                  <th>สถานะ</th>
+                  <th>ค่าเช่า</th>
+                  <th>บัญชี</th>
+                  <th>เปลี่ยนสถานะ</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7} className="px-3 py-6 text-center text-slate-500">Loading room data...</td></tr>
+                  <tr><td colSpan={7} className="px-3 py-6 text-center text-slate-500">กำลังโหลด...</td></tr>
                 ) : !data?.data?.length ? (
-                  <tr><td colSpan={7} className="px-3 py-6 text-center text-slate-500">No rooms found.</td></tr>
+                  <tr><td colSpan={7} className="px-3 py-6 text-center text-slate-500">ไม่พบห้อง</td></tr>
                 ) : (
                   data.data.map((room) => (
-                    <tr key={room.id}>
+                    <tr key={room.roomNo}>
                       <td>
-                        <button className="text-left font-medium text-slate-900 underline-offset-4 hover:underline" onClick={() => setSelectedRoomId(room.id)}>
-                          {room.roomNumber}
+                        <button className="text-left font-medium text-slate-900 underline-offset-4 hover:underline" onClick={() => setSelectedRoom(room)}>
+                          {room.roomNo}
                         </button>
                       </td>
-                      <td>{room.floor?.floorNumber ?? '-'}</td>
-                      <td><span className={`admin-badge ${statusTone(room.status)}`}>{room.status}</span></td>
-                      <td>{room.capacity}</td>
-                      <td>{new Date(room.updatedAt).toLocaleString()}</td>
+                      <td>ชั้น {room.floorNo}</td>
+                      <td><span className={`admin-badge ${statusTone(room.roomStatus)}`}>{room.roomStatus}</span></td>
+                      <td>฿{Number(room.defaultRentAmount).toLocaleString()}</td>
+                      <td className="text-xs text-slate-500">{room.defaultAccountId}</td>
                       <td>
                         <select
-                          className="admin-select min-w-[150px]"
-                          value={room.status}
-                          onChange={(e) => void updateStatus(room.id, e.target.value as Room['status'], room.roomNumber)}
-                          disabled={working === `status:${room.id}`}
+                          className="admin-select min-w-[130px]"
+                          value={room.roomStatus}
+                          onChange={(e) => void updateStatus(room.roomNo, e.target.value as Room['roomStatus'])}
+                          disabled={working === `status:${room.roomNo}`}
                         >
-                          <option value="VACANT">VACANT</option>
-                          <option value="OCCUPIED">OCCUPIED</option>
-                          <option value="MAINTENANCE">MAINTENANCE</option>
+                          <option value="ACTIVE">ACTIVE</option>
+                          <option value="INACTIVE">INACTIVE</option>
                         </select>
                       </td>
                       <td>
-                        <Link href={`/admin/rooms/${room.id}`} className="admin-button text-xs">
-                          View →
+                        <Link href={`/admin/rooms/${encodeURIComponent(room.roomNo)}`} className="admin-button text-xs">
+                          ดู →
                         </Link>
                       </td>
                     </tr>
@@ -304,72 +327,111 @@ export default function AdminRoomsPage() {
         </section>
 
         <div className="space-y-6">
+          {/* Create Room */}
           <section className="admin-card">
             <div className="admin-card-header">
-              <div className="admin-card-title">Create Room</div>
+              <div className="admin-card-title">เพิ่มห้องใหม่</div>
             </div>
             <form className="grid gap-4 p-4" onSubmit={createRoom}>
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Floor</label>
-                <select className="admin-select" value={createForm.floorId} onChange={(e) => setCreateForm((prev) => ({ ...prev, floorId: e.target.value }))}>
-                  <option value="">Select floor</option>
-                  {floors.map((floor) => (
-                    <option key={floor.id} value={floor.id}>
-                      {floor.buildingName} · Floor {floor.floorNumber}
-                    </option>
-                  ))}
-                </select>
+                <label className="mb-2 block text-sm font-medium text-slate-700">เลขห้อง</label>
+                <input className="admin-input" value={createForm.roomNo} placeholder="เช่น 3210" onChange={(e) => setCreateForm((p) => ({ ...p, roomNo: e.target.value }))} required />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Room Number</label>
-                <input className="admin-input" value={createForm.roomNumber} onChange={(e) => setCreateForm((prev) => ({ ...prev, roomNumber: e.target.value }))} />
+                <label className="mb-2 block text-sm font-medium text-slate-700">ชั้น</label>
+                {floors.length > 0 ? (
+                  <select className="admin-select" value={createForm.floorNo} onChange={(e) => setCreateForm((p) => ({ ...p, floorNo: e.target.value }))}>
+                    {floors.map((f) => <option key={f.floorNo} value={f.floorNo}>{f.label}</option>)}
+                  </select>
+                ) : (
+                  <input className="admin-input" type="number" min={1} value={createForm.floorNo} onChange={(e) => setCreateForm((p) => ({ ...p, floorNo: e.target.value }))} />
+                )}
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Capacity</label>
-                <input className="admin-input" type="number" min={1} max={10} value={createForm.capacity} onChange={(e) => setCreateForm((prev) => ({ ...prev, capacity: e.target.value }))} />
+                <label className="mb-2 block text-sm font-medium text-slate-700">ค่าเช่าเริ่มต้น (฿)</label>
+                <input className="admin-input" type="number" min={0} value={createForm.defaultRentAmount} onChange={(e) => setCreateForm((p) => ({ ...p, defaultRentAmount: e.target.value }))} />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Initial Status</label>
-                <select className="admin-select" value={createForm.status} onChange={(e) => setCreateForm((prev) => ({ ...prev, status: e.target.value as Room['status'] }))}>
-                  <option value="VACANT">VACANT</option>
-                  <option value="OCCUPIED">OCCUPIED</option>
-                  <option value="MAINTENANCE">MAINTENANCE</option>
-                </select>
+                <label className="mb-2 block text-sm font-medium text-slate-700">บัญชีธนาคาร</label>
+                {accounts.length > 0 ? (
+                  <select className="admin-select" value={createForm.defaultAccountId} onChange={(e) => setCreateForm((p) => ({ ...p, defaultAccountId: e.target.value }))}>
+                    {accounts.map((a) => <option key={a.id} value={a.id}>{a.id} – {a.name} ({a.bankName})</option>)}
+                  </select>
+                ) : (
+                  <input className="admin-input" value={createForm.defaultAccountId} placeholder="ACC_F2" onChange={(e) => setCreateForm((p) => ({ ...p, defaultAccountId: e.target.value }))} required />
+                )}
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">กฎการเรียกเก็บ</label>
+                {rules.length > 0 ? (
+                  <select className="admin-select" value={createForm.defaultRuleCode} onChange={(e) => setCreateForm((p) => ({ ...p, defaultRuleCode: e.target.value }))}>
+                    {rules.map((r) => <option key={r.code} value={r.code}>{r.code} – {r.descriptionTh}</option>)}
+                  </select>
+                ) : (
+                  <input className="admin-input" value={createForm.defaultRuleCode} placeholder="STANDARD" onChange={(e) => setCreateForm((p) => ({ ...p, defaultRuleCode: e.target.value }))} required />
+                )}
               </div>
               <button className="admin-button admin-button-primary" disabled={working === 'create'}>
-                {working === 'create' ? 'Creating...' : 'Create Room'}
+                {working === 'create' ? 'กำลังสร้าง...' : 'สร้างห้อง'}
               </button>
             </form>
           </section>
 
+          {/* Edit Room */}
           <section className="admin-card">
             <div className="admin-card-header">
-              <div className="admin-card-title">Edit Room</div>
+              <div className="admin-card-title">แก้ไขห้อง</div>
             </div>
             {selectedRoom ? (
               <form className="grid gap-4 p-4" onSubmit={updateRoom}>
                 <div className="rounded-3xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-slate-600">
-                  Editing room <span className="font-semibold text-slate-900">{selectedRoom.roomNumber}</span> on floor {selectedRoom.floor?.floorNumber ?? '-'}
+                  แก้ไขห้อง <span className="font-semibold text-slate-900">{selectedRoom.roomNo}</span> ชั้น {selectedRoom.floorNo}
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Room Number</label>
-                  <input className="admin-input" value={editForm.roomNumber} onChange={(e) => setEditForm((prev) => ({ ...prev, roomNumber: e.target.value }))} />
+                  <label className="mb-2 block text-sm font-medium text-slate-700">ค่าเช่า (฿)</label>
+                  <input className="admin-input" type="number" min={0} value={editForm.defaultRentAmount} onChange={(e) => setEditForm((p) => ({ ...p, defaultRentAmount: e.target.value }))} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="hasFurniture" checked={editForm.hasFurniture} onChange={(e) => setEditForm((p) => ({ ...p, hasFurniture: e.target.checked }))} />
+                  <label htmlFor="hasFurniture" className="text-sm font-medium text-slate-700">มีเฟอร์นิเจอร์</label>
+                </div>
+                {editForm.hasFurniture && (
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-slate-700">ค่าเฟอร์นิเจอร์ (฿)</label>
+                    <input className="admin-input" type="number" min={0} value={editForm.defaultFurnitureAmount} onChange={(e) => setEditForm((p) => ({ ...p, defaultFurnitureAmount: e.target.value }))} />
+                  </div>
+                )}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">บัญชีธนาคาร</label>
+                  {accounts.length > 0 ? (
+                    <select className="admin-select" value={editForm.defaultAccountId} onChange={(e) => setEditForm((p) => ({ ...p, defaultAccountId: e.target.value }))}>
+                      {accounts.map((a) => <option key={a.id} value={a.id}>{a.id} – {a.name}</option>)}
+                    </select>
+                  ) : (
+                    <input className="admin-input" value={editForm.defaultAccountId} onChange={(e) => setEditForm((p) => ({ ...p, defaultAccountId: e.target.value }))} />
+                  )}
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Capacity</label>
-                  <input className="admin-input" type="number" min={1} max={10} value={editForm.capacity} onChange={(e) => setEditForm((prev) => ({ ...prev, capacity: e.target.value }))} />
+                  <label className="mb-2 block text-sm font-medium text-slate-700">กฎการเรียกเก็บ</label>
+                  {rules.length > 0 ? (
+                    <select className="admin-select" value={editForm.defaultRuleCode} onChange={(e) => setEditForm((p) => ({ ...p, defaultRuleCode: e.target.value }))}>
+                      {rules.map((r) => <option key={r.code} value={r.code}>{r.code} – {r.descriptionTh}</option>)}
+                    </select>
+                  ) : (
+                    <input className="admin-input" value={editForm.defaultRuleCode} onChange={(e) => setEditForm((p) => ({ ...p, defaultRuleCode: e.target.value }))} />
+                  )}
                 </div>
                 <div className="flex gap-2">
-                  <button className="admin-button admin-button-primary" disabled={working === `edit:${selectedRoom.id}`}>
-                    {working === `edit:${selectedRoom.id}` ? 'Saving...' : 'Save Changes'}
+                  <button className="admin-button admin-button-primary" disabled={working === `edit:${selectedRoom.roomNo}`}>
+                    {working === `edit:${selectedRoom.roomNo}` ? 'กำลังบันทึก...' : 'บันทึก'}
                   </button>
-                  <button type="button" className="admin-button" onClick={deleteRoom} disabled={working === `delete:${selectedRoom.id}`}>
-                    {working === `delete:${selectedRoom.id}` ? 'Deleting...' : 'Delete Room'}
+                  <button type="button" className="admin-button" onClick={deleteRoom} disabled={working === `delete:${selectedRoom.roomNo}`}>
+                    {working === `delete:${selectedRoom.roomNo}` ? 'กำลังลบ...' : 'ลบห้อง'}
                   </button>
                 </div>
               </form>
             ) : (
-              <div className="p-4 text-sm text-slate-500">Select a room from the table to edit or delete it.</div>
+              <div className="p-4 text-sm text-slate-500">คลิกที่ห้องในตารางเพื่อแก้ไขหรือลบ</div>
             )}
           </section>
         </div>

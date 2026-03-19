@@ -234,7 +234,16 @@ export function hasValidCronSecret(req: NextRequest): boolean {
 
 export function isCsrfExemptApiRoute(pathname: string, method: string): boolean {
   const normalizedMethod = method.toUpperCase();
-  if (pathname === '/api/auth/logout' && normalizedMethod === 'POST') {
+  // Auth endpoints submitted via native HTML form (no JS) must be exempt so that
+  // browsers which omit the Origin header on same-origin form POSTs don't get blocked.
+  if (
+    (pathname === '/api/auth/logout' ||
+      pathname === '/api/auth/login' ||
+      pathname === '/api/auth/signup' ||
+      pathname === '/api/auth/forgot-password' ||
+      pathname === '/api/auth/reset-password') &&
+    normalizedMethod === 'POST'
+  ) {
     return true;
   }
 

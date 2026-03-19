@@ -13,15 +13,13 @@ type TemplateOption = {
 };
 
 type FloorOption = {
-  id: string;
-  floorNumber: number;
-  buildingName: string;
+  floorNo: number;
+  label: string;
 };
 
 type RoomOption = {
-  id: string;
-  roomNumber: string;
-  floorId: string;
+  roomNo: string;
+  floorNo: number;
   roomTenants?: Array<{ tenant?: { firstName?: string; lastName?: string } }>;
 };
 
@@ -95,7 +93,7 @@ export default function GenerateDocumentsPage() {
         const [templatesResponse, floorsResponse, roomsResponse] = await Promise.all([
           fetch('/api/templates?pageSize=100', { cache: 'no-store' }).then((response) => response.json()),
           fetch('/api/floors', { cache: 'no-store' }).then((response) => response.json()),
-          fetch('/api/rooms?pageSize=100', { cache: 'no-store' }).then((response) => response.json()),
+          fetch('/api/rooms?pageSize=100&page=1', { cache: 'no-store' }).then((response) => response.json()),
         ]);
 
         setTemplates((templatesResponse.data?.data ?? []).filter((template: TemplateOption) => template.activeVersionId));
@@ -118,7 +116,7 @@ export default function GenerateDocumentsPage() {
   }, [templates, selectedTemplateId]);
 
   const filteredRooms = useMemo(() => {
-    return rooms.filter((room) => room.roomNumber.toLowerCase().includes(search.toLowerCase()));
+    return rooms.filter((room) => room.roomNo.toLowerCase().includes(search.toLowerCase()));
   }, [rooms, search]);
 
   const requestBody = useMemo(() => ({
@@ -260,8 +258,8 @@ export default function GenerateDocumentsPage() {
                   <select className="admin-select" value={selectedRoomId} onChange={(event) => setSelectedRoomId(event.target.value)}>
                     <option value="">Select room</option>
                     {rooms.map((room) => (
-                      <option key={room.id} value={room.id}>
-                        {room.roomNumber}
+                      <option key={room.roomNo} value={room.roomNo}>
+                        {room.roomNo}
                       </option>
                     ))}
                   </select>
@@ -282,19 +280,19 @@ export default function GenerateDocumentsPage() {
                   </div>
                   <div className="max-h-[220px] space-y-2 overflow-auto rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-3">
                     {filteredRooms.map((room) => (
-                      <label key={room.id} className="flex items-center gap-3 rounded-[1rem] bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm">
+                      <label key={room.roomNo} className="flex items-center gap-3 rounded-[1rem] bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm">
                         <input
                           type="checkbox"
-                          checked={selectedRoomIds.includes(room.id)}
+                          checked={selectedRoomIds.includes(room.roomNo)}
                           onChange={(event) => {
                             setSelectedRoomIds((current) =>
                               event.target.checked
-                                ? [...current, room.id]
-                                : current.filter((roomId) => roomId !== room.id),
+                                ? [...current, room.roomNo]
+                                : current.filter((roomId) => roomId !== room.roomNo),
                             );
                           }}
                         />
-                        <span className="font-medium">{room.roomNumber}</span>
+                        <span className="font-medium">{room.roomNo}</span>
                       </label>
                     ))}
                   </div>
@@ -307,8 +305,8 @@ export default function GenerateDocumentsPage() {
                   <select className="admin-select" value={floorNumber} onChange={(event) => setFloorNumber(event.target.value ? Number(event.target.value) : '')}>
                     <option value="">Select floor</option>
                     {floors.map((floor) => (
-                      <option key={floor.id} value={floor.floorNumber}>
-                        Floor {floor.floorNumber} · {floor.buildingName}
+                      <option key={floor.floorNo} value={floor.floorNo}>
+                        {floor.label}
                       </option>
                     ))}
                   </select>
