@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { prisma } from '@/lib';
 import { prisma as dbPrisma } from '@/lib/db/client';
+import { makeRequestLike } from './helpers/auth';
 
 vi.mock('@/lib', async () => {
   const actual = await vi.importActual<any>('@/lib');
@@ -62,12 +63,29 @@ describe('Maintenance API and audit logging', () => {
     expect(res.ok).toBe(true);
     expect(prisma.$transaction).toHaveBeenCalled();
     expect(dbPrisma.auditLog.create).toHaveBeenCalled();
+    expect(dbPrisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: 'anonymous',
+          details: expect.objectContaining({
+            actorRole: 'ANONYMOUS',
+            submittedTenantId: body.tenantId,
+            tenantId: 'u-1',
+          }),
+        }),
+      }),
+    );
   });
 
   it('updates maintenance status and writes audit logs', async () => {
     const mod = await import('@/app/api/admin/maintenance/update-status/route');
-    const reqBody = { ticketId: '33333333-3333-3333-3333-333333333333', status: 'CLOSED', actorId: 'admin' };
-    const req: any = { json: async () => reqBody };
+    const reqBody = { ticketId: '33333333-3333-3333-3333-333333333333', status: 'CLOSED' };
+    const req = makeRequestLike({
+      url: 'http://localhost/api/admin/maintenance/update-status',
+      method: 'POST',
+      role: 'ADMIN',
+      body: reqBody,
+    });
     const res: Response = await (mod as any).POST(req);
     expect(res.ok).toBe(true);
     expect(prisma.maintenanceTicket.update).toHaveBeenCalled();

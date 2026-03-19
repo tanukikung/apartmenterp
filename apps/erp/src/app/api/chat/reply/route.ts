@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
+import { getVerifiedActor } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse, NotFoundError, ExternalServiceError } from '@/lib/utils/errors';
 import { prisma, sendLineMessage, logger } from '@/lib';
 import { logAudit } from '@/modules/audit';
@@ -15,6 +16,7 @@ const schema = z.object({
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const body = await req.json().catch(() => ({}));
   const input = schema.parse(body);
+  const actor = getVerifiedActor(req);
 
   const conversation = await prisma.conversation.findUnique({
     where: { id: input.conversationId },
@@ -59,8 +61,8 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     });
     
     await logAudit({
-      actorId: 'system',
-      actorRole: 'ADMIN',
+      actorId: actor.actorId,
+      actorRole: actor.actorRole,
       action: 'CHAT_MESSAGE_SENT',
       entityType: 'CONVERSATION',
       entityId: conversation.id,

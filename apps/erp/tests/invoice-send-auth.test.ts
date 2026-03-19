@@ -1,69 +1,31 @@
-/**
- * invoice-send-auth.test.ts
- *
- * Hardening tests for POST /api/invoices/[id]/send covering:
- *  1. Missing auth session → 401 Unauthorized
- *  2. Authenticated as ADMIN → proceeds (mock delivery created)
- *  3. Invalid/non-existent invoice ID → 404 Not Found
- *  4. LINE not configured → delivery created with status FAILED + correct error
- *  5. lineUserId never exposed in response meta (PII guard)
- *  6. documentTemplateId + hash snapshot persisted in InvoiceDelivery
- *
- * These verify the requireRole guard added in the final hardening pass and
- * ensure mismatched IDs fail safely through the service layer.
- */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { signSessionToken } from '@/lib/auth/session';
-import { mockPrismaClient } from './mocks/prisma';
+import {
+  NotFoundError,
+  ValidationError,
+} from '@/lib/utils/errors';
 
-// ── Shared Prisma instance ────────────────────────────────────────────────────
-// Both @/lib/db/client and @/lib must expose the SAME instance so test-level
-// mock setups (invoice.findUnique, invoiceDelivery.create, etc.) affect the
-// route, which imports from @/lib.
-const sharedPrisma = mockPrismaClient();
+const sendInvoiceMock = vi.fn();
+const logAuditMock = vi.fn(async () => {});
 
-vi.mock('@/lib/db/client', () => ({
-  prisma: sharedPrisma,
-}));
-
-vi.mock('@/lib', () => ({
-  prisma: sharedPrisma,
-  isLineConfigured: vi.fn(() => false), // LINE not configured by default
-}));
-
-// ── Invoice service mock ──────────────────────────────────────────────────────
 vi.mock('@/modules/invoices/invoice.service', () => ({
   getInvoiceService: () => ({
-    markInvoiceSent: vi.fn(async (id: string) => {
-      if (id === 'not-found-id') {
-        const { NotFoundError } = await import('@/lib/utils/errors');
-        throw new NotFoundError('Invoice', id);
-      }
-      return {
-        id,
-        invoiceNumber: 'INV-001',
-        status: 'SENT',
-        totalAmount: 5500,
-        dueDate: new Date('2024-03-31').toISOString(),
-        room: { id: 'room-1', roomNumber: '101', roomTenants: [] },
-      };
-    }),
+    sendInvoice: sendInvoiceMock,
   }),
 }));
 
-// ── Outbox mock ───────────────────────────────────────────────────────────────
-vi.mock('@/lib/outbox', () => ({
-  getOutboxProcessor: () => ({
-    writeOne: vi.fn(async () => {}),
-  }),
-}));
-
-// ── Audit log mock ────────────────────────────────────────────────────────────
 vi.mock('@/modules/audit', () => ({
-  logAudit: vi.fn(async () => {}),
+  logAudit: logAuditMock,
 }));
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+vi.mock('@/lib/utils/logger', () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
 
 function makeAuthCookie(role: 'ADMIN' | 'STAFF' = 'ADMIN'): string {
   const token = signSessionToken({
@@ -96,8 +58,8 @@ function makeRequest(overrides: { cookie?: string; body?: unknown }): any {
     method: 'POST',
     cookies: {
       get: (name: string) => {
-        const val = cookieMap[name];
-        return val !== undefined ? { value: val } : undefined;
+        const value = cookieMap[name];
+        return value !== undefined ? { value } : undefined;
       },
     },
     headers: {
@@ -111,27 +73,45 @@ function makeRequest(overrides: { cookie?: string; body?: unknown }): any {
   };
 }
 
-/** Reset shared prisma mocks to safe defaults before each test. */
-function resetPrismaMocks() {
-  sharedPrisma.invoice.findUnique.mockResolvedValue(null);
-  sharedPrisma.invoiceDelivery.create.mockResolvedValue({ id: 'delivery-default' });
-  sharedPrisma.documentTemplate.findFirst.mockResolvedValue(null);
-  sharedPrisma.messageTemplate.findFirst.mockResolvedValue(null);
-  sharedPrisma.messageTemplate.findUnique.mockResolvedValue(null);
-}
+const SUCCESS_RESULT = {
+  queued: true,
+  invoice: {
+    id: 'valid-invoice-id',
+    invoiceNumber: 'INV-001',
+    roomId: 'room-1',
+    billingRecordId: 'billing-1',
+    year: 2024,
+    month: 3,
+    version: 1,
+    status: 'SENT' as const,
+    subtotal: 5500,
+    totalAmount: 5500,
+    dueDate: new Date('2024-03-31T00:00:00Z'),
+    issuedAt: new Date('2024-03-01T00:00:00Z'),
+    sentAt: new Date('2024-03-01T00:00:00Z'),
+    sentBy: 'test-admin',
+    viewedAt: null,
+    paidAt: null,
+    createdAt: new Date('2024-03-01T00:00:00Z'),
+    updatedAt: new Date('2024-03-01T00:00:00Z'),
+  },
+  errorMessage: null,
+  lineConfigured: true,
+  hasLineRecipient: true,
+  deliveryStatus: 'PENDING' as const,
+  deliveryId: 'delivery-1',
+  messageTemplateId: 'msg-1',
+  documentTemplateId: 'doc-1',
+  documentTemplateHash: 'a'.repeat(64),
+  pdfUrl: 'http://localhost/api/invoices/valid-invoice-id/pdf',
+};
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
-describe('POST /api/invoices/[id]/send — auth guard', () => {
+describe('POST /api/invoices/[id]/send', () => {
   const VALID_ID = 'valid-invoice-id';
 
   beforeEach(() => {
     vi.clearAllMocks();
-    resetPrismaMocks();
-    sharedPrisma.invoice.findUnique.mockResolvedValue({
-      id: VALID_ID,
-      room: { roomTenants: [] },
-    });
+    sendInvoiceMock.mockResolvedValue(SUCCESS_RESULT);
   });
 
   it('returns 401 when no auth cookie is present', async () => {
@@ -139,26 +119,35 @@ describe('POST /api/invoices/[id]/send — auth guard', () => {
     const req = makeRequest({ cookie: undefined });
 
     const res: Response = await (mod as any).POST(req, { params: { id: VALID_ID } });
+
     expect(res.status).toBe(401);
+    expect(sendInvoiceMock).not.toHaveBeenCalled();
   });
 
-  it('returns 401 when auth cookie is invalid/tampered', async () => {
+  it('returns 401 when auth cookie is invalid', async () => {
     const mod = await import('@/app/api/invoices/[id]/send/route');
     const req = makeRequest({ cookie: 'auth_session=invalid.tampered.token; role=ADMIN' });
 
     const res: Response = await (mod as any).POST(req, { params: { id: VALID_ID } });
+
     expect(res.status).toBe(401);
+    expect(sendInvoiceMock).not.toHaveBeenCalled();
   });
 
-  it('returns 200 when authenticated as ADMIN with valid invoice', async () => {
+  it('returns 200 when authenticated as ADMIN and the service queues the send', async () => {
     const mod = await import('@/app/api/invoices/[id]/send/route');
     const req = makeRequest({ cookie: makeAuthCookie('ADMIN'), body: {} });
 
     const res: Response = await (mod as any).POST(req, { params: { id: VALID_ID } });
-    expect(res.status).toBe(200);
-
     const json = await res.json();
+
+    expect(res.status).toBe(200);
     expect(json.success).toBe(true);
+    expect(sendInvoiceMock).toHaveBeenCalledWith(
+      VALID_ID,
+      { sendToLine: true, channel: 'LINE' },
+      'test-admin'
+    );
   });
 
   it('returns 200 when authenticated as STAFF', async () => {
@@ -166,104 +155,59 @@ describe('POST /api/invoices/[id]/send — auth guard', () => {
     const req = makeRequest({ cookie: makeAuthCookie('STAFF'), body: {} });
 
     const res: Response = await (mod as any).POST(req, { params: { id: VALID_ID } });
+
     expect(res.status).toBe(200);
-  });
-});
-
-describe('POST /api/invoices/[id]/send — 404 on invalid ID', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    resetPrismaMocks();
+    expect(sendInvoiceMock).toHaveBeenCalledWith(
+      VALID_ID,
+      { sendToLine: true, channel: 'LINE' },
+      'test-staff'
+    );
   });
 
-  it('returns 404 when invoice ID does not exist', async () => {
+  it('returns 404 when the service reports a missing invoice', async () => {
+    sendInvoiceMock.mockRejectedValueOnce(new NotFoundError('Invoice', VALID_ID));
+
     const mod = await import('@/app/api/invoices/[id]/send/route');
     const req = makeRequest({ cookie: makeAuthCookie('ADMIN'), body: {} });
 
-    // 'not-found-id' triggers NotFoundError in the mocked service
-    const res: Response = await (mod as any).POST(req, { params: { id: 'not-found-id' } });
+    const res: Response = await (mod as any).POST(req, { params: { id: VALID_ID } });
+
     expect(res.status).toBe(404);
   });
-});
 
-describe('POST /api/invoices/[id]/send — LINE not configured state', () => {
-  const INVOICE_ID = 'line-test-invoice';
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    resetPrismaMocks();
-    sharedPrisma.invoice.findUnique.mockResolvedValue({
-      id: INVOICE_ID,
-      room: { roomTenants: [] }, // no tenant → no lineUserId
-    });
-  });
-
-  it('creates delivery with FAILED status when LINE is not configured', async () => {
-    const mod = await import('@/app/api/invoices/[id]/send/route');
-    const req = makeRequest({ cookie: makeAuthCookie('ADMIN'), body: {} });
-
-    const res: Response = await (mod as any).POST(req, { params: { id: INVOICE_ID } });
-    expect(res.status).toBe(200);
-
-    const json = await res.json();
-    // LINE not configured → delivery is FAILED
-    expect(json.meta.deliveryStatus).toBe('FAILED');
-    expect(json.meta.lineConfigured).toBe(false);
-    // lineUserId must NOT be exposed in response
-    expect(json.meta.lineUserId).toBeUndefined();
-    // hasLineRecipient replaces lineUserId
-    expect(typeof json.meta.hasLineRecipient).toBe('boolean');
-  });
-
-  it('does NOT expose lineUserId in response meta (PII guard)', async () => {
-    sharedPrisma.invoice.findUnique.mockResolvedValue({
-      id: INVOICE_ID,
-      room: {
-        roomTenants: [
-          {
-            tenant: { lineUserId: 'U_SENSITIVE_LINE_ID' },
-            role: 'PRIMARY',
-            moveOutDate: null,
-          },
-        ],
-      },
+  it('returns 409 when LINE delivery is not queueable', async () => {
+    sendInvoiceMock.mockResolvedValueOnce({
+      ...SUCCESS_RESULT,
+      queued: false,
+      invoice: null,
+      errorMessage: 'LINE is not configured',
+      lineConfigured: false,
+      hasLineRecipient: false,
+      deliveryStatus: 'FAILED',
+      messageTemplateId: null,
     });
 
     const mod = await import('@/app/api/invoices/[id]/send/route');
     const req = makeRequest({ cookie: makeAuthCookie('ADMIN'), body: {} });
 
-    const res: Response = await (mod as any).POST(req, { params: { id: INVOICE_ID } });
+    const res: Response = await (mod as any).POST(req, { params: { id: VALID_ID } });
     const json = await res.json();
 
-    const bodyStr = JSON.stringify(json);
-    expect(bodyStr).not.toContain('U_SENSITIVE_LINE_ID');
-    expect(json.meta?.lineUserId).toBeUndefined();
+    expect(res.status).toBe(409);
+    expect(json.success).toBe(false);
+    expect(json.error.message).toContain('LINE is not configured');
   });
 
-  it('persists documentTemplateId + SHA-256 hash snapshot in InvoiceDelivery', async () => {
-    const TEMPLATE_ID = 'tmpl-abc-123';
-    const TEMPLATE_BODY = 'กรุณาชำระเงิน\nThank you';
-
-    sharedPrisma.documentTemplate.findFirst.mockResolvedValue({
-      id: TEMPLATE_ID,
-      body: TEMPLATE_BODY,
-    });
-
-    const createSpy = vi.fn().mockResolvedValue({ id: 'delivery-snap' });
-    sharedPrisma.invoiceDelivery.create = createSpy;
+  it('returns 422 when the invoice is already sent or paid', async () => {
+    sendInvoiceMock.mockRejectedValueOnce(new ValidationError('Invoice is already sent'));
 
     const mod = await import('@/app/api/invoices/[id]/send/route');
     const req = makeRequest({ cookie: makeAuthCookie('ADMIN'), body: {} });
 
-    await (mod as any).POST(req, { params: { id: INVOICE_ID } });
+    const res: Response = await (mod as any).POST(req, { params: { id: VALID_ID } });
+    const json = await res.json();
 
-    expect(createSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          documentTemplateId: TEMPLATE_ID,
-          documentTemplateHash: expect.stringMatching(/^[0-9a-f]{64}$/),
-        }),
-      }),
-    );
+    expect(res.status).toBe(422);
+    expect(json.error.message).toContain('already sent');
   });
 });

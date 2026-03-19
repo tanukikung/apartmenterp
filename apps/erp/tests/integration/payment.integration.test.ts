@@ -18,44 +18,44 @@ describe('Integration: Payment flow', () => {
       return;
     }
 
-    const building = await prisma.building.create({
-      data: { id: crypto.randomUUID(), name: 'Tower B', address: 'Y', totalFloors: 10 },
-    });
-    const floor = await prisma.floor.create({
-      data: { id: crypto.randomUUID(), buildingId: building.id, floorNumber: 2 },
-    });
-    const room = await prisma.room.create({
-      data: { id: crypto.randomUUID(), floorId: floor.id, roomNumber: '201', status: 'VACANT', maxResidents: 2 },
-    });
-    await prisma.billingItemType.create({
-      data: { id: crypto.randomUUID(), code: 'RENT', name: 'Rent', isRecurring: true, defaultAmount: 4200 as unknown as any },
-    });
-    const billing = await prisma.billingRecord.create({
+    // New schema: no building/floor models, Room PK is roomNo
+    const roomNo = `TEST-P-${crypto.randomUUID().slice(0, 8)}`;
+    const room = await (prisma as any).room.create({
       data: {
-        id: crypto.randomUUID(),
-        roomId: room.id,
-        year: 2026,
-        month: 3,
-        billingDay: 1,
-        dueDay: 5,
-        overdueDay: 15,
-        status: 'LOCKED',
-        subtotal: 4200 as unknown as any,
-        lockedAt: new Date(),
-        lockedBy: 'system',
+        roomNo,
+        floorNo: 2,
+        defaultAccountId: 'ACC_F1',
+        defaultRuleCode: 'STANDARD',
+        defaultRentAmount: 4200,
+        hasFurniture: false,
+        defaultFurnitureAmount: 0,
+        roomStatus: 'ACTIVE',
       },
     });
-    const itemType = await prisma.billingItemType.findUnique({ where: { code: 'RENT' } });
-    await prisma.billingItem.create({
+    const period = await (prisma as any).billingPeriod.create({
+      data: { year: 2026, month: 3, status: 'LOCKED', dueDay: 5 },
+    });
+    const billing = await (prisma as any).roomBilling.create({
       data: {
-        id: crypto.randomUUID(),
-        billingRecordId: billing.id,
-        itemTypeId: itemType!.id,
-        description: 'Rent',
-        quantity: 1 as unknown as any,
-        unitPrice: 4200 as unknown as any,
-        amount: 4200 as unknown as any,
-        isEditable: false,
+        billingPeriodId: period.id,
+        roomNo: (room as any).roomNo,
+        recvAccountId: 'ACC_F1',
+        ruleCode: 'STANDARD',
+        rentAmount: 4200,
+        waterMode: 'NORMAL',
+        waterUnits: 0,
+        waterUsageCharge: 0,
+        waterServiceFee: 0,
+        waterTotal: 0,
+        electricMode: 'NORMAL',
+        electricUnits: 0,
+        electricUsageCharge: 0,
+        electricServiceFee: 0,
+        electricTotal: 0,
+        furnitureFee: 0,
+        otherFee: 0,
+        totalDue: 4200,
+        status: 'LOCKED',
       },
     });
 

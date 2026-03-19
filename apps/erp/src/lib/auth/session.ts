@@ -1,7 +1,7 @@
 import { createHmac, randomBytes, createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { AdminRole } from '@prisma/client';
-import { getAuthSecret } from '@/lib/config/env';
+import { getAuthSecret, resolveAuthSecret } from '@/lib/config/env';
 
 export const AUTH_COOKIE_NAME = 'auth_session';
 export const ROLE_COOKIE_NAME = 'role';
@@ -29,7 +29,8 @@ export function signSessionToken(payload: AuthSessionPayload, secret = getAuthSe
   return `${encodedPayload}.${signature}`;
 }
 
-export function verifySessionToken(token: string, secret = getAuthSecret()): AuthSessionPayload | null {
+export function verifySessionToken(token: string, secret: string | null = resolveAuthSecret()): AuthSessionPayload | null {
+  if (!secret) return null;
   const [encodedPayload, signature] = token.split('.');
   if (!encodedPayload || !signature) return null;
 
@@ -47,13 +48,17 @@ export function verifySessionToken(token: string, secret = getAuthSecret()): Aut
 }
 
 export function getSessionFromRequest(req: NextRequest): AuthSessionPayload | null {
-  const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
+  const cookieStore = (req as { cookies?: { get?: (name: string) => { value?: string } | undefined } }).cookies;
+  if (!cookieStore || typeof cookieStore.get !== 'function') {
+    return null;
+  }
+  const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
   if (!token) return null;
   return verifySessionToken(token);
 }
 
 export function setAuthCookies(res: NextResponse, payload: AuthSessionPayload): void {
-  const secure = process.env.COOKIE_SECURE === 'true';
+  const secure = process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === 'true' : process.env.NODE_ENV === 'production';
   const token = signSessionToken(payload);
 
   res.cookies.set(AUTH_COOKIE_NAME, token, {
@@ -74,7 +79,7 @@ export function setAuthCookies(res: NextResponse, payload: AuthSessionPayload): 
 }
 
 export function clearAuthCookies(res: NextResponse): void {
-  const secure = process.env.COOKIE_SECURE === 'true';
+  const secure = process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === 'true' : process.env.NODE_ENV === 'production';
   res.cookies.set(AUTH_COOKIE_NAME, '', { httpOnly: true, sameSite: 'lax', secure, path: '/', expires: new Date(0) });
   res.cookies.set(ROLE_COOKIE_NAME, '', { httpOnly: true, sameSite: 'lax', secure, path: '/', expires: new Date(0) });
 }

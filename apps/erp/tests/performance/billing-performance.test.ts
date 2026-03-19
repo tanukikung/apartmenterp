@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createBillingService } from '@/modules/billing/billing.service';
+import type { WorkbookParseResult } from '@/modules/billing/import-parser';
 import { prisma } from '@/lib/db/client';
 
 describe('Billing performance', () => {
@@ -11,51 +12,56 @@ describe('Billing performance', () => {
     const rooms = Array.from({ length: 500 }, (_, i) => `R${(i + 101).toString()}`);
 
     const p: any = prisma as any;
-    if (!p.billingItemType) p.billingItemType = { findMany: vi.fn() };
-    if (!p.config) p.config = { findMany: vi.fn() };
-    if (!p.room) p.room = { findFirst: vi.fn() };
-    if (!p.billingRecord) p.billingRecord = { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() };
-    if (!p.billingItem) p.billingItem = { create: vi.fn(), aggregate: vi.fn() };
+    if (!p.room) p.room = { findUnique: vi.fn() };
+    if (!p.billingPeriod) p.billingPeriod = { findUnique: vi.fn(), create: vi.fn() };
+    if (!p.roomBilling) p.roomBilling = { findUnique: vi.fn(), create: vi.fn() };
     if (!p.outboxEvent) p.outboxEvent = { create: vi.fn() };
 
-    (p.billingItemType.findMany as any).mockResolvedValue([
-      { id: 'type-rent', code: 'RENT', description: 'Rent', isRecurring: true },
-    ]);
-
-    (p.config.findMany as any).mockResolvedValue([
-      { id: '1', key: 'billing.billingDay', value: '1' },
-      { id: '2', key: 'billing.dueDay', value: '5' },
-      { id: '3', key: 'billing.overdueDay', value: '15' },
-    ]);
-
-    (p.room.findFirst as any).mockImplementation(async ({ where }: any) => {
-      const rn = where?.roomNumber;
+    vi.spyOn(p.room, 'findUnique').mockImplementation(async ({ where }: any) => {
+      const rn = where?.roomNo;
       if (!rn) return null;
-      return { id: `room-${rn}`, roomNumber: rn };
+      return { roomNo: rn, defaultAccountId: 'acc-1', defaultRuleCode: 'RULE-1', defaultRentAmount: 1000 };
     });
 
-    (p.billingRecord.findUnique as any).mockResolvedValue(null);
+    const periodId = 'period-2026-3';
+    vi.spyOn(p.billingPeriod, 'findUnique').mockResolvedValue({ id: periodId, year: 2026, month: 3, dueDay: 25 });
+    vi.spyOn(p.roomBilling, 'findUnique').mockResolvedValue(null);
 
-    (p.billingRecord.create as any).mockImplementation(async ({ data }: any) => {
-      return { id: `bill-${data.roomId}-${data.year}-${data.month}`, roomId: data.roomId, year: data.year, month: data.month, room: { roomNumber: 'X' } };
-    });
-    (p.billingItem.create as any).mockResolvedValue({});
-    (p.billingRecord.update as any).mockResolvedValue({});
-    (p.outboxEvent.create as any).mockResolvedValue({});
+    const tx: any = {
+      roomBilling: {
+        create: vi.fn(async ({ data }: any) => ({
+          id: `bill-${data.roomNo}`, roomNo: data.roomNo,
+          billingPeriodId: data.billingPeriodId, totalDue: data.totalDue, status: 'DRAFT',
+        })),
+      },
+      outboxEvent: { create: vi.fn(async () => ({ id: 'e' })) },
+    };
+    vi.spyOn(p, '$transaction').mockImplementation(async (fn: any) => fn(tx));
 
-    const rows = rooms.map((roomNumber) => ({
-      roomNumber,
-      year: 2026,
-      month: 3,
-      typeCode: 'RENT' as const,
-      description: 'Monthly Rent',
-      quantity: 1,
-      unitPrice: 1000,
-    }));
+    // Build WorkbookParseResult with one FLOOR_1 sheet
+    const workbook: WorkbookParseResult = {
+      floors: [{
+        sheetName: 'FLOOR_1',
+        errors: [],
+        rows: rooms.map((roomNo) => ({
+          roomNo, floorSheetName: 'FLOOR_1',
+          recvAccountOverrideId: null, ruleOverrideCode: null,
+          rentAmount: 1000,
+          waterMode: 'NORMAL' as const, waterPrev: null, waterCurr: null, waterUnitsManual: null,
+          waterUnits: 0, waterUsageCharge: 0, waterServiceFeeManual: null, waterServiceFee: 0, waterTotal: 0,
+          electricMode: 'NORMAL' as const, electricPrev: null, electricCurr: null, electricUnitsManual: null,
+          electricUnits: 0, electricUsageCharge: 0, electricServiceFeeManual: null, electricServiceFee: 0, electricTotal: 0,
+          furnitureFee: 0, otherFee: 0, totalDue: 1000,
+          note: null, checkNotes: null, roomStatus: 'ACTIVE' as const,
+        })),
+      }],
+      totalRows: rooms.length,
+      totalErrors: 0,
+    };
 
     const service = createBillingService();
     const start = Date.now();
-    const result = await service.importBillingRows(rows);
+    const result = await service.importBillingRows(workbook, 2026, 3);
     const elapsed = Date.now() - start;
 
     expect(result.created.length).toBe(500);

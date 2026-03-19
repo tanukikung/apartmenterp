@@ -1,11 +1,10 @@
 import { format } from 'date-fns';
 import {
-  BillingStatus,
+  RoomBillingStatus,
   DocumentTemplateType,
   InvoiceStatus,
   PaymentTransactionStatus,
   Prisma,
-  RoomStatus,
   TenantRole,
 } from '@prisma/client';
 import { prisma } from '@/lib/db/client';
@@ -14,13 +13,12 @@ import type { DocumentGenerateInput, DocumentGenerationPreviewTarget, TemplatePr
 
 type SelectedRoom = Prisma.RoomGetPayload<{
   include: {
-    floor: { include: { building: true } };
-    roomTenants: { where: { role: 'PRIMARY'; moveOutDate: null }; include: { tenant: true } };
+    tenants: { where: { role: 'PRIMARY'; moveOutDate: null }; include: { tenant: true } };
     contracts: { include: { primaryTenant: true } };
-    billingRecords: {
+    billings: {
       include: {
-        items: { include: { itemType: true } };
-        invoices: {
+        billingPeriod: true;
+        invoice: {
           include: {
             paymentTransactions: true;
             deliveries: true;
@@ -47,7 +45,7 @@ export interface DocumentRenderContext {
     id: string;
     number: string;
     floorNumber: number | null;
-    status: RoomStatus;
+    status: string;
     billingStatus: string;
     usageType: string;
     maxResidents: number;
@@ -80,7 +78,7 @@ export interface DocumentRenderContext {
     billingDay: number;
     dueDay: number;
     overdueDay: number;
-    status: BillingStatus;
+    status: RoomBillingStatus;
     invoiceId: string | null;
     invoiceNumber: string | null;
     invoiceStatus: InvoiceStatus | null;
@@ -172,51 +170,16 @@ function pickContract(room: SelectedRoom, year?: number, month?: number) {
   );
 }
 
-function invoiceNumber(invoiceId: string, year: number, month: number, roomNumber: string): string {
-  return `INV-${year}-${String(month).padStart(2, '0')}-${roomNumber}-${invoiceId.slice(0, 6).toUpperCase()}`;
+function invoiceNumber(invoiceId: string, year: number, month: number, roomNo: string): string {
+  return `INV-${year}-${String(month).padStart(2, '0')}-${roomNo}-${invoiceId.slice(0, 6).toUpperCase()}`;
 }
 
-function buildBillingDueDate(record: SelectedRoom['billingRecords'][number]): Date {
-  return new Date(Date.UTC(record.year, record.month - 1, record.dueDay, 0, 0, 0, 0));
+function buildBillingDueDate(record: SelectedRoom['billings'][number], billingPeriodDueDay: number): Date {
+  return new Date(Date.UTC(record.billingPeriod.year, record.billingPeriod.month - 1, billingPeriodDueDay, 0, 0, 0, 0));
 }
 
-function latestInvoice(record: SelectedRoom['billingRecords'][number]) {
-  return [...record.invoices].sort((left, right) => right.version - left.version)[0] ?? null;
-}
-
-function buildOccupancyDisplay(room: SelectedRoom): string {
-  const names = room.roomTenants
-    .map((roomTenant) => {
-      const tenant = roomTenant.tenant;
-      return `${tenant.firstName} ${tenant.lastName}`.trim();
-    })
-    .filter(Boolean);
-
-  if (!names.length) return 'No active resident';
-  return names.join(', ');
-}
-
-function mapBillingItems(record: SelectedRoom['billingRecords'][number] | null): DocumentRenderBillingItem[] {
-  if (!record) return [];
-
-  return record.items.map((item) => {
-    const unitPrice = toNumber(item.unitPrice);
-    const amount = toNumber(item.amount);
-    return {
-      typeCode: item.itemType.code,
-      typeName: item.itemType.name,
-      description: item.description,
-      quantity: toNumber(item.quantity),
-      unitPrice,
-      unitPriceFormatted: money(unitPrice),
-      amount,
-      amountFormatted: money(amount),
-    };
-  });
-}
-
-function mapPaymentSummary(record: SelectedRoom['billingRecords'][number] | null) {
-  if (!record) {
+function mapPaymentSummary(record: SelectedRoom['billings'][number] | null) {
+  if (!record || !record.invoice) {
     return {
       status: null,
       lastPaidAt: null,
@@ -225,15 +188,7 @@ function mapPaymentSummary(record: SelectedRoom['billingRecords'][number] | null
     };
   }
 
-  const invoice = latestInvoice(record);
-  if (!invoice) {
-    return {
-      status: null,
-      lastPaidAt: null,
-      totalConfirmed: 0,
-      totalConfirmedFormatted: money(0),
-    };
-  }
+  const invoice = record.invoice;
 
   const confirmedPayments = invoice.paymentTransactions.filter(
     (paymentTransaction) => paymentTransaction.status === PaymentTransactionStatus.CONFIRMED,
@@ -250,41 +205,136 @@ function mapPaymentSummary(record: SelectedRoom['billingRecords'][number] | null
   };
 }
 
-function matchBillingRecord(room: SelectedRoom, billingCycleId?: string, year?: number, month?: number) {
+function matchBillingRecord(room: SelectedRoom, billingCycleId?: string, year?: number, month?: number): SelectedRoom['billings'][number] | null {
   if (billingCycleId) {
-    return room.billingRecords.find((record) => record.billingCycleId === billingCycleId) ?? null;
+    return room.billings.find((record) => record.billingPeriodId === billingCycleId) ?? null;
   }
 
   if (year && month) {
-    return room.billingRecords.find((record) => record.year === year && record.month === month) ?? null;
+    return room.billings.find((record) => record.billingPeriod.year === year && record.billingPeriod.month === month) ?? null;
   }
 
-  return [...room.billingRecords].sort((left, right) => {
-    const leftScore = left.year * 100 + left.month;
-    const rightScore = right.year * 100 + right.month;
+  return [...room.billings].sort((left, right) => {
+    const leftScore = left.billingPeriod.year * 100 + left.billingPeriod.month;
+    const rightScore = right.billingPeriod.year * 100 + right.billingPeriod.month;
     return rightScore - leftScore;
   })[0] ?? null;
 }
 
-function buildRoomContext(room: SelectedRoom, billingRecord: SelectedRoom['billingRecords'][number] | null, generatedById?: string | null): DocumentRenderContext {
-  const contract = pickContract(room, billingRecord?.year, billingRecord?.month);
-  const tenant = contract?.primaryTenant ?? room.roomTenants[0]?.tenant ?? null;
+function buildOccupancyDisplay(room: SelectedRoom): string {
+  const names = room.tenants
+    .map((roomTenant) => {
+      const tenant = roomTenant.tenant;
+      return `${tenant.firstName} ${tenant.lastName}`.trim();
+    })
+    .filter(Boolean);
+
+  if (!names.length) return 'No active resident';
+  return names.join(', ');
+}
+
+// Derive billing items from RoomBilling flat fields (no separate items table in new schema)
+function mapBillingItemsFromRoomBilling(record: SelectedRoom['billings'][number] | null): DocumentRenderBillingItem[] {
+  if (!record) return [];
+
+  const items: DocumentRenderBillingItem[] = [];
+
+  const rent = toNumber(record.rentAmount);
+  if (rent > 0) {
+    items.push({
+      typeCode: 'RENT',
+      typeName: 'ค่าเช่า',
+      description: null,
+      quantity: 1,
+      unitPrice: rent,
+      unitPriceFormatted: money(rent),
+      amount: rent,
+      amountFormatted: money(rent),
+    });
+  }
+
+  const waterTotal = toNumber(record.waterTotal);
+  if (waterTotal > 0) {
+    items.push({
+      typeCode: 'WATER',
+      typeName: 'ค่าน้ำ',
+      description: null,
+      quantity: toNumber(record.waterUnits),
+      unitPrice: waterTotal > 0 && toNumber(record.waterUnits) > 0 ? waterTotal / toNumber(record.waterUnits) : waterTotal,
+      unitPriceFormatted: money(0),
+      amount: waterTotal,
+      amountFormatted: money(waterTotal),
+    });
+  }
+
+  const electricTotal = toNumber(record.electricTotal);
+  if (electricTotal > 0) {
+    items.push({
+      typeCode: 'ELECTRIC',
+      typeName: 'ค่าไฟ',
+      description: null,
+      quantity: toNumber(record.electricUnits),
+      unitPrice: electricTotal > 0 && toNumber(record.electricUnits) > 0 ? electricTotal / toNumber(record.electricUnits) : electricTotal,
+      unitPriceFormatted: money(0),
+      amount: electricTotal,
+      amountFormatted: money(electricTotal),
+    });
+  }
+
+  const furnitureFee = toNumber(record.furnitureFee);
+  if (furnitureFee > 0) {
+    items.push({
+      typeCode: 'FURNITURE',
+      typeName: 'ค่าเฟอร์นิเจอร์',
+      description: null,
+      quantity: 1,
+      unitPrice: furnitureFee,
+      unitPriceFormatted: money(furnitureFee),
+      amount: furnitureFee,
+      amountFormatted: money(furnitureFee),
+    });
+  }
+
+  const otherFee = toNumber(record.otherFee);
+  if (otherFee > 0) {
+    items.push({
+      typeCode: 'OTHER',
+      typeName: 'อื่นๆ',
+      description: null,
+      quantity: 1,
+      unitPrice: otherFee,
+      unitPriceFormatted: money(otherFee),
+      amount: otherFee,
+      amountFormatted: money(otherFee),
+    });
+  }
+
+  return items;
+}
+
+function buildRoomContext(room: SelectedRoom, billingRecord: SelectedRoom['billings'][number] | null, generatedById?: string | null): DocumentRenderContext {
+  const contract = pickContract(room, billingRecord?.billingPeriod.year, billingRecord?.billingPeriod.month);
+  const tenant = contract?.primaryTenant ?? room.tenants[0]?.tenant ?? null;
   const payment = mapPaymentSummary(billingRecord);
-  const billingItems = mapBillingItems(billingRecord);
-  const latestInvoiceRecord = billingRecord ? latestInvoice(billingRecord) : null;
-  const dueDate = billingRecord ? buildBillingDueDate(billingRecord) : null;
-  const building = room.floor.building;
-  const totalAmount = billingRecord ? toNumber(billingRecord.total ?? billingRecord.subtotal) : null;
+  const billingItems = mapBillingItemsFromRoomBilling(billingRecord);
+  const latestInvoiceRecord = billingRecord?.invoice ?? null;
+  const billingPeriodDueDay = billingRecord?.billingPeriod.dueDay ?? 25;
+  const dueDate = billingRecord ? buildBillingDueDate(billingRecord, billingPeriodDueDay) : null;
+  const totalAmount = billingRecord ? toNumber(billingRecord.totalDue) : null;
+
+  // Apartment info — no Building model; use placeholder values
+  const apartmentName = 'Apartment';
+  const apartmentAddress = '';
 
   return {
     room: {
-      id: room.id,
-      number: room.roomNumber,
-      floorNumber: room.floor.floorNumber,
-      status: room.status,
-      billingStatus: room.billingStatus,
-      usageType: room.usageType,
-      maxResidents: room.maxResidents,
+      id: room.roomNo,
+      number: room.roomNo,
+      floorNumber: room.floorNo,
+      status: room.roomStatus,
+      billingStatus: billingRecord?.status ?? '',
+      usageType: '',
+      maxResidents: 0,
     },
     tenant: tenant
       ? {
@@ -310,19 +360,19 @@ function buildRoomContext(room: SelectedRoom, billingRecord: SelectedRoom['billi
     billing: billingRecord
       ? {
           recordId: billingRecord.id,
-          billingCycleId: billingRecord.billingCycleId ?? null,
-          year: billingRecord.year,
-          month: billingRecord.month,
-          subtotal: toNumber(billingRecord.subtotal),
-          total: toNumber(billingRecord.total ?? billingRecord.subtotal),
+          billingCycleId: billingRecord.billingPeriodId,
+          year: billingRecord.billingPeriod.year,
+          month: billingRecord.billingPeriod.month,
+          subtotal: toNumber(billingRecord.totalDue),
+          total: toNumber(billingRecord.totalDue),
           dueDate: toIsoDate(dueDate),
-          billingDay: billingRecord.billingDay,
-          dueDay: billingRecord.dueDay,
-          overdueDay: billingRecord.overdueDay,
+          billingDay: 1,
+          dueDay: billingPeriodDueDay,
+          overdueDay: billingPeriodDueDay + 5,
           status: billingRecord.status,
           invoiceId: latestInvoiceRecord?.id ?? null,
           invoiceNumber: latestInvoiceRecord
-            ? invoiceNumber(latestInvoiceRecord.id, billingRecord.year, billingRecord.month, room.roomNumber)
+            ? invoiceNumber(latestInvoiceRecord.id, billingRecord.billingPeriod.year, billingRecord.billingPeriod.month, room.roomNo)
             : null,
           invoiceStatus: latestInvoiceRecord?.status ?? null,
         }
@@ -330,24 +380,24 @@ function buildRoomContext(room: SelectedRoom, billingRecord: SelectedRoom['billi
     billingItems,
     payment,
     apartment: {
-      id: building.id,
-      name: building.name,
-      address: building.address,
+      id: null,
+      name: apartmentName,
+      address: apartmentAddress,
     },
     system: {
       generatedAt: new Date().toISOString(),
       generatedById: generatedById ?? null,
     },
     computed: {
-      billingMonthLabel: billingRecord ? format(new Date(Date.UTC(billingRecord.year, billingRecord.month - 1, 1)), 'MMMM yyyy') : null,
+      billingMonthLabel: billingRecord ? format(new Date(Date.UTC(billingRecord.billingPeriod.year, billingRecord.billingPeriod.month - 1, 1)), 'MMMM yyyy') : null,
       dueDateLabel: dueDate ? format(dueDate, 'dd MMMM yyyy') : null,
       occupancyDisplay: buildOccupancyDisplay(room),
       totalAmountFormatted: totalAmount === null ? null : money(totalAmount),
       invoiceNumber: latestInvoiceRecord && billingRecord
-        ? invoiceNumber(latestInvoiceRecord.id, billingRecord.year, billingRecord.month, room.roomNumber)
+        ? invoiceNumber(latestInvoiceRecord.id, billingRecord.billingPeriod.year, billingRecord.billingPeriod.month, room.roomNo)
         : null,
       qrPayload: latestInvoiceRecord && billingRecord
-        ? `${building.name}|${room.roomNumber}|${billingRecord.year}-${String(billingRecord.month).padStart(2, '0')}|${toNumber(billingRecord.total ?? billingRecord.subtotal)}`
+        ? `${apartmentName}|${room.roomNo}|${billingRecord.billingPeriod.year}-${String(billingRecord.billingPeriod.month).padStart(2, '0')}|${toNumber(billingRecord.totalDue)}`
         : null,
     },
   };
@@ -355,7 +405,7 @@ function buildRoomContext(room: SelectedRoom, billingRecord: SelectedRoom['billi
 
 async function findRoomsForScope(input: DocumentGenerateInput, templateType: DocumentTemplateType): Promise<SelectedRoom[]> {
   const baseWhere: Prisma.RoomWhereInput = {
-    isActive: true,
+    roomStatus: 'ACTIVE',
   };
 
   switch (input.scope) {
@@ -363,30 +413,31 @@ async function findRoomsForScope(input: DocumentGenerateInput, templateType: Doc
       if (!input.roomId) {
         throw new BadRequestError('roomId is required for SINGLE_ROOM generation');
       }
-      baseWhere.id = input.roomId;
+      baseWhere.roomNo = input.roomId;
       break;
     case 'SELECTED_ROOMS':
       if (!input.roomIds.length) {
         throw new BadRequestError('roomIds is required for SELECTED_ROOMS generation');
       }
-      baseWhere.id = { in: input.roomIds };
+      baseWhere.roomNo = { in: input.roomIds };
       break;
     case 'FLOOR':
       if (!input.floorNumber) {
         throw new BadRequestError('floorNumber is required for FLOOR generation');
       }
-      baseWhere.floor = { floorNumber: input.floorNumber };
+      baseWhere.floorNo = input.floorNumber;
       break;
     case 'OCCUPIED_ROOMS':
-      baseWhere.status = RoomStatus.OCCUPIED;
+      // Occupied = has active tenants
+      baseWhere.tenants = { some: { moveOutDate: null } };
       if (input.floorNumber) {
-        baseWhere.floor = { floorNumber: input.floorNumber };
+        baseWhere.floorNo = input.floorNumber;
       }
       break;
     case 'ROOMS_WITH_BILLING':
     case 'ELIGIBLE_FOR_MONTH':
       if (input.floorNumber) {
-        baseWhere.floor = { floorNumber: input.floorNumber };
+        baseWhere.floorNo = input.floorNumber;
       }
       break;
     default:
@@ -394,26 +445,24 @@ async function findRoomsForScope(input: DocumentGenerateInput, templateType: Doc
   }
 
   if (input.onlyOccupiedRooms) {
-    baseWhere.status = RoomStatus.OCCUPIED;
+    baseWhere.tenants = { some: { moveOutDate: null } };
   }
 
-  const billingRecordsWhere: Prisma.BillingRecordWhereInput = {};
+  const billingsWhere: Prisma.RoomBillingWhereInput = {};
   if (input.billingCycleId) {
-    billingRecordsWhere.billingCycleId = input.billingCycleId;
+    billingsWhere.billingPeriodId = input.billingCycleId;
   } else {
-    if (input.year) billingRecordsWhere.year = input.year;
-    if (input.month) billingRecordsWhere.month = input.month;
+    if (input.year || input.month) {
+      billingsWhere.billingPeriod = {};
+      if (input.year) billingsWhere.billingPeriod.year = input.year;
+      if (input.month) billingsWhere.billingPeriod.month = input.month;
+    }
   }
 
   const rooms = await prisma.room.findMany({
     where: baseWhere,
     include: {
-      floor: {
-        include: {
-          building: true,
-        },
-      },
-      roomTenants: {
+      tenants: {
         where: {
           role: TenantRole.PRIMARY,
           moveOutDate: null,
@@ -427,15 +476,11 @@ async function findRoomsForScope(input: DocumentGenerateInput, templateType: Doc
           primaryTenant: true,
         },
       },
-      billingRecords: {
-        where: Object.keys(billingRecordsWhere).length ? billingRecordsWhere : undefined,
+      billings: {
+        where: Object.keys(billingsWhere).length ? billingsWhere : undefined,
         include: {
-          items: {
-            include: {
-              itemType: true,
-            },
-          },
-          invoices: {
+          billingPeriod: true,
+          invoice: {
             include: {
               paymentTransactions: true,
               deliveries: true,
@@ -444,15 +489,15 @@ async function findRoomsForScope(input: DocumentGenerateInput, templateType: Doc
         },
       },
     },
-    orderBy: [{ floor: { floorNumber: 'asc' } }, { roomNumber: 'asc' }],
+    orderBy: [{ floorNo: 'asc' }, { roomNo: 'asc' }],
   });
 
   if (input.onlyRoomsWithBillingRecord || input.scope === 'ROOMS_WITH_BILLING') {
-    return rooms.filter((room) => room.billingRecords.length > 0);
+    return rooms.filter((room) => room.billings.length > 0);
   }
 
   if (BILLING_TEMPLATE_TYPES.has(templateType) && input.scope === 'ELIGIBLE_FOR_MONTH') {
-    return rooms.filter((room) => room.billingRecords.length > 0);
+    return rooms.filter((room) => room.billings.length > 0);
   }
 
   return rooms;
@@ -484,9 +529,9 @@ export class DocumentResolverService {
       const context = buildRoomContext(room, record, generatedById ?? null);
 
       return {
-        roomId: room.id,
-        roomNumber: room.roomNumber,
-        floorNumber: room.floor.floorNumber,
+        roomId: room.roomNo,
+        roomNumber: room.roomNo,
+        floorNumber: room.floorNo,
         tenantName: context.tenant?.fullName ?? null,
         billingRecordId: record?.id ?? null,
         invoiceId: context.billing?.invoiceId ?? null,

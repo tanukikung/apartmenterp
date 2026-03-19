@@ -21,9 +21,8 @@ export const PATCH = asyncHandler(
 
     logger.info({
       type: 'room_status_changed_api',
-      roomId: room.id,
-      roomNumber: room.roomNumber,
-      newStatus: room.status,
+      roomNo: room.roomNo,
+      newStatus: room.roomStatus,
     });
 
     return NextResponse.json({

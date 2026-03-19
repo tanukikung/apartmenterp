@@ -3,8 +3,8 @@ import { setWorkerHeartbeat, getRedisClient } from '@/infrastructure/redis';
 
 async function bootstrapWorker(): Promise<void> {
   if (process.env.NODE_ENV === 'test') return;
-  const { registerFileSendWorker } = await import('@/modules/messaging/file-send.worker');
-  registerFileSendWorker();
+  const { bootstrapMessagingRuntime } = await import('@/modules/messaging/bootstrap');
+  await bootstrapMessagingRuntime();
   startOutboxWorker();
   setInterval(() => {
     void setWorkerHeartbeat(30);

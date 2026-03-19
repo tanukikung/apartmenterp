@@ -11,7 +11,7 @@ describe('Cron jobs', () => {
 
   it('billing generation cron generates invoices once for locked records', async () => {
     const processed = new Set<string>();
-    vi.spyOn(prisma.billingRecord, 'findMany').mockResolvedValue([
+    vi.spyOn((prisma as any).roomBilling, 'findMany').mockResolvedValue([
       { id: 'b1' } as any,
       { id: 'b2' } as any,
     ]);
@@ -23,7 +23,7 @@ describe('Cron jobs', () => {
     });
 
     const run = async () => {
-      const locked = await prisma.billingRecord.findMany({ where: { status: 'LOCKED' } } as any);
+      const locked = await (prisma as any).roomBilling.findMany({ where: { status: 'LOCKED' } } as any);
       for (const r of locked) {
         try {
           await svc.generateInvoiceFromBilling(r.id);

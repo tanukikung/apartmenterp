@@ -74,6 +74,47 @@ export function inferOnlyOfficeDocumentType(fileType: string): OnlyOfficeDocumen
   return 'word';
 }
 
+/**
+ * Verify the JWT token that ONLYOFFICE attaches to every callback request.
+ *
+ * ONLYOFFICE sends the token either in the Authorization header (Bearer scheme)
+ * or in the JSON body as `token` when JWT_IN_BODY=true.  Pass whichever is
+ * available; this function checks both sources in order.
+ *
+ * Returns true when:
+ *   - ONLYOFFICE_JWT_SECRET is not configured (JWT disabled — dev/test mode)
+ *   - A valid, correctly-signed token is present
+ *
+ * Returns false when the secret is configured but the token is missing or
+ * the signature does not match.
+ */
+export function verifyOnlyOfficeCallbackToken(
+  authorizationHeader: string | null,
+  bodyToken?: string,
+): boolean {
+  const secret = (process.env.ONLYOFFICE_JWT_SECRET || '').trim();
+  if (!secret) {
+    return process.env.NODE_ENV !== 'production';
+  }
+
+  const headerBearer = (authorizationHeader ?? '').replace(/^Bearer\s+/i, '').trim();
+  const token = headerBearer || bodyToken || '';
+
+  if (!token) return false;
+
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const [headerB64, bodyB64, signatureB64] = parts;
+    const expected = createHmac('sha256', secret)
+      .update(`${headerB64}.${bodyB64}`)
+      .digest('base64url');
+    return expected === signatureB64;
+  } catch {
+    return false;
+  }
+}
+
 export function createOnlyOfficeEditorConfig(input: OnlyOfficeEditorConfigInput) {
   const config = {
     document: {

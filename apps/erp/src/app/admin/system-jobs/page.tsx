@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   AlertCircle,
+  AlertTriangle,
   CheckCircle,
   Clock,
   Pause,
@@ -34,7 +35,7 @@ interface ToastMessage {
 }
 
 // ---------------------------------------------------------------------------
-// Static job config
+// Static job config (description / schedule live here; status merges from API)
 // ---------------------------------------------------------------------------
 
 const JOB_CONFIG: Job[] = [
@@ -90,9 +91,9 @@ interface ApiJobEntry {
   lastRun?: string | null;
 }
 
-function mergeApiStatus(config: Job[], apiData: ApiJobEntry[]): Job[] {
+function mergeApiStatus(config: Job[], apiJobs: ApiJobEntry[]): Job[] {
   const apiMap = new Map<string, ApiJobEntry>(
-    apiData.map((entry) => [entry.id ?? '', entry]),
+    apiJobs.map((entry) => [entry.id ?? '', entry]),
   );
   return config.map((job) => {
     const remote = apiMap.get(job.id);
@@ -149,6 +150,7 @@ function StatusBadge({ status }: { status: JobStatus }) {
 
 export default function SystemJobsPage() {
   const [jobs, setJobs] = useState<Job[]>(JOB_CONFIG);
+  const [workerAvailable, setWorkerAvailable] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [runningJobIds, setRunningJobIds] = useState<Set<string>>(new Set());
@@ -164,19 +166,26 @@ export default function SystemJobsPage() {
     try {
       const res = await fetch('/api/admin/jobs');
       if (!res.ok) {
-        // API not available — use static config
         setJobs(JOB_CONFIG);
+        setWorkerAvailable(false);
         return;
       }
-      const json = await res.json() as { success?: boolean; data?: ApiJobEntry[] };
-      if (json.success && Array.isArray(json.data)) {
-        setJobs(mergeApiStatus(JOB_CONFIG, json.data));
+      const json = await res.json() as {
+        success?: boolean;
+        data?: { jobs?: ApiJobEntry[]; workerAvailable?: boolean };
+      };
+      if (json.success && json.data) {
+        if (Array.isArray(json.data.jobs)) {
+          setJobs(mergeApiStatus(JOB_CONFIG, json.data.jobs));
+        }
+        setWorkerAvailable(json.data.workerAvailable ?? false);
       } else {
         setJobs(JOB_CONFIG);
+        setWorkerAvailable(false);
       }
     } catch {
-      // Network error or API not configured — use static config
       setJobs(JOB_CONFIG);
+      setWorkerAvailable(false);
     } finally {
       setLoading(false);
       if (isRefresh) setRefreshing(false);
@@ -188,7 +197,7 @@ export default function SystemJobsPage() {
   }, [fetchJobStatus]);
 
   // -------------------------------------------------------------------------
-  // Run a job
+  // Run a job — only reachable when workerAvailable === true
   // -------------------------------------------------------------------------
 
   const pushToast = (jobId: string, message: string, type: ToastMessage['type']) => {
@@ -199,29 +208,22 @@ export default function SystemJobsPage() {
   };
 
   const handleRunNow = async (job: Job) => {
-    if (runningJobIds.has(job.id)) return;
+    if (!workerAvailable || runningJobIds.has(job.id)) return;
 
     setRunningJobIds((prev) => new Set(prev).add(job.id));
-
-    // Optimistically mark as running in the list
     setJobs((prev) =>
       prev.map((j) => (j.id === job.id ? { ...j, status: 'running' as JobStatus } : j)),
     );
 
     try {
       const res = await fetch(`/api/admin/jobs/${job.id}/run`, { method: 'POST' });
-
-      if (res.status === 404 || res.status === 500) {
-        pushToast(job.id, 'Not available in this environment.', 'error');
-        setJobs((prev) =>
-          prev.map((j) => (j.id === job.id ? { ...j, status: 'idle' as JobStatus } : j)),
-        );
-        return;
-      }
+      const json = await res.json().catch(() => ({})) as {
+        error?: { message?: string };
+      };
 
       if (!res.ok) {
-        const json = await res.json().catch(() => ({})) as { error?: { message?: string } };
-        pushToast(job.id, json?.error?.message ?? `Job failed with status ${res.status}.`, 'error');
+        const msg = json?.error?.message ?? `Job failed (HTTP ${res.status}).`;
+        pushToast(job.id, msg, 'error');
         setJobs((prev) =>
           prev.map((j) => (j.id === job.id ? { ...j, status: 'error' as JobStatus } : j)),
         );
@@ -234,7 +236,7 @@ export default function SystemJobsPage() {
           j.id === job.id ? { ...j, status: 'idle' as JobStatus, lastRun: now } : j,
         ),
       );
-      pushToast(job.id, `${job.name} completed successfully.`, 'success');
+      pushToast(job.id, `${job.name} dispatched successfully.`, 'success');
     } catch {
       pushToast(job.id, 'A network error occurred. Please try again.', 'error');
       setJobs((prev) =>
@@ -275,6 +277,18 @@ export default function SystemJobsPage() {
         </div>
       </section>
 
+      {/* Worker unavailable notice — shown until workerAvailable is confirmed true */}
+      {workerAvailable === false && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <div>
+            <span className="font-semibold">Background worker not running.</span>
+            {' '}Jobs execute automatically on their configured schedule when the worker
+            process is deployed. Manual execution is unavailable in this environment.
+          </div>
+        </div>
+      )}
+
       {/* Toast notifications */}
       {toasts.length > 0 && (
         <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm">
@@ -308,6 +322,8 @@ export default function SystemJobsPage() {
         <section className="space-y-4">
           {jobs.map((job) => {
             const isRunning = runningJobIds.has(job.id) || job.status === 'running';
+            // "Run Now" is only actionable when the worker is confirmed alive.
+            const canRun = workerAvailable === true && !isRunning;
             const jobToast = toasts.find((t) => t.jobId === job.id);
 
             return (
@@ -318,9 +334,16 @@ export default function SystemJobsPage() {
                     <StatusBadge status={job.status} />
                   </div>
                   <button
-                    onClick={() => handleRunNow(job)}
-                    disabled={isRunning}
-                    className="admin-button admin-button-primary inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                    onClick={() => canRun && handleRunNow(job)}
+                    disabled={!canRun}
+                    title={
+                      !workerAvailable
+                        ? 'Background worker is not running — manual execution unavailable'
+                        : isRunning
+                        ? 'Job is already running'
+                        : `Run ${job.name} now`
+                    }
+                    className="admin-button admin-button-primary inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                   >
                     {isRunning ? (
                       <>
@@ -330,7 +353,7 @@ export default function SystemJobsPage() {
                     ) : (
                       <>
                         <Play className="w-4 h-4" />
-                        Run Now
+                        {workerAvailable ? 'Run Now' : 'Unavailable'}
                       </>
                     )}
                   </button>

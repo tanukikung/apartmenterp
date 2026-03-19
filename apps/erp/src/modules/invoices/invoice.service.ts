@@ -1,43 +1,124 @@
+import { createHash } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/lib/db/client';
 import { EventBus, EventTypes } from '@/lib/events';
+import { isLineConfigured } from '@/lib/line';
+import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
 import { Json } from '@/types/prisma-json';
 import {
   GenerateInvoiceInput,
   SendInvoiceInput,
-  PayInvoiceInput,
   ListInvoicesQuery,
   InvoiceResponse,
   InvoicesListResponse,
   InvoiceItemSnapshot,
   InvoiceSentPayload,
   InvoiceViewedPayload,
-  InvoicePaidPayload,
   InvoiceOverduePayload,
 } from './types';
 import type { InvoiceStatus } from './types';
 import {
   NotFoundError,
   BadRequestError,
+  ConflictError,
+  ValidationError,
 } from '@/lib/utils/errors';
 
 // ============================================================================
 // Invoice Service
 //
-// Domain boundary (see src/lib/domain-boundaries.ts for full reference):
-//
-//   Invoice  = financial delivery/lifecycle entity tied 1:1 to a BillingRecord.
-//              Lifecycle: DRAFT → GENERATED → SENT → VIEWED → PAID | OVERDUE
-//
-//   This service manages ONLY the Invoice lifecycle and its delivery records.
-//   It does NOT manage GeneratedDocument (template rendering engine) or
-//   BillingRecord/BillingCycle (upstream billing truth).
-//
-//   Single send command: markInvoiceSent() — all UI surfaces must call this
-//   via POST /api/invoices/[id]/send; do not duplicate send logic elsewhere.
+// Aligned with new schema: Invoice.roomNo, Invoice.roomBillingId, Invoice.totalAmount
 // ============================================================================
+
+export interface InvoiceSendResult {
+  queued: boolean;
+  invoice: InvoiceResponse | null;
+  errorMessage: string | null;
+  lineConfigured: boolean;
+  hasLineRecipient: boolean;
+  deliveryStatus: 'PENDING' | 'FAILED';
+  deliveryId: string | null;
+  messageTemplateId: string | null;
+  documentTemplateId: string | null;
+  documentTemplateHash: string | null;
+  pdfUrl: string;
+}
+
+type InvoiceResponseRecord = {
+  id: string;
+  roomNo: string;
+  roomBillingId: string;
+  year: number;
+  month: number;
+  status: string;
+  totalAmount: unknown;
+  dueDate: Date;
+  issuedAt?: Date | null;
+  sentAt?: Date | null;
+  paidAt?: Date | null;
+  note?: string | null;
+  accessToken?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  room?: {
+    roomNo: string;
+    floorNo: number;
+    defaultAccountId: string;
+    defaultRuleCode: string;
+    defaultRentAmount: unknown;
+    hasFurniture: boolean;
+    defaultFurnitureAmount: unknown;
+    roomStatus: string;
+    lineUserId?: string | null;
+    tenants?: Array<{
+      tenant?: {
+        id?: string | null;
+        firstName?: string | null;
+        lastName?: string | null;
+        phone?: string | null;
+        lineUserId?: string | null;
+      } | null;
+    }>;
+  };
+  deliveries?: Array<{
+    id: string;
+    channel: string;
+    status: string;
+    recipientRef: string | null;
+    sentAt: Date | null;
+    viewedAt: Date | null;
+    errorMessage: string | null;
+    createdAt: Date;
+  }>;
+};
+
+type LockedInvoiceSendRow = {
+  id: string;
+  roomNo: string;
+  roomBillingId: string;
+  year: number;
+  month: number;
+  status: InvoiceStatus;
+  totalAmount: unknown;
+  dueDate: Date;
+  issuedAt: Date | null;
+  sentAt: Date | null;
+  paidAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type LockedPrimaryRecipientRow = {
+  roomTenantId: string;
+  tenantId: string;
+  lineUserId: string | null;
+  firstName: string;
+  lastName: string;
+  phone: string;
+};
 
 export class InvoiceService {
   private eventBus: EventBus;
@@ -46,120 +127,80 @@ export class InvoiceService {
     this.eventBus = eventBus || EventBus.getInstance();
   }
 
-  async generateInvoiceFromBilling(billingId: string): Promise<InvoiceResponse> {
-    const billingRecord = await prisma.billingRecord.findUnique({
-      where: { id: billingId },
-      include: {
-        room: { include: { floor: true } },
-        items: { include: { itemType: true } },
-      },
+  async generateInvoiceFromBilling(roomBillingId: string): Promise<InvoiceResponse> {
+    const roomBilling = await prisma.roomBilling.findUnique({
+      where: { id: roomBillingId },
+      include: { billingPeriod: true },
     });
-    if (!billingRecord) {
-      throw new NotFoundError('BillingRecord', billingId);
+    if (!roomBilling) {
+      throw new NotFoundError('RoomBilling', roomBillingId);
     }
-    if (billingRecord.status !== 'LOCKED') {
+    if (roomBilling.status !== 'LOCKED') {
       throw new BadRequestError('Can only generate invoice from LOCKED billing record');
     }
-    const existing = await prisma.invoice.findFirst({
-      where: { billingRecordId: billingId },
-      orderBy: { version: 'desc' },
+    const existing = await prisma.invoice.findUnique({
+      where: { roomBillingId },
     });
     if (existing) {
-      throw new BadRequestError('Invoice already exists. Confirm to regenerate');
+      throw new BadRequestError('Invoice already exists for this billing record');
     }
-    return this.generateInvoice({ billingRecordId: billingId });
+    return this.generateInvoice({ billingRecordId: roomBillingId });
   }
 
   /**
-   * Generate invoice from locked billing record
+   * Generate invoice from locked RoomBilling
    */
   async generateInvoice(
     input: GenerateInvoiceInput,
     generatedBy?: string
   ): Promise<InvoiceResponse> {
-    logger.info({ type: 'invoice_generate', billingRecordId: input.billingRecordId });
+    logger.info({ type: 'invoice_generate', roomBillingId: input.billingRecordId });
 
-    // Get billing record
-    const billingRecord = await prisma.billingRecord.findUnique({
+    const roomBilling = await prisma.roomBilling.findUnique({
       where: { id: input.billingRecordId },
-      include: {
-        room: {
-          include: { floor: true },
-        },
-        items: {
-          include: { itemType: true },
-        },
-      },
+      include: { billingPeriod: true },
     });
 
-    if (!billingRecord) {
-      throw new NotFoundError('BillingRecord', input.billingRecordId);
+    if (!roomBilling) {
+      throw new NotFoundError('RoomBilling', input.billingRecordId);
     }
 
-    // Business rule: Must be LOCKED
-    if (billingRecord.status !== 'LOCKED') {
+    if (roomBilling.status !== 'LOCKED') {
       throw new BadRequestError('Can only generate invoice from LOCKED billing record');
     }
 
     // Check if invoice already exists for this billing
-    const existingInvoice = await prisma.invoice.findFirst({
-      where: {
-        billingRecordId: input.billingRecordId,
-      },
-      orderBy: { version: 'desc' },
+    const existingInvoice = await prisma.invoice.findUnique({
+      where: { roomBillingId: input.billingRecordId },
     });
 
-    const newVersion = existingInvoice ? existingInvoice.version + 1 : 1;
+    if (existingInvoice) {
+      throw new BadRequestError('Invoice already exists for this billing record');
+    }
 
-    // Calculate due date
-    const dueDate = new Date(billingRecord.year, billingRecord.month - 1, billingRecord.dueDay);
+    const period = roomBilling.billingPeriod;
+    const dueDate = new Date(period.year, period.month - 1, period.dueDay);
     if (dueDate < new Date()) {
       dueDate.setMonth(dueDate.getMonth() + 1);
     }
 
-    // Create snapshot of items
-    const itemsSnapshot: InvoiceItemSnapshot[] = billingRecord.items.map((item) => ({
-      typeCode: item.itemType.code,
-      typeName: item.itemType.name,
-      description: item.description,
-      quantity: Number(item.quantity),
-      unitPrice: Number(item.unitPrice),
-      total: Number(item.amount),
-    }));
-
-    // Create invoice, first version, update billing status, and outbox atomically
+    // Create invoice and update billing status atomically
     const invoice = await prisma.$transaction(async (tx) => {
       const inv = await tx.invoice.create({
         data: {
           id: uuidv4(),
-          roomId: billingRecord.roomId,
-          billingRecordId: billingRecord.id,
-          year: billingRecord.year,
-          month: billingRecord.month,
-          version: newVersion,
+          roomNo: roomBilling.roomNo,
+          roomBillingId: roomBilling.id,
+          year: period.year,
+          month: period.month,
           status: 'GENERATED',
-          subtotal: billingRecord.subtotal,
-          total: billingRecord.subtotal,
+          totalAmount: roomBilling.totalDue,
           dueDate,
           issuedAt: new Date(),
         },
-        include: {
-          room: true,
-        },
       });
-      await tx.invoiceVersion.create({
-        data: {
-          id: uuidv4(),
-          invoiceId: inv.id,
-          version: newVersion,
-          billingRecordId: billingRecord.id,
-          subtotal: billingRecord.subtotal,
-          total: billingRecord.subtotal,
-          changeNote: newVersion === 1 ? 'Initial invoice' : `Re-generated (v${newVersion})`,
-        },
-      });
-      await tx.billingRecord.update({
-        where: { id: billingRecord.id },
+      await tx.roomBilling.update({
+        where: { id: roomBilling.id },
         data: { status: 'INVOICED' },
       });
       await tx.outboxEvent.create({
@@ -170,13 +211,11 @@ export class InvoiceService {
           eventType: EventTypes.INVOICE_GENERATED,
           payload: {
             invoiceId: inv.id,
-            roomId: inv.roomId,
-            roomNumber: billingRecord.room.roomNumber,
-            billingRecordId: billingRecord.id,
+            roomNo: inv.roomNo,
+            roomBillingId: roomBilling.id,
             year: inv.year,
             month: inv.month,
-            version: inv.version,
-            totalAmount: Number(inv.total),
+            totalAmount: Number(inv.totalAmount),
             dueDate: dueDate.toISOString().split('T')[0],
             generatedBy,
           } as unknown as Json,
@@ -186,9 +225,9 @@ export class InvoiceService {
       return inv;
     });
 
-    const response = this.formatInvoiceResponse(invoice, itemsSnapshot);
+    const response = this.formatInvoiceResponse(invoice);
 
-    const action: 'INVOICE_GENERATED' | 'INVOICE_REGENERATED' = existingInvoice ? 'INVOICE_REGENERATED' : 'INVOICE_GENERATED';
+    const action: 'INVOICE_GENERATED' = 'INVOICE_GENERATED';
     await logAudit({
       actorId: generatedBy || 'system',
       actorRole: 'ADMIN',
@@ -196,8 +235,9 @@ export class InvoiceService {
       entityType: 'INVOICE',
       entityId: invoice.id,
       metadata: {
-        billingRecordId: billingRecord.id,
-        version: invoice.version,
+        roomBillingId: roomBilling.id,
+        year: period.year,
+        month: period.month,
       },
     });
 
@@ -213,19 +253,17 @@ export class InvoiceService {
       include: {
         room: {
           include: {
-            roomTenants: {
+            tenants: {
               where: { role: 'PRIMARY', moveOutDate: null },
               include: { tenant: true },
               take: 1,
             },
           },
         },
-        versions: {
-          orderBy: { version: 'desc' },
-        },
         deliveries: {
           orderBy: { createdAt: 'desc' },
         },
+        roomBilling: true,
       },
     });
 
@@ -233,22 +271,7 @@ export class InvoiceService {
       throw new NotFoundError('Invoice', id);
     }
 
-    // Get billing items for snapshot
-    const billingItems = await prisma.billingItem.findMany({
-      where: { billingRecordId: invoice.billingRecordId },
-      include: { itemType: true },
-    });
-
-    const items: InvoiceItemSnapshot[] = billingItems.map((item) => ({
-      typeCode: item.itemType.code,
-      typeName: item.itemType.name,
-      description: item.description,
-      quantity: Number(item.quantity),
-      unitPrice: Number(item.unitPrice),
-      total: Number(item.amount),
-    }));
-
-    return this.formatInvoiceResponse(invoice, items);
+    return this.formatInvoiceResponse(invoice);
   }
 
   async getInvoicePreview(id: string) {
@@ -257,52 +280,49 @@ export class InvoiceService {
       include: {
         room: {
           include: {
-            floor: { include: { building: true } },
-            roomTenants: {
+            tenants: {
               where: { role: 'PRIMARY', moveOutDate: null },
               include: { tenant: true },
             },
           },
         },
+        roomBilling: true,
       },
     });
     if (!invoice) {
       throw new NotFoundError('Invoice', id);
     }
-    const billingItems = await prisma.billingItem.findMany({
-      where: { billingRecordId: invoice.billingRecordId },
-      include: { itemType: true },
-    });
-    const items: InvoiceItemSnapshot[] = billingItems.map((item) => ({
-      typeCode: item.itemType.code,
-      typeName: item.itemType.name,
-      description: item.description,
-      quantity: Number(item.quantity),
-      unitPrice: Number(item.unitPrice),
-      total: Number(item.amount),
-    }));
-    type RoomWithRelations = {
-      roomNumber: string;
-      floor?: { building?: { name?: string } } | null;
-      roomTenants?: Array<{ tenant?: { firstName?: string; lastName?: string } | null }>;
-    };
-    const room = invoice.room as unknown as RoomWithRelations | undefined;
-    const buildingName = room?.floor?.building?.name || '';
-    const roomNumber = room?.roomNumber || '';
-    const primaryTenant = room?.roomTenants?.[0]?.tenant;
+    const rb = invoice.roomBilling;
+    // Build item snapshots from RoomBilling fields
+    const items: InvoiceItemSnapshot[] = [];
+    if (rb) {
+      if (Number(rb.rentAmount) > 0) {
+        items.push({ typeCode: 'RENT', typeName: 'ค่าเช่า', description: null, quantity: 1, unitPrice: Number(rb.rentAmount), total: Number(rb.rentAmount) });
+      }
+      if (Number(rb.waterTotal) > 0) {
+        items.push({ typeCode: 'WATER', typeName: 'ค่าน้ำ', description: null, quantity: Number(rb.waterUnits), unitPrice: Number(rb.waterTotal) / Math.max(Number(rb.waterUnits), 1), total: Number(rb.waterTotal) });
+      }
+      if (Number(rb.electricTotal) > 0) {
+        items.push({ typeCode: 'ELECTRIC', typeName: 'ค่าไฟ', description: null, quantity: Number(rb.electricUnits), unitPrice: Number(rb.electricTotal) / Math.max(Number(rb.electricUnits), 1), total: Number(rb.electricTotal) });
+      }
+      if (Number(rb.furnitureFee) > 0) {
+        items.push({ typeCode: 'FURNITURE', typeName: 'ค่าเฟอร์นิเจอร์', description: null, quantity: 1, unitPrice: Number(rb.furnitureFee), total: Number(rb.furnitureFee) });
+      }
+      if (Number(rb.otherFee) > 0) {
+        items.push({ typeCode: 'OTHER', typeName: 'อื่นๆ', description: rb.note ?? null, quantity: 1, unitPrice: Number(rb.otherFee), total: Number(rb.otherFee) });
+      }
+    }
+    const primaryTenant = invoice.room?.tenants?.[0]?.tenant;
     const tenantName = primaryTenant ? `${primaryTenant.firstName ?? ''} ${primaryTenant.lastName ?? ''}`.trim() || null : null;
     const dueDateStr = invoice.dueDate.toISOString().split('T')[0];
     return {
       invoiceId: invoice.id,
-      version: invoice.version,
       year: invoice.year,
       month: invoice.month,
-      buildingName,
-      roomNumber,
+      roomNo: invoice.roomNo,
       tenantName,
       items,
-      subtotal: Number(invoice.subtotal),
-      totalAmount: Number(invoice.total),
+      totalAmount: Number(invoice.totalAmount),
       dueDate: dueDateStr,
     };
   }
@@ -311,105 +331,73 @@ export class InvoiceService {
    * Get invoice by room/year/month
    */
   async getInvoice(
-    roomId: string,
+    roomNo: string,
     year: number,
     month: number
   ): Promise<InvoiceResponse | null> {
     const invoice = await prisma.invoice.findFirst({
-      where: { roomId, year, month },
+      where: { roomNo, year, month },
       include: {
         room: {
           include: {
-            roomTenants: {
+            tenants: {
               where: { role: 'PRIMARY', moveOutDate: null },
               include: { tenant: true },
               take: 1,
             },
           },
         },
-        versions: { orderBy: { version: 'desc' } },
         deliveries: { orderBy: { createdAt: 'desc' } },
       },
     });
 
     if (!invoice) return null;
-
-    const billingItems = await prisma.billingItem.findMany({
-      where: { billingRecordId: invoice.billingRecordId },
-      include: { itemType: true },
-    });
-
-    const items: InvoiceItemSnapshot[] = billingItems.map((item) => ({
-      typeCode: item.itemType.code,
-      typeName: item.itemType.name,
-      description: item.description,
-      quantity: Number(item.quantity),
-      unitPrice: Number(item.unitPrice),
-      total: Number(item.amount),
-    }));
-
-    return this.formatInvoiceResponse(invoice, items);
+    return this.formatInvoiceResponse(invoice);
   }
 
   /**
    * List invoices
    */
   async listInvoices(query: ListInvoicesQuery): Promise<InvoicesListResponse> {
-    const { roomId, billingCycleId, year, month, status, page, pageSize, sortBy, sortOrder } = query;
+    const { roomNo, year, month, status, page, pageSize, sortBy, sortOrder } = query;
 
     const where: Record<string, unknown> = {};
 
-    if (roomId) where.roomId = roomId;
-    if (billingCycleId) where.billingRecord = { is: { billingCycleId } };
+    if (roomNo) where.roomNo = roomNo;
     if (year) where.year = year;
     if (month) where.month = month;
     if (status) where.status = status;
 
+    const SORT_FIELD_MAP: Record<string, string> = { totalAmount: 'totalAmount' };
+    const prismaOrderField = SORT_FIELD_MAP[sortBy] ?? sortBy;
+
     const total = await prisma.invoice.count({ where });
+
+    if (total === 0) {
+      return { data: [], total: 0, page, pageSize, totalPages: 0 };
+    }
 
     const invoices = await prisma.invoice.findMany({
       where,
       include: {
         room: {
           include: {
-            roomTenants: {
+            tenants: {
               where: { role: 'PRIMARY', moveOutDate: null },
               include: { tenant: true },
               take: 1,
             },
           },
         },
-        versions: { orderBy: { version: 'desc' }, take: 1 },
         deliveries: { orderBy: { createdAt: 'desc' } },
-        // Fetch billingCycleId so callers can deep-link to the billing cycle
-        billingRecord: { select: { billingCycleId: true } },
       },
-      orderBy: { [sortBy]: sortOrder },
+      orderBy: { [prismaOrderField]: sortOrder },
       skip: (page - 1) * pageSize,
       take: pageSize,
     });
 
     return {
-      data: await Promise.all(
-        invoices.map(async (inv) => {
-          const billingItems = await prisma.billingItem.findMany({
-            where: { billingRecordId: inv.billingRecordId },
-            include: { itemType: true },
-          });
-          const items: InvoiceItemSnapshot[] = billingItems.map((item) => ({
-            typeCode: item.itemType.code,
-            typeName: item.itemType.name,
-            description: item.description,
-            quantity: Number(item.quantity),
-            unitPrice: Number(item.unitPrice),
-            total: Number(item.amount),
-          }));
-          const formatted = this.formatInvoiceResponse(inv, items);
-          // Attach billingCycleId from the joined billingRecord (additive field)
-          formatted.billingCycleId = inv.billingRecord?.billingCycleId ?? null;
-          return formatted;
-        })
-      ),
+      data: invoices.map((inv) => this.formatInvoiceResponse(inv)),
       total,
       page,
       pageSize,
@@ -418,149 +406,255 @@ export class InvoiceService {
   }
 
   /**
-   * Mark invoice as sent
+   * Canonical invoice send flow.
    */
-  async markInvoiceSent(
+  async sendInvoice(
     id: string,
     input: SendInvoiceInput,
     sentBy?: string
-  ): Promise<InvoiceResponse> {
+  ): Promise<InvoiceSendResult> {
     logger.info({ type: 'invoice_send', invoiceId: id });
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
-      include: {
-        room: {
-          include: {
-            roomTenants: {
-              where: { role: 'PRIMARY', moveOutDate: null },
-              include: { tenant: true },
-            },
-          },
-        },
-      },
+    if (input.channel !== 'LINE' || input.sendToLine === false) {
+      throw new ValidationError('Only LINE delivery is supported by this endpoint');
+    }
+
+    const lineConfigured = isLineConfigured();
+    const pdfUrl = buildInvoiceAccessUrl(id, {
+      absoluteBaseUrl: process.env.APP_BASE_URL || '',
+      signed: true,
     });
 
-    if (!invoice) {
-      throw new NotFoundError('Invoice', id);
-    }
+    let sentPayload: InvoiceSentPayload | null = null;
+    let updatedInvoiceRecord: InvoiceResponseRecord | null = null;
 
-    if (invoice.status === 'SENT' || invoice.status === 'PAID') {
-      throw new BadRequestError(`Invoice is already ${invoice.status.toLowerCase()}`);
-    }
+    const txResult = await prisma.$transaction(async (tx) => {
+      const invoice = await this.lockInvoiceForSend(tx, id);
 
-    const primaryTenant = invoice.room?.roomTenants?.[0]?.tenant;
-    const lineUserId = primaryTenant?.lineUserId;
+      if (!invoice) {
+        throw new NotFoundError('Invoice', id);
+      }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const inv = await tx.invoice.update({
-        where: { id },
+      if (invoice.status === 'SENT' || invoice.status === 'PAID') {
+        throw new ValidationError(`Invoice is already ${invoice.status.toLowerCase()}`);
+      }
+
+      const primaryTenant = await this.lockPrimaryRecipientForSend(tx, invoice.roomNo);
+      const lineUserId = primaryTenant?.lineUserId ?? null;
+      const hasLineRecipient = lineUserId !== null;
+      const initialStatus: 'PENDING' | 'FAILED' =
+        lineConfigured && hasLineRecipient ? 'PENDING' : 'FAILED';
+      const initialError = !lineConfigured
+        ? 'LINE is not configured'
+        : !hasLineRecipient
+          ? 'No LINE account linked to the tenant'
+          : null;
+
+      let docTemplate: { id: string; body: string } | null = null;
+      try {
+        docTemplate = await tx.documentTemplate.findFirst({
+          where: { type: 'INVOICE' },
+          orderBy: { updatedAt: 'desc' },
+          select: { id: true, body: true },
+        });
+      } catch {
+        // Non-blocking
+      }
+
+      const documentTemplateId = docTemplate?.id ?? null;
+      const documentTemplateHash = docTemplate?.body
+        ? createHash('sha256').update(docTemplate.body).digest('hex')
+        : null;
+
+      const delivery = await tx.invoiceDelivery.create({
         data: {
-          status: 'SENT',
-          sentAt: new Date(),
-          sentBy,
+          invoiceId: id,
+          channel: (input.channel as 'LINE' | 'PDF' | 'PRINT') ?? 'LINE',
+          status: initialStatus,
+          recipientRef: lineUserId,
+          errorMessage: initialError,
+          createdBy: sentBy,
+          ...(documentTemplateId ? { documentTemplateId } : {}),
+          ...(documentTemplateHash ? { documentTemplateHash } : {}),
         },
-      include: {
+      });
+      const deliveryId = delivery.id;
+
+      if (!lineConfigured || !hasLineRecipient) {
+        return {
+          queued: false,
+          errorMessage: initialError,
+          lineConfigured,
+          hasLineRecipient,
+          deliveryStatus: initialStatus,
+          deliveryId,
+          messageTemplateId: null,
+          documentTemplateId,
+          documentTemplateHash,
+          pdfUrl,
+        };
+      }
+
+      let templateBody: string | null = null;
+      let resolvedTemplateId: string | null = null;
+      try {
+        const msgTemplate = input.templateId
+          ? await tx.messageTemplate.findUnique({ where: { id: input.templateId } })
+          : await tx.messageTemplate.findFirst({
+              where: { type: 'INVOICE_SEND' },
+              orderBy: { updatedAt: 'desc' },
+            });
+        if (msgTemplate) {
+          templateBody = msgTemplate.body;
+          resolvedTemplateId = msgTemplate.id;
+        }
+      } catch {
+        // Non-blocking
+      }
+
+      await tx.outboxEvent.create({
+        data: {
+          id: uuidv4(),
+          aggregateType: 'Invoice',
+          aggregateId: id,
+          eventType: 'InvoiceSendRequested',
+          payload: {
+            invoiceId: id,
+            deliveryId,
+            lineUserId,
+            pdfUrl,
+            roomNo: invoice.roomNo,
+            totalAmount: Number(invoice.totalAmount),
+            dueDate: invoice.dueDate?.toISOString?.() ?? null,
+            templateId: resolvedTemplateId,
+            templateBody,
+            lineConfigured,
+          } as unknown as Json,
+          retryCount: 0,
+        },
+      });
+
+      const sentAt = new Date();
+      const updatedCount = await tx.invoice.updateMany({
+        where: { id, status: invoice.status },
+        data: { status: 'SENT', sentAt },
+      });
+
+      if (updatedCount.count !== 1) {
+        throw new ConflictError('Invoice send state changed before delivery could be queued');
+      }
+
+      const updatedInvoice = await tx.invoice.findUnique({
+        where: { id },
+        include: {
           room: {
             include: {
-              roomTenants: {
+              tenants: {
                 where: { role: 'PRIMARY', moveOutDate: null },
                 include: { tenant: true },
                 take: 1,
               },
             },
           },
-          versions: { orderBy: { version: 'desc' }, take: 1 },
           deliveries: { orderBy: { createdAt: 'desc' } },
         },
       });
+
+      if (!updatedInvoice) {
+        throw new NotFoundError('Invoice', id);
+      }
+
+      updatedInvoiceRecord = updatedInvoice;
+      sentPayload = {
+        invoiceId: updatedInvoice.id,
+        tenantId: primaryTenant?.tenantId || '',
+        lineUserId,
+        sentBy: sentBy || 'system',
+        lineMessageId: undefined,
+        sentAt: sentAt.toISOString(),
+      };
+
       await tx.outboxEvent.create({
         data: {
           id: uuidv4(),
           aggregateType: 'Invoice',
-          aggregateId: inv.id,
+          aggregateId: updatedInvoice.id,
           eventType: EventTypes.INVOICE_SENT,
           payload: {
-            invoiceId: inv.id,
-            tenantId: primaryTenant?.id || '',
+            invoiceId: updatedInvoice.id,
+            tenantId: primaryTenant?.tenantId || '',
             lineUserId: lineUserId || '',
             sentBy: sentBy || 'system',
             sentByName: sentBy || 'system',
-            sentAt: new Date().toISOString(),
+            sentAt: sentAt.toISOString(),
           } as unknown as Json,
           retryCount: 0,
         },
       });
-      return inv;
+
+      return {
+        queued: true,
+        errorMessage: null,
+        lineConfigured,
+        hasLineRecipient: true,
+        deliveryStatus: 'PENDING' as const,
+        deliveryId,
+        messageTemplateId: resolvedTemplateId,
+        documentTemplateId,
+        documentTemplateHash,
+        pdfUrl,
+      };
     });
 
-    // Publish event
-    const payload: InvoiceSentPayload = {
-      invoiceId: invoice.id,
-      tenantId: primaryTenant?.id || '',
-      lineUserId: lineUserId || null,
-      sentBy: sentBy || 'system',
-      lineMessageId: undefined,
-      sentAt: new Date().toISOString(),
-    };
+    if (!txResult.queued) {
+      return { ...txResult, invoice: null };
+    }
+
+    if (!sentPayload || !updatedInvoiceRecord) {
+      throw new ConflictError('Invoice delivery could not be queued');
+    }
 
     await this.eventBus.publish(
       EventTypes.INVOICE_SENT,
       'Invoice',
-      invoice.id,
-      payload as unknown as Record<string, unknown>,
+      id,
+      sentPayload as unknown as Record<string, unknown>,
       { userId: sentBy }
     );
 
-    const billingItems = await prisma.billingItem.findMany({
-      where: { billingRecordId: invoice.billingRecordId },
-      include: { itemType: true },
-    });
-    const items: InvoiceItemSnapshot[] = billingItems.map((item) => ({
-      typeCode: item.itemType.code,
-      typeName: item.itemType.name,
-      description: item.description,
-      quantity: Number(item.quantity),
-      unitPrice: Number(item.unitPrice),
-      total: Number(item.amount),
-    }));
-
-    return this.formatInvoiceResponse(updated, items);
+    return {
+      ...txResult,
+      invoice: this.formatInvoiceResponse(updatedInvoiceRecord),
+    };
   }
 
   /**
    * Mark invoice as viewed
    */
   async markInvoiceViewed(id: string, tenantId?: string): Promise<InvoiceResponse> {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
-    });
+    const invoice = await prisma.invoice.findUnique({ where: { id } });
 
     if (!invoice) {
       throw new NotFoundError('Invoice', id);
     }
 
-    if (invoice.viewedAt) {
+    if (invoice.paidAt) {
       return this.getInvoiceById(id);
     }
 
     const updated = await prisma.invoice.update({
       where: { id },
-      data: {
-        status: 'VIEWED',
-        viewedAt: new Date(),
-      },
+      data: { status: 'VIEWED' },
       include: {
         room: {
           include: {
-            roomTenants: {
+            tenants: {
               where: { role: 'PRIMARY', moveOutDate: null },
               include: { tenant: true },
               take: 1,
             },
           },
         },
-        versions: { orderBy: { version: 'desc' }, take: 1 },
         deliveries: { orderBy: { createdAt: 'desc' } },
       },
     });
@@ -578,97 +672,7 @@ export class InvoiceService {
       payload as unknown as Record<string, unknown>
     );
 
-    const billingItems = await prisma.billingItem.findMany({
-      where: { billingRecordId: invoice.billingRecordId },
-      include: { itemType: true },
-    });
-    const items: InvoiceItemSnapshot[] = billingItems.map((item) => ({
-      typeCode: item.itemType.code,
-      typeName: item.itemType.name,
-      description: item.description,
-      quantity: Number(item.quantity),
-      unitPrice: Number(item.unitPrice),
-      total: Number(item.amount),
-    }));
-
-    return this.formatInvoiceResponse(updated, items);
-  }
-
-  /**
-   * Mark invoice as paid
-   */
-  async markInvoicePaid(
-    id: string,
-    input: PayInvoiceInput,
-    confirmedBy?: string
-  ): Promise<InvoiceResponse> {
-    logger.info({ type: 'invoice_pay', invoiceId: id });
-
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
-    });
-
-    if (!invoice) {
-      throw new NotFoundError('Invoice', id);
-    }
-
-    if (invoice.status === 'PAID') {
-      throw new BadRequestError('Invoice is already paid');
-    }
-
-    const paidAt = input.paidAt ? new Date(input.paidAt) : new Date();
-
-    const updated = await prisma.invoice.update({
-      where: { id },
-      data: {
-        status: 'PAID',
-        paidAt,
-      },
-      include: {
-        room: {
-          include: {
-            roomTenants: {
-              where: { role: 'PRIMARY', moveOutDate: null },
-              include: { tenant: true },
-              take: 1,
-            },
-          },
-        },
-        versions: { orderBy: { version: 'desc' }, take: 1 },
-        deliveries: { orderBy: { createdAt: 'desc' } },
-      },
-    });
-
-    // Publish event
-    const payload: InvoicePaidPayload = {
-      invoiceId: invoice.id,
-      paymentId: input.paymentId || null,
-      paidAt: paidAt.toISOString(),
-      amount: Number(invoice.total),
-    };
-
-    await this.eventBus.publish(
-      EventTypes.INVOICE_PAID,
-      'Invoice',
-      invoice.id,
-      payload as unknown as Record<string, unknown>,
-      { userId: confirmedBy }
-    );
-
-    const billingItems = await prisma.billingItem.findMany({
-      where: { billingRecordId: invoice.billingRecordId },
-      include: { itemType: true },
-    });
-    const items: InvoiceItemSnapshot[] = billingItems.map((item) => ({
-      typeCode: item.itemType.code,
-      typeName: item.itemType.name,
-      description: item.description,
-      quantity: Number(item.quantity),
-      unitPrice: Number(item.unitPrice),
-      total: Number(item.amount),
-    }));
-
-    return this.formatInvoiceResponse(updated, items);
+    return this.formatInvoiceResponse(updated);
   }
 
   /**
@@ -683,7 +687,6 @@ export class InvoiceService {
         status: { in: ['SENT', 'VIEWED'] },
         dueDate: { lt: today },
       },
-      include: { room: true },
     });
 
     for (const invoice of overdueInvoices) {
@@ -693,15 +696,15 @@ export class InvoiceService {
 
       await prisma.invoice.update({
         where: { id: invoice.id },
-      data: { status: 'OVERDUE' },
+        data: { status: 'OVERDUE' },
       });
 
       const payload: InvoiceOverduePayload = {
         invoiceId: invoice.id,
-        roomId: invoice.roomId,
-        roomNumber: invoice.room?.roomNumber || '',
+        roomId: invoice.roomNo,
+        roomNumber: invoice.roomNo,
         daysOverdue,
-        totalAmount: Number(invoice.total),
+        totalAmount: Number(invoice.totalAmount),
       };
 
       await this.eventBus.publish(
@@ -719,91 +722,85 @@ export class InvoiceService {
   // Private Helpers
   // ========================================================================
 
+  private async lockInvoiceForSend(
+    tx: Prisma.TransactionClient,
+    id: string
+  ): Promise<LockedInvoiceSendRow | null> {
+    const rows = await tx.$queryRaw<LockedInvoiceSendRow[]>`
+      SELECT
+        i."id",
+        i."roomNo",
+        i."roomBillingId",
+        i."year",
+        i."month",
+        i."status"::text AS "status",
+        i."totalAmount",
+        i."dueDate",
+        i."issuedAt",
+        i."sentAt",
+        i."paidAt",
+        i."createdAt",
+        i."updatedAt"
+      FROM "invoices" i
+      WHERE i."id" = ${id}
+      FOR UPDATE OF i
+    `;
+
+    return rows[0] ?? null;
+  }
+
+  private async lockPrimaryRecipientForSend(
+    tx: Prisma.TransactionClient,
+    roomNo: string
+  ): Promise<LockedPrimaryRecipientRow | null> {
+    const rows = await tx.$queryRaw<LockedPrimaryRecipientRow[]>`
+      SELECT
+        rt."id" AS "roomTenantId",
+        t."id" AS "tenantId",
+        t."lineUserId",
+        t."firstName",
+        t."lastName",
+        t."phone"
+      FROM "room_tenants" rt
+      INNER JOIN "tenants" t ON t."id" = rt."tenantId"
+      WHERE rt."roomNo" = ${roomNo}
+        AND rt."role" = 'PRIMARY'::"TenantRole"
+        AND rt."moveOutDate" IS NULL
+      ORDER BY rt."createdAt" ASC
+      LIMIT 1
+      FOR UPDATE OF rt, t
+    `;
+
+    return rows[0] ?? null;
+  }
+
   private formatInvoiceResponse(
-    invoice: {
-      id: string;
-      roomId: string;
-      billingRecordId: string;
-      year: number;
-      month: number;
-      version: number;
-      status: string;
-      subtotal: unknown;
-      total: unknown;
-      dueDate: Date;
-      issuedAt?: Date | null;
-      sentAt?: Date | null;
-      sentBy?: string | null;
-      viewedAt?: Date | null;
-      paidAt?: Date | null;
-      createdAt: Date;
-      updatedAt: Date;
-      room?: {
-        id: string;
-        roomNumber: string;
-        floorId: string;
-        roomTenants?: Array<{
-          tenant?: {
-            id?: string | null;
-            firstName?: string | null;
-            lastName?: string | null;
-            phone?: string | null;
-            lineUserId?: string | null;
-          } | null;
-        }>;
-      };
-      versions?: Array<{
-        id: string;
-        invoiceId: string;
-        version: number;
-        subtotal: unknown;
-        total: unknown;
-        changeNote: string | null;
-        createdAt: Date;
-      }>;
-      deliveries?: Array<{
-        id: string;
-        channel: string;
-        status: string;
-        recipientRef: string | null;
-        sentAt: Date | null;
-        viewedAt: Date | null;
-        errorMessage: string | null;
-        createdAt: Date;
-      }>;
-    },
-    items: InvoiceItemSnapshot[]
+    invoice: InvoiceResponseRecord
   ): InvoiceResponse {
-    const primaryTenant = invoice.room?.roomTenants?.[0]?.tenant;
+    const primaryTenant = (invoice.room as any)?.tenants?.[0]?.tenant ?? (invoice.room as any)?.roomTenants?.[0]?.tenant;
     const tenantName = primaryTenant
       ? `${primaryTenant.firstName ?? ''} ${primaryTenant.lastName ?? ''}`.trim() || null
       : null;
-    const invoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.room?.roomNumber ?? invoice.roomId.slice(0, 6)}-V${invoice.version}`;
+    const invoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.roomNo}-V1`;
 
     return {
       id: invoice.id,
       invoiceNumber,
-      roomId: invoice.roomId,
-      billingRecordId: invoice.billingRecordId,
+      roomNo: invoice.roomNo,
+      roomBillingId: invoice.roomBillingId,
       year: invoice.year,
       month: invoice.month,
-      version: invoice.version,
       status: invoice.status as InvoiceStatus,
-      subtotal: Number(invoice.subtotal),
-      totalAmount: Number(invoice.total),
+      totalAmount: Number(invoice.totalAmount),
       dueDate: invoice.dueDate,
       issuedAt: invoice.issuedAt ?? null,
-      sentAt: invoice.sentAt,
-      sentBy: invoice.sentBy,
-      viewedAt: invoice.viewedAt,
-      paidAt: invoice.paidAt,
+      sentAt: invoice.sentAt ?? null,
+      paidAt: invoice.paidAt ?? null,
       createdAt: invoice.createdAt,
       updatedAt: invoice.updatedAt,
       room: invoice.room
         ? {
-            id: invoice.room.id,
-            roomNumber: invoice.room.roomNumber,
-            floorId: invoice.room.floorId,
+            roomNo: (invoice.room as any).roomNo,
           }
         : undefined,
       tenant: primaryTenant?.id
@@ -825,16 +822,7 @@ export class InvoiceService {
         errorMessage: delivery.errorMessage,
         createdAt: delivery.createdAt,
       })),
-      items,
-      versions: (invoice.versions ?? []).map((v) => ({
-        id: v.id,
-        invoiceId: v.invoiceId,
-        version: v.version,
-        subtotal: Number(v.subtotal),
-        totalAmount: Number(v.total),
-        changeNote: v.changeNote,
-        createdAt: v.createdAt,
-      })),
+      items: [],
     };
   }
 }

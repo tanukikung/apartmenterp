@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
+import { getVerifiedActor } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse, NotFoundError, ExternalServiceError } from '@/lib/utils/errors';
 import { prisma, sendLineMessage } from '@/lib';
 import { logAudit } from '@/modules/audit';
 import { logger } from '@/lib/utils/logger';
 import { withTiming } from '@/lib/performance/timingMiddleware';
+import { toConversationMessageDto } from '@/modules/messaging/message-dto';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +32,10 @@ const getMessages = asyncHandler(async (req: NextRequest, { params }: { params: 
         }
       },
     });
-    return NextResponse.json({ success: true, data: messages } as ApiResponse<unknown>);
+    return NextResponse.json({
+      success: true,
+      data: messages.map(toConversationMessageDto),
+    } as ApiResponse<unknown>);
   }
 
   const messagesDesc = await prisma.message.findMany({
@@ -51,8 +56,8 @@ const getMessages = asyncHandler(async (req: NextRequest, { params }: { params: 
   });
   const hasMore = messagesDesc.length > limit;
   const pageItems = hasMore ? messagesDesc.slice(0, limit) : messagesDesc;
-  const items = pageItems.slice().reverse();
-  const nextBefore = items.length > 0 ? items[0].sentAt.toISOString() : null;
+  const items = pageItems.slice().reverse().map(toConversationMessageDto);
+  const nextBefore = pageItems.length > 0 ? pageItems[pageItems.length - 1].sentAt.toISOString() : null;
 
   return NextResponse.json({ success: true, data: { items, nextBefore, hasMore } } as ApiResponse<unknown>);
 });
@@ -68,6 +73,7 @@ export const POST = asyncHandler(
     const { id } = params;
     const body = await req.json().catch(() => ({}));
     const input = sendMessageSchema.parse(body);
+    const actor = getVerifiedActor(req);
 
     const conversation = await prisma.conversation.findUnique({
       where: { id },
@@ -111,8 +117,8 @@ export const POST = asyncHandler(
       });
       
       await logAudit({
-        actorId: 'system',
-        actorRole: 'ADMIN',
+        actorId: actor.actorId,
+        actorRole: actor.actorRole,
         action: 'CHAT_MESSAGE_SENT',
         entityType: 'CONVERSATION',
         entityId: conversation.id,

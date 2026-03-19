@@ -1,1 +1,1 @@
-export { backupDir, runBackup } from '../../../scripts/backup-db';
+export { backupDir, getBackupPrerequisiteFailure, runBackup } from '../../../scripts/backup-db';

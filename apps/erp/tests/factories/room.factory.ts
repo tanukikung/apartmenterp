@@ -1,48 +1,47 @@
 import type { Prisma } from '@prisma/client';
 
+// Building and Floor models have been removed in the new schema.
+// createBuilding and createFloor are kept as stubs for backward compatibility
+// with tests that imported them; they do nothing and return a minimal object.
+
 export async function createBuilding(
   overrides: Partial<{ name: string; address: string; totalFloors: number }> = {},
-  tx?: Prisma.TransactionClient
-) {
-  const { prisma: shared } = await import('@/lib/db/client');
-  const db = (tx || shared) as unknown as Prisma.TransactionClient & typeof shared;
-  return db.building.create({
-    data: {
-      name: overrides.name ?? `Building ${Math.floor(Math.random() * 1000)}`,
-      address: overrides.address ?? 'Test Address',
-      totalFloors: overrides.totalFloors ?? 3,
-    } as any,
-  });
+  _tx?: Prisma.TransactionClient
+): Promise<{ id: string; name: string; address: string }> {
+  // Building model removed — return a stub so callers don't break at import time.
+  return { id: 'stub-building', name: overrides.name ?? 'Stub Building', address: overrides.address ?? 'Stub Address' };
 }
 
 export async function createFloor(
-  buildingId: string,
+  _buildingId: string,
   overrides: Partial<{ floorNumber: number }> = {},
-  tx?: Prisma.TransactionClient
-) {
-  const { prisma: shared } = await import('@/lib/db/client');
-  const db = (tx || shared) as unknown as Prisma.TransactionClient & typeof shared;
-  return db.floor.create({
-    data: {
-      buildingId,
-      floorNumber: overrides.floorNumber ?? 1,
-    } as any,
-  });
+  _tx?: Prisma.TransactionClient
+): Promise<{ id: string; floorNumber: number }> {
+  // Floor model removed — return a stub.
+  return { id: `stub-floor-${overrides.floorNumber ?? 1}`, floorNumber: overrides.floorNumber ?? 1 };
 }
 
 export async function createRoom(
-  floorId: string,
-  overrides: Partial<{ roomNumber: string; status: string; maxResidents: number }> = {},
+  _floorId: string,
+  overrides: Partial<{ roomNumber: string; roomNo: string; floorNo: number; status: string; maxResidents: number }> = {},
   tx?: Prisma.TransactionClient
 ) {
   const { prisma: shared } = await import('@/lib/db/client');
   const db = (tx || shared) as unknown as Prisma.TransactionClient & typeof shared;
+
+  const roomNo = overrides.roomNo ?? overrides.roomNumber ?? `${Math.floor(Math.random() * 900) + 100}`;
+  const floorNo = overrides.floorNo ?? 1;
+
   return db.room.create({
     data: {
-      floorId,
-      roomNumber: overrides.roomNumber ?? `${Math.floor(Math.random() * 900) + 100}`,
-      status: overrides.status ?? 'OCCUPIED',
-      maxResidents: overrides.maxResidents ?? 2,
+      roomNo,
+      floorNo,
+      defaultAccountId: 'ACC_F1',
+      defaultRuleCode: 'STANDARD',
+      defaultRentAmount: 5000,
+      hasFurniture: false,
+      defaultFurnitureAmount: 0,
+      roomStatus: 'ACTIVE',
     } as any,
   });
 }

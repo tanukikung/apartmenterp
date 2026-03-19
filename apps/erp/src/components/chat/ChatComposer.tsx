@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 
 type Props = {
   disabled?: boolean;
-  onSendText: (text: string) => Promise<void>;
+  onSendText: (text: string) => Promise<boolean>;
   onUploadFile?: (file: File) => Promise<void>;
   templates?: Array<{ id: string; label: string; text: string }>;
   uploadProgress?: number | null;
@@ -27,8 +27,10 @@ export function ChatComposer({
     if (!text.trim()) return;
     setBusy(true);
     try {
-      await onSendText(text);
-      setText('');
+      const sent = await onSendText(text);
+      if (sent) {
+        setText('');
+      }
     } finally {
       setBusy(false);
     }

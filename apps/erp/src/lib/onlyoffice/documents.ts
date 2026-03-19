@@ -2,13 +2,19 @@ import { prisma } from '@/lib';
 import { getStorage } from '@/infrastructure/storage';
 import { createOnlyOfficeDocumentKey, getOnlyOfficeAppBaseUrl, inferOnlyOfficeDocumentType } from './index';
 import { NotFoundError, ExternalServiceError } from '@/lib/utils/errors';
+import { buildFileAccessUrl } from '@/lib/files/access';
 
 export function getOnlyOfficeTemplateStorageKey(templateId: string): string {
   return `onlyoffice/templates/${templateId}.html`;
 }
 
 export function getOnlyOfficeFileUrl(storageKey: string): string {
-  return `${getOnlyOfficeAppBaseUrl()}/api/files/${storageKey}?inline=1`;
+  return buildFileAccessUrl(storageKey, {
+    absoluteBaseUrl: getOnlyOfficeAppBaseUrl(),
+    inline: true,
+    signed: true,
+    expiresInSeconds: 15 * 60,
+  });
 }
 
 export function getFileExtension(filename: string): string {
@@ -44,29 +50,24 @@ export async function syncTemplateDocumentToStorage(templateId: string) {
 }
 
 export async function getStoredWorkbookForBatch(batchId: string) {
-  const batch = await prisma.billingImportBatch.findUnique({
+  // TODO: BillingImportBatch replaced by ImportBatch in new schema.
+  // ImportBatch does not have uploadedFile relation yet.
+  const batch = await prisma.importBatch.findUnique({
     where: { id: batchId },
-    include: {
-      uploadedFile: true,
-      billingCycle: true,
-    },
   });
   if (!batch) {
-    throw new NotFoundError('BillingImportBatch', batchId);
-  }
-  if (!batch.uploadedFile) {
-    throw new ExternalServiceError('ONLYOFFICE', new Error('This batch does not have a source workbook attached'));
+    throw new NotFoundError('ImportBatch', batchId);
   }
 
-  const fileType = getFileExtension(batch.uploadedFile.originalName || batch.sourceFilename);
+  // ImportBatch.filename is the source filename
+  const fileType = getFileExtension(batch.filename);
 
   return {
     batch,
-    uploadedFile: batch.uploadedFile,
     fileType,
     documentType: inferOnlyOfficeDocumentType(fileType),
-    documentUrl: getOnlyOfficeFileUrl(batch.uploadedFile.storageKey),
-    key: createOnlyOfficeDocumentKey('billing-batch', batch.id, batch.updatedAt, batch.uploadedFile.createdAt),
+    documentUrl: '',
+    key: createOnlyOfficeDocumentKey('billing-batch', batch.id, batch.createdAt),
   };
 }
 

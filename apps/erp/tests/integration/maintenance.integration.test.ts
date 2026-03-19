@@ -18,21 +18,25 @@ describe('Integration: Maintenance workflow', () => {
       return;
     }
 
-    const building = await prisma.building.create({
-      data: { id: crypto.randomUUID(), name: 'Tower M', address: 'Z', totalFloors: 3 },
-    });
-    const floor = await prisma.floor.create({
-      data: { id: crypto.randomUUID(), buildingId: building.id, floorNumber: 1 },
-    });
-    const room = await prisma.room.create({
-      data: { id: crypto.randomUUID(), floorId: floor.id, roomNumber: '103', status: 'VACANT', maxResidents: 2 },
+    const roomNo = `TEST-M-${crypto.randomUUID().slice(0, 8)}`;
+    const room = await (prisma as any).room.create({
+      data: {
+        roomNo,
+        floorNo: 1,
+        defaultAccountId: 'ACC_F1',
+        defaultRuleCode: 'STANDARD',
+        defaultRentAmount: 5000,
+        hasFurniture: false,
+        defaultFurnitureAmount: 0,
+        roomStatus: 'ACTIVE',
+      },
     });
     const tenant = await prisma.tenant.create({
       data: { id: crypto.randomUUID(), firstName: 'Jane', lastName: 'Doe', phone: '12345' },
     });
 
     const body = {
-      roomId: room.id,
+      roomId: (room as any).roomNo,
       tenantId: tenant.id,
       title: 'Aircon broken',
       description: 'Not cooling',

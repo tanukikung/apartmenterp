@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { makeRequestLike } from './helpers/auth';
 
 const previewGeneration = vi.fn(async () => ({
   templateId: 'tpl-1',
@@ -38,28 +39,22 @@ vi.mock('@/modules/documents/generation.service', () => ({
   }),
 }));
 
-vi.mock('@/lib/auth/guards', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/auth/guards')>();
-  return {
-    ...actual,
-    requireRole: vi.fn(() => ({ sub: 'admin-1', role: 'ADMIN', displayName: 'Owner' })),
-  };
-});
-
 describe('POST /api/documents/generate', () => {
   it('returns dry-run preview when dryRun=true', async () => {
     const mod = await import('@/app/api/documents/generate/route');
-    const req = new Request('http://localhost/api/documents/generate', {
+    const req = makeRequestLike({
+      url: 'http://localhost/api/documents/generate',
       method: 'POST',
+      role: 'ADMIN',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         templateId: 'tpl-1',
         scope: 'SELECTED_ROOMS',
         roomIds: ['room-1', 'room-2'],
         year: 2026,
         month: 12,
         dryRun: true,
-      }),
+      },
     });
 
     const res = await mod.POST(req as any);
@@ -73,17 +68,19 @@ describe('POST /api/documents/generate', () => {
 
   it('runs actual generation when dryRun=false', async () => {
     const mod = await import('@/app/api/documents/generate/route');
-    const req = new Request('http://localhost/api/documents/generate', {
+    const req = makeRequestLike({
+      url: 'http://localhost/api/documents/generate',
       method: 'POST',
+      role: 'ADMIN',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: {
         templateId: 'tpl-1',
         scope: 'SELECTED_ROOMS',
         roomIds: ['room-1', 'room-2'],
         year: 2026,
         month: 12,
         dryRun: false,
-      }),
+      },
     });
 
     const res = await mod.POST(req as any);

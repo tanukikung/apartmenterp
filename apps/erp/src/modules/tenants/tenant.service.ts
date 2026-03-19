@@ -183,7 +183,7 @@ export class TenantService {
     if (roomId) {
       where.roomTenants = {
         some: {
-          roomId,
+          roomNo: roomId,
           moveOutDate: null,
         },
       };
@@ -330,9 +330,9 @@ export class TenantService {
 
     // Check if room exists
     const room = await prisma.room.findUnique({
-      where: { id: roomId },
+      where: { roomNo: roomId },
       include: {
-        roomTenants: {
+        tenants: {
           where: { moveOutDate: null },
         },
       },
@@ -351,14 +351,9 @@ export class TenantService {
       throw new NotFoundError('Tenant', input.tenantId);
     }
 
-    // Business rule: Maximum 2 tenants per room
-    if (room.roomTenants.length >= room.maxResidents) {
-      throw new ConflictError(`Room already has maximum ${room.maxResidents} tenants`);
-    }
-
     // Business rule: Only one PRIMARY tenant per room
     if (input.role === 'PRIMARY') {
-      const existingPrimary = room.roomTenants.find(rt => rt.role === 'PRIMARY');
+      const existingPrimary = (room.tenants as Array<{ role: string }>).find(rt => rt.role === 'PRIMARY');
       if (existingPrimary) {
         throw new ConflictError('Room already has a PRIMARY tenant');
       }
@@ -368,7 +363,7 @@ export class TenantService {
     const existingAssignment = await prisma.roomTenant.findFirst({
       where: {
         tenantId: input.tenantId,
-        roomId,
+        roomNo: roomId,
         moveOutDate: null,
       },
     });
@@ -381,7 +376,7 @@ export class TenantService {
       const created = await tx.roomTenant.create({
         data: {
           id: uuidv4(),
-          roomId,
+          roomNo: roomId,
           tenantId: input.tenantId,
           role: input.role,
           moveInDate: new Date(input.moveInDate),
@@ -390,12 +385,6 @@ export class TenantService {
           room: true,
         },
       });
-      if (room.status === 'VACANT') {
-        await tx.room.update({
-          where: { id: roomId },
-          data: { status: 'OCCUPIED' },
-        });
-      }
       await tx.outboxEvent.create({
         data: {
           id: uuidv4(),
@@ -405,8 +394,7 @@ export class TenantService {
           payload: {
             tenantId: tenant.id,
             fullName: `${tenant.firstName} ${tenant.lastName}`,
-            roomId: room.id,
-            roomNumber: room.roomNumber,
+            roomNo: room.roomNo,
             role: input.role,
             moveInDate: input.moveInDate,
             assignedBy,
@@ -421,8 +409,7 @@ export class TenantService {
     const payload: TenantAssignedToRoomPayload = {
       tenantId: tenant.id,
       fullName: `${tenant.firstName} ${tenant.lastName}`,
-      roomId: room.id,
-      roomNumber: room.roomNumber,
+      roomNo: room.roomNo,
       role: input.role,
       moveInDate: input.moveInDate,
       assignedBy,
@@ -453,7 +440,7 @@ export class TenantService {
     // Check if assignment exists
     const roomTenant = await prisma.roomTenant.findFirst({
       where: {
-        roomId,
+        roomNo: roomId,
         tenantId,
         moveOutDate: null,
       },
@@ -474,18 +461,6 @@ export class TenantService {
           moveOutDate: new Date(input.moveOutDate),
         },
       });
-      const remainingTenants = await tx.roomTenant.count({
-        where: {
-          roomId,
-          moveOutDate: null,
-        },
-      });
-      if (remainingTenants === 0) {
-        await tx.room.update({
-          where: { id: roomId },
-          data: { status: 'VACANT' },
-        });
-      }
       await tx.outboxEvent.create({
         data: {
           id: uuidv4(),
@@ -495,8 +470,7 @@ export class TenantService {
           payload: {
             tenantId: roomTenant.tenant.id,
             fullName: `${roomTenant.tenant.firstName} ${roomTenant.tenant.lastName}`,
-            roomId: roomTenant.room.id,
-            roomNumber: roomTenant.room.roomNumber,
+            roomNo: roomTenant.room.roomNo,
             role: roomTenant.role,
             moveOutDate: input.moveOutDate,
             removedBy,
@@ -510,8 +484,7 @@ export class TenantService {
     const payload: TenantRemovedFromRoomPayload = {
       tenantId: roomTenant.tenant.id,
       fullName: `${roomTenant.tenant.firstName} ${roomTenant.tenant.lastName}`,
-      roomId: roomTenant.room.id,
-      roomNumber: roomTenant.room.roomNumber,
+      roomNo: roomTenant.room.roomNo,
       role: roomTenant.role,
       moveOutDate: input.moveOutDate,
       removedBy,
@@ -593,7 +566,7 @@ export class TenantService {
   async getTenantsByRoom(roomId: string): Promise<TenantResponse[]> {
     const roomTenants = await prisma.roomTenant.findMany({
       where: {
-        roomId,
+        roomNo: roomId,
         moveOutDate: null,
       },
       include: {
@@ -630,12 +603,12 @@ export class TenantService {
       updatedAt: Date;
       roomTenants: Array<{
         id: string;
-        roomId: string;
+        roomNo: string;
         tenantId: string;
         role: string;
         moveInDate: Date;
         moveOutDate: Date | null;
-        room?: { id: string; roomNumber: string; floorId: string };
+        room?: { roomNo: string };
       }>;
     }
   ): TenantResponse {
@@ -653,16 +626,14 @@ export class TenantService {
       updatedAt: tenant.updatedAt,
       roomTenants: tenant.roomTenants.map((rt) => ({
         id: rt.id,
-        roomId: rt.roomId,
+        roomNo: rt.roomNo,
         tenantId: rt.tenantId,
         role: rt.role as TenantRole,
         moveInDate: rt.moveInDate,
         moveOutDate: rt.moveOutDate,
         room: rt.room
           ? {
-              id: rt.room.id,
-              roomNumber: rt.room.roomNumber,
-              floorId: rt.room.floorId,
+              roomNo: rt.room.roomNo,
             }
           : undefined,
       })),
@@ -675,26 +646,24 @@ export class TenantService {
   private formatRoomTenantResponse(
     roomTenant: {
       id: string;
-      roomId: string;
+      roomNo: string;
       tenantId: string;
       role: string;
       moveInDate: Date;
       moveOutDate: Date | null;
-      room?: { id: string; roomNumber: string; floorId: string };
+      room?: { roomNo: string };
     }
   ): RoomTenantResponse {
     return {
       id: roomTenant.id,
-      roomId: roomTenant.roomId,
+      roomNo: roomTenant.roomNo,
       tenantId: roomTenant.tenantId,
       role: roomTenant.role as TenantRole,
       moveInDate: roomTenant.moveInDate,
       moveOutDate: roomTenant.moveOutDate,
       room: roomTenant.room
         ? {
-            id: roomTenant.room.id,
-            roomNumber: roomTenant.room.roomNumber,
-            floorId: roomTenant.room.floorId,
+            roomNo: roomTenant.room.roomNo,
           }
         : undefined,
     };

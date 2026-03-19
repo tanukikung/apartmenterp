@@ -40,7 +40,8 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
       overdueDay: readNumber('billing.overdueDay', 15),
       appBaseUrl: env.APP_BASE_URL || '',
       lineChannelIdConfigured: Boolean(env.LINE_CHANNEL_ID),
-      lineAccessTokenConfigured: Boolean(env.LINE_ACCESS_TOKEN),
+      lineChannelSecretConfigured: Boolean(env.LINE_CHANNEL_SECRET),
+      lineAccessTokenConfigured: Boolean(env.LINE_ACCESS_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN),
     },
   } as ApiResponse<{
     billingDay: number;
@@ -48,6 +49,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     overdueDay: number;
     appBaseUrl: string;
     lineChannelIdConfigured: boolean;
+    lineChannelSecretConfigured: boolean;
     lineAccessTokenConfigured: boolean;
   }>);
 });

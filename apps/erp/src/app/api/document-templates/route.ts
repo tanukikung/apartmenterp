@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
-import { requireAuthSession, requireRole } from '@/lib/auth/guards';
+import { getVerifiedActor, requireAuthSession } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit';
 import { DocumentTemplateType } from '@prisma/client';
@@ -58,7 +58,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 // ── POST /api/document-templates ──────────────────────────────────────────────
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  const actor = getVerifiedActor(req);
 
   const body = await req.json();
   const parsed = createSchema.safeParse(body);
@@ -80,8 +80,8 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
   // Audit: template created
   await logAudit({
-    actorId:    'system',
-    actorRole:  'ADMIN',
+    actorId:    actor.actorId,
+    actorRole:  actor.actorRole,
     action:     'DOCUMENT_TEMPLATE_CREATED',
     entityType: 'DOCUMENT_TEMPLATE',
     entityId:   template.id,

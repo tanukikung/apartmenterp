@@ -8,15 +8,15 @@ export const GET = asyncHandler(async (_req: NextRequest, { params }: { params: 
   if (!conversation) {
     throw new NotFoundError('Conversation', conversationId);
   }
-  if (!conversation.roomId) {
+  if (!conversation.roomNo) {
     return NextResponse.json(
       { success: true, data: null } as ApiResponse<null>
     );
   }
   const inv = await prisma.invoice.findFirst({
-    where: { roomId: conversation.roomId },
+    where: { roomNo: conversation.roomNo },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, status: true, dueDate: true, total: true },
+    select: { id: true, status: true, dueDate: true, totalAmount: true },
   });
   logger.info({ type: 'latest_invoice_lookup', conversationId, found: Boolean(inv) });
   type LatestInvoice = { id: string; status: string; dueDate: string | null; totalAmount: number };
@@ -25,7 +25,7 @@ export const GET = asyncHandler(async (_req: NextRequest, { params }: { params: 
         id: inv.id,
         status: (inv.status as unknown as string),
         dueDate: inv.dueDate ? inv.dueDate.toISOString() : null,
-        totalAmount: Number(inv.total),
+        totalAmount: Number(inv.totalAmount),
       }
     : null;
   return NextResponse.json({ success: true, data } as ApiResponse<LatestInvoice | null>);

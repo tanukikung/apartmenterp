@@ -3,9 +3,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { ensureDir } from '../../scripts/backup-db';
+import { makeRequestLike } from '../helpers/auth';
 
 describe('GET /api/system/backup-status', () => {
-  it('returns latest backup info and config defaults', async () => {
+  it('returns latest backup info only for signed admins', async () => {
     const dir = path.join(os.tmpdir(), `erp-backup-status-${Math.random().toString(16).slice(2)}`);
     process.env.BACKUP_DIR = dir;
     process.env.BACKUP_RETENTION_DAYS = '7';
@@ -16,7 +17,21 @@ describe('GET /api/system/backup-status', () => {
     await fs.writeFile(f1, 'a');
     await fs.writeFile(f2, 'b');
     const mod = await import('@/app/api/system/backup-status/route');
-    const res: Response = await (mod as any).GET();
+    const anonymous: Response = await (mod as any).GET(
+      makeRequestLike({
+        url: 'http://localhost/api/system/backup-status',
+        method: 'GET',
+      }) as any,
+    );
+    expect(anonymous.status).toBe(401);
+
+    const res: Response = await (mod as any).GET(
+      makeRequestLike({
+        url: 'http://localhost/api/system/backup-status',
+        method: 'GET',
+        role: 'ADMIN',
+      }) as any,
+    );
     expect(res.ok).toBe(true);
     const json = await res.json();
     expect(json.success).toBe(true);

@@ -12,7 +12,7 @@ async function handleInvoicePaid(event: InvoicePaid) {
     include: {
       room: {
         include: {
-          roomTenants: {
+          tenants: {
             where: { role: 'PRIMARY', moveOutDate: null },
             include: { tenant: true },
           },
@@ -21,10 +21,10 @@ async function handleInvoicePaid(event: InvoicePaid) {
     },
   });
   if (!invoice || !invoice.room) return;
-  const tenant = invoice.room.roomTenants?.[0]?.tenant;
+  const tenant = (invoice.room as any).tenants?.[0]?.tenant;
   const lineUserId = tenant?.lineUserId;
   if (!lineUserId) return;
-  const message = `Payment received for Room ${invoice.room.roomNumber}. Thank you.`;
+  const message = `Payment received for Room ${invoice.roomNo}. Thank you.`;
   await sendLineMessage(lineUserId, message);
 }
 

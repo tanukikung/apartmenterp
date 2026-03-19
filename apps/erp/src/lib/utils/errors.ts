@@ -4,6 +4,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { logger } from './logger';
 import { redisRateLimit } from '@/infrastructure/redis';
 import { mapPrismaError } from '@/lib/errors/prismaErrorMapper';
+import { getSessionFromRequest } from '@/lib/auth/session';
+import { hasValidCronSecret, resolveApiRoutePolicy, isForcePasswordChangeExemptRoute } from '@/lib/auth/api-policy';
 
 // ============================================================================
 // Custom Error Classes
@@ -191,7 +193,7 @@ export function formatError(
     };
   }
 
-  // Handle Prisma errors
+  // Handle Prisma KnownRequestError (P1xxx / P2xxx codes from the DB engine)
   if (
     typeof error === 'object' &&
     error !== null &&
@@ -222,6 +224,39 @@ export function formatError(
         name: 'DatabaseError',
         message: 'Database operation failed',
         code: e.code,
+        statusCode: 500,
+        requestId,
+      },
+    };
+  }
+
+  // Handle other Prisma error types that are not KnownRequestError:
+  //   PrismaClientValidationError  – bad query (wrong field names / types)
+  //   PrismaClientInitializationError – DB unreachable on cold start
+  //   PrismaClientUnknownRequestError  – unrecognised DB error
+  //   PrismaClientRustPanic           – Prisma engine internal panic
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    typeof (error as { name: unknown }).name === 'string' &&
+    (
+      (error as { name: string }).name === 'PrismaClientValidationError' ||
+      (error as { name: string }).name === 'PrismaClientInitializationError' ||
+      (error as { name: string }).name === 'PrismaClientUnknownRequestError' ||
+      (error as { name: string }).name === 'PrismaClientRustPanic'
+    )
+  ) {
+    const e = error as { name: string; message: string };
+    logger.error({ type: 'prisma_client_error', name: e.name, message: e.message });
+    return {
+      success: false,
+      error: {
+        name: 'DatabaseError',
+        message: process.env.NODE_ENV === 'production'
+          ? 'Database operation failed'
+          : e.message,
+        code: e.name,
         statusCode: 500,
         requestId,
       },
@@ -322,15 +357,49 @@ export function asyncHandler<Params extends Record<string, string> = Record<stri
         ('headers' in req || 'url' in req || 'json' in req || 'text' in req);
 
       if (isNextStyle || typeof resOrContext === 'undefined') {
+        const r = req as NextRequest;
+        const requestUrl =
+          typeof (req as { url?: unknown } | undefined)?.url === 'string'
+            ? new URL((req as { url: string }).url)
+            : null;
+
+        if (requestUrl) {
+          const policy = resolveApiRoutePolicy(requestUrl.pathname, (r as { method?: string }).method || 'GET');
+          if (policy && policy.accessClass !== 'public' && policy.accessClass !== 'custom') {
+            if (policy.accessClass === 'system-or-operator' && hasValidCronSecret(r)) {
+              return await (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(r, resOrContext as { params: Params } | undefined);
+            }
+
+            const session = getSessionFromRequest(r);
+            if (!session) {
+              throw new UnauthorizedError('Authentication required');
+            }
+
+            if (
+              session.forcePasswordChange &&
+              !isForcePasswordChangeExemptRoute(requestUrl.pathname, (r as { method?: string }).method || 'GET')
+            ) {
+              throw new ForbiddenError('Password change required');
+            }
+
+            if (policy.accessClass === 'operator' || policy.accessClass === 'system-or-operator') {
+              if (!['ADMIN', 'STAFF'].includes(session.role)) {
+                throw new ForbiddenError('Insufficient permissions');
+              }
+            }
+          }
+        }
+
         if (process.env.NODE_ENV !== 'test') {
-          const r = req as NextRequest;
-          const url = new URL(r.url);
+          if (!requestUrl) {
+            return await (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(r, resOrContext as { params: Params } | undefined);
+          }
           const xff = r.headers.get('x-forwarded-for');
           const ip = xff ? xff.split(',')[0].trim() : '0.0.0.0';
           const windowMs = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
           const maxPerWindow = Number(process.env.RATE_LIMIT_MAX || 120);
           const limitWindowSeconds = Math.ceil(windowMs / 1000);
-          const key = `${ip}:${url.pathname}`;
+          const key = `${ip}:${requestUrl.pathname}`;
           const count = await redisRateLimit(key, maxPerWindow, limitWindowSeconds).catch(() => 0);
           if (count > maxPerWindow) {
             return NextResponse.json(
@@ -339,7 +408,7 @@ export function asyncHandler<Params extends Record<string, string> = Record<stri
             );
           }
         }
-        return await (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(req as NextRequest, resOrContext as { params: Params } | undefined);
+        return await (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(r, resOrContext as { params: Params } | undefined);
       }
 
       await (handler as (req: { params: Params; body: unknown; query: Record<string, unknown> }, res: { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } }) => Promise<void>)(req as { params: Params; body: unknown; query: Record<string, unknown> }, resOrContext as { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } });

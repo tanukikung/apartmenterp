@@ -32,14 +32,14 @@ describe('Integration: Reminder System', () => {
     const tenant = await tenantFactory.createTenant({ lineUserId: 'U-test' });
     await (prisma as any).roomTenant.create({
       data: {
-        roomId: room.id,
+        roomNo: (room as any).roomNo ?? (room as any).id,
         tenantId: tenant.id,
         role: 'PRIMARY',
         moveInDate: new Date(),
       } as any,
     });
 
-    const { id: billingId } = await billingFactory.createBillingRecordForRoom(room.id);
+    const { id: billingId } = await billingFactory.createBillingRecordForRoom((room as any).roomNo ?? (room as any).id);
     await billingFactory.addOtherItem(billingId, 4000, 'Rent');
     const { getBillingService } = billingMod as any;
     const billingSvc = getBillingService();

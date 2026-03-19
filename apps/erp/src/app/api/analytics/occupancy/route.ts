@@ -19,8 +19,9 @@ export const GET = asyncHandler(async (): Promise<NextResponse> => {
 
   const [totalRooms, occupiedRooms, vacantRooms] = await Promise.all([
     prisma.room.count(),
-    prisma.room.count({ where: { status: 'OCCUPIED' } }),
-    prisma.room.count({ where: { status: 'VACANT' } }),
+    // ACTIVE rooms with current tenants are considered occupied
+    prisma.room.count({ where: { roomStatus: 'ACTIVE', tenants: { some: { moveOutDate: null } } } }),
+    prisma.room.count({ where: { tenants: { none: { moveOutDate: null } } } }),
   ]);
 
   const value: OccupancyData = { totalRooms, occupiedRooms, vacantRooms };

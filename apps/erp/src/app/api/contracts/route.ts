@@ -54,7 +54,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   logger.info({
     type: 'contract_created_api',
     contractId: contract.id,
-    roomId: contract.roomId,
+    roomNo: contract.roomNo,
   });
 
   return NextResponse.json({

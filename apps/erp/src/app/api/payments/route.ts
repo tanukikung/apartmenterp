@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getVerifiedActor } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { createPaymentSchema, type CreatePaymentInput } from '@/modules/payments/types';
 import { getPaymentService } from '@/modules/payments/payment.service';
@@ -44,11 +45,12 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const body = await req.json().catch(() => ({}));
+  const actor = getVerifiedActor(req);
 
   const input = createPaymentSchema.parse(body) as unknown as CreatePaymentInput;
 
   const svc = getPaymentService();
-  const { payment, invoice } = await svc.createPayment(input);
+  const { payment, invoice, settled } = await svc.createPayment(input, actor.actorId);
 
   logger.info({
     type: 'payment_created',
@@ -61,6 +63,6 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   return NextResponse.json({
     success: true,
     data: { payment, invoice },
-    message: 'Payment recorded and invoice marked as paid',
+    message: settled ? 'Payment recorded and invoice settled' : 'Payment recorded',
   } as ApiResponse<unknown>, { status: 201 });
 });

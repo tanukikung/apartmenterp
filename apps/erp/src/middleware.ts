@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifySessionTokenEdge } from '@/lib/auth/session-edge';
+import { resolveAuthSecret } from '@/lib/config/env';
+import { isCsrfExemptApiRoute } from '@/lib/auth/api-policy';
 // Edge runtime: avoid Node-only imports here (no node-cron or fs/net)
 
 
@@ -23,8 +25,10 @@ function sameOrigin(req: NextRequest): boolean {
   const requestBase = host ? `${proto}://${host}` : '';
 
   if (!base && !requestBase) return true;
+  const source = origin || referer;
+  if (!source) return false;
   try {
-    const o = new URL(origin || referer || '');
+    const o = new URL(source);
     if (base) {
       const b = new URL(base);
       if (o.origin === b.origin) return true;
@@ -35,7 +39,7 @@ function sameOrigin(req: NextRequest): boolean {
     }
     return false;
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -46,9 +50,6 @@ export async function middleware(req: NextRequest) {
   const requestId = existingId || (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 
   // Rate limiting handled in asyncHandler at API layer (Node runtime)
-
-  // Paths that are exempt from CSRF origin checks (safe state-clearing operations)
-  const CSRF_EXEMPT_PATHS = new Set(['/api/auth/logout']);
 
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     const cronHeader = req.headers.get('x-cron-secret');
@@ -66,7 +67,7 @@ export async function middleware(req: NextRequest) {
         },
       });
     }
-    if (!CSRF_EXEMPT_PATHS.has(url.pathname) && !sameOrigin(req)) {
+    if (!isCsrfExemptApiRoute(url.pathname, req.method) && !sameOrigin(req)) {
       return new NextResponse('CSRF Forbidden', { status: 403, headers: { 'x-request-id': requestId } });
     }
   }
@@ -84,8 +85,8 @@ export async function middleware(req: NextRequest) {
     // Skip guards in test to avoid interfering with tests
     if (process.env.NODE_ENV !== 'test') {
       const sessionToken = req.cookies.get('auth_session')?.value;
-      const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.ADMIN_TOKEN || 'development-auth-secret';
-      const session = sessionToken ? await verifySessionTokenEdge(sessionToken, secret) : null;
+      const secret = resolveAuthSecret();
+      const session = sessionToken && secret ? await verifySessionTokenEdge(sessionToken, secret) : null;
       const isAdmin = session?.role === 'ADMIN' || session?.role === 'STAFF';
       const mustChangePassword = Boolean(session?.forcePasswordChange);
 

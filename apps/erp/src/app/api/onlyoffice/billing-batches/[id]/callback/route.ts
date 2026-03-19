@@ -1,48 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib';
 import { asyncHandler } from '@/lib/utils/errors';
-import { downloadOnlyOfficeCallbackFile } from '@/lib/onlyoffice/documents';
-import { getStorage } from '@/infrastructure/storage';
-import { rebuildBillingImportBatchFromWorkbook } from '@/modules/billing/import-batch.service';
+import { verifyOnlyOfficeCallbackToken } from '@/lib/onlyoffice';
 
 type OnlyOfficeCallbackBody = {
   status?: number;
   url?: string;
+  token?: string;
 };
 
+// TODO: Rewrite for new ImportBatch schema. BillingImportBatch model has been removed.
 export const POST = asyncHandler(async (
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params: _params }: { params: { id: string } },
 ): Promise<NextResponse> => {
   const payload = (await req.json()) as OnlyOfficeCallbackBody;
-  const status = Number(payload.status);
 
-  if (![2, 6].includes(status) || !payload.url) {
-    return NextResponse.json({ error: 0 });
-  }
-
-  const batch = await prisma.billingImportBatch.findUnique({
-    where: { id: params.id },
-    include: { uploadedFile: true },
-  });
-  if (!batch?.uploadedFile) {
+  if (!verifyOnlyOfficeCallbackToken(req.headers.get('authorization'), payload.token)) {
     return NextResponse.json({ error: 1 });
   }
 
-  const buffer = await downloadOnlyOfficeCallbackFile(payload.url);
-  const storage = getStorage();
-  await storage.uploadFile({
-    key: batch.uploadedFile.storageKey,
-    content: buffer,
-    contentType: batch.uploadedFile.mimeType,
-  });
-
-  await rebuildBillingImportBatchFromWorkbook({
-    batchId: batch.id,
-    filename: batch.sourceFilename,
-    fileBuffer: new Uint8Array(buffer),
-    uploadedFileId: batch.uploadedFileId,
-  });
-
+  // TODO: implement with ImportBatch model
   return NextResponse.json({ error: 0 });
 });

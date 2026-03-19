@@ -131,7 +131,9 @@ export function RoomDetailsCard(props: Props) {
           <button onClick={onSendReceipt} disabled={canSendViaLine === false} title={canSendViaLine === false ? sendDisabledReason || undefined : undefined} className="admin-button disabled:opacity-50">
             Send receipt
           </button>
-          <button onClick={onUploadFile} className="admin-button">Upload file</button>
+          {onUploadFile ? (
+            <button onClick={onUploadFile} className="admin-button">Upload file</button>
+          ) : null}
           <button onClick={onConfirmPayment} className="admin-button">Confirm payment</button>
         </div>
       </div>

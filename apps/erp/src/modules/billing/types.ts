@@ -1,18 +1,19 @@
 import { z } from 'zod';
 
 // ============================================================================
-// Billing Types
+// Billing Types — aligned with BillingPeriod/RoomBilling schema
 // ============================================================================
 
+// RoomBillingStatus mirrors Prisma enum
 export const billingStatusSchema = z.enum(['DRAFT', 'LOCKED', 'INVOICED']);
 export type BillingStatus = z.infer<typeof billingStatusSchema>;
 
 // ============================================================================
-// Billing Record Types
+// Create Billing Record DTO
 // ============================================================================
 
 export const createBillingRecordSchema = z.object({
-  roomId: z.string().uuid('Invalid room ID'),
+  roomNo: z.string().min(1, 'Room number is required'),
   year: z.number()
     .int()
     .min(2000, 'Year must be at least 2000')
@@ -26,7 +27,7 @@ export const createBillingRecordSchema = z.object({
 export type CreateBillingRecordInput = z.infer<typeof createBillingRecordSchema>;
 
 // ============================================================================
-// Billing Item Types
+// Billing Item Types (legacy — for API compatibility stubs)
 // ============================================================================
 
 export const billingItemTypeCodes = [
@@ -78,8 +79,8 @@ export type LockBillingInput = z.infer<typeof lockBillingSchema>;
 // ============================================================================
 
 export const listBillingRecordsQuerySchema = z.object({
-  roomId: z.string().uuid().optional(),
-  billingCycleId: z.string().optional(),
+  roomNo: z.string().optional(),
+  billingPeriodId: z.string().optional(),
   year: z.coerce.number().int().min(2000).max(2100).optional(),
   month: z.coerce.number().int().min(1).max(12).optional(),
   status: billingStatusSchema.optional(),
@@ -97,7 +98,9 @@ export type ListBillingRecordsQuery = z.infer<typeof listBillingRecordsQuerySche
 
 export interface BillingRecordResponse {
   id: string;
-  roomId: string;
+  /** New PK-based identifier for the room */
+  roomNo: string;
+  billingPeriodId: string;
   year: number;
   month: number;
   status: BillingStatus;
@@ -107,11 +110,6 @@ export interface BillingRecordResponse {
   lockedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
-  room?: {
-    id: string;
-    roomNumber: string;
-    floorId: string;
-  };
   items?: BillingItemResponse[];
   contract?: {
     id: string;
@@ -155,8 +153,7 @@ export interface BillingRecordsListResponse {
 
 export const billingRecordCreatedPayloadSchema = z.object({
   billingRecordId: z.string(),
-  roomId: z.string(),
-  roomNumber: z.string(),
+  roomNo: z.string(),
   year: z.number().int(),
   month: z.number().int(),
   createdBy: z.string().optional(),
@@ -194,8 +191,7 @@ export type BillingItemRemovedPayload = z.infer<typeof billingItemRemovedPayload
 
 export const billingLockedPayloadSchema = z.object({
   billingRecordId: z.string(),
-  roomId: z.string(),
-  roomNumber: z.string(),
+  roomNo: z.string(),
   year: z.number().int(),
   month: z.number().int(),
   totalAmount: z.number(),
@@ -205,8 +201,7 @@ export type BillingLockedPayload = z.infer<typeof billingLockedPayloadSchema>;
 
 export const invoiceGenerationRequestedPayloadSchema = z.object({
   billingRecordId: z.string(),
-  roomId: z.string(),
-  roomNumber: z.string(),
+  roomNo: z.string(),
   year: z.number().int(),
   month: z.number().int(),
   totalAmount: z.number(),
@@ -219,7 +214,7 @@ export type InvoiceGenerationRequestedPayload = z.infer<typeof invoiceGeneration
 // ============================================================================
 
 export const billingImportRowSchema = z.object({
-  roomNumber: z.string().min(1),
+  roomNo: z.string().min(1),
   year: z.number().int().min(2000).max(2100),
   month: z.number().int().min(1).max(12),
   typeCode: billingItemTypeSchema,

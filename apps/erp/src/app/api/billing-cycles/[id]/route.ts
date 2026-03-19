@@ -12,22 +12,17 @@ export const GET = asyncHandler(
   ): Promise<NextResponse> => {
     requireAuthSession(req);
 
-    const cycle = await prisma.billingCycle.findUnique({
+    const period = await prisma.billingPeriod.findUnique({
       where: { id: params.id },
       include: {
-        building: {
-          select: { id: true, name: true },
-        },
         importBatches: {
           orderBy: { createdAt: 'desc' },
           take: 1,
           select: { id: true },
         },
-        billingRecords: {
-          select: {
-            id: true,
-            subtotal: true,
-            invoices: {
+        roomBillings: {
+          include: {
+            invoice: {
               select: {
                 id: true,
                 status: true,
@@ -38,32 +33,30 @@ export const GET = asyncHandler(
       },
     });
 
-    if (!cycle) {
-      throw new NotFoundError('BillingCycle', params.id);
+    if (!period) {
+      throw new NotFoundError('BillingPeriod', params.id);
     }
 
-    const totalRecords = cycle.billingRecords.length;
-    const totalAmount = cycle.billingRecords.reduce((sum, record) => sum + Number(record.subtotal), 0);
-    const invoices = cycle.billingRecords.flatMap((record) => record.invoices);
+    const totalRecords = period.roomBillings.length;
+    const totalAmount = period.roomBillings.reduce((sum, record) => sum + Number(record.totalDue), 0);
+    const invoices = period.roomBillings
+      .map((r) => r.invoice)
+      .filter((inv): inv is NonNullable<typeof inv> => inv !== null);
     const invoicesIssued = invoices.length;
     const paymentsReceived = invoices.filter((invoice) => invoice.status === 'PAID').length;
 
     const data = {
-      id: cycle.id,
-      year: cycle.year,
-      month: cycle.month,
-      status: cycle.status,
-      building: cycle.building,
-      importBatchId: cycle.importBatches[0]?.id ?? null,
+      id: period.id,
+      year: period.year,
+      month: period.month,
+      status: period.status,
+      importBatchId: period.importBatches[0]?.id ?? null,
       totalRecords,
       totalAmount,
       invoicesIssued,
       paymentsReceived,
-      billingDate: cycle.billingDate,
-      dueDate: cycle.dueDate,
-      overdueDate: cycle.overdueDate,
-      createdAt: cycle.createdAt,
-      updatedAt: cycle.updatedAt,
+      createdAt: period.createdAt,
+      updatedAt: period.updatedAt,
     };
 
     return NextResponse.json({

@@ -10,9 +10,10 @@ vi.mock('@/lib', async () => {
       invoice: {
         findUnique: vi.fn().mockResolvedValue({
           id: 'inv-1',
+          roomNo: '101',
           room: {
-            roomNumber: '101',
-            roomTenants: [
+            roomNo: '101',
+            tenants: [
               { tenant: { lineUserId: 'U999' } },
             ],
           },
@@ -35,4 +36,3 @@ describe('Payment notification via outbox', () => {
     expect(sendLineMessage).toHaveBeenCalledWith('U999', expect.stringContaining('Payment received for Room 101'));
   });
 });
-

@@ -1,32 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInvoiceService } from '@/modules/invoices/invoice.service';
+import { getVerifiedActor } from '@/lib/auth/guards';
 import { payInvoiceSchema } from '@/modules/invoices/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
+import { getPaymentService } from '@/modules/payments/payment.service';
 
 // ============================================================================
-// POST /api/invoices/[id]/pay - Mark invoice as paid
+// POST /api/invoices/[id]/pay - Record a manual settlement payment
 // ============================================================================
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    const actor = getVerifiedActor(req);
     const { id } = params;
     const body = await req.json().catch(() => ({}));
-    
     const input = payInvoiceSchema.parse(body);
 
-    const invoiceService = getInvoiceService();
-    const invoice = await invoiceService.markInvoicePaid(id, input);
+    const paymentService = getPaymentService();
+    const result = await paymentService.settleOutstandingBalance(
+      id,
+      {
+        paidAt: input.paidAt,
+        referenceNumber: input.paymentId,
+      },
+      actor.actorId,
+    );
 
     logger.info({
       type: 'invoice_paid_api',
       invoiceId: id,
+      paymentId: result.payment.id,
+      actorId: actor.actorId,
     });
 
     return NextResponse.json({
       success: true,
-      data: invoice,
-      message: 'Invoice marked as paid',
-    } as ApiResponse<typeof invoice>);
+      data: result.invoice,
+      message: result.settled ? 'Payment recorded and invoice settled' : 'Payment recorded',
+    } as ApiResponse<typeof result.invoice>);
   }
 );

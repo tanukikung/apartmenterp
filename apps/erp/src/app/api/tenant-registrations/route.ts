@@ -28,11 +28,10 @@ async function computeWarnings(reg: {
   // 2–4. Claimed room validations
   if (reg.claimedRoom) {
     const room = await prisma.room.findFirst({
-      where: { roomNumber: reg.claimedRoom, isActive: true },
+      where: { roomNo: reg.claimedRoom, roomStatus: 'ACTIVE' },
       select: {
-        id: true,
-        maxResidents: true,
-        roomTenants: {
+        roomNo: true,
+        tenants: {
           where: { moveOutDate: null },
           select: { role: true },
         },
@@ -42,8 +41,7 @@ async function computeWarnings(reg: {
     if (!room) {
       warnings.push('CLAIMED_ROOM_MISMATCH');
     } else {
-      if (room.roomTenants.length >= room.maxResidents) warnings.push('ROOM_FULL');
-      if (!room.roomTenants.some((rt) => rt.role === 'PRIMARY')) warnings.push('NO_PRIMARY_TENANT');
+      if (!room.tenants.some((rt) => rt.role === 'PRIMARY')) warnings.push('NO_PRIMARY_TENANT');
     }
   }
 

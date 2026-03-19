@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler } from '@/lib/utils/errors';
 import { downloadOnlyOfficeCallbackFile } from '@/lib/onlyoffice/documents';
+import { verifyOnlyOfficeCallbackToken } from '@/lib/onlyoffice';
 import { getDocumentTemplateService } from '@/modules/documents/template.service';
 
 type OnlyOfficeCallbackBody = {
   status?: number;
   url?: string;
+  token?: string;
 };
 
 export const POST = asyncHandler(async (
@@ -13,6 +15,11 @@ export const POST = asyncHandler(async (
   { params }: { params: { id: string } },
 ): Promise<NextResponse> => {
   const payload = (await req.json()) as OnlyOfficeCallbackBody;
+
+  if (!verifyOnlyOfficeCallbackToken(req.headers.get('authorization'), payload.token)) {
+    return NextResponse.json({ error: 1 });
+  }
+
   const status = Number(payload.status);
   const versionId = new URL(req.url).searchParams.get('versionId');
 

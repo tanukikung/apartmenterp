@@ -31,13 +31,13 @@ export const GET = asyncHandler(async (): Promise<NextResponse> => {
       status: 'PAID',
       OR: whereOr,
     },
-    _sum: { total: true },
+    _sum: { totalAmount: true },
   });
 
   const map = new Map<string, number>();
   for (const g of grouped) {
     const key = `${g.year}-${g.month}`;
-    map.set(key, Number(g._sum.total ?? 0));
+    map.set(key, Number(g._sum.totalAmount ?? 0));
   }
 
   const result: RevenuePoint[] = months.map((m) => {

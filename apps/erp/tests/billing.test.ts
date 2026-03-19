@@ -2,22 +2,22 @@ import { describe, it, expect, vi } from 'vitest';
 import { getBillingService } from '@/modules/billing/billing.service';
 import { prisma } from '@/lib';
 
+// New schema: BillingRecord/BillingItemType/BillingItem removed.
+// BillingService now uses RoomBilling (flat rows, no separate item table).
 vi.mock('@/lib', async () => {
   const actual = await vi.importActual<any>('@/lib');
   return {
     ...actual,
     prisma: {
-      room: { findFirst: vi.fn() },
-      billingRecord: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
-      billingItemType: { findMany: vi.fn() },
-      billingItem: { create: vi.fn() },
+      room: { findFirst: vi.fn(), findUnique: vi.fn() },
+      billingPeriod: { findUnique: vi.fn(), create: vi.fn(), upsert: vi.fn() },
+      roomBilling: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
       outboxEvent: { create: vi.fn() },
       config: { findMany: vi.fn() },
       $transaction: vi.fn(async (fn: any) =>
         fn({
-          billingRecord: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
-          billingItemType: { findMany: vi.fn() },
-          billingItem: { create: vi.fn() },
+          billingPeriod: { findUnique: vi.fn(), create: vi.fn(), upsert: vi.fn() },
+          roomBilling: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
           outboxEvent: { create: vi.fn() },
         })
       ),
@@ -28,57 +28,41 @@ vi.mock('@/lib', async () => {
 describe('BillingService', () => {
   it('rejects duplicate billing record for same room/month', async () => {
     const billingService = getBillingService();
-    vi.spyOn(prisma.room, 'findFirst').mockResolvedValue({ id: 'room-1', roomNumber: '101' } as any);
-    vi.spyOn(prisma.billingRecord, 'findUnique').mockResolvedValue({ id: 'existing' } as any);
-    vi.spyOn(prisma.billingItemType, 'findMany').mockResolvedValue([
-      { id: 'type-rent', code: 'RENT', isRecurring: true, description: 'Rent' },
-    ] as any);
-    vi.spyOn(prisma.config, 'findMany').mockResolvedValue([
-      { key: 'billing.billingDay', value: '1' },
-      { key: 'billing.dueDay', value: '5' },
-      { key: 'billing.overdueDay', value: '15' },
-    ] as any);
+    // createBillingRecord uses prisma.room.findUnique
+    vi.spyOn(prisma.room as any, 'findUnique').mockResolvedValue({ roomNo: 'room-101', defaultAccountId: 'acc-1', defaultRuleCode: 'RULE', defaultRentAmount: 5000 } as any);
+    // billingPeriod.findUnique returns existing period
+    vi.spyOn(prisma.billingPeriod as any, 'findUnique').mockResolvedValue({ id: 'period-1', year: 2026, month: 3, dueDay: 25 } as any);
+    // roomBilling.findUnique returns existing record → conflict
+    vi.spyOn(prisma.roomBilling as any, 'findUnique').mockResolvedValue({ id: 'existing' } as any);
 
     await expect(
-      billingService.importBillingRows([
-        { roomNumber: '101', year: 2026, month: 3, typeCode: 'RENT', quantity: 1, unitPrice: 5000 },
-      ])
+      billingService.createBillingRecord({ roomNo: '101', year: 2026, month: 3 })
     ).rejects.toThrow(/already exists/);
   });
 
-  it('creates billing record and items atomically', async () => {
+  it('creates billing record atomically', async () => {
     const billingService = getBillingService();
-    vi.spyOn(prisma.room, 'findFirst').mockResolvedValue({ id: 'room-1', roomNumber: '101' } as any);
-    vi.spyOn(prisma.billingRecord, 'findUnique').mockResolvedValue(null as any);
-    vi.spyOn(prisma.billingItemType, 'findMany').mockResolvedValue([
-      { id: 'type-rent', code: 'RENT', isRecurring: true, description: 'Rent' },
-    ] as any);
-    vi.spyOn(prisma.config, 'findMany').mockResolvedValue([
-      { key: 'billing.billingDay', value: '1' },
-      { key: 'billing.dueDay', value: '5' },
-      { key: 'billing.overdueDay', value: '15' },
-    ] as any);
+    vi.spyOn(prisma.room as any, 'findUnique').mockResolvedValue({ roomNo: '101', defaultAccountId: 'acc-1', defaultRuleCode: 'RULE', defaultRentAmount: 5000 } as any);
+    vi.spyOn(prisma.billingPeriod as any, 'findUnique').mockResolvedValue(null as any);
+    vi.spyOn(prisma.billingPeriod as any, 'create').mockResolvedValue({ id: 'period-1', year: 2026, month: 3, dueDay: 25 } as any);
+    vi.spyOn(prisma.roomBilling as any, 'findUnique').mockResolvedValue(null as any);
+    vi.spyOn(prisma.roomBilling as any, 'create').mockResolvedValue({
+      id: 'rb-1',
+      roomNo: '101',
+      billingPeriodId: 'period-1',
+      recvAccountId: 'acc-1',
+      ruleCode: 'RULE',
+      rentAmount: 5000,
+      waterMode: 'NORMAL',
+      electricMode: 'NORMAL',
+      status: 'DRAFT',
+    } as any);
+    vi.spyOn(prisma.outboxEvent as any, 'create').mockResolvedValue({ id: 'e-1' } as any);
 
-    const txMock = {
-      billingRecord: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id: 'br-1', roomId: 'room-1', year: 2026, month: 3 }), update: vi.fn() },
-      billingItemType: { findMany: vi.fn().mockResolvedValue([{ id: 'type-rent', code: 'RENT', isRecurring: true }]) },
-      billingItem: { create: vi.fn().mockResolvedValue({}) },
-      outboxEvent: { create: vi.fn() },
-    };
-    vi.spyOn(prisma, '$transaction').mockImplementationOnce(async (fn: unknown) => {
-      if (typeof fn !== 'function') {
-        throw new Error('Expected transaction callback');
-      }
-      return (await (fn as (tx: typeof txMock) => unknown)(txMock as never)) as never;
-    });
+    const result = await billingService.createBillingRecord({ roomNo: '101', year: 2026, month: 3 });
 
-    const result = await billingService.importBillingRows([
-      { roomNumber: '101', year: 2026, month: 3, typeCode: 'RENT', quantity: 1, unitPrice: 5000 },
-    ]);
-
-    expect(txMock.billingRecord.create).toHaveBeenCalledTimes(1);
-    expect(txMock.billingItem.create).toHaveBeenCalledTimes(1);
-    expect(txMock.outboxEvent.create).toHaveBeenCalledTimes(1);
-    expect(result.created).toHaveLength(1);
+    expect(prisma.roomBilling.create).toHaveBeenCalledTimes(1);
+    expect(prisma.outboxEvent.create).toHaveBeenCalledTimes(1);
+    expect(result.roomNo).toBe('101');
   });
 });

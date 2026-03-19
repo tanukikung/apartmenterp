@@ -14,50 +14,37 @@ export async function createTestTenant() {
 
 export async function createTestRoom(tenantId?: string) {
   const tenant = tenantId ? await prisma.tenant.findUnique({ where: { id: tenantId } }) : await createTestTenant();
-  
+
   if (!tenant) {
     throw new Error('Tenant not found');
   }
-  
-  // Create building and floor first since Room requires floorId
-  const building = await prisma.building.create({
-    data: {
-      id: uuidv4(),
-      name: 'Test Building A',
-      address: 'Test Address',
-      totalFloors: 5,
-    },
-  });
-  
-  const floor = await prisma.floor.create({
-    data: {
-      id: uuidv4(),
-      buildingId: building.id,
-      floorNumber: 1,
-    },
-  });
-  
+
+  // New schema: Room PK is roomNo (string), no building/floor models
+  const roomNo = `TEST-${Math.floor(Math.random() * 9000) + 1000}`;
   return prisma.room.create({
     data: {
-      id: uuidv4(),
-      floorId: floor.id,
-      roomNumber: '101',
-      status: 'VACANT',
-      maxResidents: 2,
-    },
+      roomNo,
+      floorNo: 1,
+      defaultAccountId: 'ACC_F1',
+      defaultRuleCode: 'STANDARD',
+      defaultRentAmount: 5000,
+      hasFurniture: false,
+      defaultFurnitureAmount: 0,
+      roomStatus: 'ACTIVE',
+    } as any,
   });
 }
 
-export async function createTestConversation(roomId?: string) {
-  const room = roomId ? { id: roomId } : await createTestRoom();
-  
+export async function createTestConversation(roomNo?: string) {
+  const room = roomNo ? { roomNo } : await createTestRoom();
+
   return prisma.conversation.create({
     data: {
       id: uuidv4(),
-      roomId: room.id,
+      roomNo: (room as { roomNo: string }).roomNo,
       lineUserId: uuidv4(),
       lastMessageAt: new Date(),
-    },
+    } as any,
   });
 }
 
@@ -75,37 +62,52 @@ export async function createTestMessage(conversationId: string) {
   });
 }
 
-export async function createTestInvoice(roomId: string) {
-  // Create a billing record first since Invoice requires billingRecordId, year, and month
-  const billingRecord = await prisma.billingRecord.create({
+export async function createTestInvoice(roomNo: string) {
+  // Create a BillingPeriod and RoomBilling since Invoice requires roomBillingId
+  const period = await prisma.billingPeriod.create({
     data: {
-      id: uuidv4(),
-      roomId,
       year: 2026,
       month: 3,
-      billingDay: 1,
-      dueDay: 5,
-      overdueDay: 15,
+      status: 'LOCKED' as any,
+    } as any,
+  });
+
+  const roomBilling = await (prisma as any).roomBilling.create({
+    data: {
+      id: uuidv4(),
+      billingPeriodId: period.id,
+      roomNo,
+      recvAccountId: 'ACC_F1',
+      ruleCode: 'STANDARD',
+      rentAmount: 5000,
+      waterMode: 'NORMAL',
+      waterUnits: 0,
+      waterUsageCharge: 0,
+      waterServiceFee: 0,
+      waterTotal: 0,
+      electricMode: 'NORMAL',
+      electricUnits: 0,
+      electricUsageCharge: 0,
+      electricServiceFee: 0,
+      electricTotal: 0,
+      furnitureFee: 0,
+      otherFee: 0,
+      totalDue: 5000,
       status: 'LOCKED',
-      subtotal: 5000 as unknown as any,
-      lockedAt: new Date(),
-      lockedBy: 'system',
     },
   });
 
   return prisma.invoice.create({
     data: {
       id: uuidv4(),
-      roomId,
-      billingRecordId: billingRecord.id,
+      roomNo,
+      roomBillingId: roomBilling.id,
       year: 2026,
       month: 3,
-      version: 1,
       status: 'GENERATED',
-      subtotal: 5000 as unknown as any,
-      total: 5000 as unknown as any,
+      totalAmount: 5000 as unknown as any,
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    },
+    } as any,
   });
 }
 

@@ -84,8 +84,10 @@ const STATUS_TABS: { value: StatusFilter; label: string }[] = [
   { value: 'OVERDUE',   label: 'Overdue'   },
 ];
 
-/** Statuses where re-sending is allowed (same rule as billing detail InvoicesTab) */
-const SENDABLE: InvoiceStatus[] = ['GENERATED', 'SENT', 'VIEWED'];
+/** Statuses where sending via LINE is allowed.
+ *  SENT is excluded — the API returns 400 "Invoice already sent" for SENT invoices.
+ *  VIEWED is included because the tenant opened the link but hasn't paid yet. */
+const SENDABLE: InvoiceStatus[] = ['GENERATED', 'VIEWED'];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -438,7 +440,7 @@ export default function AdminInvoicesPage() {
                           {inv.sentAt && (
                             <div className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-400">
                               <Clock className="h-2.5 w-2.5" />
-                              Sent {fmtDate(inv.sentAt)}
+                              {fmtDate(inv.sentAt)}
                             </div>
                           )}
                         </td>

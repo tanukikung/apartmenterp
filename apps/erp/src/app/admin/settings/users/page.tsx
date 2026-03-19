@@ -11,19 +11,34 @@ import { ArrowLeft, Key, Shield, UserPlus, Users } from 'lucide-react';
 type AdminUser = {
   id: string;
   username: string;
+  displayName: string;
+  email?: string | null;
   role: string;
   createdAt: string;
-  lastLoginAt: string | null;
+  updatedAt: string;
+  pendingReset?: {
+    id: string;
+    createdAt: string;
+    expiresAt: string;
+  } | null;
   isActive: boolean;
 };
 
 type CreateForm = {
   username: string;
+  displayName: string;
+  email: string;
   password: string;
   role: string;
 };
 
-const EMPTY_FORM: CreateForm = { username: '', password: '', role: 'STAFF' };
+const EMPTY_FORM: CreateForm = {
+  username: '',
+  displayName: '',
+  email: '',
+  password: '',
+  role: 'STAFF',
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -80,7 +95,7 @@ export default function AdminUsersSettingsPage() {
       }
       const json = (await res.json()) as {
         success: boolean;
-        data?: { data?: AdminUser[]; total?: number } | AdminUser[];
+        data?: { users?: AdminUser[] } | AdminUser[];
         error?: { message?: string };
       };
       if (!json.success) {
@@ -89,8 +104,8 @@ export default function AdminUsersSettingsPage() {
       const payload = json.data;
       if (Array.isArray(payload)) {
         setUsers(payload);
-      } else if (payload && Array.isArray((payload as { data?: AdminUser[] }).data)) {
-        setUsers((payload as { data: AdminUser[] }).data);
+      } else if (payload && Array.isArray((payload as { users?: AdminUser[] }).users)) {
+        setUsers((payload as { users: AdminUser[] }).users);
       } else {
         setUsers([]);
       }
@@ -124,6 +139,10 @@ export default function AdminUsersSettingsPage() {
       setFormError('Username is required.');
       return;
     }
+    if (!form.displayName.trim()) {
+      setFormError('Display name is required.');
+      return;
+    }
     if (form.password.length < 8) {
       setFormError('Password must be at least 8 characters.');
       return;
@@ -136,6 +155,8 @@ export default function AdminUsersSettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: form.username.trim(),
+          displayName: form.displayName.trim(),
+          email: form.email.trim(),
           password: form.password,
           role: form.role,
         }),
@@ -226,9 +247,11 @@ export default function AdminUsersSettingsPage() {
               <thead>
                 <tr>
                   <th>Username</th>
+                  <th>Display Name</th>
                   <th>Role</th>
                   <th>Status</th>
-                  <th>Last Login</th>
+                  <th>Password Reset</th>
+                  <th>Updated</th>
                   <th>Created</th>
                 </tr>
               </thead>
@@ -241,10 +264,16 @@ export default function AdminUsersSettingsPage() {
                         <div className="h-4 w-28 animate-pulse rounded bg-slate-100" />
                       </td>
                       <td>
-                        <div className="h-4 w-16 animate-pulse rounded bg-slate-100" />
+                        <div className="h-4 w-20 animate-pulse rounded bg-slate-100" />
                       </td>
                       <td>
                         <div className="h-4 w-14 animate-pulse rounded bg-slate-100" />
+                      </td>
+                      <td>
+                        <div className="h-4 w-24 animate-pulse rounded bg-slate-100" />
+                      </td>
+                      <td>
+                        <div className="h-4 w-24 animate-pulse rounded bg-slate-100" />
                       </td>
                       <td>
                         <div className="h-4 w-24 animate-pulse rounded bg-slate-100" />
@@ -256,7 +285,7 @@ export default function AdminUsersSettingsPage() {
                   ))
                 ) : users.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-slate-500">
+                    <td colSpan={7} className="py-10 text-center text-slate-500">
                       {apiUnavailable
                         ? 'Cannot retrieve users — API unavailable.'
                         : 'No admin users found.'}
@@ -270,9 +299,15 @@ export default function AdminUsersSettingsPage() {
                           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
                             {user.username.charAt(0).toUpperCase()}
                           </div>
-                          <span className="font-medium text-slate-800">{user.username}</span>
+                          <div>
+                            <div className="font-medium text-slate-800">{user.username}</div>
+                            {user.email ? (
+                              <div className="text-xs text-slate-400">{user.email}</div>
+                            ) : null}
+                          </div>
                         </div>
                       </td>
+                      <td className="text-sm text-slate-600">{user.displayName}</td>
                       <td>
                         <span className={roleBadgeClass(user.role)}>
                           <Shield className="h-3 w-3" />
@@ -288,10 +323,13 @@ export default function AdminUsersSettingsPage() {
                           <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-500">
                             Inactive
                           </span>
-                        )}
+                      )}
                       </td>
                       <td className="text-sm text-slate-500">
-                        {formatDate(user.lastLoginAt)}
+                        {user.pendingReset ? 'Pending' : 'None'}
+                      </td>
+                      <td className="text-sm text-slate-500">
+                        {formatDate(user.updatedAt)}
                       </td>
                       <td className="text-sm text-slate-500">
                         {formatDate(user.createdAt)}
@@ -330,6 +368,35 @@ export default function AdminUsersSettingsPage() {
                 onChange={(e) => field('username', e.target.value)}
                 autoComplete="off"
                 required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                Display Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                className="admin-input"
+                placeholder="e.g. Building Manager"
+                value={form.displayName}
+                onChange={(e) => field('displayName', e.target.value)}
+                autoComplete="name"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                Email <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="email"
+                className="admin-input"
+                placeholder="e.g. manager@example.com"
+                value={form.email}
+                onChange={(e) => field('email', e.target.value)}
+                autoComplete="email"
               />
             </div>
 

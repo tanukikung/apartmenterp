@@ -19,8 +19,11 @@ export function startCronIfEnabled(): void {
       const now = new Date();
       const year = now.getFullYear();
       const month = now.getMonth() + 1;
-      const locked = await prisma.billingRecord.findMany({
-        where: { status: 'LOCKED', year, month },
+      const locked = await prisma.roomBilling.findMany({
+        where: {
+          status: 'LOCKED',
+          billingPeriod: { year, month },
+        },
         select: { id: true },
       });
       const svc = getInvoiceService();

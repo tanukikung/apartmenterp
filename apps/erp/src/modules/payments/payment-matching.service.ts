@@ -2,7 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/lib';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
-import { NotFoundError } from '@/lib/utils/errors';
+import { BadRequestError, NotFoundError } from '@/lib/utils/errors';
+import { syncInvoicePaymentState } from './invoice-payment-state';
 
 export interface BankStatementEntry {
   date: Date;
@@ -28,7 +29,8 @@ export interface MatchCandidate {
 export class PaymentMatchingService {
   async importBankStatement(
     entries: BankStatementEntry[],
-    sourceFile: string
+    sourceFile: string,
+    actor?: { actorId: string; actorRole: string }
   ): Promise<{ imported: number; matched: number }> {
     let imported = 0;
     let matched = 0;
@@ -77,8 +79,8 @@ export class PaymentMatchingService {
       sourceFile,
     });
     await logAudit({
-      actorId: 'system',
-      actorRole: 'ADMIN',
+      actorId: actor?.actorId || 'system',
+      actorRole: actor?.actorRole || 'SYSTEM',
       action: 'PAYMENT_IMPORTED',
       entityType: 'PAYMENT_TRANSACTION',
       entityId: sourceFile,
@@ -108,7 +110,7 @@ export class PaymentMatchingService {
       include: {
         room: {
           include: {
-            roomTenants: {
+            tenants: {
               where: { moveOutDate: null },
               include: { tenant: true },
             },
@@ -128,13 +130,13 @@ export class PaymentMatchingService {
         },
         {
           id: inv.id,
-          total: Number(inv.total as unknown as number),
+          total: Number(inv.totalAmount as unknown as number),
           room: {
-            roomNumber: inv.room.roomNumber,
-            roomTenants: inv.room.roomTenants.map(rt => ({
+            roomNumber: inv.roomNo,
+            roomTenants: ((inv.room as any)?.tenants ?? []).map((rt: any) => ({
               tenant: {
-                firstName: rt.tenant.firstName,
-                lastName: rt.tenant.lastName,
+                firstName: rt.tenant?.firstName ?? '',
+                lastName: rt.tenant?.lastName ?? '',
               },
             })),
           },
@@ -155,7 +157,7 @@ export class PaymentMatchingService {
 
     if (bestMatch) {
       const matchedInvoice = unpaidInvoices.find(inv => inv.id === bestMatch.invoiceId);
-      const invoiceTotal = matchedInvoice ? Number(matchedInvoice.total as unknown as number) : null;
+      const invoiceTotal = matchedInvoice ? Number(matchedInvoice.totalAmount as unknown as number) : null;
       const txAmount = Number((transaction as unknown as { amount: unknown }).amount as number);
       const computedMatchedAmount = invoiceTotal !== null ? Math.min(txAmount, invoiceTotal) : txAmount;
       const computedMatchType =
@@ -348,9 +350,12 @@ export class PaymentMatchingService {
     if (!invoice) {
       throw new NotFoundError('Invoice', invoiceId);
     }
+    if (invoice.status === 'PAID') {
+      throw new BadRequestError('Invoice is already paid');
+    }
 
     const txAmount = Number((transaction as unknown as { amount: unknown }).amount as number);
-    const invoiceTotal = Number(invoice.total as unknown as number);
+    const invoiceTotal = Number(invoice.totalAmount as unknown as number);
     const confirmedMatchedAmount = Math.min(txAmount, invoiceTotal);
     const confirmedMatchType =
       Math.abs(txAmount - invoiceTotal) < 0.01
@@ -389,13 +394,11 @@ export class PaymentMatchingService {
         },
       });
 
-      // Update invoice status
-      await tx.invoice.update({
-        where: { id: invoiceId },
-        data: {
-          status: 'PAID',
-          paidAt: new Date(),
-        },
+      await syncInvoicePaymentState(tx, {
+        invoiceId,
+        paymentId: payment.id,
+        paymentAmount: txAmount,
+        paidAt: transaction.transactionDate,
       });
 
       // Create payment match record
@@ -479,7 +482,7 @@ export class PaymentMatchingService {
             include: {
               room: {
                 include: {
-                  roomTenants: {
+                  tenants: {
                     where: { moveOutDate: null },
                     include: { tenant: true },
                   },
@@ -509,7 +512,7 @@ export class PaymentMatchingService {
             include: {
               room: {
                 include: {
-                  roomTenants: {
+                  tenants: {
                     where: { moveOutDate: null },
                     include: { tenant: true },
                   },

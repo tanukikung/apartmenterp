@@ -30,7 +30,7 @@ describe('Integration: Billing Engine', () => {
       const floor = await roomFactory.createFloor(building.id);
       const room = await roomFactory.createRoom(floor.id, { roomNumber: 'B101' });
 
-      const { id: billingId } = await billingFactory.createBillingRecordForRoom(room.id, {
+      const { id: billingId } = await billingFactory.createBillingRecordForRoom((room as any).roomNo ?? (room as any).id, {
         year: 2026,
         month: 3,
       });

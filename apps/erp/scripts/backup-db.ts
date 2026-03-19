@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { logger } from '@/lib/utils/logger';
@@ -45,11 +46,42 @@ export function generateBackupFilePath(dir: string, now: Date = new Date()): str
   return path.join(dir, `pg_backup_${ts}.sql.gz`);
 }
 
-export async function runBackup(): Promise<void> {
-  const url = process.env.DATABASE_URL;
-  if (!url) {
-    throw new Error('DATABASE_URL not set');
+function commandExists(command: string): boolean {
+  const probe = process.platform === 'win32' ? 'where' : 'which';
+  const result = spawnSync(probe, [command], {
+    stdio: 'ignore',
+    windowsHide: true,
+  });
+  return result.status === 0;
+}
+
+export function getBackupPrerequisiteFailure(): { message: string; missing: string[] } | null {
+  if (!process.env.DATABASE_URL) {
+    return {
+      message: 'Backup cannot run because DATABASE_URL is not configured.',
+      missing: ['DATABASE_URL'],
+    };
   }
+
+  const requiredCommands = ['pg_dump', process.platform === 'win32' ? 'gzip.exe' : 'gzip'];
+  const missing = requiredCommands.filter((command) => !commandExists(command));
+
+  if (missing.length === 0) {
+    return null;
+  }
+
+  return {
+    message: `Backup cannot run because required tools are missing from PATH: ${missing.join(', ')}. Install the PostgreSQL client tools and gzip, then retry.`,
+    missing,
+  };
+}
+
+export async function runBackup(): Promise<void> {
+  const prerequisiteFailure = getBackupPrerequisiteFailure();
+  if (prerequisiteFailure) {
+    throw new Error(prerequisiteFailure.message);
+  }
+  const url = process.env.DATABASE_URL as string;
   const dir = backupDir();
   await ensureDir(dir);
   const start = Date.now();

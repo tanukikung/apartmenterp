@@ -8,7 +8,7 @@ import { requireAuthSession } from '@/lib/auth/guards';
 //
 // Auth note: this endpoint returns structured JSON including line-item detail,
 // version history, and delivery records — it is for the admin portal only.
-// The tenant-facing PDF link (/api/invoices/[id]/pdf) is intentionally public.
+// Tenant-facing PDF/view access uses signed expiring links or operator auth.
 // ============================================================================
 
 export const GET = asyncHandler(

@@ -39,12 +39,12 @@ export class ContractService {
     input: CreateContractInput,
     createdBy?: string
   ): Promise<ContractResponse> {
-    logger.info({ type: 'contract_create', roomId: input.roomId, tenantId: input.primaryTenantId });
+    logger.info({ type: 'contract_create', roomNo: input.roomId, tenantId: input.primaryTenantId });
 
     // Check if room exists
     const room = await prisma.room.findUnique({
-      where: { id: input.roomId },
-      include: { floor: true },
+      where: { roomNo: input.roomId },
+      // floor removed in new schema,
     });
 
     if (!room) {
@@ -64,7 +64,7 @@ export class ContractService {
     const roomTenant = await prisma.roomTenant.findFirst({
       where: {
         tenantId: input.primaryTenantId,
-        roomId: input.roomId,
+        roomNo: input.roomId,
         role: 'PRIMARY',
         moveOutDate: null,
       },
@@ -77,7 +77,7 @@ export class ContractService {
     // Business rule: Only one ACTIVE contract per room
     const activeContract = await prisma.contract.findFirst({
       where: {
-        roomId: input.roomId,
+        roomNo: input.roomId,
         status: 'ACTIVE',
       },
     });
@@ -89,7 +89,7 @@ export class ContractService {
     // Check for overlapping contracts
     const overlapping = await prisma.contract.findFirst({
       where: {
-        roomId: input.roomId,
+        roomNo: input.roomId,
         status: 'ACTIVE',
         OR: [
           {
@@ -121,7 +121,7 @@ export class ContractService {
       const created = await tx.contract.create({
         data: {
           id: uuidv4(),
-          roomId: input.roomId,
+          roomNo: input.roomId,
           primaryTenantId: input.primaryTenantId,
           startDate: new Date(input.startDate),
           endDate: new Date(input.endDate),
@@ -142,8 +142,8 @@ export class ContractService {
           eventType: EventTypes.CONTRACT_CREATED,
           payload: {
             contractId: created.id,
-            roomId: created.roomId,
-            roomNumber: created.room.roomNumber,
+            roomNo: created.roomNo,
+            roomNumber: created.room.roomNo,
             tenantId: created.primaryTenantId,
             tenantName: `${created.primaryTenant.firstName} ${created.primaryTenant.lastName}`,
             startDate: input.startDate,
@@ -161,8 +161,7 @@ export class ContractService {
     // Publish event
     const payload: ContractCreatedPayload = {
       contractId: contract.id,
-      roomId: contract.roomId,
-      roomNumber: contract.room.roomNumber,
+      roomNo: contract.roomNo,
       tenantId: contract.primaryTenantId,
       tenantName: `${contract.primaryTenant.firstName} ${contract.primaryTenant.lastName}`,
       startDate: input.startDate,
@@ -208,7 +207,7 @@ export class ContractService {
   async getActiveContractByRoom(roomId: string): Promise<ContractResponse | null> {
     const contract = await prisma.contract.findFirst({
       where: {
-        roomId,
+        roomNo: roomId,
         status: 'ACTIVE',
       },
       include: {
@@ -234,7 +233,7 @@ export class ContractService {
     const where: Record<string, unknown> = {};
 
     if (roomId) {
-      where.roomId = roomId;
+      where.roomNo = roomId;
     }
 
     if (tenantId) {
@@ -376,7 +375,7 @@ export class ContractService {
       const created = await tx.contract.create({
         data: {
           id: uuidv4(),
-          roomId: existing.roomId,
+          roomNo: existing.roomNo,
           primaryTenantId: existing.primaryTenantId,
           startDate: new Date(oldEndDate.getTime() + 24 * 60 * 60 * 1000),
           endDate: new Date(input.newEndDate),
@@ -397,8 +396,8 @@ export class ContractService {
           eventType: EventTypes.CONTRACT_RENEWED,
           payload: {
             contractId: created.id,
-            roomId: created.roomId,
-            roomNumber: created.room.roomNumber,
+            roomNo: created.roomNo,
+            roomNumber: created.room.roomNo,
             tenantId: created.primaryTenantId,
             tenantName: `${created.primaryTenant.firstName} ${created.primaryTenant.lastName}`,
             oldEndDate: oldEndDate.toISOString().split('T')[0],
@@ -416,8 +415,7 @@ export class ContractService {
     // Publish event
     const payload: ContractRenewedPayload = {
       contractId: newContract.id,
-      roomId: newContract.roomId,
-      roomNumber: newContract.room.roomNumber,
+      roomNo: newContract.roomNo,
       tenantId: newContract.primaryTenantId,
       tenantName: `${newContract.primaryTenant.firstName} ${newContract.primaryTenant.lastName}`,
       oldEndDate: oldEndDate.toISOString().split('T')[0],
@@ -485,8 +483,7 @@ export class ContractService {
           eventType: EventTypes.CONTRACT_TERMINATED,
           payload: {
             contractId: result.id,
-            roomId: result.roomId,
-            roomNumber: result.room.roomNumber,
+            roomNo: result.roomNo,
             tenantId: result.primaryTenantId,
             tenantName: `${result.primaryTenant.firstName} ${result.primaryTenant.lastName}`,
             terminationDate: input.terminationDate,
@@ -502,8 +499,7 @@ export class ContractService {
     // Publish event
     const payload: ContractTerminatedPayload = {
       contractId: updated.id,
-      roomId: updated.roomId,
-      roomNumber: updated.room.roomNumber,
+      roomNo: updated.roomNo,
       tenantId: updated.primaryTenantId,
       tenantName: `${updated.primaryTenant.firstName} ${updated.primaryTenant.lastName}`,
       terminationDate: input.terminationDate,
@@ -546,8 +542,7 @@ export class ContractService {
     for (const contract of expiringContracts) {
       const payload: ContractExpiredPayload = {
         contractId: contract.id,
-        roomId: contract.roomId,
-        roomNumber: contract.room.roomNumber,
+        roomNo: contract.roomNo,
         tenantId: contract.primaryTenantId,
         tenantName: `${contract.primaryTenant.firstName} ${contract.primaryTenant.lastName}`,
         endDate: contract.endDate.toISOString().split('T')[0],
@@ -570,7 +565,7 @@ export class ContractService {
   private formatContractResponse(
     contract: {
       id: string;
-      roomId: string;
+      roomNo: string;
       primaryTenantId: string;
       startDate: Date;
       endDate: Date;
@@ -581,7 +576,7 @@ export class ContractService {
       terminationReason: string | null;
       createdAt: Date;
       updatedAt: Date;
-      room?: { id: string; roomNumber: string; floorId: string };
+      room?: { roomNo: string };
       primaryTenant?: {
         id: string;
         firstName: string;
@@ -592,7 +587,7 @@ export class ContractService {
   ): ContractResponse {
     return {
       id: contract.id,
-      roomId: contract.roomId,
+      roomNo: contract.roomNo,
       primaryTenantId: contract.primaryTenantId,
       startDate: contract.startDate,
       endDate: contract.endDate,
@@ -605,9 +600,7 @@ export class ContractService {
       updatedAt: contract.updatedAt,
       room: contract.room
         ? {
-            id: contract.room.id,
-            roomNumber: contract.room.roomNumber,
-            floorId: contract.room.floorId,
+            roomNo: contract.room.roomNo,
           }
         : undefined,
       primaryTenant: contract.primaryTenant

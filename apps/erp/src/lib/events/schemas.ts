@@ -47,7 +47,7 @@ export const EventPayloadSchemas: Record<string, z.ZodTypeAny> = {
   }),
   // Messaging: File send (admin initiated)
   LineSendFileRequested: z.object({
-    conversationId: z.string().uuid(),
+    conversationId: z.string().min(1),
     messageId: z.string().uuid(),
     lineUserId: z.string(),
     fileUrl: z.string().url(),
@@ -66,7 +66,7 @@ export const EventPayloadSchemas: Record<string, z.ZodTypeAny> = {
   // Messaging: Receipt link send
   ReceiptSendRequested: z.object({
     receiptId: z.string().uuid(),
-    conversationId: z.string().uuid(),
+    conversationId: z.string().min(1),
     downloadLink: z.string().url().optional(),
     roomNumber: z.string().optional(),
     amount: z.number().optional(),
@@ -74,7 +74,7 @@ export const EventPayloadSchemas: Record<string, z.ZodTypeAny> = {
   }),
   // Messaging: Manual reminder
   ManualReminderSendRequested: z.object({
-    conversationId: z.string().uuid(),
+    conversationId: z.string().min(1),
     text: z.string().min(1),
   }),
 };

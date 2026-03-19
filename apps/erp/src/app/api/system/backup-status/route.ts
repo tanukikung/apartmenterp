@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { backupDir } from '@/lib/ops/backup';
 
@@ -21,7 +22,9 @@ async function getLatestBackup(dir: string): Promise<{ file: string; mtime: Date
   return latest;
 }
 
-export const GET = asyncHandler(async (): Promise<NextResponse> => {
+export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN']);
+
   const dir = backupDir();
   const retentionDays = parseInt(process.env.BACKUP_RETENTION_DAYS || '7', 10);
   const cron = process.env.BACKUP_CRON || '0 3 * * *';

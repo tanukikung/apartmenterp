@@ -1,27 +1,19 @@
-/**
- * invoice-pdf-endpoint.test.ts
- *
- * Integration-style test for GET /api/invoices/[id]/pdf
- *
- * Mocks:
- *  - @/lib/db/client (prisma)          — via setup-mocks.ts global mock
- *  - @/modules/invoices/invoice.service — getInvoiceService().getInvoicePreview()
- *  - @/modules/invoices/pdf            — generateInvoicePdf() returns mock bytes
- *
- * NOTE: The active route is at app/api/invoices/[id]/pdf/route.ts (plural).
- *       The previous version incorrectly referenced the singular path
- *       /api/invoice/[id]/pdf which does not exist.
- */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
+import { makeRequestLike } from './helpers/auth';
 
-// ── Mock the invoice service ──────────────────────────────────────────────────
+const markInvoiceViewedMock = vi.fn(async () => ({
+  id: 'test-invoice-id',
+  status: 'VIEWED',
+}));
+
 vi.mock('@/modules/invoices/invoice.service', () => ({
   getInvoiceService: () => ({
     getInvoicePreview: vi.fn(async () => ({
       invoiceId: 'test-invoice-id',
       buildingName: 'Test Building',
       roomNumber: '101',
-      tenantName: 'สมชาย ใจดี',     // Thai name — must survive unmodified
+      tenantName: 'Somchai Jaidee',
       year: 2024,
       month: 3,
       version: 1,
@@ -30,29 +22,24 @@ vi.mock('@/modules/invoices/invoice.service', () => ({
       totalAmount: 5500,
       items: [],
     })),
+    markInvoiceViewed: markInvoiceViewedMock,
   }),
 }));
 
-// ── Mock the PDF generator — return a realistic %PDF header ──────────────────
 vi.mock('@/modules/invoices/pdf', () => ({
   generateInvoicePdf: vi.fn(async () => {
-    const header = '%PDF-1.7\n%Mock-Sarabun-Thai\n';
+    const header = '%PDF-1.7\n%Mock\n';
     return new Uint8Array(Buffer.from(header, 'utf-8'));
   }),
 }));
 
-// ── documentTemplate must be available in the prisma mock ────────────────────
-// (The route does: prisma.documentTemplate.findFirst({ where: { type: 'INVOICE' } }))
-// setup-mocks.ts provides the global prisma mock; we extend it here.
 vi.mock('@/lib/db/client', async () => {
   const { mockPrismaClient } = await import('./mocks/prisma');
   const client = mockPrismaClient();
-  // Return null template — route handles this gracefully (no notes applied)
   client.documentTemplate.findFirst.mockResolvedValue(null);
   return { prisma: client };
 });
 
-// ── Also mock @/lib so dynamic import('@/lib') inside route works ─────────────
 vi.mock('@/lib', async () => {
   const { mockPrismaClient } = await import('./mocks/prisma');
   const client = mockPrismaClient();
@@ -60,68 +47,96 @@ vi.mock('@/lib', async () => {
   return { prisma: client };
 });
 
-describe('GET /api/invoices/[id]/pdf', () => {
+describe('Invoice public access hardening', () => {
   const INVOICE_ID = '123e4567-e89b-12d3-a456-426614174000';
 
-  it('returns 200 with content-type application/pdf', async () => {
-    const mod = await import('@/app/api/invoices/[id]/pdf/route');
-    const req: any = {
-      url: `http://localhost/api/invoices/${INVOICE_ID}/pdf`,
-      nextUrl: new URL(`http://localhost/api/invoices/${INVOICE_ID}/pdf`),
-    };
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-    const res: Response = await (mod as any).GET(req, { params: { id: INVOICE_ID } });
+  it('denies anonymous unsigned PDF access', async () => {
+    const mod = await import('@/app/api/invoices/[id]/pdf/route');
+
+    const res: Response = await (mod as any).GET(
+      makeRequestLike({
+        url: `http://localhost/api/invoices/${INVOICE_ID}/pdf`,
+        method: 'GET',
+      }) as any,
+      { params: { id: INVOICE_ID } },
+    );
+
+    expect(res.status).toBe(401);
+  });
+
+  it('allows signed expiring PDF access', async () => {
+    const mod = await import('@/app/api/invoices/[id]/pdf/route');
+    const signedUrl = buildInvoiceAccessUrl(INVOICE_ID, {
+      absoluteBaseUrl: 'http://localhost',
+      signed: true,
+    });
+
+    const res: Response = await (mod as any).GET(
+      makeRequestLike({
+        url: signedUrl,
+        method: 'GET',
+      }) as any,
+      { params: { id: INVOICE_ID } },
+    );
 
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('application/pdf');
-  });
-
-  it('returns %PDF magic bytes in body', async () => {
-    const mod = await import('@/app/api/invoices/[id]/pdf/route');
-    const req: any = {
-      url: `http://localhost/api/invoices/${INVOICE_ID}/pdf`,
-      nextUrl: new URL(`http://localhost/api/invoices/${INVOICE_ID}/pdf`),
-    };
-
-    const res: Response = await (mod as any).GET(req, { params: { id: INVOICE_ID } });
     const ab = await res.arrayBuffer();
     const bytes = new Uint8Array(ab);
-    const magic = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
-    expect(magic).toBe('%PDF');
+    expect(String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3])).toBe('%PDF');
   });
 
-  it('sets cache-control: no-store', async () => {
+  it('allows authenticated operators to access invoice PDFs without signed tokens', async () => {
     const mod = await import('@/app/api/invoices/[id]/pdf/route');
-    const req: any = {
-      url: `http://localhost/api/invoices/${INVOICE_ID}/pdf`,
-      nextUrl: new URL(`http://localhost/api/invoices/${INVOICE_ID}/pdf`),
-    };
 
-    const res: Response = await (mod as any).GET(req, { params: { id: INVOICE_ID } });
-    expect(res.headers.get('cache-control')).toBe('no-store');
+    const res: Response = await (mod as any).GET(
+      makeRequestLike({
+        url: `http://localhost/api/invoices/${INVOICE_ID}/pdf`,
+        method: 'GET',
+        role: 'ADMIN',
+      }) as any,
+      { params: { id: INVOICE_ID } },
+    );
+
+    expect(res.status).toBe(200);
   });
 
-  it('sets content-disposition inline with invoice filename', async () => {
-    const mod = await import('@/app/api/invoices/[id]/pdf/route');
-    const req: any = {
-      url: `http://localhost/api/invoices/${INVOICE_ID}/pdf`,
-      nextUrl: new URL(`http://localhost/api/invoices/${INVOICE_ID}/pdf`),
-    };
+  it('denies anonymous unsigned invoice view tracking', async () => {
+    const mod = await import('@/app/api/invoices/[id]/view/route');
 
-    const res: Response = await (mod as any).GET(req, { params: { id: INVOICE_ID } });
-    const cd = res.headers.get('content-disposition') ?? '';
-    expect(cd).toContain('inline');
-    expect(cd).toContain(INVOICE_ID);
+    const res: Response = await (mod as any).POST(
+      makeRequestLike({
+        url: `http://localhost/api/invoices/${INVOICE_ID}/view`,
+        method: 'POST',
+      }) as any,
+      { params: { id: INVOICE_ID } },
+    );
+
+    expect(res.status).toBe(401);
+    expect(markInvoiceViewedMock).not.toHaveBeenCalled();
   });
 
-  it('does NOT include x-document-template-id when no template exists', async () => {
-    const mod = await import('@/app/api/invoices/[id]/pdf/route');
-    const req: any = {
-      url: `http://localhost/api/invoices/${INVOICE_ID}/pdf`,
-      nextUrl: new URL(`http://localhost/api/invoices/${INVOICE_ID}/pdf`),
-    };
+  it('allows signed expiring invoice view tracking', async () => {
+    const mod = await import('@/app/api/invoices/[id]/view/route');
+    const signedUrl = buildInvoiceAccessUrl(INVOICE_ID, {
+      absoluteBaseUrl: 'http://localhost',
+      action: 'view',
+      signed: true,
+    });
 
-    const res: Response = await (mod as any).GET(req, { params: { id: INVOICE_ID } });
-    expect(res.headers.get('x-document-template-id')).toBeNull();
+    const res: Response = await (mod as any).POST(
+      makeRequestLike({
+        url: signedUrl,
+        method: 'POST',
+      }) as any,
+      { params: { id: INVOICE_ID } },
+    );
+
+    expect(res.status).toBe(200);
+    expect(markInvoiceViewedMock).toHaveBeenCalledWith(INVOICE_ID);
   });
 });

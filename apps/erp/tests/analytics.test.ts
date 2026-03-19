@@ -31,7 +31,7 @@ describe('Analytics API', () => {
   it('summary aggregates monthly revenue and invoice counts', async () => {
     const now = new Date('2026-03-15T12:00:00Z');
     vi.setSystemTime(now);
-    (prisma.invoice.aggregate as any).mockResolvedValue({ _sum: { total: 1234.56 } });
+    (prisma.invoice.aggregate as any).mockResolvedValue({ _sum: { totalAmount: 1234.56 } });
     (prisma.invoice.count as any)
       .mockResolvedValueOnce(5)  // unpaid
       .mockResolvedValueOnce(10) // paid
@@ -50,8 +50,8 @@ describe('Analytics API', () => {
     const now = new Date('2026-03-01T00:00:00Z');
     vi.setSystemTime(now);
     (prisma.invoice.groupBy as any).mockResolvedValue([
-      { year: 2026, month: 3, _sum: { total: 200 } },
-      { year: 2026, month: 2, _sum: { total: 100 } },
+      { year: 2026, month: 3, _sum: { totalAmount: 200 } },
+      { year: 2026, month: 2, _sum: { totalAmount: 100 } },
     ]);
     const mod = await import('@/app/api/analytics/revenue/route');
     const res: Response = await (mod as any).GET({} as any);

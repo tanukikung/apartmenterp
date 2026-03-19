@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { prisma, sendLineMessage } from '@/lib';
+import { makeRequestLike } from './helpers/auth';
 
 vi.mock('@/lib', async () => {
   const actual = await vi.importActual<any>('@/lib');
@@ -36,7 +37,12 @@ describe('Admin reply messaging API', () => {
     });
     const mod = await import('@/app/api/conversations/[id]/messages/route');
     const reqBody = { text: 'Your invoice has been updated.' };
-    const req: any = { json: async () => reqBody };
+    const req = makeRequestLike({
+      url: 'http://localhost/api/conversations/c-1/messages',
+      method: 'POST',
+      role: 'ADMIN',
+      body: reqBody,
+    });
     const res: Response = await (mod as any).POST(req, { params: { id: 'c-1' } });
     expect(res.ok).toBe(true);
     expect(sendLineMessage).toHaveBeenCalledWith('U123', 'Your invoice has been updated.');
@@ -59,7 +65,12 @@ describe('Admin reply messaging API', () => {
     (sendLineMessage as any).mockRejectedValueOnce(new Error('LINE error'));
     const mod = await import('@/app/api/conversations/[id]/messages/route');
     const reqBody = { text: 'Test failure path.' };
-    const req: any = { json: async () => reqBody };
+    const req = makeRequestLike({
+      url: 'http://localhost/api/conversations/c-2/messages',
+      method: 'POST',
+      role: 'ADMIN',
+      body: reqBody,
+    });
     const res: Response = await (mod as any).POST(req, { params: { id: 'c-2' } });
     expect(res.ok).toBe(false);
     const body = await res.json();

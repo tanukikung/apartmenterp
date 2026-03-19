@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createBillingService } from '@/modules/billing/billing.service';
+import type { WorkbookParseResult } from '@/modules/billing/import-parser';
 import { prisma } from '@/lib/db/client';
 
 describe('Billing large dataset import', () => {
@@ -10,39 +11,31 @@ describe('Billing large dataset import', () => {
   it('imports 1000 rooms under 3s without duplicates', async () => {
     const svc = createBillingService();
     const rooms = Array.from({ length: 1000 }, (_, i) => `R${i + 1}`);
-    const rows = rooms.flatMap((roomNumber) => [
-      { roomNumber, year: 2026, month: 3, typeCode: 'RENT', quantity: 1, unitPrice: 1000, description: '' },
-      { roomNumber, year: 2026, month: 3, typeCode: 'OTHER', quantity: 1, unitPrice: 50, description: 'x' },
-    ]) as any[];
 
     const createdIds = new Set<string>();
     const p: any = prisma as any;
-    p.billingItemType = p.billingItemType || { findMany: vi.fn() };
-    p.config = p.config || { findMany: vi.fn() };
-    p.room = p.room || { findFirst: vi.fn() };
-    p.billingRecord = p.billingRecord || { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() };
-    p.billingItem = p.billingItem || { create: vi.fn() };
+    p.room = p.room || { findUnique: vi.fn() };
+    p.billingPeriod = p.billingPeriod || { findUnique: vi.fn(), create: vi.fn() };
+    p.roomBilling = p.roomBilling || { findUnique: vi.fn(), create: vi.fn() };
     p.outboxEvent = p.outboxEvent || { create: vi.fn() };
-    (p.config.findMany as any).mockResolvedValue([]);
-    vi.spyOn(p.billingItemType, 'findMany').mockResolvedValue([
-      { id: 'type-rent', code: 'RENT', name: 'Rent', description: 'Rent', isRecurring: true },
-      { id: 'type-other', code: 'OTHER', name: 'Other', description: 'Other', isRecurring: false },
-    ] as any);
-    vi.spyOn(p.room, 'findFirst').mockImplementation(async ({ where }: any) => ({ id: `room-${where.roomNumber}`, roomNumber: where.roomNumber } as any));
-    vi.spyOn(p.billingRecord, 'findUnique').mockResolvedValue(null as any);
+
+    vi.spyOn(p.room, 'findUnique').mockImplementation(async ({ where }: any) => ({
+      roomNo: where.roomNo, defaultAccountId: 'acc-1',
+      defaultRuleCode: 'RULE-1', defaultRentAmount: 1000,
+    }));
+
+    const periodId = 'period-2026-3';
+    vi.spyOn(p.billingPeriod, 'findUnique').mockResolvedValue({ id: periodId, year: 2026, month: 3, dueDay: 25 });
+    vi.spyOn(p.roomBilling, 'findUnique').mockResolvedValue(null);
+
     const tx: any = {
-      billingRecord: {
+      roomBilling: {
         create: vi.fn(async ({ data }: any) => ({
-          id: `br-${data.roomId}-${data.year}-${data.month}`,
-          roomId: data.roomId,
-          year: data.year,
-          month: data.month,
-          room: { roomNumber: data.roomId.replace('room-', '') },
+          id: `rb-${data.roomNo}`, roomNo: data.roomNo,
+          billingPeriodId: data.billingPeriodId,
+          recvAccountId: data.recvAccountId, ruleCode: data.ruleCode,
+          rentAmount: data.rentAmount, totalDue: data.totalDue, status: 'DRAFT',
         })),
-        update: vi.fn(async () => ({})),
-      },
-      billingItem: {
-        create: vi.fn(async () => ({})),
       },
       outboxEvent: {
         create: vi.fn(async ({ data }: any) => {
@@ -53,8 +46,29 @@ describe('Billing large dataset import', () => {
     };
     vi.spyOn(p, '$transaction').mockImplementation(async (fn: any) => fn(tx));
 
+    // Build WorkbookParseResult
+    const workbook: WorkbookParseResult = {
+      floors: [{
+        sheetName: 'FLOOR_1',
+        errors: [],
+        rows: rooms.map((roomNo) => ({
+          roomNo, floorSheetName: 'FLOOR_1',
+          recvAccountOverrideId: null, ruleOverrideCode: null,
+          rentAmount: 1000,
+          waterMode: 'NORMAL' as const, waterPrev: null, waterCurr: null, waterUnitsManual: null,
+          waterUnits: 0, waterUsageCharge: 0, waterServiceFeeManual: null, waterServiceFee: 0, waterTotal: 0,
+          electricMode: 'NORMAL' as const, electricPrev: null, electricCurr: null, electricUnitsManual: null,
+          electricUnits: 0, electricUsageCharge: 0, electricServiceFeeManual: null, electricServiceFee: 0, electricTotal: 0,
+          furnitureFee: 0, otherFee: 0, totalDue: 1000,
+          note: null, checkNotes: null, roomStatus: 'ACTIVE' as const,
+        })),
+      }],
+      totalRows: rooms.length,
+      totalErrors: 0,
+    };
+
     const start = Date.now();
-    const result = await svc.importBillingRows(rows);
+    const result = await svc.importBillingRows(workbook, 2026, 3);
     const duration = Date.now() - start;
 
     expect(duration).toBeLessThan(3000);

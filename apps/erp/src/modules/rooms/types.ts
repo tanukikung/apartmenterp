@@ -4,37 +4,28 @@ import { z } from 'zod';
 // Room Types
 // ============================================================================
 
-export const roomStatusSchema = z.enum(['VACANT', 'OCCUPIED', 'MAINTENANCE', 'SELF_USE', 'UNAVAILABLE']);
-
+// New schema: RoomStatus is ACTIVE | INACTIVE
+export const roomStatusSchema = z.enum(['ACTIVE', 'INACTIVE']);
 export type RoomStatus = z.infer<typeof roomStatusSchema>;
 
-export const roomUsageTypeSchema = z.enum(['RENTAL', 'SELF_USE', 'RESERVED', 'STORAGE']);
-export type RoomUsageType = z.infer<typeof roomUsageTypeSchema>;
-
-export const roomBillingStatusSchema = z.enum(['BILLABLE', 'NON_BILLABLE', 'SUSPENDED']);
-export type RoomBillingStatus = z.infer<typeof roomBillingStatusSchema>;
+// Legacy aliases kept for any code that still references old status names
+export type RoomUsageType = 'RENTAL' | 'SELF_USE' | 'RESERVED' | 'STORAGE';
+export type RoomBillingStatus = 'BILLABLE' | 'NON_BILLABLE' | 'SUSPENDED';
 
 // ============================================================================
 // Create Room DTO
 // ============================================================================
 
 export const createRoomSchema = z.object({
-  floorId: z.string().uuid('Invalid floor ID'),
-  roomNumber: z.string()
-    .min(1, 'Room number is required')
-    .max(10, 'Room number must be at most 10 characters'),
-  capacity: z.number()
-    .int()
-    .min(1, 'Capacity must be at least 1')
-    .max(10, 'Capacity must be at most 10')
-    .default(2),
-  status: roomStatusSchema.default('VACANT'),
-  usageType: roomUsageTypeSchema.default('RENTAL'),
-  billingStatus: roomBillingStatusSchema.default('BILLABLE'),
-  defaultFurnitureFee: z.number().min(0).optional(),
-  sortOrder: z.number().int().optional(),
-  note: z.string().max(500).optional(),
-  isActive: z.boolean().default(true),
+  roomNo: z.string().min(1, 'Room number is required').max(20, 'Room number must be at most 20 characters'),
+  floorNo: z.number().int().min(1, 'Floor number must be at least 1'),
+  defaultAccountId: z.string().min(1, 'Default account is required'),
+  defaultRuleCode: z.string().min(1, 'Default rule code is required'),
+  defaultRentAmount: z.number().min(0, 'Rent amount cannot be negative'),
+  hasFurniture: z.boolean().default(false),
+  defaultFurnitureAmount: z.number().min(0).default(0),
+  roomStatus: roomStatusSchema.default('ACTIVE'),
+  lineUserId: z.string().optional(),
 });
 
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;
@@ -44,22 +35,14 @@ export type CreateRoomInput = z.infer<typeof createRoomSchema>;
 // ============================================================================
 
 export const updateRoomSchema = z.object({
-  roomNumber: z.string()
-    .min(1, 'Room number is required')
-    .max(10, 'Room number must be at most 10 characters')
-    .optional(),
-  capacity: z.number()
-    .int()
-    .min(1, 'Capacity must be at least 1')
-    .max(10, 'Capacity must be at most 10')
-    .optional(),
-  status: roomStatusSchema.optional(),
-  usageType: roomUsageTypeSchema.optional(),
-  billingStatus: roomBillingStatusSchema.optional(),
-  defaultFurnitureFee: z.number().min(0).optional(),
-  sortOrder: z.number().int().optional(),
-  note: z.string().max(500).optional(),
-  isActive: z.boolean().optional(),
+  floorNo: z.number().int().min(1).optional(),
+  defaultAccountId: z.string().optional(),
+  defaultRuleCode: z.string().optional(),
+  defaultRentAmount: z.number().min(0).optional(),
+  hasFurniture: z.boolean().optional(),
+  defaultFurnitureAmount: z.number().min(0).optional(),
+  roomStatus: roomStatusSchema.optional(),
+  lineUserId: z.string().optional().nullable(),
 });
 
 export type UpdateRoomInput = z.infer<typeof updateRoomSchema>;
@@ -69,7 +52,7 @@ export type UpdateRoomInput = z.infer<typeof updateRoomSchema>;
 // ============================================================================
 
 export const changeRoomStatusSchema = z.object({
-  status: roomStatusSchema,
+  roomStatus: roomStatusSchema,
   reason: z.string().max(500).optional(),
 });
 
@@ -80,16 +63,13 @@ export type ChangeRoomStatusInput = z.infer<typeof changeRoomStatusSchema>;
 // ============================================================================
 
 export const listRoomsQuerySchema = z.object({
-  floorId: z.string().uuid().optional(),
-  status: roomStatusSchema.optional(),
+  floorNo: z.coerce.number().int().optional(),
+  roomStatus: roomStatusSchema.optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().optional(),
-  sortBy: z.enum(['roomNumber', 'status', 'createdAt']).default('roomNumber'),
+  sortBy: z.enum(['roomNo', 'floorNo', 'roomStatus', 'createdAt']).default('roomNo'),
   sortOrder: z.enum(['asc', 'desc']).default('asc'),
-  usageType: roomUsageTypeSchema.optional(),
-  billingStatus: roomBillingStatusSchema.optional(),
-  isActive: z.coerce.boolean().optional(),
 });
 
 export type ListRoomsQuery = z.infer<typeof listRoomsQuerySchema>;
@@ -99,24 +79,20 @@ export type ListRoomsQuery = z.infer<typeof listRoomsQuerySchema>;
 // ============================================================================
 
 export interface RoomResponse {
-  id: string;
-  floorId: string;
-  roomNumber: string;
-  status: RoomStatus;
-  capacity: number;
-  usageType: RoomUsageType;
-  billingStatus: RoomBillingStatus;
-  defaultFurnitureFee?: number | null;
-  sortOrder?: number | null;
-  note?: string | null;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  floor?: {
-    id: string;
-    floorNumber: number;
-    buildingId: string;
-  };
+  roomNo: string;
+  floorNo: number;
+  defaultAccountId: string;
+  defaultRuleCode: string;
+  defaultRentAmount: number;
+  hasFurniture: boolean;
+  defaultFurnitureAmount: number;
+  roomStatus: RoomStatus;
+  lineUserId?: string | null;
+}
+
+export interface RoomStatusCounts {
+  ACTIVE: number;
+  INACTIVE: number;
 }
 
 export interface RoomListResponse {
@@ -125,6 +101,8 @@ export interface RoomListResponse {
   page: number;
   pageSize: number;
   totalPages: number;
+  /** Global (unfiltered) status counts across ALL rooms in the building. */
+  statusCounts: RoomStatusCounts;
 }
 
 // ============================================================================
@@ -132,25 +110,21 @@ export interface RoomListResponse {
 // ============================================================================
 
 export interface RoomCreatedPayload {
-  roomId: string;
-  roomNumber: string;
-  floorId: string;
-  floorNumber: number;
-  buildingId: string;
-  capacity: number;
+  roomNo: string;
+  floorNo: number;
+  defaultAccountId: string;
+  defaultRuleCode: string;
   createdBy?: string;
 }
 
 export interface RoomUpdatedPayload {
-  roomId: string;
-  roomNumber: string;
+  roomNo: string;
   changes: Record<string, { old: unknown; new: unknown }>;
   updatedBy?: string;
 }
 
 export interface RoomStatusChangedPayload {
-  roomId: string;
-  roomNumber: string;
+  roomNo: string;
   previousStatus: RoomStatus;
   newStatus: RoomStatus;
   reason?: string;

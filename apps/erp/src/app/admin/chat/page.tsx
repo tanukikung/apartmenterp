@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChatList, type Conversation as ChatListItem } from '@/components/chat/ChatList';
 import { ChatTimeline } from '@/components/chat/ChatTimeline';
 import { ChatComposer } from '@/components/chat/ChatComposer';
@@ -28,6 +28,61 @@ type Message = {
   localStatus?: 'sending' | 'queued' | 'sent' | 'failed';
 };
 
+type ActionNotice = {
+  tone: 'success' | 'error' | 'info';
+  message: string;
+};
+
+type ApiActionResult<T = unknown> = {
+  ok: boolean;
+  data: T | null;
+  message: string;
+};
+
+type SettingsResponse = {
+  success: boolean;
+  data?: {
+    lineChannelIdConfigured?: boolean;
+    lineChannelSecretConfigured?: boolean;
+    lineAccessTokenConfigured?: boolean;
+  };
+};
+
+function extractApiMessage(payload: unknown, fallback: string): string {
+  if (payload && typeof payload === 'object') {
+    const record = payload as {
+      message?: string;
+      error?: string | { message?: string };
+    };
+    if (typeof record.message === 'string' && record.message.trim()) {
+      return record.message;
+    }
+    if (typeof record.error === 'string' && record.error.trim()) {
+      return record.error;
+    }
+    if (
+      record.error &&
+      typeof record.error === 'object' &&
+      typeof record.error.message === 'string' &&
+      record.error.message.trim()
+    ) {
+      return record.error.message;
+    }
+  }
+  return fallback;
+}
+
+function normalizePaidAt(value?: string | null): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+  return date.toISOString();
+}
+
 export default function ChatInboxPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -41,7 +96,8 @@ export default function ChatInboxPage() {
   const [lastFailedFile, setLastFailedFile] = useState<File | null>(null);
   const [lastFailedFileName, setLastFailedFileName] = useState<string | null>(null);
   const [msgTemplates, setMsgTemplates] = useState<{ id: string; label: string; text: string }[]>([]);
-  const firstLoadTs = useRef<number | null>(null);
+  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
+  const [lineConfigured, setLineConfigured] = useState<boolean | null>(null);
 
   // Load real MessageTemplate records from DB for compose quick-insert.
   useEffect(() => {
@@ -65,12 +121,32 @@ export default function ChatInboxPage() {
   }, []);
 
   useEffect(() => {
+    async function loadLineCapability() {
+      try {
+        const response = await fetch('/api/admin/settings', { cache: 'no-store' });
+        const json = (await response.json().catch(() => null)) as SettingsResponse | null;
+        if (!response.ok || !json?.success || !json.data) {
+          setLineConfigured(null);
+          return;
+        }
+        setLineConfigured(
+          Boolean(
+            json.data.lineChannelIdConfigured &&
+            json.data.lineChannelSecretConfigured &&
+            json.data.lineAccessTokenConfigured
+          )
+        );
+      } catch {
+        setLineConfigured(null);
+      }
+    }
+    void loadLineCapability();
+  }, []);
+
+  useEffect(() => {
     async function load() {
-      const t0 = performance.now();
       const res = await fetch('/api/conversations?page=1&pageSize=50').then((r) => r.json());
       if (res.success) setConversations(res.data.data);
-      const t1 = performance.now();
-      console.log('chat_initial_conversations_ms', Math.round(t1 - t0));
     }
     void load();
   }, []);
@@ -78,7 +154,6 @@ export default function ChatInboxPage() {
   useEffect(() => {
     async function loadMessages() {
       if (!selectedId) return;
-      firstLoadTs.current = performance.now();
       const res = await fetch(`/api/conversations/${selectedId}/messages?limit=30`).then((r) => r.json());
       if (res.success) {
         if (Array.isArray(res.data)) {
@@ -90,27 +165,30 @@ export default function ChatInboxPage() {
           setHasMore(Boolean(res.data.hasMore));
           setOldestCursor(res.data.nextBefore || null);
         }
-        const t1 = performance.now();
-        console.log('chat_conversation_switch_ms', Math.round(t1 - (firstLoadTs.current || t1)));
       }
     }
     void loadMessages();
   }, [selectedId]);
 
-  useEffect(() => {
-    async function loadLatestInvoice() {
-      if (!selectedId) {
-        setLatestInvoice(null);
-        return;
-      }
-      const res = await fetch(`/api/conversations/${selectedId}/invoices/latest`).then((r) => r.json());
-      if (res.success && res.data) {
-        setLatestInvoice(res.data);
-      } else {
-        setLatestInvoice(null);
-      }
+  const loadLatestInvoice = useCallback(async (conversationId: string | null) => {
+    if (!conversationId) {
+      setLatestInvoice(null);
+      return;
     }
-    void loadLatestInvoice();
+    const res = await fetch(`/api/conversations/${conversationId}/invoices/latest`).then((r) => r.json());
+    if (res.success && res.data) {
+      setLatestInvoice(res.data);
+    } else {
+      setLatestInvoice(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadLatestInvoice(selectedId);
+  }, [loadLatestInvoice, selectedId]);
+
+  useEffect(() => {
+    setActionNotice(null);
   }, [selectedId]);
 
   const current = useMemo(
@@ -118,10 +196,51 @@ export default function ChatInboxPage() {
     [conversations, selectedId]
   );
 
+  const setErrorNotice = useCallback((message: string) => {
+    setActionNotice({ tone: 'error', message });
+  }, []);
+
+  const setSuccessNotice = useCallback((message: string) => {
+    setActionNotice({ tone: 'success', message });
+  }, []);
+
+  const setInfoNotice = useCallback((message: string) => {
+    setActionNotice({ tone: 'info', message });
+  }, []);
+
+  const callActionApi = useCallback(
+    async <T,>(url: string, init: RequestInit, fallbackError: string): Promise<ApiActionResult<T>> => {
+      try {
+        const response = await fetch(url, init);
+        const json = (await response.json().catch(() => null)) as
+          | { success?: boolean; data?: T; message?: string; error?: string | { message?: string } }
+          | null;
+        if (!response.ok || !json?.success) {
+          return {
+            ok: false,
+            data: null,
+            message: extractApiMessage(json, fallbackError),
+          };
+        }
+        return {
+          ok: true,
+          data: (json.data ?? null) as T | null,
+          message: extractApiMessage(json, ''),
+        };
+      } catch {
+        return {
+          ok: false,
+          data: null,
+          message: fallbackError,
+        };
+      }
+    },
+    []
+  );
+
   const loadOlder = useCallback(async () => {
     if (!selectedId || !oldestCursor || loadingMore) return;
     setLoadingMore(true);
-    const t0 = performance.now();
     try {
       const res = await fetch(
         `/api/conversations/${selectedId}/messages?limit=30&before=${encodeURIComponent(oldestCursor)}`
@@ -132,14 +251,12 @@ export default function ChatInboxPage() {
         setOldestCursor(res.data.nextBefore || null);
       }
     } finally {
-      const t1 = performance.now();
-      console.log('chat_load_more_ms', Math.round(t1 - t0));
       setLoadingMore(false);
     }
   }, [selectedId, oldestCursor, loadingMore]);
 
-  const sendText = useCallback(async (text: string) => {
-    if (!selectedId) return;
+  const sendText = useCallback(async (text: string): Promise<boolean> => {
+    if (!selectedId) return false;
     const temp: Message = {
       id: `tmp-${Date.now()}`,
       direction: 'OUTGOING',
@@ -150,20 +267,31 @@ export default function ChatInboxPage() {
     };
     setMessages((items) => [...items, temp]);
     try {
-      const res = await fetch(`/api/conversations/${selectedId}/messages`, {
+      const response = await fetch(`/api/conversations/${selectedId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
-      }).then((r) => r.json());
-      if (res.success) {
+      });
+      const res = await response.json().catch(() => null);
+      if (response.ok && res?.success) {
         setMessages((items) => items.map((item) => (item.id === temp.id ? res.data : item)));
-      } else {
-        setMessages((items) => items.map((item) => (item.id === temp.id ? { ...item, localStatus: 'failed' } : item)));
+        return true;
       }
+      setMessages((items) =>
+        items.map((item) =>
+          item.id === temp.id
+            ? { ...item, localStatus: 'failed', metadata: { status: 'FAILED' } }
+            : item
+        )
+      );
+      setErrorNotice(extractApiMessage(res, 'Message could not be sent.'));
+      return false;
     } catch {
       setMessages((items) => items.map((item) => (item.id === temp.id ? { ...item, localStatus: 'failed' } : item)));
+      setErrorNotice('Message could not be sent.');
+      return false;
     }
-  }, [selectedId]);
+  }, [selectedId, setErrorNotice]);
 
   const retryMessage = useCallback(async (message: Message) => {
     if (!selectedId) return;
@@ -171,25 +299,46 @@ export default function ChatInboxPage() {
       await sendText(message.content);
       return;
     }
-    if (message.type === 'FILE') {
-      const data = JSON.parse(message.content) as { id: string; name: string; contentType?: string };
-      await fetch('/api/messages/send-file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId: selectedId,
-          fileId: data.id,
-          name: data.name,
-          contentType: data.contentType,
-        }),
-      });
+    try {
+      const data = JSON.parse(message.content) as { id?: string; name?: string; contentType?: string };
+      if (!data.id) {
+        return;
+      }
+      const result = await callActionApi<{ messageId: string }>(
+        `/api/conversations/${selectedId}/files/send`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileId: data.id,
+          }),
+        },
+        'File could not be queued for delivery.',
+      );
+      if (!result.ok) {
+        setMessages((prev) =>
+          prev.map((item) =>
+            item.id === message.id ? { ...item, localStatus: 'failed', metadata: { status: 'FAILED' } } : item
+          )
+        );
+        setErrorNotice(result.message);
+        return;
+      }
       setMessages((prev) =>
         prev.map((item) =>
           item.id === message.id ? { ...item, localStatus: 'queued', metadata: { status: 'QUEUED' } } : item
         )
       );
+      setSuccessNotice('File queued for LINE delivery.');
+    } catch {
+      setMessages((prev) =>
+        prev.map((item) =>
+          item.id === message.id ? { ...item, localStatus: 'failed', metadata: { status: 'FAILED' } } : item
+        )
+      );
+      setErrorNotice('File could not be queued for delivery.');
     }
-  }, [selectedId, sendText]);
+  }, [callActionApi, selectedId, sendText, setErrorNotice, setSuccessNotice]);
 
   const listItems: ChatListItem[] = useMemo(
     () =>
@@ -205,6 +354,18 @@ export default function ChatInboxPage() {
       })),
     [conversations]
   );
+
+  const sendDisabledReason = useMemo(() => {
+    if (!current?.lineUserId) {
+      return 'Cannot send via LINE because tenant is not linked';
+    }
+    if (lineConfigured === false) {
+      return 'LINE messaging is unavailable because credentials are not configured';
+    }
+    return null;
+  }, [current?.lineUserId, lineConfigured]);
+
+  const canSendViaLine = Boolean(current?.lineUserId) && lineConfigured !== false;
 
   const uploadFile = useCallback(async (file: File) => {
     setBusy(true);
@@ -252,14 +413,18 @@ export default function ChatInboxPage() {
       if (!uploadRes.success) throw new Error(uploadRes.error || 'Upload failed');
       const info = uploadRes.data as { id: string; originalName: string; mimeType: string; url: string };
 
-      const sendRes = await fetch(`/api/conversations/${selectedId}/files/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileId: info.id,
-        }),
-      }).then((r) => r.json());
-      if (!sendRes.success) throw new Error(sendRes.error || 'Enqueue failed');
+      const sendRes = await callActionApi<{ messageId: string }>(
+        `/api/conversations/${selectedId}/files/send`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileId: info.id,
+          }),
+        },
+        'File could not be queued for delivery.',
+      );
+      if (!sendRes.ok) throw new Error(sendRes.message);
 
       setMessages((prev) =>
         prev.map((item) =>
@@ -278,7 +443,8 @@ export default function ChatInboxPage() {
             : item
         )
       );
-    } catch {
+      setSuccessNotice('File queued for LINE delivery.');
+    } catch (error) {
       if (tempId) {
         setMessages((prev) =>
           prev.map((item) =>
@@ -286,13 +452,14 @@ export default function ChatInboxPage() {
           )
         );
       }
+      setErrorNotice(error instanceof Error ? error.message : 'File could not be queued for delivery.');
       setLastFailedFile(file);
       setLastFailedFileName(file.name);
     } finally {
       setBusy(false);
       setUploadProgress(null);
     }
-  }, [selectedId]);
+  }, [callActionApi, selectedId, setErrorNotice, setSuccessNotice]);
 
   const retryLastUpload = useCallback(async () => {
     if (!lastFailedFile) return;
@@ -312,66 +479,105 @@ export default function ChatInboxPage() {
     if (!selectedId) return;
     const invoiceId = await resolveLatestInvoiceId(selectedId);
     if (!invoiceId) {
-      await sendText('No invoice available to send.');
+      setInfoNotice('No invoice is available to send for this conversation.');
       return;
     }
-    await fetch(`/api/invoices/${invoiceId}/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sendToLine: true }),
-    });
-    await sendText('Invoice sending queued.');
-  }, [selectedId, resolveLatestInvoiceId, sendText]);
+    const result = await callActionApi(
+      `/api/invoices/${invoiceId}/send`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sendToLine: true }),
+      },
+      'Invoice could not be queued for LINE delivery.',
+    );
+    if (!result.ok) {
+      setErrorNotice(result.message);
+      return;
+    }
+    await loadLatestInvoice(selectedId);
+    setSuccessNotice('Invoice queued for LINE delivery.');
+  }, [callActionApi, loadLatestInvoice, resolveLatestInvoiceId, selectedId, setErrorNotice, setInfoNotice, setSuccessNotice]);
 
   const sendReminderQuick = useCallback(async () => {
     if (!selectedId) return;
-    await fetch('/api/reminders/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        conversationId: selectedId,
-        text: 'Payment reminder: please review your invoice.',
-      }),
-    });
-    await sendText('Reminder queued.');
-  }, [selectedId, sendText]);
+    const result = await callActionApi(
+      '/api/reminders/send',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: selectedId,
+          text: 'Payment reminder: please review your invoice.',
+        }),
+      },
+      'Reminder could not be queued.',
+    );
+    if (!result.ok) {
+      setErrorNotice(result.message);
+      return;
+    }
+    setSuccessNotice('Reminder queued for LINE delivery.');
+  }, [callActionApi, selectedId, setErrorNotice, setSuccessNotice]);
 
-  const sendReceiptQuick = useCallback(async (paidAt?: string | null) => {
-    if (!selectedId) return;
+  const sendReceiptQuick = useCallback(async (paidAt?: string | null): Promise<boolean> => {
+    if (!selectedId) return false;
     const invoiceId = await resolveLatestInvoiceId(selectedId);
     if (!invoiceId) {
-      await sendText('No receipt available.');
-      return;
+      setInfoNotice('No receipt is available for this conversation.');
+      return false;
     }
     const base = typeof window !== 'undefined' ? window.location.origin : '';
     const pdfUrl = `${base}/api/invoices/${encodeURIComponent(invoiceId)}/pdf`;
-    await fetch(`/api/receipts/${invoiceId}/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        conversationId: selectedId,
-        downloadLink: pdfUrl,
-        paidDate: paidAt || null,
-      }),
-    });
-    await sendText('Receipt sending queued.');
-  }, [selectedId, resolveLatestInvoiceId, sendText]);
+    const result = await callActionApi(
+      `/api/receipts/${invoiceId}/send`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: selectedId,
+          downloadLink: pdfUrl,
+          paidDate: normalizePaidAt(paidAt) || null,
+        }),
+      },
+      'Receipt could not be queued.',
+    );
+    if (!result.ok) {
+      setErrorNotice(result.message);
+      return false;
+    }
+    setSuccessNotice('Receipt queued for LINE delivery.');
+    return true;
+  }, [callActionApi, resolveLatestInvoiceId, selectedId, setErrorNotice, setInfoNotice, setSuccessNotice]);
 
   const confirmPaymentQuick = useCallback(async (paidAt?: string | null) => {
     if (!selectedId) return;
     const invoiceId = await resolveLatestInvoiceId(selectedId);
     if (!invoiceId) {
-      await sendText('No invoice to confirm payment for.');
+      setInfoNotice('No invoice is available to confirm payment for.');
       return;
     }
-    await fetch(`/api/invoices/${invoiceId}/pay`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paidAt: paidAt || new Date().toISOString() }),
-    });
-    await sendText('Payment confirmed.');
-    await sendReceiptQuick(paidAt);
-  }, [selectedId, resolveLatestInvoiceId, sendText, sendReceiptQuick]);
+    const result = await callActionApi(
+      `/api/invoices/${invoiceId}/pay`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paidAt: normalizePaidAt(paidAt) || new Date().toISOString() }),
+      },
+      'Payment could not be confirmed.',
+    );
+    if (!result.ok) {
+      setErrorNotice(result.message);
+      return;
+    }
+    await loadLatestInvoice(selectedId);
+    const receiptQueued = await sendReceiptQuick(paidAt);
+    if (receiptQueued) {
+      setSuccessNotice('Payment recorded and receipt queued for LINE delivery.');
+      return;
+    }
+    setInfoNotice('Payment recorded, but the receipt could not be queued.');
+  }, [callActionApi, loadLatestInvoice, resolveLatestInvoiceId, selectedId, sendReceiptQuick, setErrorNotice, setInfoNotice, setSuccessNotice]);
 
   return (
     <main className="admin-page">
@@ -385,6 +591,26 @@ export default function ChatInboxPage() {
           <span className="admin-badge">{conversations.filter((item) => item.unreadCount > 0).length} unread</span>
         </div>
       </section>
+
+      {actionNotice ? (
+        <div
+          className={
+            actionNotice.tone === 'success'
+              ? 'auth-alert auth-alert-success'
+              : actionNotice.tone === 'info'
+              ? 'rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800'
+              : 'auth-alert auth-alert-error'
+          }
+        >
+          {actionNotice.message}
+        </div>
+      ) : null}
+
+      {current?.lineUserId && lineConfigured === false ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          LINE messaging is unavailable because credentials are not configured. Chat sends and quick actions are disabled until LINE is configured.
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <section className="lg:col-span-3">
@@ -409,23 +635,36 @@ export default function ChatInboxPage() {
             <ChatTimeline
               messages={messages}
               onRetry={retryMessage}
-              canSendViaLine={Boolean(current?.lineUser)}
+              canSendViaLine={canSendViaLine}
               onSendFile={async (message) => {
                 if (!selectedId) return;
                 try {
-                  const data = JSON.parse(message.content) as { id: string };
-                  await fetch(`/api/conversations/${selectedId}/files/send`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fileId: data.id }),
-                  });
+                  const data = JSON.parse(message.content) as { id?: string };
+                  if (!data.id) {
+                    setErrorNotice('File could not be queued for delivery.');
+                    return;
+                  }
+                  const result = await callActionApi<{ messageId: string }>(
+                    `/api/conversations/${selectedId}/files/send`,
+                    {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ fileId: data.id }),
+                    },
+                    'File could not be queued for delivery.',
+                  );
+                  if (!result.ok) {
+                    setErrorNotice(result.message);
+                    return;
+                  }
                   setMessages((prev) =>
                     prev.map((item) =>
                       item.id === message.id ? { ...item, localStatus: 'queued', metadata: { status: 'QUEUED' } } : item
                     )
                   );
+                  setSuccessNotice('File queued for LINE delivery.');
                 } catch {
-                  return;
+                  setErrorNotice('File could not be queued for delivery.');
                 }
               }}
               onConfirmSlip={async (slip) => {
@@ -437,7 +676,7 @@ export default function ChatInboxPage() {
               }}
             />
             <ChatComposer
-              disabled={!current || busy || !current?.lineUserId}
+              disabled={!current || busy || !canSendViaLine}
               onSendText={sendText}
               onUploadFile={uploadFile}
               uploadProgress={uploadProgress}
@@ -475,10 +714,9 @@ export default function ChatInboxPage() {
             onSendInvoice={sendInvoiceQuick}
             onSendReminder={sendReminderQuick}
             onSendReceipt={() => void sendReceiptQuick(null)}
-            onUploadFile={() => undefined}
             onConfirmPayment={() => void confirmPaymentQuick(null)}
-            canSendViaLine={Boolean(current?.lineUser)}
-            sendDisabledReason="Cannot send via LINE because tenant is not linked"
+            canSendViaLine={canSendViaLine}
+            sendDisabledReason={sendDisabledReason}
           />
         </section>
       </div>

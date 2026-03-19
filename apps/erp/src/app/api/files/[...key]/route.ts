@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { asyncHandler } from '@/lib/utils/errors';
+import { getSessionFromRequest } from '@/lib/auth/session';
+import { AppError, asyncHandler, ForbiddenError, UnauthorizedError } from '@/lib/utils/errors';
 import { getStorage } from '@/infrastructure/storage';
+import { verifySignedFileAccess } from '@/lib/files/access';
 
 function guessContentTypeFromKey(key: string): string {
   const lower = key.toLowerCase();
@@ -23,10 +25,28 @@ export const GET = asyncHandler(
     const storageKey = keyParts.join('/');
     const storage = getStorage();
     try {
-      const buffer = await storage.downloadFile(storageKey);
       const contentType = guessContentTypeFromKey(storageKey);
       const url = new URL(req.url);
       const inline = url.searchParams.get('inline') === '1';
+      const session = getSessionFromRequest(req);
+      if (session && !['ADMIN', 'STAFF'].includes(session.role)) {
+        throw new ForbiddenError('Insufficient permissions');
+      }
+      if (!session) {
+        const expiresAt = Number(url.searchParams.get('expires') || '');
+        const token = url.searchParams.get('token');
+        const allowed = verifySignedFileAccess({
+          storageKey,
+          inline,
+          expiresAt,
+          token,
+        });
+        if (!allowed) {
+          throw new UnauthorizedError('Authentication required');
+        }
+      }
+
+      const buffer = await storage.downloadFile(storageKey);
       const headers = new Headers();
       headers.set('Content-Type', contentType);
       headers.set('Cache-Control', 'private, max-age=31536000, immutable');
@@ -48,7 +68,10 @@ export const GET = asyncHandler(
         },
       });
       return new NextResponse(stream as unknown as BodyInit, { status: 200, headers });
-    } catch {
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
       return NextResponse.json({ success: false, error: 'File not found' }, { status: 404 });
     }
   }

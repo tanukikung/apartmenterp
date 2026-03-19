@@ -11,7 +11,7 @@ export const GET = asyncHandler(async (
   const session = requireRole(req, ['ADMIN', 'STAFF']);
   const prepared = await getStoredWorkbookForBatch(params.id);
   const editor = createOnlyOfficeEditorConfig({
-    title: prepared.uploadedFile.originalName || prepared.batch.sourceFilename,
+    title: prepared.batch.filename,
     url: prepared.documentUrl,
     fileType: prepared.fileType,
     documentType: prepared.documentType,
@@ -22,7 +22,8 @@ export const GET = asyncHandler(async (
       name: session.displayName,
       group: session.role,
     },
-    mode: prepared.batch.status === 'IMPORTED' ? 'view' : 'edit',
+    // ImportBatch status: PENDING | PROCESSING | COMPLETED | FAILED
+    mode: prepared.batch.status === 'COMPLETED' ? 'view' : 'edit',
   });
 
   return NextResponse.json({

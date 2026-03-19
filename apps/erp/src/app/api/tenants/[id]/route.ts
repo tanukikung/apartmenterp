@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth/guards';
 import { getTenantService } from '@/modules/tenants/tenant.service';
 import { updateTenantSchema } from '@/modules/tenants/types';
 import { asyncHandler, ApiResponse, formatError, AppError } from '@/lib/utils/errors';
@@ -57,11 +58,7 @@ export const PATCH = asyncHandler(
 export const DELETE = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
     const { id } = params;
-
-    const role = req.cookies.get('role')?.value;
-    if (role !== 'ADMIN') {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
-    }
+    requireRole(req, ['ADMIN']);
 
     const tenantService = getTenantService();
     

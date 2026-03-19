@@ -319,7 +319,11 @@ export default function AdminDashboardPage() {
   async function handleSendInvoice(invoiceId: string) {
     setSendingId(invoiceId);
     try {
-      await fetch(`/api/invoices/${invoiceId}/send`, { method: 'POST' });
+      const res = await fetch(`/api/invoices/${invoiceId}/send`, { method: 'POST' });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        return;
+      }
       setRecentInvoices((prev) =>
         prev.map((inv) => (inv.id === invoiceId ? { ...inv, status: 'SENT' as const } : inv))
       );

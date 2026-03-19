@@ -11,21 +11,10 @@ describe('document resolver service', () => {
   it('aggregates room, tenant, billing, invoice, and payment data into render context', async () => {
     (prisma.room.findMany as any).mockResolvedValue([
       {
-        id: 'room-1',
-        roomNumber: '3201',
-        status: 'OCCUPIED',
-        billingStatus: 'BILLABLE',
-        usageType: 'RENTAL',
-        maxResidents: 2,
-        floor: {
-          floorNumber: 3,
-          building: {
-            id: 'building-1',
-            name: 'Apartment ERP Residence',
-            address: '123 Demo Road',
-          },
-        },
-        roomTenants: [
+        roomNo: '3201',
+        floorNo: 3,
+        roomStatus: 'ACTIVE',
+        tenants: [
           {
             tenant: {
               id: 'tenant-1',
@@ -56,45 +45,37 @@ describe('document resolver service', () => {
             },
           },
         ],
-        billingRecords: [
+        billings: [
           {
             id: 'billing-1',
-            billingCycleId: 'cycle-1',
-            year: 2026,
-            month: 12,
-            subtotal: 3696,
-            total: 3696,
-            billingDay: 1,
-            dueDay: 5,
-            overdueDay: 10,
+            billingPeriodId: 'cycle-1',
+            roomNo: '3201',
+            totalDue: 3696,
+            rentAmount: 2900,
+            waterTotal: 0,
+            electricTotal: 0,
+            furnitureFee: 0,
+            otherFee: 0,
             status: 'INVOICED',
-            items: [
-              {
-                quantity: 1,
-                unitPrice: 2900,
-                amount: 2900,
-                description: null,
-                itemType: {
-                  code: 'RENT',
-                  name: 'Rent',
+            billingPeriod: {
+              id: 'cycle-1',
+              year: 2026,
+              month: 12,
+              dueDay: 5,
+              status: 'OPEN',
+            },
+            invoice: {
+              id: 'invoice-1',
+              status: 'GENERATED',
+              paymentTransactions: [
+                {
+                  amount: 3696,
+                  transactionDate: new Date('2026-12-02'),
+                  status: 'CONFIRMED',
                 },
-              },
-            ],
-            invoices: [
-              {
-                id: 'invoice-1',
-                version: 1,
-                status: 'GENERATED',
-                paymentTransactions: [
-                  {
-                    amount: 3696,
-                    transactionDate: new Date('2026-12-02'),
-                    status: 'CONFIRMED',
-                  },
-                ],
-                deliveries: [],
-              },
-            ],
+              ],
+              deliveries: [],
+            },
           },
         ],
       },
@@ -105,7 +86,7 @@ describe('document resolver service', () => {
       {
         templateId: 'tpl-1',
         scope: 'SINGLE_ROOM',
-        roomId: 'room-1',
+        roomId: '3201',
         roomIds: [],
         year: 2026,
         month: 12,
@@ -123,6 +104,5 @@ describe('document resolver service', () => {
     expect(targets[0]?.context.tenant?.fullName).toBe('Somchai Jaidee');
     expect(targets[0]?.context.billing?.invoiceNumber).toContain('INV-2026-12-3201');
     expect(targets[0]?.context.payment.totalConfirmed).toBe(3696);
-    expect(targets[0]?.context.apartment.name).toBe('Apartment ERP Residence');
   });
 });

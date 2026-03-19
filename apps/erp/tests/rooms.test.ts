@@ -4,30 +4,35 @@ import { createRoomSchema } from '@/modules/rooms/types';
 describe('room capacity validation', () => {
   it('accepts valid capacity', () => {
     const parsed = createRoomSchema.safeParse({
-      floorId: '11111111-1111-1111-1111-111111111111',
-      roomNumber: '101',
-      capacity: 2,
-      status: 'VACANT',
+      roomNo: '101',
+      floorNo: 1,
+      defaultAccountId: 'acc-1',
+      defaultRuleCode: 'RULE-1',
+      defaultRentAmount: 5000,
+      roomStatus: 'ACTIVE',
     });
     expect(parsed.success).toBe(true);
   });
 
-  it('rejects capacity below 1', () => {
+  it('rejects missing roomNo', () => {
     const parsed = createRoomSchema.safeParse({
-      floorId: '11111111-1111-1111-1111-111111111111',
-      roomNumber: '101',
-      capacity: 0,
-      status: 'VACANT',
+      floorNo: 1,
+      defaultAccountId: 'acc-1',
+      defaultRuleCode: 'RULE-1',
+      defaultRentAmount: 5000,
+      roomStatus: 'ACTIVE',
     });
     expect(parsed.success).toBe(false);
   });
 
-  it('rejects capacity above 10', () => {
+  it('rejects invalid roomStatus', () => {
     const parsed = createRoomSchema.safeParse({
-      floorId: '11111111-1111-1111-1111-111111111111',
-      roomNumber: '101',
-      capacity: 11,
-      status: 'VACANT',
+      roomNo: '101',
+      floorNo: 1,
+      defaultAccountId: 'acc-1',
+      defaultRuleCode: 'RULE-1',
+      defaultRentAmount: 5000,
+      roomStatus: 'VACANT',
     });
     expect(parsed.success).toBe(false);
   });

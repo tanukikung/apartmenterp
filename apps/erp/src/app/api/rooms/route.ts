@@ -18,16 +18,13 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   
   // Parse query parameters
   const query = {
-    floorId: url.searchParams.get('floorId') || undefined,
-    status: url.searchParams.get('status') || undefined,
+    floorNo: url.searchParams.get('floorNo') || undefined,
+    roomStatus: url.searchParams.get('roomStatus') || undefined,
     page: url.searchParams.get('page') || '1',
     pageSize: url.searchParams.get('pageSize') || '20',
     search: url.searchParams.get('search') || undefined,
-    sortBy: url.searchParams.get('sortBy') || 'roomNumber',
+    sortBy: url.searchParams.get('sortBy') || 'roomNo',
     sortOrder: url.searchParams.get('sortOrder') || 'asc',
-    usageType: url.searchParams.get('usageType') || undefined,
-    billingStatus: url.searchParams.get('billingStatus') || undefined,
-    isActive: url.searchParams.get('isActive') || undefined,
   };
 
   // Validate query
@@ -57,8 +54,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
   logger.info({
     type: 'room_created_api',
-    roomId: room.id,
-    roomNumber: room.roomNumber,
+    roomNo: room.roomNo,
   });
 
   return NextResponse.json({

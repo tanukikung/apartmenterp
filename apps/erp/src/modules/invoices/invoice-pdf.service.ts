@@ -78,43 +78,46 @@ export class InvoicePDFService {
       include: {
         room: {
           include: {
-            roomTenants: {
+            tenants: {
               where: { moveOutDate: null },
               include: { tenant: true },
             },
           },
         },
-        billingRecord: {
-          include: { items: true },
-        },
+        roomBilling: true,
       },
     });
 
     if (!invoice) throw new NotFoundError('Invoice', invoiceId);
 
-    const primaryTenant = invoice.room.roomTenants[0]?.tenant;
+    const primaryTenant = (invoice.room as any).tenants?.[0]?.tenant;
     if (!primaryTenant) throw new Error('No active tenant found for room');
 
-    const computedInvoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.room.roomNumber}-V${invoice.version}`;
+    const computedInvoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.roomNo}`;
+    const roomBilling = invoice.roomBilling;
+    const billingItems: Array<{ description: string; amount: number; quantity: number; total: number }> = roomBilling
+      ? [
+          { description: 'Rent', amount: Number(roomBilling.rentAmount), quantity: 1, total: Number(roomBilling.rentAmount) },
+          ...(Number(roomBilling.waterTotal) > 0 ? [{ description: 'Water', amount: Number(roomBilling.waterTotal), quantity: 1, total: Number(roomBilling.waterTotal) }] : []),
+          ...(Number(roomBilling.electricTotal) > 0 ? [{ description: 'Electric', amount: Number(roomBilling.electricTotal), quantity: 1, total: Number(roomBilling.electricTotal) }] : []),
+          ...(Number(roomBilling.furnitureFee) > 0 ? [{ description: 'Furniture', amount: Number(roomBilling.furnitureFee), quantity: 1, total: Number(roomBilling.furnitureFee) }] : []),
+          ...(Number(roomBilling.otherFee) > 0 ? [{ description: 'Other', amount: Number(roomBilling.otherFee), quantity: 1, total: Number(roomBilling.otherFee) }] : []),
+        ]
+      : [];
     const pdfData: InvoicePDFData = {
       apartmentName: config.app.name,
-      roomNumber: invoice.room.roomNumber,
+      roomNumber: invoice.roomNo,
       tenantName: `${primaryTenant.firstName} ${primaryTenant.lastName}`,
-      billingItems: invoice.billingRecord.items.map((item) => ({
-        description: item.description ?? '',
-        amount: Number(item.unitPrice),
-        quantity: Number(item.quantity),
-        total: Number(item.amount),
-      })),
-      totalAmount: Number(invoice.total),
+      billingItems,
+      totalAmount: Number(invoice.totalAmount),
       dueDate: invoice.dueDate,
       invoiceNumber: computedInvoiceNumber,
       qrCodeData: this.generateQRCodeData({
         id: invoice.id,
         invoiceNumber: computedInvoiceNumber,
-        total: invoice.total,
+        total: invoice.totalAmount,
         dueDate: invoice.dueDate,
-        room: { roomNumber: invoice.room.roomNumber },
+        room: { roomNumber: invoice.roomNo },
       }),
     };
 

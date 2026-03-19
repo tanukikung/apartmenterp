@@ -36,6 +36,8 @@ export default async function LoginPage({
               name="username"
               placeholder="Enter your username"
               autoComplete="username"
+              required
+              minLength={1}
             />
           </label>
 
@@ -47,6 +49,8 @@ export default async function LoginPage({
               type="password"
               placeholder="Enter your password"
               autoComplete="current-password"
+              required
+              minLength={1}
             />
           </label>
 

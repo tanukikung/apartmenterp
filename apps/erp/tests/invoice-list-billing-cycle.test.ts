@@ -1,28 +1,25 @@
 /**
  * invoice-list-billing-cycle.test.ts
  *
- * Tests for the billingCycleId field added to InvoiceResponse via listInvoices.
+ * Tests for invoice listing — updated for new schema where billingCycleId
+ * is replaced by roomBillingId, and Invoice is 1:1 with RoomBilling.
  *
  * Covers:
- *  1. listInvoices includes billingCycleId in each InvoiceResponse
- *  2. billingCycleId is null when billingRecord has no billingCycleId
- *  3. billingCycleId filter (billingCycleId where clause) is forwarded correctly
+ *  1. listInvoices returns InvoiceResponse with roomBillingId
+ *  2. Status filter is forwarded correctly
+ *  3. roomNo filter is forwarded correctly
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Prisma mock ───────────────────────────────────────────────────────────────
 const mockInvoiceCount = vi.fn();
 const mockInvoiceFindMany = vi.fn();
-const mockBillingItemFindMany = vi.fn();
 
 vi.mock('@/lib/db/client', () => ({
   prisma: {
     invoice: {
       count: mockInvoiceCount,
       findMany: mockInvoiceFindMany,
-    },
-    billingItem: {
-      findMany: mockBillingItemFindMany,
     },
   },
 }));
@@ -36,48 +33,40 @@ vi.mock('@/lib/events', () => ({
 }));
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
-function makeInvoice(cycleId: string | null = 'cycle-abc') {
+function makeInvoice(roomBillingId: string = 'rb-abc') {
   return {
     id: 'inv-1',
-    roomId: 'room-1',
-    billingRecordId: 'rec-1',
+    roomNo: 'room-101',
+    roomBillingId,
     year: 2026,
     month: 3,
-    version: 1,
     status: 'GENERATED',
-    subtotal: '5000',
-    total: '5000',
+    totalAmount: '5000',
     dueDate: new Date('2026-03-31'),
     issuedAt: new Date(),
     sentAt: null,
-    sentBy: null,
-    viewedAt: null,
     paidAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     room: {
-      id: 'room-1',
-      roomNumber: '101',
-      floorId: 'floor-1',
-      roomTenants: [],
+      roomNo: 'room-101',
+      tenants: [],
     },
-    versions: [],
     deliveries: [],
-    billingRecord: { billingCycleId: cycleId },
+    roomBilling: { totalDue: '5000' },
   };
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
-describe('InvoiceService.listInvoices — billingCycleId propagation', () => {
+describe('InvoiceService.listInvoices — new schema contract', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    mockBillingItemFindMany.mockResolvedValue([]);
   });
 
-  it('includes billingCycleId from the joined billingRecord', async () => {
+  it('includes roomBillingId in each InvoiceResponse', async () => {
     mockInvoiceCount.mockResolvedValue(1);
-    mockInvoiceFindMany.mockResolvedValue([makeInvoice('cycle-xyz')]);
+    mockInvoiceFindMany.mockResolvedValue([makeInvoice('rb-xyz')]);
 
     const { createInvoiceService } = await import(
       '@/modules/invoices/invoice.service'
@@ -91,12 +80,12 @@ describe('InvoiceService.listInvoices — billingCycleId propagation', () => {
     });
 
     expect(result.data).toHaveLength(1);
-    expect(result.data[0].billingCycleId).toBe('cycle-xyz');
+    expect(result.data[0].roomBillingId).toBe('rb-xyz');
   });
 
-  it('sets billingCycleId to null when billingRecord has no cycle', async () => {
+  it('returns correct roomNo from the invoice', async () => {
     mockInvoiceCount.mockResolvedValue(1);
-    mockInvoiceFindMany.mockResolvedValue([makeInvoice(null)]);
+    mockInvoiceFindMany.mockResolvedValue([makeInvoice()]);
 
     const { createInvoiceService } = await import(
       '@/modules/invoices/invoice.service'
@@ -109,10 +98,10 @@ describe('InvoiceService.listInvoices — billingCycleId propagation', () => {
       sortOrder: 'desc',
     });
 
-    expect(result.data[0].billingCycleId).toBeNull();
+    expect(result.data[0].roomNo).toBe('room-101');
   });
 
-  it('applies billingCycleId filter as a Prisma nested where', async () => {
+  it('applies roomNo filter as a Prisma where clause', async () => {
     mockInvoiceCount.mockResolvedValue(0);
     mockInvoiceFindMany.mockResolvedValue([]);
 
@@ -121,15 +110,15 @@ describe('InvoiceService.listInvoices — billingCycleId propagation', () => {
     );
     const svc = createInvoiceService();
     await svc.listInvoices({
-      billingCycleId: 'cycle-filter-test',
+      roomNo: 'room-filter-test',
       page: 1,
       pageSize: 20,
       sortBy: 'createdAt',
       sortOrder: 'desc',
     });
 
-    // The where clause should have the nested billingRecord condition
+    // The where clause should have the roomNo condition
     const whereArg = mockInvoiceCount.mock.calls[0][0].where;
-    expect(whereArg.billingRecord).toEqual({ is: { billingCycleId: 'cycle-filter-test' } });
+    expect(whereArg.roomNo).toBe('room-filter-test');
   });
 });

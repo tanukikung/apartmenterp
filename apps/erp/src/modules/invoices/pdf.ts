@@ -49,11 +49,10 @@ export async function generateInvoicePdf(
 
   // ── Header ────────────────────────────────────────────────────────────────
   draw('INVOICE', PDF_CONFIG.page.marginLeft, 22, true);
-  draw(`${preview.buildingName}`, PDF_CONFIG.page.marginLeft, 14, true);
-  draw(`Room: ${preview.roomNumber}`, PDF_CONFIG.page.marginLeft, 12);
+  draw(`Room: ${preview.roomNo}`, PDF_CONFIG.page.marginLeft, 12);
   draw(`Tenant: ${preview.tenantName || '-'}`, PDF_CONFIG.page.marginLeft, 12);
   draw(
-    `Year/Month: ${preview.year}-${String(preview.month).padStart(2, '0')}  Version: v${preview.version}`,
+    `Year/Month: ${preview.year}-${String(preview.month).padStart(2, '0')}`,
     PDF_CONFIG.page.marginLeft,
     12,
   );
@@ -99,8 +98,6 @@ export async function generateInvoicePdf(
     color: rgb(0.2, 0.2, 0.2),
   });
   y -= 18;
-  page.drawText('Subtotal:', { x: 380, y, size: 12, font: bold });
-  page.drawText(preview.subtotal.toFixed(2), { x: 480, y, size: 12, font });
   y -= 16;
   page.drawText('Total:', { x: 380, y, size: 14, font: bold });
   page.drawText(preview.totalAmount.toFixed(2), { x: 480, y, size: 14, font: bold });

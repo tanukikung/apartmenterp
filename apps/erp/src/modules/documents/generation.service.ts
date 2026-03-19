@@ -63,7 +63,7 @@ function mapGeneratedDocument(
     include: {
       template: true;
       templateVersion: true;
-      room: { include: { floor: true } };
+      room: true;
       tenant: true;
       files: { include: { uploadedFile: true } };
     };
@@ -97,13 +97,13 @@ function mapGeneratedDocument(
       label: document.templateVersion.label,
     },
     room: {
-      id: document.room.id,
-      roomNumber: document.room.roomNumber,
-      floorNumber: document.room.floor.floorNumber,
+      id: document.room.roomNo,
+      roomNumber: document.room.roomNo,
+      floorNumber: document.room.floorNo,
     },
     tenantName: document.tenant ? `${document.tenant.firstName} ${document.tenant.lastName}`.trim() : null,
-    billingCycleId: document.billingCycleId,
-    billingRecordId: document.billingRecordId,
+    billingCycleId: document.billingPeriodId,
+    billingRecordId: document.roomBillingId,
     invoiceId: document.invoiceId,
     files: document.files.map(mapGeneratedFile),
     renderContext: document.renderContext as Record<string, unknown> | null,
@@ -207,12 +207,12 @@ export class DocumentGenerationService {
         templateId,
         templateVersionId,
         requestedById: actorId ?? null,
-        billingCycleId: input.billingCycleId ?? null,
+        billingPeriodId: input.billingCycleId ?? null,
         year: input.year ?? null,
         month: input.month ?? null,
         scope: input.scope,
         selection: {
-          roomId: input.roomId ?? null,
+          roomNo: input.roomId ?? null,
           roomIds: input.roomIds,
           floorNumber: input.floorNumber ?? null,
           onlyOccupiedRooms: input.onlyOccupiedRooms,
@@ -225,11 +225,11 @@ export class DocumentGenerationService {
     });
   }
 
-  private async determineDocumentVersion(templateId: string, roomId: string, year?: number | null, month?: number | null) {
+  private async determineDocumentVersion(templateId: string, roomNo: string, year?: number | null, month?: number | null) {
     const latest = await prisma.generatedDocument.findFirst({
       where: {
         templateId,
-        roomId,
+        roomNo,
         year: year ?? null,
         month: month ?? null,
       },
@@ -385,10 +385,9 @@ export class DocumentGenerationService {
         title: generatedTitle(template.name, target.roomNumber, target.context.billing?.year ?? input.year, target.context.billing?.month ?? input.month),
         subject: template.subject,
         sourceScope: input.scope,
-        roomId: target.roomId,
-        buildingId: target.context.apartment.id,
-        billingCycleId: target.context.billing?.billingCycleId ?? input.billingCycleId ?? null,
-        billingRecordId: target.billingRecordId,
+        roomNo: target.roomId,
+        billingPeriodId: target.context.billing?.billingCycleId ?? input.billingCycleId ?? null,
+        roomBillingId: target.billingRecordId,
         invoiceId: target.invoiceId,
         contractId: target.context.contract?.id ?? null,
         tenantId: target.context.tenant?.id ?? null,
@@ -440,8 +439,8 @@ export class DocumentGenerationService {
       const targetRow = await prisma.documentGenerationTarget.create({
         data: {
           jobId: job.id,
-          roomId: target.roomId,
-          billingRecordId: target.billingRecordId,
+          roomNo: target.roomId,
+          roomBillingId: target.billingRecordId,
           invoiceId: target.invoiceId,
           contractId: target.context.contract?.id ?? null,
           tenantId: target.context.tenant?.id ?? null,
@@ -588,8 +587,8 @@ export class DocumentGenerationService {
     if (query.templateId) where.templateId = query.templateId;
     if (query.status) where.status = query.status;
     if (query.type) where.documentType = query.type;
-    if (query.roomId) where.roomId = query.roomId;
-    if (query.billingCycleId) where.billingCycleId = query.billingCycleId;
+    if (query.roomId) where.roomNo = query.roomId;
+    if (query.billingCycleId) where.billingPeriodId = query.billingCycleId;
     if (query.year) where.year = query.year;
     if (query.month) where.month = query.month;
 
@@ -600,11 +599,7 @@ export class DocumentGenerationService {
         include: {
           template: true,
           templateVersion: true,
-          room: {
-            include: {
-              floor: true,
-            },
-          },
+          room: true,
           tenant: true,
           files: {
             include: {
@@ -634,11 +629,7 @@ export class DocumentGenerationService {
         include: {
           template: true,
           templateVersion: true,
-          room: {
-            include: {
-              floor: true,
-            },
-          },
+          room: true,
           tenant: true,
           files: {
             include: {
@@ -671,11 +662,7 @@ export class DocumentGenerationService {
         bundleFile: true,
         targets: {
           include: {
-            room: {
-              include: {
-                floor: true,
-              },
-            },
+            room: true,
             tenant: true,
           },
           orderBy: { createdAt: 'asc' },
@@ -696,15 +683,15 @@ export class DocumentGenerationService {
       successCount: job.successCount,
       skippedCount: job.skippedCount,
       failedCount: job.failedCount,
-      billingCycleId: job.billingCycleId,
+      billingCycleId: job.billingPeriodId,
       year: job.year,
       month: job.month,
       bundleUrl: bundleOverride ?? job.bundleFile?.url ?? null,
       targets: job.targets.map((target) => ({
         id: target.id,
-        roomId: target.roomId,
-        roomNumber: target.room.roomNumber,
-        floorNumber: target.room.floor.floorNumber,
+        roomId: target.roomNo,
+        roomNumber: target.room.roomNo,
+        floorNumber: target.room.floorNo,
         tenantName: target.tenant ? `${target.tenant.firstName} ${target.tenant.lastName}`.trim() : null,
         status: target.status,
         reason: target.reason,
@@ -725,11 +712,11 @@ export class DocumentGenerationService {
     const input: DocumentGenerateInput = {
       templateId: existing.templateId,
       templateVersionId: existing.templateVersionId,
-      billingCycleId: existing.billingCycleId ?? undefined,
+      billingCycleId: existing.billingPeriodId ?? undefined,
       year: existing.year ?? undefined,
       month: existing.month ?? undefined,
       scope: DocumentSourceScope.SINGLE_ROOM,
-      roomId: existing.roomId,
+      roomId: existing.roomNo,
       roomIds: [],
       floorNumber: undefined,
       onlyOccupiedRooms: false,

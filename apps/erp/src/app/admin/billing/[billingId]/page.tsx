@@ -249,35 +249,21 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    const urls = [
-      `/api/billing-records?billingCycleId=${cycleId}&pageSize=100`,
-      `/api/billing?billingCycleId=${cycleId}&pageSize=100`,
-      `/api/billing/${cycleId}/records`,
-    ];
     (async () => {
-      for (const url of urls) {
-        try {
-          const res = await fetch(url, { cache: 'no-store' }).then((r) => r.json());
-          if (res.success) {
-            const raw = res.data?.data ?? res.data ?? [];
-            const list: BillingRecord[] = Array.isArray(raw) ? raw : [];
-            setRecords(list);
-            setLoading(false);
-            return;
-          }
-        } catch {
-          // try next url
-        }
-      }
-      // Last resort: the cycleId may itself be a single billing record ID
       try {
-        const res = await fetch(`/api/billing/${cycleId}`, { cache: 'no-store' }).then((r) => r.json());
+        const res = await fetch(`/api/billing?billingCycleId=${cycleId}&pageSize=100`, {
+          cache: 'no-store',
+        }).then((r) => r.json());
         if (res.success && res.data) {
-          setRecords([res.data as BillingRecord]);
+          const raw = res.data?.data ?? res.data ?? [];
+          const list: BillingRecord[] = Array.isArray(raw) ? raw : [];
+          setRecords(list);
           setLoading(false);
           return;
         }
-      } catch { /* ignore */ }
+      } catch {
+        // fall through to error state
+      }
       setError('Unable to load billing records.');
       setLoading(false);
     })();
@@ -556,7 +542,7 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
                   <td className="text-slate-500 text-sm">{fmtDateTime(inv.sentAt)}</td>
                   <td>
                     <div className="flex items-center gap-2">
-                      {(inv.status === 'DRAFT' || inv.status === 'GENERATED' || inv.status === 'SENT') && (
+                      {(inv.status === 'DRAFT' || inv.status === 'GENERATED' || inv.status === 'VIEWED') && (
                         <button
                           onClick={() => void sendInvoice(inv.id)}
                           disabled={sending === inv.id}
@@ -743,11 +729,10 @@ export default function BillingCycleDetailPage() {
     setError(null);
     setNotFound(false);
 
-    // Try billing cycle endpoint first, then invoice endpoint
+    // Try the canonical cycle endpoint first, then fall back to a billing record lookup.
     const endpoints = [
-      `/api/billing/${billingId}`,
       `/api/billing-cycles/${billingId}`,
-      `/api/invoices/${billingId}`,
+      `/api/billing/${billingId}`,
     ];
 
     for (const url of endpoints) {

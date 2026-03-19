@@ -25,9 +25,16 @@ type Floor = {
   buildingName: string;
 };
 
+type RoomStatusCounts = {
+  OCCUPIED: number;
+  VACANT: number;
+  MAINTENANCE: number;
+};
+
 type RoomList = {
   data: Room[];
   total: number;
+  statusCounts?: RoomStatusCounts;
 };
 
 const createDefaults = {
@@ -100,12 +107,14 @@ export default function AdminRoomsPage() {
   }, [selectedRoom]);
 
   const stats = useMemo(() => {
-    const rooms = data?.data || [];
+    // Use the API-provided counts rather than deriving from the current page of
+    // results. data.total is the filtered count; statusCounts are the global
+    // (unfiltered) per-status totals returned by the service.
     return {
-      total: rooms.length,
-      occupied: rooms.filter((room) => room.status === 'OCCUPIED').length,
-      vacant: rooms.filter((room) => room.status === 'VACANT').length,
-      maintenance: rooms.filter((room) => room.status === 'MAINTENANCE').length,
+      total: data?.total ?? 0,
+      occupied: data?.statusCounts?.OCCUPIED ?? 0,
+      vacant: data?.statusCounts?.VACANT ?? 0,
+      maintenance: data?.statusCounts?.MAINTENANCE ?? 0,
     };
   }, [data]);
 

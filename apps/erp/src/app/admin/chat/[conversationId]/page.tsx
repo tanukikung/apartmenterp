@@ -8,8 +8,9 @@ import { ArrowLeft, Send, User, MessageSquare } from 'lucide-react';
 type Message = {
   id: string;
   content: string;
-  direction: 'INBOUND' | 'OUTBOUND';
-  createdAt: string;
+  direction: 'INCOMING' | 'OUTGOING';
+  sentAt: string;
+  metadata?: Record<string, unknown> | null;
   sender?: string | null;
 };
 
@@ -73,7 +74,7 @@ export default function ChatConversationPage() {
       const res = await fetch(`/api/conversations/${conversationId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: text }),
+        body: JSON.stringify({ text }),
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'Unable to send message');
       setReplyText('');
@@ -130,7 +131,7 @@ export default function ChatConversationPage() {
               <div className="py-8 text-center text-sm text-slate-500">No messages yet.</div>
             ) : (
               messages.map((msg) => {
-                const isOutbound = msg.direction === 'OUTBOUND';
+                const isOutbound = msg.direction === 'OUTGOING';
                 return (
                   <div
                     key={msg.id}
@@ -149,7 +150,7 @@ export default function ChatConversationPage() {
                           isOutbound ? 'text-indigo-200' : 'text-slate-400'
                         }`}
                       >
-                        {new Date(msg.createdAt).toLocaleString()}
+                        {new Date(msg.sentAt).toLocaleString()}
                         {msg.sender ? ` · ${msg.sender}` : ''}
                       </p>
                     </div>

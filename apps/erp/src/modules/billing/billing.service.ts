@@ -3,7 +3,6 @@ import { prisma, EventBus, logger, EventTypes } from '@/lib';
 import { Json } from '@/types/prisma-json';
 import {
   CreateBillingRecordInput,
-  BillingImportRow,
   AddBillingItemInput,
   UpdateBillingItemInput,
   LockBillingInput,
@@ -12,69 +11,24 @@ import {
   BillingRecordsListResponse,
   BillingItemResponse,
   BillingRecordCreatedPayload,
-  BillingItemAddedPayload,
-  BillingItemUpdatedPayload,
-  BillingItemRemovedPayload,
   BillingLockedPayload,
   InvoiceGenerationRequestedPayload,
   billingRecordCreatedPayloadSchema,
-  billingItemAddedPayloadSchema,
-  billingItemRemovedPayloadSchema,
-  billingItemUpdatedPayloadSchema,
   billingLockedPayloadSchema,
   invoiceGenerationRequestedPayloadSchema,
 } from './types';
 import type { BillingStatus } from './types';
+import type { WorkbookParseResult, FullWorkbookParseResult } from './import-parser';
+import { parseFullWorkbook } from './import-parser';
+import { computeRoomBilling, computeCheckNotes } from './billing-calculator';
 import {
   NotFoundError,
   ConflictError,
   BadRequestError,
 } from '@/lib/utils/errors';
 
-function isBillingRecordForPayload(
-  obj: unknown
-): obj is {
-  id: string;
-  roomId: string;
-  room?: { roomNumber?: string } | null;
-  year: number;
-  month: number;
-} {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    'id' in obj &&
-    typeof (obj as { id: unknown }).id === 'string' &&
-    'roomId' in obj &&
-    typeof (obj as { roomId: unknown }).roomId === 'string' &&
-    'year' in obj &&
-    typeof (obj as { year: unknown }).year === 'number' &&
-    'month' in obj &&
-    typeof (obj as { month: unknown }).month === 'number'
-  );
-}
-
-type BillingItemTypeMinimal = {
-  id: string;
-  description: string | null;
-  isRecurring: boolean;
-};
-function isBillingItemType(obj: unknown): obj is BillingItemTypeMinimal {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    'id' in obj &&
-    typeof (obj as { id: unknown }).id === 'string' &&
-    'description' in obj &&
-    (typeof (obj as { description: unknown }).description === 'string' ||
-      (obj as { description: unknown }).description === null) &&
-    'isRecurring' in obj &&
-    typeof (obj as { isRecurring: unknown }).isRecurring === 'boolean'
-  );
-}
-
 // ============================================================================
-// Billing Service
+// Billing Service — redesigned for BillingPeriod/RoomBilling schema
 // ============================================================================
 
 export class BillingService {
@@ -85,747 +39,445 @@ export class BillingService {
   }
 
   /**
-   * Create a new billing record for a room/month
+   * Create a new billing record (RoomBilling) for a room/period
    */
   async createBillingRecord(
     input: CreateBillingRecordInput,
     createdBy?: string
   ): Promise<BillingRecordResponse> {
-    logger.info({ type: 'billing_create', roomId: input.roomId, year: input.year, month: input.month });
+    logger.info({ type: 'billing_create', roomNo: input.roomNo, year: input.year, month: input.month });
 
     // Check if room exists
     const room = await prisma.room.findUnique({
-      where: { id: input.roomId },
-      include: { floor: true },
+      where: { roomNo: input.roomNo },
     });
 
     if (!room) {
-      throw new NotFoundError('Room', input.roomId);
+      throw new NotFoundError('Room', input.roomNo);
     }
 
-    // Business rule: Only one billing record per room/month
-    const existing = await prisma.billingRecord.findUnique({
-      where: {
-        roomId_year_month: {
-          roomId: input.roomId,
+    // Find or create billing period
+    let period = await prisma.billingPeriod.findUnique({
+      where: { year_month: { year: input.year, month: input.month } },
+    });
+
+    if (!period) {
+      period = await prisma.billingPeriod.create({
+        data: {
+          id: uuidv4(),
           year: input.year,
           month: input.month,
+          status: 'OPEN',
+          dueDay: 25,
         },
-      },
+      });
+    }
+
+    // Business rule: Only one RoomBilling per room/period
+    const existing = await prisma.roomBilling.findUnique({
+      where: { billingPeriodId_roomNo: { billingPeriodId: period.id, roomNo: input.roomNo } },
     });
 
     if (existing) {
       throw new ConflictError(
-        `Billing record for ${input.year}-${input.month} already exists for this room`
+        `Billing record for ${input.year}-${input.month} already exists for room ${input.roomNo}`
       );
     }
 
-    // Get active contract for the room to get rent amount
-    const contract = await prisma.contract.findFirst({
-      where: {
-        roomId: input.roomId,
-        status: 'ACTIVE',
-      },
-    });
-
-    // Get billing day, due day, overdue day from config
-    const config = await this.getBillingConfig();
-
-    // Create billing record
-    const billingRecord = await prisma.billingRecord.create({
+    // Create room billing using room defaults
+    const roomBilling = await prisma.roomBilling.create({
       data: {
         id: uuidv4(),
-        roomId: input.roomId,
-        year: input.year,
-        month: input.month,
-        billingDay: config.billingDay,
-        dueDay: config.dueDay,
-        overdueDay: config.overdueDay,
+        billingPeriodId: period.id,
+        roomNo: input.roomNo,
+        recvAccountId: room.defaultAccountId,
+        ruleCode: room.defaultRuleCode,
+        rentAmount: room.defaultRentAmount,
+        waterMode: 'NORMAL',
+        electricMode: 'NORMAL',
         status: 'DRAFT',
-        subtotal: 0,
-      },
-      include: {
-        room: true,
-        items: {
-          include: { itemType: true },
-        },
       },
     });
 
-    // Auto-add rent item if contract exists
-    if (contract) {
-      const rentType = await prisma.billingItemType.findUnique({
-        where: { code: 'RENT' },
-      });
-
-      if (rentType) {
-        await prisma.billingItem.create({
-          data: {
-            id: uuidv4(),
-            billingRecordId: billingRecord.id,
-            itemTypeId: rentType.id,
-            quantity: 1,
-            unitPrice: Number(contract.monthlyRent),
-            amount: Number(contract.monthlyRent),
-            isEditable: false,
-          },
-        });
-      }
-    }
-
-    await this.recalculateTotal(billingRecord.id);
-    const updatedRecord = await prisma.billingRecord.findUnique({
-      where: { id: billingRecord.id },
-      include: {
-        room: true,
-        items: {
-          include: { itemType: true },
-        },
-        invoices: {
-          take: 1,
-          orderBy: { version: 'desc' },
-        },
+    await prisma.outboxEvent.create({
+      data: {
+        id: uuidv4(),
+        aggregateType: 'RoomBilling',
+        aggregateId: roomBilling.id,
+        eventType: EventTypes.BILLING_RECORD_CREATED,
+        payload: {
+          billingRecordId: roomBilling.id,
+          roomNo: roomBilling.roomNo,
+          year: input.year,
+          month: input.month,
+          createdBy,
+        } as unknown as Json,
+        retryCount: 0,
       },
     });
 
-    if (!isBillingRecordForPayload(updatedRecord)) {
-      throw new NotFoundError('BillingRecord', billingRecord.id);
-    }
-
-    // Publish event
     const payload: BillingRecordCreatedPayload = billingRecordCreatedPayloadSchema.parse({
-      billingRecordId: updatedRecord.id,
-      roomId: updatedRecord.roomId,
-      roomNumber: updatedRecord.room?.roomNumber || '',
-      year: updatedRecord.year,
-      month: updatedRecord.month,
+      billingRecordId: roomBilling.id,
+      roomNo: roomBilling.roomNo,
+      year: input.year,
+      month: input.month,
       createdBy,
     });
 
     await this.eventBus.publish(
       EventTypes.BILLING_RECORD_CREATED,
-      'BillingRecord',
-      updatedRecord!.id,
+      'RoomBilling',
+      roomBilling.id,
       payload as unknown as Record<string, unknown>,
       { userId: createdBy }
     );
 
-    return this.formatBillingRecordResponse(updatedRecord);
+    return this.formatRoomBillingResponse(roomBilling, period);
   }
 
   /**
-   * Import billing rows in batch with transaction per room-month
+   * Import billing data from a parsed workbook.
+   * year + month must be provided because they are not stored in the Excel sheets.
+   * Each RoomBillingRow maps directly to one RoomBilling record.
+   * Existing DRAFT records are overwritten; LOCKED/INVOICED records are skipped.
    */
   async importBillingRows(
-    rows: BillingImportRow[],
+    workbook: WorkbookParseResult,
+    year: number,
+    month: number,
     importedBy?: string
-  ): Promise<{ created: Array<{ roomNumber: string; year: number; month: number; billingRecordId: string }> }> {
-    const grouped = new Map<string, BillingImportRow[]>();
-    for (const r of rows) {
-      const key = `${r.roomNumber}:${r.year}:${r.month}`;
-      const arr = grouped.get(key) || [];
-      arr.push(r);
-      grouped.set(key, arr);
+  ): Promise<{
+    created: Array<{ roomNo: string; billingRecordId: string }>;
+    skipped: Array<{ roomNo: string; reason: string }>;
+    errors: Array<{ roomNo: string; error: string }>;
+  }> {
+    const allRows = workbook.floors.flatMap((f) => f.rows);
+
+    // Get or create billing period
+    let period = await prisma.billingPeriod.findUnique({
+      where: { year_month: { year, month } },
+    });
+    if (!period) {
+      period = await prisma.billingPeriod.create({
+        data: { id: uuidv4(), year, month, status: 'OPEN', dueDay: 25 },
+      });
     }
 
-    const typeCodes = Array.from(new Set(rows.map((r) => r.typeCode)));
-    const itemTypes = await prisma.billingItemType.findMany({
-      where: { code: { in: typeCodes } },
-    });
-    const typeMap = new Map(itemTypes.map((t) => [t.code, t]));
+    const created: Array<{ roomNo: string; billingRecordId: string }> = [];
+    const skipped: Array<{ roomNo: string; reason: string }> = [];
+    const errors: Array<{ roomNo: string; error: string }> = [];
 
-    const config = await this.getBillingConfig();
-
-    const results: Array<{ roomNumber: string; year: number; month: number; billingRecordId: string }> = [];
-
-    const entries = Array.from(grouped.entries());
-    for (const [key, groupRows] of entries) {
-      const [roomNumber, y, m] = key.split(':');
-      const year = Number(y);
-      const month = Number(m);
-
-      const room = await prisma.room.findFirst({ where: { roomNumber } });
-      if (!room) {
-        throw new NotFoundError('Room', roomNumber);
-      }
-
-      const existing = await prisma.billingRecord.findUnique({
-        where: { roomId_year_month: { roomId: room.id, year, month } },
-      });
-      if (existing) {
-        throw new ConflictError(`Billing record already exists for ${roomNumber} ${year}-${month}`);
-      }
-
-      const createdId = await prisma.$transaction(async (tx) => {
-        const rec = await tx.billingRecord.create({
-          data: {
-            id: uuidv4(),
-            roomId: room.id,
-            year,
-            month,
-            billingDay: config.billingDay,
-            dueDay: config.dueDay,
-            overdueDay: config.overdueDay,
-            status: 'DRAFT',
-            subtotal: 0,
-          },
-          include: { room: true },
-        });
-
-        let subtotal = 0;
-        for (const r of groupRows) {
-          const t = typeMap.get(r.typeCode);
-          if (!t) {
-            throw new NotFoundError('BillingItemType', r.typeCode);
-          }
-          if (!isBillingItemType(t)) {
-            throw new BadRequestError('Invalid billing item type');
-          }
-          const amount = r.quantity * r.unitPrice;
-          await tx.billingItem.create({
-            data: {
-              id: uuidv4(),
-              billingRecordId: rec.id,
-              itemTypeId: t.id,
-              description: r.description || t.description,
-              quantity: r.quantity,
-              unitPrice: r.unitPrice,
-              amount,
-              isEditable: !t.isRecurring || r.typeCode === 'OTHER',
-            },
-          });
-          subtotal += amount;
+    for (const row of allRows) {
+      const { roomNo } = row;
+      try {
+        // Check room exists
+        const room = await prisma.room.findUnique({ where: { roomNo } });
+        if (!room) {
+          skipped.push({ roomNo, reason: 'Room not found in database' });
+          continue;
         }
 
-        await tx.billingRecord.update({
-          where: { id: rec.id },
-          data: { subtotal },
+        // Check for existing RoomBilling
+        const existing = await prisma.roomBilling.findUnique({
+          where: { billingPeriodId_roomNo: { billingPeriodId: period!.id, roomNo } },
+        });
+        if (existing) {
+          if (existing.status !== 'DRAFT') {
+            skipped.push({ roomNo, reason: `Already ${existing.status}` });
+            continue;
+          }
+          // Overwrite DRAFT record
+          await prisma.roomBilling.update({
+            where: { id: existing.id },
+            data: {
+              recvAccountOverrideId: row.recvAccountOverrideId,
+              recvAccountId: row.recvAccountOverrideId ?? room.defaultAccountId,
+              ruleOverrideCode: row.ruleOverrideCode,
+              ruleCode: row.ruleOverrideCode ?? room.defaultRuleCode,
+              rentAmount: row.rentAmount,
+              waterMode: row.waterMode,
+              waterPrev: row.waterPrev,
+              waterCurr: row.waterCurr,
+              waterUnitsManual: row.waterUnitsManual,
+              waterUnits: row.waterUnits,
+              waterUsageCharge: row.waterUsageCharge,
+              waterServiceFeeManual: row.waterServiceFeeManual,
+              waterServiceFee: row.waterServiceFee,
+              waterTotal: row.waterTotal,
+              electricMode: row.electricMode,
+              electricPrev: row.electricPrev,
+              electricCurr: row.electricCurr,
+              electricUnitsManual: row.electricUnitsManual,
+              electricUnits: row.electricUnits,
+              electricUsageCharge: row.electricUsageCharge,
+              electricServiceFeeManual: row.electricServiceFeeManual,
+              electricServiceFee: row.electricServiceFee,
+              electricTotal: row.electricTotal,
+              furnitureFee: row.furnitureFee,
+              otherFee: row.otherFee,
+              totalDue: row.totalDue,
+              note: row.note,
+              checkNotes: row.checkNotes,
+            },
+          });
+          created.push({ roomNo, billingRecordId: existing.id });
+          continue;
+        }
+
+        // Create new RoomBilling
+        const rb = await prisma.$transaction(async (tx) => {
+          const roomBilling = await tx.roomBilling.create({
+            data: {
+              id: uuidv4(),
+              billingPeriodId: period!.id,
+              roomNo,
+              recvAccountOverrideId: row.recvAccountOverrideId,
+              recvAccountId: row.recvAccountOverrideId ?? room.defaultAccountId,
+              ruleOverrideCode: row.ruleOverrideCode,
+              ruleCode: row.ruleOverrideCode ?? room.defaultRuleCode,
+              rentAmount: row.rentAmount,
+              waterMode: row.waterMode,
+              waterPrev: row.waterPrev,
+              waterCurr: row.waterCurr,
+              waterUnitsManual: row.waterUnitsManual,
+              waterUnits: row.waterUnits,
+              waterUsageCharge: row.waterUsageCharge,
+              waterServiceFeeManual: row.waterServiceFeeManual,
+              waterServiceFee: row.waterServiceFee,
+              waterTotal: row.waterTotal,
+              electricMode: row.electricMode,
+              electricPrev: row.electricPrev,
+              electricCurr: row.electricCurr,
+              electricUnitsManual: row.electricUnitsManual,
+              electricUnits: row.electricUnits,
+              electricUsageCharge: row.electricUsageCharge,
+              electricServiceFeeManual: row.electricServiceFeeManual,
+              electricServiceFee: row.electricServiceFee,
+              electricTotal: row.electricTotal,
+              furnitureFee: row.furnitureFee,
+              otherFee: row.otherFee,
+              totalDue: row.totalDue,
+              note: row.note,
+              checkNotes: row.checkNotes,
+              status: 'DRAFT',
+            },
+          });
+          await tx.outboxEvent.create({
+            data: {
+              id: uuidv4(),
+              aggregateType: 'RoomBilling',
+              aggregateId: roomBilling.id,
+              eventType: EventTypes.BILLING_RECORD_CREATED,
+              payload: {
+                billingRecordId: roomBilling.id,
+                roomNo,
+                year,
+                month,
+                importedBy,
+              } as unknown as Json,
+              retryCount: 0,
+            },
+          });
+          return roomBilling;
         });
 
-        const validatedPayload = billingRecordCreatedPayloadSchema.parse({
-          billingRecordId: rec.id,
-          roomId: rec.roomId,
-          roomNumber: rec.room?.roomNumber || '',
-          year: rec.year,
-          month: rec.month,
-          createdBy: importedBy,
-        });
-        await tx.outboxEvent.create({
-          data: {
-            id: uuidv4(),
-            aggregateType: 'BillingRecord',
-            aggregateId: rec.id,
-            eventType: EventTypes.BILLING_RECORD_CREATED,
-            payload: validatedPayload as unknown as Json,
-            retryCount: 0,
-          },
-        });
-
-        return rec.id;
-      });
-
-      results.push({ roomNumber, year, month, billingRecordId: createdId });
+        created.push({ roomNo, billingRecordId: rb.id });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push({ roomNo, error: msg });
+        logger.error({ type: 'billing_import_row_error', roomNo, error: msg });
+      }
     }
 
-    return { created: results };
+    logger.info({ type: 'billing_import_done', year, month, created: created.length, skipped: skipped.length, errors: errors.length });
+    return { created, skipped, errors };
   }
 
   /**
-   * Import billing rows with cycle and batch tracking
+   * Import billing rows with batch tracking (stub)
    */
   async importBillingRowsWithBatch(
-    rows: BillingImportRow[],
-    batchId: string,
-    billingCycleId: string,
-    importedBy?: string
-  ): Promise<{ created: Array<{ roomNumber: string; year: number; month: number; billingRecordId: string }> }> {
-    const grouped = new Map<string, BillingImportRow[]>();
-    for (const r of rows) {
-      const key = `${r.roomNumber}:${r.year}:${r.month}`;
-      const arr = grouped.get(key) || [];
-      arr.push(r);
-      grouped.set(key, arr);
-    }
-
-    const typeCodes = Array.from(new Set(rows.map((r) => r.typeCode)));
-    const itemTypes = await prisma.billingItemType.findMany({
-      where: { code: { in: typeCodes } },
-    });
-    const typeMap = new Map(itemTypes.map((t) => [t.code, t]));
-    const config = await this.getBillingConfig();
-    const results: Array<{ roomNumber: string; year: number; month: number; billingRecordId: string }> = [];
-
-    const entries = Array.from(grouped.entries());
-    for (const [key, groupRows] of entries) {
-      const [roomNumber, y, m] = key.split(':');
-      const year = Number(y);
-      const month = Number(m);
-
-      const room = await prisma.room.findFirst({
-        where: { roomNumber },
-        include: { floor: true },
-      });
-      if (!room) continue; // skip unmatched rooms (already staged as ERROR)
-
-      const contract = await prisma.contract.findFirst({
-        where: { roomId: room.id, status: 'ACTIVE' },
-      });
-
-      const existing = await prisma.billingRecord.findUnique({
-        where: { roomId_year_month: { roomId: room.id, year, month } },
-      });
-      if (existing) continue; // skip already-imported
-
-      const createdId = await prisma.$transaction(async (tx) => {
-        const rec = await tx.billingRecord.create({
-          data: {
-            id: uuidv4(),
-            roomId: room.id,
-            year,
-            month,
-            billingDay: config.billingDay,
-            dueDay: config.dueDay,
-            overdueDay: config.overdueDay,
-            status: 'DRAFT',
-            subtotal: 0,
-            billingCycleId,
-            contractId: contract?.id ?? null,
-            importBatchId: batchId,
-            roomStatusSnapshot: room.status,
-            tenantSnapshotJson: contract ? { contractId: contract.id, monthlyRent: Number(contract.monthlyRent) } : null,
-          },
-          include: { room: true },
-        });
-
-        let subtotal = 0;
-        let sortOrder = 1;
-        for (const r of groupRows) {
-          const t = typeMap.get(r.typeCode);
-          if (!t) continue;
-          if (!isBillingItemType(t)) continue;
-          const amount = r.quantity * r.unitPrice;
-          await tx.billingItem.create({
-            data: {
-              id: uuidv4(),
-              billingRecordId: rec.id,
-              itemTypeId: t.id,
-              description: r.description || t.description,
-              quantity: r.quantity,
-              unitPrice: r.unitPrice,
-              amount,
-              isEditable: !t.isRecurring || r.typeCode === 'OTHER',
-              code: r.typeCode,
-              sortOrder: sortOrder++,
-              sourceType: 'IMPORT',
-              sourceRef: batchId,
-            },
-          });
-          subtotal += amount;
-        }
-
-        await tx.billingRecord.update({
-          where: { id: rec.id },
-          data: { subtotal, total: subtotal },
-        });
-
-        const validatedPayload = billingRecordCreatedPayloadSchema.parse({
-          billingRecordId: rec.id,
-          roomId: rec.roomId,
-          roomNumber: rec.room?.roomNumber || '',
-          year: rec.year,
-          month: rec.month,
-          createdBy: importedBy,
-        });
-        await tx.outboxEvent.create({
-          data: {
-            id: uuidv4(),
-            aggregateType: 'BillingRecord',
-            aggregateId: rec.id,
-            eventType: EventTypes.BILLING_RECORD_CREATED,
-            payload: validatedPayload as unknown as Json,
-            retryCount: 0,
-          },
-        });
-
-        // Link import row to billing record
-        await tx.billingImportRow.updateMany({
-          where: { batchId, matchedRoomId: room.id, validationStatus: 'VALID' },
-          data: { importedBillingRecordId: rec.id },
-        });
-
-        return rec.id;
-      });
-
-      results.push({ roomNumber, year, month, billingRecordId: createdId });
-    }
-
-    return { created: results };
+    _workbook: WorkbookParseResult,
+    _batchId: string,
+    _billingPeriodId: string,
+    _importedBy?: string
+  ): Promise<{ created: Array<{ roomNo: string; billingRecordId: string }> }> {
+    // TODO: implement full ImportBatch flow for BillingPeriod/RoomBilling
+    logger.warn({ type: 'billing_import_rows_with_batch_stub', message: 'importBillingRowsWithBatch is a stub' });
+    return { created: [] };
   }
 
   /**
-   * Recalculate billing total
-   */
-  private async recalculateTotal(billingRecordId: string): Promise<void> {
-    const result = await prisma.billingItem.aggregate({
-      where: { billingRecordId },
-      _sum: { amount: true },
-    });
-
-    await prisma.billingRecord.update({
-      where: { id: billingRecordId },
-      data: { subtotal: result._sum.amount || 0 },
-    });
-  }
-
-  /**
-   * Add billing item to a record
+   * Add billing item — not applicable in new schema (items are fields on RoomBilling).
+   * Kept for API compatibility; throws BadRequestError.
    */
   async addBillingItem(
-    billingRecordId: string,
-    input: AddBillingItemInput,
-    addedBy?: string
+    _billingRecordId: string,
+    _input: AddBillingItemInput,
+    _addedBy?: string
   ): Promise<BillingItemResponse> {
-    // Check if billing record exists
-    const billingRecord = await prisma.billingRecord.findUnique({
-      where: { id: billingRecordId },
-      include: { items: { include: { itemType: true } } },
-    });
-
-    if (!billingRecord) {
-      throw new NotFoundError('BillingRecord', billingRecordId);
-    }
-
-    // Business rule: Cannot modify LOCKED billing
-    if (billingRecord.status === 'LOCKED') {
-      throw new BadRequestError('Cannot modify locked billing record');
-    }
-
-    // Get billing item type
-    const itemType = await prisma.billingItemType.findUnique({
-      where: { code: input.typeCode },
-    });
-
-    if (!itemType) {
-      throw new NotFoundError('BillingItemType', input.typeCode);
-    }
-
-    // Check if recurring item already exists (only one allowed per type)
-    const existingItem = billingRecord.items.find(
-      (item) => item.itemType.code === input.typeCode && itemType.isRecurring
-    );
-
-    if (existingItem && itemType.isRecurring) {
-      throw new ConflictError(`Recurring item ${input.typeCode} already exists in this billing record`);
-    }
-
-    // Calculate amount
-    const quantity = Number(input.quantity ?? 1);
-    const unitPrice = Number(input.unitPrice ?? itemType.defaultAmount ?? 0);
-    const total = quantity * unitPrice;
-
-    // Create billing item
-    const item = await prisma.billingItem.create({
-      data: {
-        id: uuidv4(),
-        billingRecordId,
-        itemTypeId: itemType.id,
-        description: input.description || itemType.description,
-        quantity,
-        unitPrice,
-        amount: total,
-        isEditable: !itemType.isRecurring || input.typeCode === 'OTHER',
-      },
-      include: { itemType: true },
-    });
-
-    // Recalculate total
-    await this.recalculateTotal(billingRecordId);
-
-    // Publish event
-    const payload: BillingItemAddedPayload = billingItemAddedPayloadSchema.parse({
-      billingRecordId,
-      itemId: item.id,
-      typeCode: itemType.code,
-      typeName: itemType.name,
-      quantity: Number(item.quantity),
-      unitPrice: Number(item.unitPrice),
-      total: Number(item.amount),
-      addedBy,
-    });
-
-    await this.eventBus.publish(
-      EventTypes.BILLING_ITEM_ADDED,
-      'BillingRecord',
-      billingRecordId,
-      payload as unknown as Record<string, unknown>,
-      { userId: addedBy }
-    );
-
-    return this.formatBillingItemResponse(item);
+    throw new BadRequestError('addBillingItem is not supported in the new billing schema. Update RoomBilling fields directly.');
   }
 
   /**
-   * Update billing item
+   * Update billing item — not applicable in new schema.
    */
   async updateBillingItem(
-    itemId: string,
-    input: UpdateBillingItemInput,
-    updatedBy?: string
+    _itemId: string,
+    _input: UpdateBillingItemInput,
+    _updatedBy?: string
   ): Promise<BillingItemResponse> {
-    const item = await prisma.billingItem.findUnique({
-      where: { id: itemId },
-      include: {
-        billingRecord: true,
-        itemType: true,
-      },
-    });
-
-    if (!item) {
-      throw new NotFoundError('BillingItem', itemId);
-    }
-
-    if (item.billingRecord.status === 'LOCKED') {
-      throw new BadRequestError('Cannot modify locked billing record');
-    }
-
-    if (!item.isEditable) {
-      throw new BadRequestError(`Item ${item.itemType.code} is not editable`);
-    }
-
-    const changes: Record<string, { old: unknown; new: unknown }> = {};
-
-    const nextDescription =
-      input.description !== undefined ? input.description : item.description;
-    const nextQuantity =
-      input.quantity !== undefined ? input.quantity : Number(item.quantity);
-    const nextUnitPrice =
-      input.unitPrice !== undefined ? input.unitPrice : Number(item.unitPrice);
-    const nextAmount = nextQuantity * nextUnitPrice;
-
-    if (input.description !== undefined && input.description !== item.description) {
-      changes.description = { old: item.description, new: input.description };
-    }
-    if (input.quantity !== undefined && input.quantity !== Number(item.quantity)) {
-      changes.quantity = { old: Number(item.quantity), new: input.quantity };
-    }
-    if (input.unitPrice !== undefined && input.unitPrice !== Number(item.unitPrice)) {
-      changes.unitPrice = { old: Number(item.unitPrice), new: input.unitPrice };
-    }
-    if ((input.quantity !== undefined || input.unitPrice !== undefined) && nextAmount !== Number(item.amount)) {
-      changes.amount = { old: Number(item.amount), new: nextAmount };
-    }
-
-    const updated = await prisma.billingItem.update({
-      where: { id: itemId },
-      data: {
-        description: nextDescription,
-        quantity: nextQuantity,
-        unitPrice: nextUnitPrice,
-        amount: nextAmount,
-      },
-      include: { itemType: true },
-    });
-
-    await this.recalculateTotal(item.billingRecordId);
-
-    if (Object.keys(changes).length > 0) {
-      const payload: BillingItemUpdatedPayload = billingItemUpdatedPayloadSchema.parse({
-        billingRecordId: item.billingRecordId,
-        itemId: item.id,
-        typeCode: item.itemType.code,
-        changes,
-        updatedBy,
-      });
-
-      await this.eventBus.publish(
-        EventTypes.BILLING_ITEM_UPDATED,
-        'BillingRecord',
-        item.billingRecordId,
-        payload as unknown as Record<string, unknown>,
-        { userId: updatedBy }
-      );
-    }
-
-    return this.formatBillingItemResponse(updated);
+    throw new BadRequestError('updateBillingItem is not supported in the new billing schema. Update RoomBilling fields directly.');
   }
 
   /**
-   * Remove billing item
+   * Remove billing item — not applicable in new schema.
    */
   async removeBillingItem(
-    itemId: string,
-    removedBy?: string
+    _itemId: string,
+    _removedBy?: string
   ): Promise<void> {
-    const item = await prisma.billingItem.findUnique({
-      where: { id: itemId },
-      include: {
-        billingRecord: true,
-        itemType: true,
-      },
-    });
-
-    if (!item) {
-      throw new NotFoundError('BillingItem', itemId);
-    }
-
-    // Business rule: Cannot modify LOCKED billing
-    if (item.billingRecord.status === 'LOCKED') {
-      throw new BadRequestError('Cannot modify locked billing record');
-    }
-
-    // Business rule: Cannot remove non-editable items (except OTHER type)
-    if (!item.isEditable && item.itemType.code !== 'OTHER') {
-      throw new BadRequestError(`Item ${item.itemType.code} cannot be removed`);
-    }
-
-    await prisma.billingItem.delete({ where: { id: itemId } });
-
-    // Recalculate total
-    await this.recalculateTotal(item.billingRecordId);
-
-    // Publish event
-    const payload: BillingItemRemovedPayload = billingItemRemovedPayloadSchema.parse({
-      billingRecordId: item.billingRecordId,
-      itemId: item.id,
-      typeCode: item.itemType.code,
-      removedBy,
-    });
-
-    await this.eventBus.publish(
-      EventTypes.BILLING_ITEM_REMOVED,
-      'BillingRecord',
-      item.billingRecordId,
-      payload as unknown as Record<string, unknown>,
-      { userId: removedBy }
-    );
+    throw new BadRequestError('removeBillingItem is not supported in the new billing schema. Update RoomBilling fields directly.');
   }
 
   /**
-   * Lock billing record and trigger invoice generation
+   * Lock a RoomBilling record and trigger invoice generation
    */
   async lockBillingRecord(
     billingRecordId: string,
     input: LockBillingInput,
     lockedBy?: string
   ): Promise<BillingRecordResponse> {
-    const billingRecord = await prisma.billingRecord.findUnique({
-      where: { id: billingRecordId },
-      include: {
-        room: true,
-        items: { include: { itemType: true } },
-      },
-    });
+    const lockTimestamp = new Date();
 
-    if (!billingRecord) {
-      throw new NotFoundError('BillingRecord', billingRecordId);
-    }
+    const updated = await prisma.$transaction(async (tx) => {
+      const roomBilling = await tx.roomBilling.findUnique({
+        where: { id: billingRecordId },
+        include: { billingPeriod: true },
+      });
 
-    if (billingRecord.status === 'LOCKED' && !input.force) {
-      throw new BadRequestError('Billing record is already locked');
-    }
+      if (!roomBilling) {
+        throw new NotFoundError('RoomBilling', billingRecordId);
+      }
 
-    if (billingRecord.status === 'INVOICED' && !input.force) {
-      throw new BadRequestError('Billing record is already invoiced');
-    }
+      if (roomBilling.status === 'LOCKED' && !input.force) {
+        throw new BadRequestError('Billing record is already locked');
+      }
 
-    // Check if has items
-    if (billingRecord.items.length === 0) {
-      throw new BadRequestError('Cannot lock empty billing record');
-    }
+      if (roomBilling.status === 'INVOICED' && !input.force) {
+        throw new BadRequestError('Billing record is already invoiced');
+      }
 
-    // Update status
-    const updated = await prisma.billingRecord.update({
-      where: { id: billingRecordId },
-      data: {
-        status: 'LOCKED',
-        lockedAt: new Date(),
+      if (input.force) {
+        await tx.roomBilling.update({
+          where: { id: billingRecordId },
+          data: { status: 'LOCKED' },
+        });
+      } else {
+        const lockResult = await tx.roomBilling.updateMany({
+          where: { id: billingRecordId, status: roomBilling.status },
+          data: { status: 'LOCKED' },
+        });
+        if (lockResult.count !== 1) {
+          throw new ConflictError('Billing record lock state changed. Refresh and retry.');
+        }
+      }
+
+      const locked = await tx.roomBilling.findUnique({
+        where: { id: billingRecordId },
+        include: { billingPeriod: true },
+      });
+
+      if (!locked) {
+        throw new NotFoundError('RoomBilling', billingRecordId);
+      }
+
+      const lockedPayload: BillingLockedPayload = billingLockedPayloadSchema.parse({
+        billingRecordId: locked.id,
+        roomNo: locked.roomNo,
+        year: locked.billingPeriod.year,
+        month: locked.billingPeriod.month,
+        totalAmount: Number(locked.totalDue),
         lockedBy,
-      },
-      include: {
-        room: true,
-        items: { include: { itemType: true } },
-      },
+      });
+
+      const invoicePayload: InvoiceGenerationRequestedPayload = invoiceGenerationRequestedPayloadSchema.parse({
+        billingRecordId: locked.id,
+        roomNo: locked.roomNo,
+        year: locked.billingPeriod.year,
+        month: locked.billingPeriod.month,
+        totalAmount: Number(locked.totalDue),
+        requestedBy: lockedBy,
+      });
+
+      await tx.outboxEvent.createMany({
+        data: [
+          {
+            id: uuidv4(),
+            aggregateType: 'RoomBilling',
+            aggregateId: locked.id,
+            eventType: EventTypes.BILLING_LOCKED,
+            payload: lockedPayload as unknown as Json,
+            retryCount: 0,
+          },
+          {
+            id: uuidv4(),
+            aggregateType: 'RoomBilling',
+            aggregateId: locked.id,
+            eventType: EventTypes.INVOICE_GENERATION_REQUESTED,
+            payload: invoicePayload as unknown as Json,
+            retryCount: 0,
+          },
+        ],
+      });
+
+      return locked;
     });
 
-    // Publish BillingLocked event
-    const lockedPayload: BillingLockedPayload = billingLockedPayloadSchema.parse({
-      billingRecordId: updated.id,
-      roomId: updated.roomId,
-      roomNumber: updated.room?.roomNumber || '',
-      year: updated.year,
-      month: updated.month,
-      totalAmount: Number(updated.subtotal),
-      lockedBy,
+    const period = await prisma.billingPeriod.findUnique({
+      where: { id: updated.billingPeriodId },
     });
 
-    await this.eventBus.publish(
-      EventTypes.BILLING_LOCKED,
-      'BillingRecord',
-      updated.id,
-      lockedPayload as unknown as Record<string, unknown>,
-      { userId: lockedBy }
-    );
-
-    // Publish InvoiceGenerationRequested event
-    const invoicePayload: InvoiceGenerationRequestedPayload = invoiceGenerationRequestedPayloadSchema.parse({
-      billingRecordId: updated.id,
-      roomId: updated.roomId,
-      roomNumber: updated.room?.roomNumber || '',
-      year: updated.year,
-      month: updated.month,
-      totalAmount: Number(updated.subtotal),
-      requestedBy: lockedBy,
-    });
-
-    await this.eventBus.publish(
-      EventTypes.INVOICE_GENERATION_REQUESTED,
-      'BillingRecord',
-      updated.id,
-      invoicePayload as unknown as Record<string, unknown>,
-      { userId: lockedBy }
-    );
-
-    return this.formatBillingRecordResponse(updated);
+    return this.formatRoomBillingResponse(updated, period!);
   }
 
   /**
-   * List billing records with filtering
+   * List billing records (RoomBillings) with filtering
    */
   async listBillingRecords(
     query: ListBillingRecordsQuery
   ): Promise<BillingRecordsListResponse> {
-    const { roomId, billingCycleId, year, month, status, page, pageSize, sortBy, sortOrder } = query;
+    const { roomNo, billingPeriodId, year, month, status, page, pageSize, sortBy, sortOrder } = query;
 
     const where: Record<string, unknown> = {};
 
-    if (roomId) where.roomId = roomId;
-    if (billingCycleId) where.billingCycleId = billingCycleId;
-    if (year) where.year = year;
-    if (month) where.month = month;
+    if (roomNo) where.roomNo = roomNo;
+    if (billingPeriodId) where.billingPeriodId = billingPeriodId;
     if (status) where.status = status;
+    if (year || month) {
+      where.billingPeriod = {};
+      if (year) (where.billingPeriod as Record<string, unknown>).year = year;
+      if (month) (where.billingPeriod as Record<string, unknown>).month = month;
+    }
 
-    const total = await prisma.billingRecord.count({ where });
+    // Map sort fields
+    const SORT_FIELD_MAP: Record<string, string> = {
+      totalAmount: 'totalDue',
+    };
+    const prismaOrderField = SORT_FIELD_MAP[sortBy] ?? sortBy;
 
-    const records = await prisma.billingRecord.findMany({
+    const total = await prisma.roomBilling.count({ where });
+
+    const records = await prisma.roomBilling.findMany({
       where,
-      include: {
-        room: true,
-        items: {
-          include: { itemType: true },
-        },
-      },
-      orderBy: { [sortBy]: sortOrder },
+      include: { billingPeriod: true },
+      orderBy: { [prismaOrderField]: sortOrder },
       skip: (page - 1) * pageSize,
       take: pageSize,
     });
 
     return {
-      data: await Promise.all(records.map(async (r) => {
-        const contract = await prisma.contract.findFirst({
-          where: { roomId: r.roomId, status: 'ACTIVE' },
-        });
-        return this.formatBillingRecordResponse(r, contract);
-      })),
+      data: records.map((r) => this.formatRoomBillingResponse(r, r.billingPeriod)),
       total,
       page,
       pageSize,
@@ -837,106 +489,52 @@ export class BillingService {
    * Get billing record by ID
    */
   async getBillingRecord(id: string): Promise<BillingRecordResponse> {
-    const record = await prisma.billingRecord.findUnique({
+    const record = await prisma.roomBilling.findUnique({
       where: { id },
-      include: {
-        room: true,
-        items: {
-          include: { itemType: true },
-        },
-      },
+      include: { billingPeriod: true },
     });
 
     if (!record) {
-      throw new NotFoundError('BillingRecord', id);
+      throw new NotFoundError('RoomBilling', id);
     }
 
-    const contract = await prisma.contract.findFirst({
-      where: { roomId: record.roomId, status: 'ACTIVE' },
-    });
-
-    return this.formatBillingRecordResponse(record, contract);
+    return this.formatRoomBillingResponse(record, record.billingPeriod);
   }
 
   /**
-   * Get billing config from config table
+   * Format RoomBilling for response (compatible with old BillingRecordResponse shape)
    */
-  private async getBillingConfig(): Promise<{
-    billingDay: number;
-    dueDay: number;
-    overdueDay: number;
-  }> {
-    const configs = await prisma.config.findMany({
-      where: {
-        key: { in: ['billing.billingDay', 'billing.dueDay', 'billing.overdueDay'] },
-      },
-    });
-
-    const getValue = (key: string, defaultValue: number): number => {
-      const config = configs.find((c) => c.key === key);
-      return config ? Number(config.value) : defaultValue;
-    };
-
-    return {
-      billingDay: getValue('billing.billingDay', 1),
-      dueDay: getValue('billing.dueDay', 5),
-      overdueDay: getValue('billing.overdueDay', 15),
-    };
-  }
-
-  /**
-   * Format billing record for response
-   */
-  private async formatBillingRecordResponse(
+  private formatRoomBillingResponse(
     record: {
       id: string;
-      roomId: string;
-      year: number;
-      month: number;
+      roomNo: string;
+      billingPeriodId: string;
+      rentAmount: unknown;
+      totalDue: unknown;
       status: string;
-      subtotal: unknown;
-      lockedAt: Date | null;
-      lockedBy: string | null;
       createdAt: Date;
       updatedAt: Date;
-      room?: { id: string; roomNumber: string; floorId: string };
-      items: Array<{
-        id: string;
-        billingRecordId: string;
-        description: string | null;
-        quantity: unknown;
-        unitPrice: unknown;
-        amount: unknown;
-        createdAt: Date;
-        updatedAt: Date;
-        itemType: { code: string; name: string; description: string | null; isRecurring: boolean };
-      }>;
     },
-    contract?: { id: string; monthlyRent: unknown } | null
-  ): Promise<BillingRecordResponse> {
+    period: {
+      year: number;
+      month: number;
+      dueDay: number;
+    }
+  ): BillingRecordResponse {
     return {
       id: record.id,
-      roomId: record.roomId,
-      year: record.year,
-      month: record.month,
+      roomNo: record.roomNo,
+      billingPeriodId: record.billingPeriodId,
+      year: period.year,
+      month: period.month,
       status: record.status as BillingStatus,
-      subtotal: Number(record.subtotal),
-      totalAmount: Number(record.subtotal),
-      lockedAt: record.lockedAt,
-      lockedBy: record.lockedBy,
+      totalAmount: Number(record.totalDue),
+      subtotal: Number(record.totalDue),
+      lockedAt: null,
+      lockedBy: null,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
-      room: record.room
-        ? {
-            id: record.room.id,
-            roomNumber: record.room.roomNumber,
-            floorId: record.room.floorId,
-          }
-        : undefined,
-      items: record.items.map((item) => this.formatBillingItemResponse(item)),
-      contract: contract
-        ? { id: contract.id, rentAmount: Number(contract.monthlyRent) }
-        : undefined,
+      items: [],
     };
   }
 
@@ -944,30 +542,326 @@ export class BillingService {
    * Format billing item for response
    */
   private formatBillingItemResponse(
-    item: {
-      id: string;
-      billingRecordId: string;
-      description: string | null;
-      quantity: unknown;
-      unitPrice: unknown;
-      amount: unknown;
-      createdAt: Date;
-      updatedAt: Date;
-      itemType: { code: string; name: string };
-    }
+    _item: unknown
   ): BillingItemResponse {
-    return {
-      id: item.id,
-      billingRecordId: item.billingRecordId,
-      typeCode: item.itemType.code,
-      typeName: item.itemType.name,
-      description: item.description,
-      quantity: Number(item.quantity),
-      unitPrice: Number(item.unitPrice),
-      total: Number(item.amount),
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-    };
+    throw new BadRequestError('formatBillingItemResponse is not supported in the new billing schema');
+  }
+
+  // ============================================================================
+  // Full workbook import — upserts master data then creates/updates RoomBilling
+  // ============================================================================
+
+  /**
+   * Import a full billing workbook (all sheets):
+   *  1. Upserts BankAccounts from ACCOUNTS sheet
+   *  2. Upserts BillingRules from RULES sheet
+   *  3. Upserts Rooms from ROOM_MASTER sheet
+   *  4. Gets/creates BillingPeriod from CONFIG year/month
+   *  5. Creates ImportBatch (PROCESSING)
+   *  6. For each floor row: computes amounts via BillingCalculator, upserts RoomBilling
+   *  7. Updates ImportBatch to COMPLETED
+   */
+  async importFullWorkbook(
+    buffer: Uint8Array,
+    importedBy?: string
+  ): Promise<{
+    batchId: string;
+    billingPeriodId: string;
+    year: number;
+    month: number;
+    imported: number;
+    skipped: number;
+    errors: number;
+  }> {
+    const parsed: FullWorkbookParseResult = parseFullWorkbook(buffer);
+    const { config, accounts, rules, rooms } = parsed;
+
+    const year = config.billingYear;
+    const month = config.billingMonth;
+
+    // ── 1. Upsert BankAccounts ──────────────────────────────────────────────
+    for (const acc of accounts) {
+      await prisma.bankAccount.upsert({
+        where: { id: acc.accountId },
+        create: {
+          id: acc.accountId,
+          name: acc.accountName,
+          bankName: acc.bankName,
+          bankAccountNo: acc.bankAccountNo,
+          promptpay: acc.promptpay ?? undefined,
+          active: acc.active,
+        },
+        update: {
+          name: acc.accountName,
+          bankName: acc.bankName,
+          bankAccountNo: acc.bankAccountNo,
+          promptpay: acc.promptpay ?? undefined,
+          active: acc.active,
+        },
+      });
+    }
+
+    // ── 2. Upsert BillingRules ──────────────────────────────────────────────
+    for (const rule of rules) {
+      await prisma.billingRule.upsert({
+        where: { code: rule.code },
+        create: {
+          code: rule.code,
+          descriptionTh: rule.descriptionTh,
+          waterEnabled: rule.waterEnabled,
+          waterUnitPrice: rule.waterUnitPrice,
+          waterMinCharge: rule.waterMinCharge,
+          waterServiceFeeMode: rule.waterServiceFeeMode,
+          waterServiceFeeAmount: rule.waterServiceFeeAmount,
+          electricEnabled: rule.electricEnabled,
+          electricUnitPrice: rule.electricUnitPrice,
+          electricMinCharge: rule.electricMinCharge,
+          electricServiceFeeMode: rule.electricServiceFeeMode,
+          electricServiceFeeAmount: rule.electricServiceFeeAmount,
+        },
+        update: {
+          descriptionTh: rule.descriptionTh,
+          waterEnabled: rule.waterEnabled,
+          waterUnitPrice: rule.waterUnitPrice,
+          waterMinCharge: rule.waterMinCharge,
+          waterServiceFeeMode: rule.waterServiceFeeMode,
+          waterServiceFeeAmount: rule.waterServiceFeeAmount,
+          electricEnabled: rule.electricEnabled,
+          electricUnitPrice: rule.electricUnitPrice,
+          electricMinCharge: rule.electricMinCharge,
+          electricServiceFeeMode: rule.electricServiceFeeMode,
+          electricServiceFeeAmount: rule.electricServiceFeeAmount,
+        },
+      });
+    }
+
+    // ── 3. Upsert Rooms ─────────────────────────────────────────────────────
+    for (const rm of rooms) {
+      await prisma.room.upsert({
+        where: { roomNo: rm.roomNo },
+        create: {
+          roomNo: rm.roomNo,
+          floorNo: rm.floorNo,
+          defaultAccountId: rm.defaultAccountId,
+          defaultRuleCode: rm.defaultRuleCode,
+          defaultRentAmount: rm.defaultRentAmount,
+          hasFurniture: rm.hasFurniture,
+          defaultFurnitureAmount: rm.defaultFurnitureAmount,
+          roomStatus: rm.roomStatus,
+        },
+        update: {
+          floorNo: rm.floorNo,
+          defaultAccountId: rm.defaultAccountId,
+          defaultRuleCode: rm.defaultRuleCode,
+          defaultRentAmount: rm.defaultRentAmount,
+          hasFurniture: rm.hasFurniture,
+          defaultFurnitureAmount: rm.defaultFurnitureAmount,
+          roomStatus: rm.roomStatus,
+        },
+      });
+    }
+
+    // ── 4. Get or create BillingPeriod ──────────────────────────────────────
+    let period = await prisma.billingPeriod.findUnique({
+      where: { year_month: { year, month } },
+    });
+    if (!period) {
+      period = await prisma.billingPeriod.create({
+        data: { id: uuidv4(), year, month, status: 'OPEN', dueDay: 25 },
+      });
+    }
+
+    // ── 5. Create ImportBatch (PROCESSING) ──────────────────────────────────
+    const allRows = parsed.floors.flatMap((f) => f.rows);
+    const rowsTotal = allRows.length;
+    const batchId = uuidv4();
+
+    await prisma.importBatch.create({
+      data: {
+        id: batchId,
+        billingPeriodId: period.id,
+        filename: 'apartment_excel_template.xlsx',
+        schemaVersion: config.schemaVersion,
+        rowsTotal,
+        rowsImported: 0,
+        rowsSkipped: 0,
+        rowsErrored: 0,
+        status: 'PROCESSING',
+        importedBy: importedBy ?? 'system',
+      },
+    });
+
+    // Build a Map for O(1) rule lookup
+    const rulesMap = new Map(rules.map((r) => [r.code, r]));
+
+    // Build a Set of known room IDs from ROOM_MASTER for fast existence check
+    const masterRoomSet = new Set(rooms.map((r) => r.roomNo));
+
+    let imported = 0;
+    let skipped = 0;
+    let errors = 0;
+    const errorLog: Array<{ roomNo: string; error: string }> = [];
+
+    // ── 6. Process each floor row ────────────────────────────────────────────
+    for (const row of allRows) {
+      const { roomNo } = row;
+      try {
+        // Verify room exists in ROOM_MASTER or DB
+        if (!masterRoomSet.has(roomNo)) {
+          const dbRoom = await prisma.room.findUnique({ where: { roomNo } });
+          if (!dbRoom) {
+            logger.warn({ type: 'billing_import_room_missing', roomNo });
+            skipped++;
+            continue;
+          }
+        }
+
+        // Determine effective rule
+        const effectiveRuleCode =
+          row.ruleOverrideCode ??
+          rooms.find((r) => r.roomNo === roomNo)?.defaultRuleCode ??
+          '';
+
+        const ruleData = rulesMap.get(effectiveRuleCode);
+        if (!ruleData) {
+          errorLog.push({ roomNo, error: `Rule '${effectiveRuleCode}' not found` });
+          errors++;
+          continue;
+        }
+
+        // Compute billing using BillingCalculator (ignores Excel-computed columns)
+        const computed = computeRoomBilling(
+          {
+            rentAmount: row.rentAmount,
+            waterMode: row.waterMode,
+            waterPrev: row.waterPrev,
+            waterCurr: row.waterCurr,
+            waterUnitsManual: row.waterUnitsManual,
+            waterServiceFeeManual: row.waterServiceFeeManual,
+            electricMode: row.electricMode,
+            electricPrev: row.electricPrev,
+            electricCurr: row.electricCurr,
+            electricUnitsManual: row.electricUnitsManual,
+            electricServiceFeeManual: row.electricServiceFeeManual,
+            furnitureFee: row.furnitureFee,
+            otherFee: row.otherFee,
+          },
+          ruleData
+        );
+
+        const checkNotes = computeCheckNotes(
+          {
+            waterMode: row.waterMode,
+            waterPrev: row.waterPrev,
+            waterCurr: row.waterCurr,
+            waterUnitsManual: row.waterUnitsManual,
+            electricMode: row.electricMode,
+            electricPrev: row.electricPrev,
+            electricCurr: row.electricCurr,
+            electricUnitsManual: row.electricUnitsManual,
+          },
+          computed
+        );
+
+        // Get effective account ID
+        const masterRoom = rooms.find((r) => r.roomNo === roomNo);
+        const effectiveAccountId =
+          row.recvAccountOverrideId ??
+          masterRoom?.defaultAccountId ??
+          '';
+
+        // Upsert RoomBilling — create if not exists, update if DRAFT
+        const existing = await prisma.roomBilling.findUnique({
+          where: { billingPeriodId_roomNo: { billingPeriodId: period!.id, roomNo } },
+        });
+
+        if (existing && existing.status !== 'DRAFT') {
+          skipped++;
+          continue;
+        }
+
+        const billingData = {
+          recvAccountOverrideId: row.recvAccountOverrideId ?? undefined,
+          recvAccountId: effectiveAccountId,
+          ruleOverrideCode: row.ruleOverrideCode ?? undefined,
+          ruleCode: effectiveRuleCode,
+          rentAmount: row.rentAmount,
+          waterMode: row.waterMode,
+          waterPrev: row.waterPrev ?? undefined,
+          waterCurr: row.waterCurr ?? undefined,
+          waterUnitsManual: row.waterUnitsManual ?? undefined,
+          waterUnits: computed.waterUnits,
+          waterUsageCharge: computed.waterUsageCharge,
+          waterServiceFeeManual: row.waterServiceFeeManual ?? undefined,
+          waterServiceFee: computed.waterServiceFee,
+          waterTotal: computed.waterTotal,
+          electricMode: row.electricMode,
+          electricPrev: row.electricPrev ?? undefined,
+          electricCurr: row.electricCurr ?? undefined,
+          electricUnitsManual: row.electricUnitsManual ?? undefined,
+          electricUnits: computed.electricUnits,
+          electricUsageCharge: computed.electricUsageCharge,
+          electricServiceFeeManual: row.electricServiceFeeManual ?? undefined,
+          electricServiceFee: computed.electricServiceFee,
+          electricTotal: computed.electricTotal,
+          furnitureFee: row.furnitureFee,
+          otherFee: row.otherFee,
+          totalDue: computed.totalDue,
+          note: row.note ?? undefined,
+          checkNotes: checkNotes ?? undefined,
+        };
+
+        if (existing) {
+          // Update existing DRAFT
+          await prisma.roomBilling.update({
+            where: { id: existing.id },
+            data: billingData,
+          });
+        } else {
+          // Create new
+          await prisma.roomBilling.create({
+            data: {
+              id: uuidv4(),
+              billingPeriodId: period!.id,
+              roomNo,
+              status: 'DRAFT',
+              ...billingData,
+            },
+          });
+        }
+
+        imported++;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        errorLog.push({ roomNo, error: msg });
+        errors++;
+        logger.error({ type: 'billing_full_import_row_error', roomNo, error: msg });
+      }
+    }
+
+    // ── 7. Update ImportBatch to COMPLETED ───────────────────────────────────
+    await prisma.importBatch.update({
+      where: { id: batchId },
+      data: {
+        status: errors === rowsTotal && rowsTotal > 0 ? 'FAILED' : 'COMPLETED',
+        rowsImported: imported,
+        rowsSkipped: skipped,
+        rowsErrored: errors,
+        errorLog: errorLog.length > 0 ? (errorLog as unknown as import('@prisma/client').Prisma.InputJsonValue) : undefined,
+      },
+    });
+
+    logger.info({
+      type: 'billing_full_import_done',
+      batchId,
+      year,
+      month,
+      imported,
+      skipped,
+      errors,
+    });
+
+    return { batchId, billingPeriodId: period!.id, year, month, imported, skipped, errors };
   }
 }
 

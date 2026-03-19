@@ -49,12 +49,10 @@ export const POST = asyncHandler(async (req: NextRequest, context?: Params): Pro
   }
 
   const room = await prisma.room.findFirst({
-    where: { roomNumber: reg.claimedRoom, isActive: true },
+    where: { roomNo: reg.claimedRoom, roomStatus: 'ACTIVE' },
     select: {
-      id: true,
-      roomNumber: true,
-      maxResidents: true,
-      roomTenants: {
+      roomNo: true,
+      tenants: {
         where: { moveOutDate: null },
         select: { tenantId: true, role: true },
       },
@@ -67,25 +65,18 @@ export const POST = asyncHandler(async (req: NextRequest, context?: Params): Pro
     );
   }
 
-  // ── Validation 3: room capacity ───────────────────────────────────────────
-  if (room.roomTenants.length >= room.maxResidents) {
-    throw new ConflictError(
-      `Room ${room.roomNumber} is full (${room.roomTenants.length}/${room.maxResidents} occupants). Cannot add another tenant.`
-    );
-  }
-
   // ── Validation 4: room must have a primary tenant ─────────────────────────
-  const hasPrimary = room.roomTenants.some((rt) => rt.role === 'PRIMARY');
+  const hasPrimary = room.tenants.some((rt) => rt.role === 'PRIMARY');
   if (!hasPrimary) {
     throw new BadRequestError(
-      `Room ${room.roomNumber} has no primary tenant. Assign a primary tenant to the room before approving a secondary registration.`
+      `Room ${room.roomNo} has no primary tenant. Assign a primary tenant to the room before approving a secondary registration.`
     );
   }
 
   // ── Approval transaction ──────────────────────────────────────────────────
   // Link the lineUserId to the room's primary tenant's record if they don't
   // have a lineUserId yet, otherwise record the resolvedTenantId as the primary.
-  const primaryRoomTenant = room.roomTenants.find((rt) => rt.role === 'PRIMARY');
+  const primaryRoomTenant = room.tenants.find((rt) => rt.role === 'PRIMARY');
 
   const approved = await prisma.$transaction(async (tx) => {
     // If the primary tenant has no LINE account yet, link it now
@@ -106,7 +97,7 @@ export const POST = asyncHandler(async (req: NextRequest, context?: Params): Pro
       where: { id },
       data: {
         status: 'APPROVED',
-        resolvedRoomId: room.id,
+        resolvedRoomNo: room.roomNo,
         resolvedTenantId: primaryRoomTenant?.tenantId ?? null,
         reviewedById: session.sub,
         reviewedAt: new Date(),
@@ -123,7 +114,7 @@ export const POST = asyncHandler(async (req: NextRequest, context?: Params): Pro
     entityId: id,
     metadata: {
       lineUserId: reg.lineUserId,
-      resolvedRoomId: room.id,
+      resolvedRoomNo: room.roomNo,
       resolvedTenantId: primaryRoomTenant?.tenantId,
     },
   });

@@ -12,7 +12,7 @@ export type ContractStatus = z.infer<typeof contractStatusSchema>;
 // ============================================================================
 
 export const createContractSchema = z.object({
-  roomId: z.string().uuid('Invalid room ID'),
+  roomId: z.string().min(1, 'Invalid room number'),
   primaryTenantId: z.string().uuid('Invalid tenant ID'),
   startDate: z.string().date('Invalid start date'),
   endDate: z.string().date('Invalid end date'),
@@ -83,7 +83,7 @@ export type TerminateContractInput = z.infer<typeof terminateContractSchema>;
 // ============================================================================
 
 export const listContractsQuerySchema = z.object({
-  roomId: z.string().uuid().optional(),
+  roomId: z.string().optional(),
   tenantId: z.string().uuid().optional(),
   status: contractStatusSchema.optional(),
   expiringBefore: z.string().date().optional(),
@@ -102,7 +102,7 @@ export type ListContractsQuery = z.infer<typeof listContractsQuerySchema>;
 
 export interface ContractResponse {
   id: string;
-  roomId: string;
+  roomNo: string;
   primaryTenantId: string;
   startDate: Date;
   endDate: Date;
@@ -114,9 +114,7 @@ export interface ContractResponse {
   createdAt: Date;
   updatedAt: Date;
   room?: {
-    id: string;
-    roomNumber: string;
-    floorId: string;
+    roomNo: string;
   };
   primaryTenant?: {
     id: string;
@@ -141,8 +139,7 @@ export interface ContractListResponse {
 
 export interface ContractCreatedPayload {
   contractId: string;
-  roomId: string;
-  roomNumber: string;
+  roomNo: string;
   tenantId: string;
   tenantName: string;
   startDate: string;
@@ -154,8 +151,7 @@ export interface ContractCreatedPayload {
 
 export interface ContractRenewedPayload {
   contractId: string;
-  roomId: string;
-  roomNumber: string;
+  roomNo: string;
   tenantId: string;
   tenantName: string;
   oldEndDate: string;
@@ -167,8 +163,7 @@ export interface ContractRenewedPayload {
 
 export interface ContractTerminatedPayload {
   contractId: string;
-  roomId: string;
-  roomNumber: string;
+  roomNo: string;
   tenantId: string;
   tenantName: string;
   terminationDate: string;
@@ -178,8 +173,7 @@ export interface ContractTerminatedPayload {
 
 export interface ContractExpiredPayload {
   contractId: string;
-  roomId: string;
-  roomNumber: string;
+  roomNo: string;
   tenantId: string;
   tenantName: string;
   endDate: string;

@@ -7,7 +7,6 @@ import {
   Building2,
   ClipboardList,
   CreditCard,
-  FileText,
   Server,
 } from 'lucide-react';
 
@@ -73,15 +72,6 @@ const REPORT_CARDS: ReportCard[] = [
     colorBg: 'bg-indigo-50',
     colorBorder: 'border-indigo-200',
     colorText: 'text-indigo-700',
-  },
-  {
-    title: 'Document Activity',
-    description: 'Invoice and document generation history',
-    icon: <FileText className="h-6 w-6" />,
-    href: '/admin/reports/documents',
-    colorBg: 'bg-amber-50',
-    colorBorder: 'border-amber-200',
-    colorText: 'text-amber-700',
   },
   {
     title: 'Audit Report',

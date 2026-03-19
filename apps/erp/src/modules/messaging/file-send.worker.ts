@@ -86,7 +86,7 @@ export function registerFileSendWorker(options?: { allowInTest?: boolean }): voi
       let conversationId: string | null = null;
 
       if (!targetLineUserId && payload.roomId) {
-        const conversation = await prisma.conversation.findFirst({ where: { roomId: payload.roomId } });
+        const conversation = await prisma.conversation.findFirst({ where: { roomNo: payload.roomId } });
         targetLineUserId = conversation?.lineUserId || null;
         conversationId = conversation?.id || null;
       }

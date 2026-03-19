@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import http from 'http';
 import supertest from 'supertest';
 import { hashPassword } from '@/lib/auth/password';
+import { buildSignedAuthCookie, parseCookieHeader } from '../helpers/auth';
 
 describe('API routes (supertest)', () => {
   let server: http.Server;
@@ -115,34 +116,33 @@ describe('API routes (supertest)', () => {
       })),
     } as any);
 
-    const forbidden = await request
+    const anonymous = await request
       .post('/api/billing/bill-1/lock')
       .send({ force: false })
       .set('Content-Type', 'application/json');
-    expect(forbidden.status).toBe(403);
+    expect(anonymous.status).toBe(401);
+
+    const forged = await request
+      .post('/api/billing/bill-1/lock')
+      .send({ force: false })
+      .set('Content-Type', 'application/json')
+      .set('Cookie', 'role=ADMIN');
+    expect(forged.status).toBe(401);
+
+    const staff = await request
+      .post('/api/billing/bill-1/lock')
+      .send({ force: false })
+      .set('Content-Type', 'application/json')
+      .set('Cookie', buildSignedAuthCookie('STAFF'));
+    expect(staff.status).toBe(403);
 
     const ok = await request
       .post('/api/billing/bill-1/lock')
       .send({ force: false })
       .set('Content-Type', 'application/json')
-      .set('Cookie', 'role=ADMIN');
+      .set('Cookie', buildSignedAuthCookie('ADMIN'));
     expect(ok.status).toBe(200);
     expect(ok.body?.success).toBe(true);
     expect(ok.body?.data?.status).toBe('LOCKED');
   });
 });
-
-function parseCookieHeader(header?: string): Record<string, string> {
-  const result: Record<string, string> = {};
-  if (!header) return result;
-  const parts = header.split(';').map((p) => p.trim());
-  for (const p of parts) {
-    const i = p.indexOf('=');
-    if (i > -1) {
-      const k = p.slice(0, i);
-      const v = p.slice(i + 1);
-      result[k] = v;
-    }
-  }
-  return result;
-}

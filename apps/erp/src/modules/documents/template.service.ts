@@ -97,33 +97,29 @@ async function syncFieldDefinitions(templateId: string, type: DocumentTemplateTy
   const existing = await prisma.documentTemplateFieldDefinition.findMany({
     where: { templateId },
   });
-  const existingByKey = new Map(existing.map((field) => [field.key, field]));
 
   for (const field of catalog) {
-    const current = existingByKey.get(field.key);
-    if (!current) {
-      await prisma.documentTemplateFieldDefinition.create({
-        data: {
-          templateId,
-          key: field.key,
-          label: field.label,
-          category: field.category,
-          valueType: field.valueType,
-          path: field.path,
-          description: field.description,
-          sampleValue: field.sampleValue,
-          isRequired: field.isRequired,
-          isCollection: field.isCollection,
-          sortOrder: field.sortOrder,
-          metadata: (field.metadata ?? Prisma.JsonNull) as Prisma.InputJsonValue,
-        },
-      });
-      continue;
-    }
-
-    await prisma.documentTemplateFieldDefinition.update({
-      where: { id: current.id },
-      data: {
+    // Use upsert so concurrent calls (e.g. React StrictMode double-invoke in dev)
+    // do not race on the @@unique([templateId, key]) constraint causing P2002.
+    await prisma.documentTemplateFieldDefinition.upsert({
+      where: {
+        templateId_key: { templateId, key: field.key },
+      },
+      create: {
+        templateId,
+        key: field.key,
+        label: field.label,
+        category: field.category,
+        valueType: field.valueType,
+        path: field.path,
+        description: field.description,
+        sampleValue: field.sampleValue,
+        isRequired: field.isRequired,
+        isCollection: field.isCollection,
+        sortOrder: field.sortOrder,
+        metadata: (field.metadata ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+      },
+      update: {
         label: field.label,
         category: field.category,
         valueType: field.valueType,

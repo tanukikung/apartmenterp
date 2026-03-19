@@ -33,6 +33,11 @@ export interface AddCommentInput {
   message: string;
 }
 
+interface MaintenanceAuditActor {
+  actorId: string;
+  actorRole: string;
+}
+
 export class MaintenanceService {
   private asMaintenance(client: unknown) {
     type TicketMinimal = {
@@ -57,7 +62,7 @@ export class MaintenanceService {
 
   async createTicket(
     input: CreateMaintenanceTicketInput,
-    actorId: string
+    auditActor: MaintenanceAuditActor
   ) {
     const ticket = await prisma.$transaction(async (tx) => {
       const mtx = this.asMaintenance(tx);
@@ -89,14 +94,15 @@ export class MaintenanceService {
     });
 
     await logAudit({
-      actorId,
-      actorRole: 'TENANT',
+      actorId: auditActor.actorId,
+      actorRole: auditActor.actorRole,
       action: 'MAINTENANCE_TICKET_CREATED',
       entityType: 'MAINTENANCE_TICKET',
       entityId: ticket.id,
       metadata: {
         roomId: ticket.roomId,
         tenantId: ticket.tenantId,
+        submittedTenantId: input.tenantId,
         priority: ticket.priority,
       },
     });

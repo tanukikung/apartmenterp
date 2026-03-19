@@ -17,8 +17,8 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const url = new URL(req.url);
   
   const query = {
-    roomId: url.searchParams.get('roomId') || undefined,
-    billingCycleId: url.searchParams.get('billingCycleId') || undefined,
+    roomNo: url.searchParams.get('roomNo') || undefined,
+    billingPeriodId: url.searchParams.get('billingPeriodId') || undefined,
     year: url.searchParams.get('year') || undefined,
     month: url.searchParams.get('month') || undefined,
     status: url.searchParams.get('status') || undefined,
@@ -54,7 +54,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   logger.info({
     type: 'billing_created_api',
     billingRecordId: record.id,
-    roomId: record.roomId,
+    roomNo: record.roomNo,
     year: record.year,
     month: record.month,
   });

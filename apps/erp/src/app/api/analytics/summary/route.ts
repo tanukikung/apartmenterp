@@ -28,9 +28,9 @@ export const GET = asyncHandler(async (): Promise<NextResponse> => {
       year,
       month,
     },
-    _sum: { total: true },
+    _sum: { totalAmount: true },
   });
-  const monthlyRevenue = Number(revenueAgg._sum.total ?? 0);
+  const monthlyRevenue = Number(revenueAgg._sum.totalAmount ?? 0);
 
   const [unpaidInvoices, paidInvoices, overdueInvoices] = await Promise.all([
     prisma.invoice.count({ where: { status: { in: ['GENERATED', 'SENT', 'VIEWED'] } } }),

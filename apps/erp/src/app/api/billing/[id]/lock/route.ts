@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth/guards';
 import { getBillingService } from '@/modules/billing/billing.service';
 import { lockBillingSchema } from '@/modules/billing/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
@@ -12,16 +13,12 @@ export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
     const { id: billingRecordId } = params;
     const body = await req.json().catch(() => ({}));
-
-    const role = req.cookies.get('role')?.value;
-    if (role !== 'ADMIN') {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
-    }
+    const session = requireRole(req, ['ADMIN']);
 
     const input = lockBillingSchema.parse(body);
 
     const billingService = getBillingService();
-    const record = await billingService.lockBillingRecord(billingRecordId, input);
+    const record = await billingService.lockBillingRecord(billingRecordId, input, session.sub);
 
     logger.info({
       type: 'billing_locked_api',

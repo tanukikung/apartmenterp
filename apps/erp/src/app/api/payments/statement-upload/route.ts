@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { asyncHandler } from '@/lib/utils/errors';
+import { asyncHandler, ValidationError } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
 import { getPaymentMatchingService } from '@/modules/payments/payment-matching.service';
 import { bankStatementParser } from '@/modules/payments/bank-statement-parser';
@@ -38,14 +38,25 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
   const storageKey = `bank-statements/${Date.now()}-${file.name}`;
 
   let entries;
-  if (fileName.endsWith('.csv')) {
-    entries = bankStatementParser.parseCSV(buffer.toString('utf-8'));
-  } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-    entries = bankStatementParser.parseExcel(buffer);
-  } else {
-    return NextResponse.json(
-      { success: false, error: { message: 'Unsupported file format. Accepted: CSV, XLSX.' } },
-      { status: 400 }
+  try {
+    if (fileName.endsWith('.csv')) {
+      entries = bankStatementParser.parseCSV(buffer.toString('utf-8'));
+    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      entries = bankStatementParser.parseExcel(buffer);
+    } else {
+      return NextResponse.json(
+        { success: false, error: { message: 'Unsupported file format. Accepted: CSV, XLSX.' } },
+        { status: 400 }
+      );
+    }
+  } catch (error) {
+    logger.warn({
+      type: 'bank_statement_parse_validation_failed',
+      fileName: file.name,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new ValidationError(
+      'Invalid statement file. Upload a CSV or Excel bank statement with readable date and amount columns.',
     );
   }
 
@@ -74,7 +85,10 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
 
   // Persist transaction rows and attempt auto-matching.
   const service = getPaymentMatchingService();
-  const result = await service.importBankStatement(entries, file.name);
+  const result = await service.importBankStatement(entries, file.name, {
+    actorId: session.sub,
+    actorRole: session.role,
+  });
 
   // Audit log with real actor from session (not hardcoded 'system').
   await logAudit({

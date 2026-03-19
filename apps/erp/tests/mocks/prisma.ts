@@ -8,7 +8,9 @@ function model() {
     findFirst:   vi.fn(),
     findMany:    vi.fn(),
     create:      vi.fn(),
+    createMany:  vi.fn(),
     update:      vi.fn(),
+    updateMany:  vi.fn(),
     delete:      vi.fn(),
     deleteMany:  vi.fn(),
     count:       vi.fn(),
@@ -20,23 +22,31 @@ function model() {
 
 export function mockPrismaClient() {
   const prisma = {
-    // Core billing / invoices
+    // Core billing / invoices (new schema)
     invoice:             model(),
-    invoiceVersion:      model(),
-    invoiceDelivery:     model(),   // ← Phase 3: delivery lifecycle tracking
+    invoiceDelivery:     model(),
+    billingPeriod:       model(),
+    roomBilling:         model(),
+    importBatch:         model(),
+    payment:             model(),
+    outboxEvent:         model(),
+
+    // Legacy model aliases (kept for backward compatibility in tests)
     billingRecord:       model(),
     billingItem:         model(),
-    payment:             model(),
+    billingItemType:     model(),
     paymentTransaction:  model(),
-    outboxEvent:         model(),
+    invoiceVersion:      model(),
 
     // Property
     room:                model(),
+    roomTenant:          model(),
     floor:               model(),
     tenant:              model(),
+    config:              model(),
 
     // Templates
-    documentTemplate:    model(),   // ← Phase 5: template CRUD + audit
+    documentTemplate:    model(),
     documentTemplateVersion: model(),
     documentTemplateFieldDefinition: model(),
     documentGenerationJob: model(),
@@ -58,16 +68,22 @@ export function mockPrismaClient() {
     $transaction: vi.fn(async (fn: (tx: any) => any) => {
       const tx: Record<string, ReturnType<typeof model>> = {
         invoice:            prisma.invoice,
-        invoiceVersion:     prisma.invoiceVersion,
         invoiceDelivery:    prisma.invoiceDelivery,
+        billingPeriod:      prisma.billingPeriod,
+        roomBilling:        prisma.roomBilling,
+        importBatch:        prisma.importBatch,
+        payment:            prisma.payment,
+        outboxEvent:        prisma.outboxEvent,
         billingRecord:      prisma.billingRecord,
         billingItem:        prisma.billingItem,
-        payment:            prisma.payment,
+        billingItemType:    prisma.billingItemType,
         paymentTransaction: prisma.paymentTransaction,
-        outboxEvent:        prisma.outboxEvent,
+        invoiceVersion:     prisma.invoiceVersion,
         room:               prisma.room,
+        roomTenant:         prisma.roomTenant,
         floor:              prisma.floor,
         tenant:             prisma.tenant,
+        config:             prisma.config,
         documentTemplate:   prisma.documentTemplate,
         documentTemplateVersion: prisma.documentTemplateVersion,
         documentTemplateFieldDefinition: prisma.documentTemplateFieldDefinition,

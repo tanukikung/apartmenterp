@@ -33,7 +33,7 @@ describe('Integration: Payment Matching', () => {
       const floor = await roomFactory.createFloor(building.id);
       const room = await roomFactory.createRoom(floor.id, { roomNumber: 'C202' });
 
-      const { id: billingId } = await billingFactory.createBillingRecordForRoom(room.id);
+      const { id: billingId } = await billingFactory.createBillingRecordForRoom((room as any).roomNo ?? (room as any).id);
       await billingFactory.addOtherItem(billingId, 5000, 'Monthly');
 
       const { getBillingService } = billingMod as any;

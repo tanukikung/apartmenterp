@@ -9,13 +9,16 @@ export interface TimingData {
   timestamp: number;
 }
 
-export function withTiming(handler: (req: NextRequest) => Promise<NextResponse>) {
-  return async (req: NextRequest): Promise<NextResponse> => {
+export function withTiming<Args extends [NextRequest, ...unknown[]]>(
+  handler: (...args: Args) => Promise<NextResponse> | NextResponse
+) {
+  return async (...args: Args): Promise<NextResponse> => {
+    const [req] = args;
     const start = performance.now();
     const url = new URL(req.url);
     
     try {
-      const response = await handler(req);
+      const response = await handler(...args);
       const duration = performance.now() - start;
       
       const timingData: TimingData = {

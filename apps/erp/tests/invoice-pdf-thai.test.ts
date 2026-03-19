@@ -23,17 +23,14 @@ vi.mock('fs', async (importOriginal) => {
   };
 });
 
-// Minimal InvoicePreviewResponse fixture
+// Minimal InvoicePreviewResponse fixture — new schema
 const makePreview = (overrides = {}) => ({
   invoiceId: 'inv-001',
-  buildingName: 'อาคาร A',          // Thai: "Building A"
-  roomNumber: '101',
+  roomNo: '101',
   tenantName: 'สมชาย ใจดี',         // Thai: "Somchai Jaidee"
   year: 2024,
   month: 3,
-  version: 1,
   dueDate: '2024-03-31',
-  subtotal: 5000,
   totalAmount: 5500,
   items: [
     {
@@ -80,7 +77,7 @@ describe('generateInvoicePdf — Thai Unicode safety', () => {
 
   it('embeds Thai codepoint U+0E40 (เ) without throwing', async () => {
     const { generateInvoicePdf } = await import('@/modules/invoices/pdf');
-    const preview = makePreview({ buildingName: 'เอ็น คอนโด' }); // starts with เ (U+0E40)
+    const preview = makePreview({ roomNo: 'เอ็น-101' }); // Thai roomNo starts with เ (U+0E40)
     await expect(generateInvoicePdf(preview)).resolves.toBeInstanceOf(Uint8Array);
   });
 

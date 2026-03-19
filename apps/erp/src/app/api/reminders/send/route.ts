@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { getVerifiedActor } from '@/lib/auth/guards';
+import { asyncHandler, ApiResponse, AppError, BadRequestError, NotFoundError } from '@/lib/utils/errors';
 import { getOutboxProcessor } from '@/lib/outbox';
 import type { Json } from '@/types/prisma-json';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
 import { prisma } from '@/lib/db/client';
+import { isLineConfigured } from '@/lib/line';
 
 // ── POST /api/reminders/send ───────────────────────────────────────────────
 // Enqueues a manual reminder outbox event for the given conversation.
@@ -14,7 +16,7 @@ import { prisma } from '@/lib/db/client';
 // looked up automatically so the outbox processor has a real message body.
 
 const schema = z.object({
-  conversationId: z.string().uuid(),
+  conversationId: z.string().min(1),
   text: z.string().min(1),
   /** Optional: ID of a MessageTemplate to use for the reminder body. */
   templateId: z.string().optional(),
@@ -23,6 +25,24 @@ const schema = z.object({
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const body = await req.json().catch(() => ({}));
   const input = schema.parse(body);
+  const actor = getVerifiedActor(req);
+  if (!isLineConfigured()) {
+    throw new AppError(
+      'LINE messaging is unavailable because credentials are not configured.',
+      'LINE_UNAVAILABLE',
+      503,
+    );
+  }
+
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: input.conversationId },
+  });
+  if (!conversation) {
+    throw new NotFoundError('Conversation', input.conversationId);
+  }
+  if (!conversation.lineUserId) {
+    throw new BadRequestError('Conversation is not linked to a LINE user');
+  }
 
   // MessageTemplate runtime lookup ─────────────────────────────────────────
   let resolvedBody = input.text;
@@ -55,8 +75,8 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   );
 
   await logAudit({
-    actorId: 'system',
-    actorRole: 'ADMIN',
+    actorId: actor.actorId,
+    actorRole: actor.actorRole,
     action: 'REMINDER_SEND_REQUESTED',
     entityType: 'CONVERSATION',
     entityId: input.conversationId,

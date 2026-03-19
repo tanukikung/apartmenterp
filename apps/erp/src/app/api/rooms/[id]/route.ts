@@ -5,6 +5,7 @@ import {
 } from '@/modules/rooms/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
+import { prisma } from '@/lib';
 
 // ============================================================================
 // GET /api/rooms/[id] - Get room by ID
@@ -16,10 +17,41 @@ export const GET = asyncHandler(
 
     const roomService = getRoomService();
     const room = await roomService.getRoomById(id);
+    const roomTenants = await prisma.roomTenant.findMany({
+      where: {
+        roomNo: id,
+        moveOutDate: null,
+      },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            lineUserId: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
 
     return NextResponse.json({
       success: true,
-      data: room,
+      data: {
+        ...room,
+        roomTenants: roomTenants.map((entry) => ({
+          role: entry.role,
+          tenant: entry.tenant
+            ? {
+                id: entry.tenant.id,
+                fullName: `${entry.tenant.firstName} ${entry.tenant.lastName}`.trim(),
+                phone: entry.tenant.phone,
+                lineUserId: entry.tenant.lineUserId,
+              }
+            : null,
+        })),
+      },
     } as ApiResponse<typeof room>);
   }
 );
@@ -41,8 +73,7 @@ export const PATCH = asyncHandler(
 
     logger.info({
       type: 'room_updated_api',
-      roomId: room.id,
-      roomNumber: room.roomNumber,
+      roomNo: room.roomNo,
     });
 
     return NextResponse.json({

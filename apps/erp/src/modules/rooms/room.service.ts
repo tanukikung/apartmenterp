@@ -8,11 +8,12 @@ import {
   ListRoomsQuery,
   RoomResponse,
   RoomListResponse,
+  RoomStatusCounts,
   RoomCreatedPayload,
   RoomUpdatedPayload,
   RoomStatusChangedPayload,
 } from './types';
-import type { RoomStatus, RoomUsageType, RoomBillingStatus } from './types';
+import type { RoomStatus } from './types';
 import {
   NotFoundError,
   ConflictError,
@@ -39,66 +40,40 @@ export class RoomService {
   ): Promise<RoomResponse> {
     logger.info({ type: 'room_create', input });
 
-    // Check if floor exists
-    const floor = await prisma.floor.findUnique({
-      where: { id: input.floorId },
-      include: { building: true },
-    });
-
-    if (!floor) {
-      throw new NotFoundError('Floor', input.floorId);
-    }
-
-    // Check if room number already exists on this floor
+    // Check if room number already exists
     const existingRoom = await prisma.room.findUnique({
-      where: {
-        floorId_roomNumber: {
-          floorId: input.floorId,
-          roomNumber: input.roomNumber,
-        },
-      },
+      where: { roomNo: input.roomNo },
     });
 
     if (existingRoom) {
-      throw new ConflictError(
-        `Room ${input.roomNumber} already exists on this floor`
-      );
+      throw new ConflictError(`Room ${input.roomNo} already exists`);
     }
 
     const room = await prisma.$transaction(async (tx) => {
       const created = await tx.room.create({
         data: {
-          id: uuidv4(),
-          floorId: input.floorId,
-          roomNumber: input.roomNumber,
-          status: input.status,
-          maxResidents: input.capacity,
-          usageType: input.usageType ?? 'RENTAL',
-          billingStatus: input.billingStatus ?? 'BILLABLE',
-          defaultFurnitureFee: input.defaultFurnitureFee,
-          sortOrder: input.sortOrder,
-          note: input.note,
-          isActive: input.isActive ?? true,
-        },
-        include: {
-          floor: {
-            include: { building: true },
-          },
+          roomNo: input.roomNo,
+          floorNo: input.floorNo,
+          defaultAccountId: input.defaultAccountId,
+          defaultRuleCode: input.defaultRuleCode,
+          defaultRentAmount: input.defaultRentAmount,
+          hasFurniture: input.hasFurniture ?? false,
+          defaultFurnitureAmount: input.defaultFurnitureAmount ?? 0,
+          roomStatus: input.roomStatus ?? 'ACTIVE',
+          lineUserId: input.lineUserId,
         },
       });
       await tx.outboxEvent.create({
         data: {
           id: uuidv4(),
           aggregateType: 'Room',
-          aggregateId: created.id,
+          aggregateId: created.roomNo,
           eventType: EventTypes.ROOM_CREATED,
           payload: {
-            roomId: created.id,
-            roomNumber: created.roomNumber,
-            floorId: created.floorId,
-            floorNumber: floor.floorNumber,
-            buildingId: floor.buildingId,
-            capacity: created.maxResidents,
+            roomNo: created.roomNo,
+            floorNo: created.floorNo,
+            defaultAccountId: created.defaultAccountId,
+            defaultRuleCode: created.defaultRuleCode,
             createdBy,
           } as unknown as Json,
           retryCount: 0,
@@ -109,19 +84,17 @@ export class RoomService {
 
     // Publish event
     const payload: RoomCreatedPayload = {
-      roomId: room.id,
-      roomNumber: room.roomNumber,
-      floorId: room.floorId,
-      floorNumber: floor.floorNumber,
-      buildingId: floor.buildingId,
-      capacity: room.maxResidents,
+      roomNo: room.roomNo,
+      floorNo: room.floorNo,
+      defaultAccountId: room.defaultAccountId,
+      defaultRuleCode: room.defaultRuleCode,
       createdBy,
     };
 
     await this.eventBus.publish(
       EventTypes.ROOM_CREATED,
       'Room',
-      room.id,
+      room.roomNo,
       payload as unknown as Record<string, unknown>,
       { userId: createdBy }
     );
@@ -130,36 +103,26 @@ export class RoomService {
   }
 
   /**
-   * Get room by ID
+   * Get room by roomNo
    */
-  async getRoomById(id: string): Promise<RoomResponse> {
+  async getRoomById(roomNo: string): Promise<RoomResponse> {
     const room = await prisma.room.findUnique({
-      where: { id },
-      include: {
-        floor: {
-          include: { building: true },
-        },
-      },
+      where: { roomNo },
     });
 
     if (!room) {
-      throw new NotFoundError('Room', id);
+      throw new NotFoundError('Room', roomNo);
     }
 
     return this.formatRoomResponse(room);
   }
 
   /**
-   * Get room by room number
+   * Get room by room number (alias for getRoomById since roomNo is the PK)
    */
-  async getRoomByNumber(roomNumber: string): Promise<RoomResponse | null> {
-    const room = await prisma.room.findFirst({
-      where: { roomNumber },
-      include: {
-        floor: {
-          include: { building: true },
-        },
-      },
+  async getRoomByNumber(roomNo: string): Promise<RoomResponse | null> {
+    const room = await prisma.room.findUnique({
+      where: { roomNo },
     });
 
     if (!room) {
@@ -173,31 +136,21 @@ export class RoomService {
    * List rooms with filtering and pagination
    */
   async listRooms(query: ListRoomsQuery): Promise<RoomListResponse> {
-    const { floorId, status, page, pageSize, search, sortBy, sortOrder } = query;
+    const { floorNo, roomStatus, page, pageSize, search, sortBy, sortOrder } = query;
 
     // Build where clause
     const where: Record<string, unknown> = {};
 
-    if (floorId) {
-      where.floorId = floorId;
+    if (floorNo) {
+      where.floorNo = floorNo;
     }
 
-    if (status) {
-      where.status = status;
-    }
-
-    if (query.usageType) {
-      where.usageType = query.usageType;
-    }
-    if (query.billingStatus) {
-      where.billingStatus = query.billingStatus;
-    }
-    if (query.isActive !== undefined) {
-      where.isActive = query.isActive;
+    if (roomStatus) {
+      where.roomStatus = roomStatus;
     }
 
     if (search) {
-      where.roomNumber = {
+      where.roomNo = {
         contains: search,
         mode: 'insensitive',
       };
@@ -206,14 +159,21 @@ export class RoomService {
     // Get total count
     const total = await prisma.room.count({ where });
 
+    // Compute global status counts
+    const statusGroups = await prisma.room.groupBy({
+      by: ['roomStatus'],
+      _count: { roomStatus: true },
+    });
+    const statusCounts: RoomStatusCounts = { ACTIVE: 0, INACTIVE: 0 };
+    for (const g of statusGroups) {
+      if (g.roomStatus === 'ACTIVE' || g.roomStatus === 'INACTIVE') {
+        statusCounts[g.roomStatus] = g._count.roomStatus;
+      }
+    }
+
     // Get rooms with pagination
     const rooms = await prisma.room.findMany({
       where,
-      include: {
-        floor: {
-          include: { building: true },
-        },
-      },
       orderBy: {
         [sortBy]: sortOrder,
       },
@@ -227,6 +187,7 @@ export class RoomService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      statusCounts,
     };
   }
 
@@ -234,73 +195,43 @@ export class RoomService {
    * Update a room
    */
   async updateRoom(
-    id: string,
+    roomNo: string,
     input: UpdateRoomInput,
     updatedBy?: string
   ): Promise<RoomResponse> {
-    logger.info({ type: 'room_update', id, input });
+    logger.info({ type: 'room_update', roomNo, input });
 
     // Check if room exists
     const existingRoom = await prisma.room.findUnique({
-      where: { id },
+      where: { roomNo },
     });
 
     if (!existingRoom) {
-      throw new NotFoundError('Room', id);
-    }
-
-    // Check for duplicate room number if being changed
-    if (input.roomNumber && input.roomNumber !== existingRoom.roomNumber) {
-      const duplicate = await prisma.room.findUnique({
-        where: {
-          floorId_roomNumber: {
-            floorId: existingRoom.floorId,
-            roomNumber: input.roomNumber,
-          },
-        },
-      });
-
-      if (duplicate) {
-        throw new ConflictError(
-          `Room ${input.roomNumber} already exists on this floor`
-        );
-      }
+      throw new NotFoundError('Room', roomNo);
     }
 
     // Track changes for audit
     const changes: Record<string, { old: unknown; new: unknown }> = {};
-    
-    if (input.roomNumber && input.roomNumber !== existingRoom.roomNumber) {
-      changes.roomNumber = {
-        old: existingRoom.roomNumber,
-        new: input.roomNumber,
-      };
+
+    if (input.floorNo !== undefined && input.floorNo !== existingRoom.floorNo) {
+      changes.floorNo = { old: existingRoom.floorNo, new: input.floorNo };
     }
-    
-    if (input.capacity && input.capacity !== existingRoom.maxResidents) {
-      changes.capacity = {
-        old: existingRoom.maxResidents,
-        new: input.capacity,
-      };
+    if (input.defaultRentAmount !== undefined && Number(input.defaultRentAmount) !== Number(existingRoom.defaultRentAmount)) {
+      changes.defaultRentAmount = { old: Number(existingRoom.defaultRentAmount), new: input.defaultRentAmount };
     }
 
     const room = await prisma.$transaction(async (tx) => {
       const updated = await tx.room.update({
-        where: { id },
+        where: { roomNo },
         data: {
-          roomNumber: input.roomNumber,
-          maxResidents: input.capacity,
-          usageType: input.usageType,
-          billingStatus: input.billingStatus,
-          defaultFurnitureFee: input.defaultFurnitureFee,
-          sortOrder: input.sortOrder,
-          note: input.note,
-          isActive: input.isActive,
-        },
-        include: {
-          floor: {
-            include: { building: true },
-          },
+          floorNo: input.floorNo,
+          defaultAccountId: input.defaultAccountId,
+          defaultRuleCode: input.defaultRuleCode,
+          defaultRentAmount: input.defaultRentAmount,
+          hasFurniture: input.hasFurniture,
+          defaultFurnitureAmount: input.defaultFurnitureAmount,
+          roomStatus: input.roomStatus,
+          lineUserId: input.lineUserId,
         },
       });
       if (Object.keys(changes).length > 0) {
@@ -308,11 +239,10 @@ export class RoomService {
           data: {
             id: uuidv4(),
             aggregateType: 'Room',
-            aggregateId: updated.id,
+            aggregateId: updated.roomNo,
             eventType: EventTypes.ROOM_UPDATED,
             payload: {
-              roomId: updated.id,
-              roomNumber: updated.roomNumber,
+              roomNo: updated.roomNo,
               changes,
               updatedBy,
             } as unknown as Json,
@@ -326,17 +256,16 @@ export class RoomService {
     // Publish event if there were changes
     if (Object.keys(changes).length > 0) {
       const payload: RoomUpdatedPayload = {
-        roomId: room.id,
-        roomNumber: room.roomNumber,
+        roomNo: room.roomNo,
         changes,
         updatedBy,
       };
 
-    await this.eventBus.publish(
+      await this.eventBus.publish(
         EventTypes.ROOM_UPDATED,
         'Room',
-        room.id,
-      payload as unknown as Record<string, unknown>,
+        room.roomNo,
+        payload as unknown as Record<string, unknown>,
         { userId: updatedBy }
       );
     }
@@ -348,54 +277,43 @@ export class RoomService {
    * Change room status
    */
   async changeRoomStatus(
-    id: string,
+    roomNo: string,
     input: ChangeRoomStatusInput,
     changedBy?: string
   ): Promise<RoomResponse> {
-    logger.info({ type: 'room_status_change', id, input });
+    logger.info({ type: 'room_status_change', roomNo, input });
 
     // Check if room exists
     const existingRoom = await prisma.room.findUnique({
-      where: { id },
+      where: { roomNo },
     });
 
     if (!existingRoom) {
-      throw new NotFoundError('Room', id);
+      throw new NotFoundError('Room', roomNo);
     }
 
     // Don't allow status change if no actual change
-    if (existingRoom.status === input.status) {
+    if (existingRoom.roomStatus === input.roomStatus) {
       throw new BadRequestError('Room is already in this status');
-    }
-
-    // Business rule: Cannot change to OCCUPIED if capacity is 0
-    if (input.status === 'OCCUPIED' && existingRoom.maxResidents === 0) {
-      throw new BadRequestError('Cannot set room to occupied - capacity is 0');
     }
 
     const room = await prisma.$transaction(async (tx) => {
       const updated = await tx.room.update({
-        where: { id },
+        where: { roomNo },
         data: {
-          status: input.status,
-        },
-        include: {
-          floor: {
-            include: { building: true },
-          },
+          roomStatus: input.roomStatus,
         },
       });
       await tx.outboxEvent.create({
         data: {
           id: uuidv4(),
           aggregateType: 'Room',
-          aggregateId: updated.id,
+          aggregateId: updated.roomNo,
           eventType: EventTypes.ROOM_STATUS_CHANGED,
           payload: {
-            roomId: updated.id,
-            roomNumber: updated.roomNumber,
-            previousStatus: existingRoom.status,
-            newStatus: input.status,
+            roomNo: updated.roomNo,
+            previousStatus: existingRoom.roomStatus,
+            newStatus: input.roomStatus,
             reason: input.reason,
             changedBy,
           } as unknown as Json,
@@ -407,10 +325,9 @@ export class RoomService {
 
     // Publish event
     const payload: RoomStatusChangedPayload = {
-      roomId: room.id,
-      roomNumber: room.roomNumber,
-      previousStatus: existingRoom.status,
-      newStatus: input.status,
+      roomNo: room.roomNo,
+      previousStatus: existingRoom.roomStatus as RoomStatus,
+      newStatus: input.roomStatus,
       reason: input.reason,
       changedBy,
     };
@@ -418,7 +335,7 @@ export class RoomService {
     await this.eventBus.publish(
       EventTypes.ROOM_STATUS_CHANGED,
       'Room',
-      room.id,
+      room.roomNo,
       payload as unknown as Record<string, unknown>,
       { userId: changedBy }
     );
@@ -427,13 +344,13 @@ export class RoomService {
   }
 
   /**
-   * Delete a room (soft delete check - prevent if occupied)
+   * Delete a room (prevent if occupied/has active tenants)
    */
-  async deleteRoom(id: string): Promise<void> {
+  async deleteRoom(roomNo: string): Promise<void> {
     const room = await prisma.room.findUnique({
-      where: { id },
+      where: { roomNo },
       include: {
-        roomTenants: {
+        tenants: {
           where: {
             moveOutDate: null,
           },
@@ -442,20 +359,20 @@ export class RoomService {
     });
 
     if (!room) {
-      throw new NotFoundError('Room', id);
+      throw new NotFoundError('Room', roomNo);
     }
 
     // Check if room has active tenants
-    if (room.roomTenants.length > 0) {
+    if (room.tenants.length > 0) {
       throw new ConflictError(
-        `Cannot delete room with ${room.roomTenants.length} active tenant(s)`
+        `Cannot delete room with ${room.tenants.length} active tenant(s)`
       );
     }
 
     // Check if room has active contracts
     const activeContract = await prisma.contract.findFirst({
       where: {
-        roomId: id,
+        roomNo,
         status: 'ACTIVE',
       },
     });
@@ -465,52 +382,44 @@ export class RoomService {
     }
 
     await prisma.room.delete({
-      where: { id },
+      where: { roomNo },
     });
 
-    logger.info({ type: 'room_deleted', id });
+    logger.info({ type: 'room_deleted', roomNo });
   }
 
   /**
    * Get room statistics
    */
-  async getRoomStats(floorId?: string): Promise<{
+  async getRoomStats(floorNo?: number): Promise<{
     total: number;
-    vacant: number;
-    occupied: number;
-    maintenance: number;
+    active: number;
+    inactive: number;
     occupancyRate: number;
   }> {
-    const where: Record<string, unknown> = floorId ? { floorId } : {};
+    const where: Record<string, unknown> = floorNo ? { floorNo } : {};
 
-    const [total, vacant, occupied, maintenance] = await Promise.all([
+    const [total, active, inactive] = await Promise.all([
       prisma.room.count({ where }),
-      prisma.room.count({ where: { ...where, status: 'VACANT' } }),
-      prisma.room.count({ where: { ...where, status: 'OCCUPIED' } }),
-      prisma.room.count({ where: { ...where, status: 'MAINTENANCE' } }),
+      prisma.room.count({ where: { ...where, roomStatus: 'ACTIVE' } }),
+      prisma.room.count({ where: { ...where, roomStatus: 'INACTIVE' } }),
     ]);
 
     return {
       total,
-      vacant,
-      occupied,
-      maintenance,
-      occupancyRate: total > 0 ? (occupied / total) * 100 : 0,
+      active,
+      inactive,
+      occupancyRate: total > 0 ? (active / total) * 100 : 0,
     };
   }
 
   /**
    * Get rooms by floor
    */
-  async getRoomsByFloor(floorId: string): Promise<RoomResponse[]> {
+  async getRoomsByFloor(floorNo: number): Promise<RoomResponse[]> {
     const rooms = await prisma.room.findMany({
-      where: { floorId },
-      include: {
-        floor: {
-          include: { building: true },
-        },
-      },
-      orderBy: { roomNumber: 'asc' },
+      where: { floorNo },
+      orderBy: { roomNo: 'asc' },
     });
 
     return rooms.map((room) => this.formatRoomResponse(room));
@@ -521,47 +430,27 @@ export class RoomService {
    */
   private formatRoomResponse(
     room: {
-      id: string;
-      floorId: string;
-      roomNumber: string;
-      status: string;
-      maxResidents: number;
-      usageType?: string;
-      billingStatus?: string;
-      defaultFurnitureFee?: unknown;
-      sortOrder?: number | null;
-      note?: string | null;
-      isActive?: boolean;
-      createdAt: Date;
-      updatedAt: Date;
-      floor?: {
-        id: string;
-        floorNumber: number;
-        buildingId: string;
-      };
+      roomNo: string;
+      floorNo: number;
+      defaultAccountId: string;
+      defaultRuleCode: string;
+      defaultRentAmount: unknown;
+      hasFurniture: boolean;
+      defaultFurnitureAmount: unknown;
+      roomStatus: string;
+      lineUserId?: string | null;
     }
   ): RoomResponse {
     return {
-      id: room.id,
-      floorId: room.floorId,
-      roomNumber: room.roomNumber,
-      status: room.status as RoomStatus,
-      capacity: room.maxResidents,
-      usageType: (room.usageType as RoomUsageType) ?? 'RENTAL',
-      billingStatus: (room.billingStatus as RoomBillingStatus) ?? 'BILLABLE',
-      defaultFurnitureFee: room.defaultFurnitureFee != null ? Number(room.defaultFurnitureFee) : null,
-      sortOrder: room.sortOrder ?? null,
-      note: room.note ?? null,
-      isActive: room.isActive ?? true,
-      createdAt: room.createdAt,
-      updatedAt: room.updatedAt,
-      floor: room.floor
-        ? {
-            id: room.floor.id,
-            floorNumber: room.floor.floorNumber,
-            buildingId: room.floor.buildingId,
-          }
-        : undefined,
+      roomNo: room.roomNo,
+      floorNo: room.floorNo,
+      defaultAccountId: room.defaultAccountId,
+      defaultRuleCode: room.defaultRuleCode,
+      defaultRentAmount: Number(room.defaultRentAmount),
+      hasFurniture: room.hasFurniture,
+      defaultFurnitureAmount: Number(room.defaultFurnitureAmount),
+      roomStatus: room.roomStatus as RoomStatus,
+      lineUserId: room.lineUserId ?? null,
     };
   }
 }

@@ -4,7 +4,8 @@ import { z } from 'zod';
 // Invoice Types
 // ============================================================================
 
-export const invoiceStatusSchema = z.enum(['DRAFT', 'GENERATED', 'SENT', 'VIEWED', 'PAID', 'OVERDUE']);
+// New schema: no DRAFT or CANCELLED statuses
+export const invoiceStatusSchema = z.enum(['GENERATED', 'SENT', 'VIEWED', 'PAID', 'OVERDUE']);
 export type InvoiceStatus = z.infer<typeof invoiceStatusSchema>;
 
 // ============================================================================
@@ -36,7 +37,10 @@ export type SendInvoiceInput = z.infer<typeof sendInvoiceSchema>;
 
 export const payInvoiceSchema = z.object({
   paymentId: z.string().uuid('Invalid payment ID').optional(),
-  paidAt: z.string().date().optional(),
+  paidAt: z
+    .string()
+    .optional()
+    .refine((value) => !value || !Number.isNaN(new Date(value).getTime()), 'Invalid paidAt date'),
 });
 
 export type PayInvoiceInput = z.infer<typeof payInvoiceSchema>;
@@ -46,8 +50,7 @@ export type PayInvoiceInput = z.infer<typeof payInvoiceSchema>;
 // ============================================================================
 
 export const listInvoicesQuerySchema = z.object({
-  roomId: z.string().uuid().optional(),
-  billingCycleId: z.string().optional(),
+  roomNo: z.string().optional(),
   year: z.coerce.number().int().min(2000).max(2100).optional(),
   month: z.coerce.number().int().min(1).max(12).optional(),
   status: invoiceStatusSchema.optional(),
@@ -66,29 +69,22 @@ export type ListInvoicesQuery = z.infer<typeof listInvoicesQuerySchema>;
 export interface InvoiceResponse {
   id: string;
   invoiceNumber: string;
-  roomId: string;
-  billingRecordId: string;
-  /** Populated when fetched via listInvoices; null when the billing record
-   *  has no cycle (standalone record) or when fetched by ID only. */
-  billingCycleId?: string | null;
+  /** New schema: roomNo is the string PK of Room */
+  roomNo: string;
+  /** New schema: FK to RoomBilling */
+  roomBillingId: string;
   year: number;
   month: number;
-  version: number;
   status: InvoiceStatus;
-  subtotal: number;
   totalAmount: number;
   dueDate: Date;
   issuedAt: Date | null;
   sentAt: Date | null;
-  sentBy: string | null;
-  viewedAt: Date | null;
   paidAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   room?: {
-    id: string;
-    roomNumber: string;
-    floorId: string;
+    roomNo: string;
   };
   tenant?: {
     id: string;
@@ -99,7 +95,6 @@ export interface InvoiceResponse {
   lineUserId?: string | null;
   deliveries?: InvoiceDeliveryResponse[];
   items?: InvoiceItemSnapshot[];
-  versions?: InvoiceVersionResponse[];
 }
 
 export interface InvoiceDeliveryResponse {
@@ -122,28 +117,6 @@ export interface InvoiceItemSnapshot {
   total: number;
 }
 
-export interface InvoiceVersionResponse {
-  id: string;
-  invoiceId: string;
-  version: number;
-  subtotal: number;
-  totalAmount: number;
-  changeNote: string | null;
-  createdAt: Date;
-}
-
-export interface InvoiceChangeResponse {
-  id: string;
-  invoiceId: string;
-  version: number;
-  changeType: string;
-  fieldName: string;
-  oldValue: string;
-  newValue: string;
-  reason: string | null;
-  createdAt: Date;
-}
-
 export interface InvoicesListResponse {
   data: InvoiceResponse[];
   total: number;
@@ -154,14 +127,11 @@ export interface InvoicesListResponse {
 
 export interface InvoicePreviewResponse {
   invoiceId: string;
-  version: number;
   year: number;
   month: number;
-  buildingName: string;
-  roomNumber: string;
+  roomNo: string;
   tenantName: string | null;
   items: InvoiceItemSnapshot[];
-  subtotal: number;
   totalAmount: number;
   dueDate: string;
 }
@@ -172,23 +142,13 @@ export interface InvoicePreviewResponse {
 
 export interface InvoiceGeneratedPayload {
   invoiceId: string;
-  roomId: string;
-  roomNumber: string;
-  billingRecordId: string;
+  roomNo: string;
+  roomBillingId: string;
   year: number;
   month: number;
-  version: number;
   totalAmount: number;
   dueDate: string;
   generatedBy?: string;
-}
-
-export interface InvoiceVersionCreatedPayload {
-  invoiceVersionId: string;
-  invoiceId: string;
-  previousVersion: number | null;
-  version: number;
-  totalAmount: number;
 }
 
 export interface InvoiceSentPayload {

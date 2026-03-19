@@ -95,7 +95,7 @@ export default function GenerateDocumentsPage() {
         const [templatesResponse, floorsResponse, roomsResponse] = await Promise.all([
           fetch('/api/templates?pageSize=100', { cache: 'no-store' }).then((response) => response.json()),
           fetch('/api/floors', { cache: 'no-store' }).then((response) => response.json()),
-          fetch('/api/rooms?pageSize=400', { cache: 'no-store' }).then((response) => response.json()),
+          fetch('/api/rooms?pageSize=100', { cache: 'no-store' }).then((response) => response.json()),
         ]);
 
         setTemplates((templatesResponse.data?.data ?? []).filter((template: TemplateOption) => template.activeVersionId));

@@ -162,7 +162,7 @@ function KpiCard({
 }
 
 // ---------------------------------------------------------------------------
-// Generate invoices button state
+// Row action state
 // ---------------------------------------------------------------------------
 
 type GeneratingMap = Record<string, 'idle' | 'loading' | 'done' | 'error'>;
@@ -218,7 +218,7 @@ export default function AdminBillingPage() {
   }, [load]);
 
   // ---------------------------------------------------------------------------
-  // Generate invoices (lock record → generate invoice)
+  // Open the real billing-cycle workflow
   // ---------------------------------------------------------------------------
 
   async function handleGenerateInvoices(cycleId: string) {
@@ -263,7 +263,7 @@ export default function AdminBillingPage() {
         <div>
           <h1 className="admin-page-title">Billing Cycles</h1>
           <p className="admin-page-subtitle">
-            Monthly billing periods — import, review, lock, and generate invoices.
+            Monthly billing periods — import, review, lock, and open invoice workflows.
           </p>
         </div>
         <div className="admin-toolbar">
@@ -508,7 +508,7 @@ export default function AdminBillingPage() {
                                 ) : genState === 'done' ? (
                                   <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Done</>
                                 ) : (
-                                  <><Zap className="h-3.5 w-3.5" /> Generate Invoices</>
+                                  <><Zap className="h-3.5 w-3.5" /> Open Cycle</>
                                 )}
                               </button>
                             )}

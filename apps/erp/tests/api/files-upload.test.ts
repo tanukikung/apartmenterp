@@ -1,16 +1,32 @@
 import { describe, it, expect, vi } from 'vitest';
 import { POST as uploadRoute } from '@/app/api/files/route';
 import { prisma } from '@/lib/db/client';
-import { getStorage } from '@/infrastructure/storage';
+import { makeRequestLike } from '../helpers/auth';
 
 describe('POST /api/files', () => {
+  it('requires an authenticated operator session', async () => {
+    const file = new File([new Uint8Array([1, 2, 3])], 'a.pdf', { type: 'application/pdf' });
+    const form = new FormData();
+    form.append('file', file);
+    const req = makeRequestLike({
+      url: 'http://localhost/api/files',
+      method: 'POST',
+      formData: async () => form,
+    });
+    const res = await uploadRoute(req as any);
+    expect(res.status).toBe(401);
+  });
+
   it('rejects unsupported file types', async () => {
     const file = new File([new Uint8Array([1,2,3])], 'doc.exe', { type: 'application/x-msdownload' });
     const form = new FormData();
     form.append('file', file);
-    const req: any = {
+    const req = makeRequestLike({
+      url: 'http://localhost/api/files',
+      method: 'POST',
+      role: 'ADMIN',
       formData: async () => form,
-    };
+    });
     const res = await uploadRoute(req as any);
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -38,7 +54,12 @@ describe('POST /api/files', () => {
     const file = new File([new Uint8Array([1,2,3])], 'a.pdf', { type: 'application/pdf' });
     const form = new FormData();
     form.append('file', file);
-    const req: any = { formData: async () => form };
+    const req = makeRequestLike({
+      url: 'http://localhost/api/files',
+      method: 'POST',
+      role: 'ADMIN',
+      formData: async () => form,
+    });
     const res = await uploadRoute(req as any);
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -47,4 +68,3 @@ describe('POST /api/files', () => {
     expect(body.data.mimeType).toBe('application/pdf');
   });
 });
-

@@ -23,39 +23,40 @@ const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResp
   });
 
   // Optimize: Fetch all invoice data in a single query to avoid N+1
-  const roomIds = items.map(conv => conv.roomId).filter(Boolean);
+  const roomNos = items.map(conv => conv.roomNo).filter(Boolean) as string[];
   let invoiceMap = new Map();
-  
-  if (roomIds.length > 0) {
+
+  if (roomNos.length > 0) {
     const invoices = await prisma.invoice.findMany({
-      where: { roomId: { in: roomIds } },
-      select: { 
-        roomId: true, 
-        status: true, 
+      where: { roomNo: { in: roomNos } },
+      select: {
+        roomNo: true,
+        status: true,
         dueDate: true,
-        createdAt: true 
+        createdAt: true
       },
       orderBy: { createdAt: 'desc' },
     });
-    
-    // Group by roomId and take the latest invoice for each room
-    const latestInvoices = invoices.reduce((acc, invoice) => {
-      if (!acc.has(invoice.roomId) || invoice.createdAt > acc.get(invoice.roomId).createdAt) {
-        acc.set(invoice.roomId, invoice);
+
+    // Group by roomNo and take the latest invoice for each room
+    const latestInvoices = invoices.reduce((acc: Map<string, typeof invoices[0]>, invoice) => {
+      const key = invoice.roomNo;
+      if (!acc.has(key) || invoice.createdAt > acc.get(key)!.createdAt) {
+        acc.set(key, invoice);
       }
       return acc;
     }, new Map());
-    
+
     invoiceMap = latestInvoices;
   }
-  
+
   // Enhance items with invoice status information
   const enhancedItems = items.map(conv => {
     let overdue = false;
     let waitingPayment = false;
-    
-    if (conv.roomId && invoiceMap.has(conv.roomId)) {
-      const latestInvoice = invoiceMap.get(conv.roomId);
+
+    if (conv.roomNo && invoiceMap.has(conv.roomNo)) {
+      const latestInvoice = invoiceMap.get(conv.roomNo);
       overdue = latestInvoice.status === 'OVERDUE' || 
         (latestInvoice.status === 'GENERATED' && 
          latestInvoice.dueDate && 

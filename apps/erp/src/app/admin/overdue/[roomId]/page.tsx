@@ -12,6 +12,7 @@ import {
   MessageSquare,
   User,
 } from 'lucide-react';
+import { daysSince } from '../date-utils';
 
 type Invoice = {
   id: string;
@@ -38,13 +39,6 @@ type Room = {
   floor?: { floorNumber: number } | null;
   roomTenants?: RoomTenantEntry[] | null;
 };
-
-const TODAY = new Date('2026-03-16');
-
-function daysSince(dateStr: string): number {
-  const diff = TODAY.getTime() - new Date(dateStr).getTime();
-  return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
-}
 
 export default function OverdueRoomDetailPage() {
   const { roomId } = useParams<{ roomId: string }>();

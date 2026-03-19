@@ -1,18 +1,17 @@
 /**
  * billing-cycles-route.test.ts
  *
- * Tests for GET /api/billing-cycles — the new list endpoint added in Phase 6.
+ * Tests for GET /api/billing-cycles — the list endpoint.
  *
  * Covers:
  *  1. Auth guard: missing session → 401
- *  2. Returns paginated BillingCycle list with aggregate stats
+ *  2. Returns paginated BillingPeriod list with aggregate stats
  *  3. Status filter is forwarded to Prisma where clause
- *  4. buildingId filter is applied
+ *  4. buildingId filter is applied (no-op since BillingPeriod has no buildingId — just verifies no crash)
  *  5. Aggregate stats computed correctly (totalRecords, totalAmount, invoiceCount, pendingInvoices)
  *  6. pendingInvoices counts only GENERATED | SENT | VIEWED | OVERDUE (not PAID)
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NextResponse } from 'next/server';
 import { signSessionToken } from '@/lib/auth/session';
 
 // ── Prisma mock ───────────────────────────────────────────────────────────────
@@ -21,7 +20,7 @@ const mockFindMany = vi.fn();
 
 vi.mock('@/lib/db/client', () => ({
   prisma: {
-    billingCycle: {
+    billingPeriod: {
       count: mockCount,
       findMany: mockFindMany,
     },
@@ -72,20 +71,17 @@ function adminCookie(): string {
 }
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
-function makeCycle(overrides: Record<string, unknown> = {}) {
+function makePeriod(overrides: Record<string, unknown> = {}) {
   return {
-    id: 'cycle-1',
+    id: 'period-1',
     year: 2026,
     month: 3,
     status: 'OPEN',
-    building: { id: 'bldg-1', name: 'Building A' },
-    billingDate: null,
-    dueDate: null,
-    overdueDate: null,
+    dueDay: 25,
     createdAt: new Date('2026-03-01'),
     updatedAt: new Date('2026-03-01'),
     importBatches: [],
-    billingRecords: [],
+    roomBillings: [],
     ...overrides,
   };
 }
@@ -106,15 +102,17 @@ describe('GET /api/billing-cycles', () => {
   it('returns paginated list with aggregate stats', async () => {
     mockCount.mockResolvedValue(1);
     mockFindMany.mockResolvedValue([
-      makeCycle({
-        billingRecords: [
+      makePeriod({
+        roomBillings: [
           {
             id: 'rec-1',
-            subtotal: '5000.00',
-            invoices: [
-              { id: 'inv-1', status: 'SENT' },
-              { id: 'inv-2', status: 'PAID' },
-            ],
+            totalDue: '5000.00',
+            invoice: { id: 'inv-1', status: 'SENT' },
+          },
+          {
+            id: 'rec-2',
+            totalDue: '0',
+            invoice: { id: 'inv-2', status: 'PAID' },
           },
         ],
       }),
@@ -130,7 +128,7 @@ describe('GET /api/billing-cycles', () => {
     expect(body.success).toBe(true);
 
     const cycle = body.data.data[0];
-    expect(cycle.totalRecords).toBe(1);
+    expect(cycle.totalRecords).toBe(2);
     expect(cycle.totalAmount).toBe(5000);
     expect(cycle.invoiceCount).toBe(2);
     // SENT counts as pending; PAID does not
@@ -140,20 +138,14 @@ describe('GET /api/billing-cycles', () => {
   it('counts pendingInvoices correctly: GENERATED+SENT+VIEWED+OVERDUE are pending, PAID is not', async () => {
     mockCount.mockResolvedValue(1);
     mockFindMany.mockResolvedValue([
-      makeCycle({
-        billingRecords: [
-          {
-            id: 'rec-1',
-            subtotal: '0',
-            invoices: [
-              { id: 'i1', status: 'GENERATED' },
-              { id: 'i2', status: 'SENT' },
-              { id: 'i3', status: 'VIEWED' },
-              { id: 'i4', status: 'OVERDUE' },
-              { id: 'i5', status: 'PAID' },
-              { id: 'i6', status: 'DRAFT' },
-            ],
-          },
+      makePeriod({
+        roomBillings: [
+          { id: 'r1', totalDue: '0', invoice: { id: 'i1', status: 'GENERATED' } },
+          { id: 'r2', totalDue: '0', invoice: { id: 'i2', status: 'SENT' } },
+          { id: 'r3', totalDue: '0', invoice: { id: 'i3', status: 'VIEWED' } },
+          { id: 'r4', totalDue: '0', invoice: { id: 'i4', status: 'OVERDUE' } },
+          { id: 'r5', totalDue: '0', invoice: { id: 'i5', status: 'PAID' } },
+          { id: 'r6', totalDue: '0', invoice: null },
         ],
       }),
     ]);
@@ -165,9 +157,9 @@ describe('GET /api/billing-cycles', () => {
     const body = await res.json();
 
     const cycle = body.data.data[0];
-    // GENERATED + SENT + VIEWED + OVERDUE = 4 pending; PAID and DRAFT excluded
+    // GENERATED + SENT + VIEWED + OVERDUE = 4 pending; PAID excluded; null invoice excluded
     expect(cycle.pendingInvoices).toBe(4);
-    expect(cycle.invoiceCount).toBe(6);
+    expect(cycle.invoiceCount).toBe(5);
   });
 
   it('passes status filter to Prisma where clause', async () => {
@@ -186,7 +178,7 @@ describe('GET /api/billing-cycles', () => {
     expect(whereArg.status).toBe('LOCKED');
   });
 
-  it('passes buildingId filter to Prisma where clause', async () => {
+  it('does not crash with unknown query params', async () => {
     mockCount.mockResolvedValue(0);
     mockFindMany.mockResolvedValue([]);
 
@@ -196,16 +188,14 @@ describe('GET /api/billing-cycles', () => {
       cookie,
       url: 'http://localhost/api/billing-cycles?buildingId=bldg-99',
     });
-    await GET(req as never);
-
-    const whereArg = mockCount.mock.calls[0][0].where;
-    expect(whereArg.buildingId).toBe('bldg-99');
+    const res = await GET(req as never);
+    expect(res.status).toBe(200);
   });
 
   it('returns correct pagination metadata', async () => {
     mockCount.mockResolvedValue(45);
     mockFindMany.mockResolvedValue(Array.from({ length: 20 }, (_, i) =>
-      makeCycle({ id: `cycle-${i}`, billingRecords: [] })
+      makePeriod({ id: `period-${i}`, roomBillings: [] })
     ));
 
     const cookie = adminCookie();

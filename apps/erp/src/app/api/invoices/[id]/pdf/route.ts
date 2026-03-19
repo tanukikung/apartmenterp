@@ -5,6 +5,7 @@ import { asyncHandler } from '@/lib/utils/errors';
 import { prisma } from '@/lib/db/client';
 import { logger } from '@/lib/utils/logger';
 import { documentTemplateHtmlToText } from '@/lib/templates/document-template';
+import { requireOperatorOrSignedInvoiceAccess } from '@/lib/invoices/access';
 
 // ── GET /api/invoices/[id]/pdf ─────────────────────────────────────────────
 // Intentionally public — tenant-facing PDF links delivered via LINE do not
@@ -17,8 +18,9 @@ import { documentTemplateHtmlToText } from '@/lib/templates/document-template';
 // exact template version applied is traceable without storing the full PDF.
 
 export const GET = asyncHandler(
-  async (_req: NextRequest, { params }: { params: { id: string } }) => {
+  async (req: NextRequest, { params }: { params: { id: string } }) => {
     const { id } = params;
+    requireOperatorOrSignedInvoiceAccess(req, id, 'pdf');
 
     logger.info({ type: 'pdf_render_start', invoiceId: id });
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
-import { requireAuthSession, requireRole } from '@/lib/auth/guards';
+import { getVerifiedActor, requireAuthSession } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, NotFoundError } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit';
 import { z } from 'zod';
@@ -35,7 +35,7 @@ export const PATCH = asyncHandler(async (
   req: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  const actor = getVerifiedActor(req);
 
   const existing = await prisma.documentTemplate.findUnique({ where: { id: params.id } });
   if (!existing) throw new NotFoundError('Document template not found');
@@ -64,8 +64,8 @@ export const PATCH = asyncHandler(async (
     (k) => parsed.data[k as keyof typeof parsed.data] !== undefined
   );
   await logAudit({
-    actorId:    'system',
-    actorRole:  'ADMIN',
+    actorId:    actor.actorId,
+    actorRole:  actor.actorRole,
     action:     'DOCUMENT_TEMPLATE_UPDATED',
     entityType: 'DOCUMENT_TEMPLATE',
     entityId:   params.id,
@@ -86,7 +86,7 @@ export const DELETE = asyncHandler(async (
   req: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN']);
+  const actor = getVerifiedActor(req, { roles: ['ADMIN'] });
 
   const existing = await prisma.documentTemplate.findUnique({ where: { id: params.id } });
   if (!existing) throw new NotFoundError('Document template not found');
@@ -95,8 +95,8 @@ export const DELETE = asyncHandler(async (
 
   // Audit: template deleted — capture snapshot before deletion
   await logAudit({
-    actorId:    'system',
-    actorRole:  'ADMIN',
+    actorId:    actor.actorId,
+    actorRole:  actor.actorRole,
     action:     'DOCUMENT_TEMPLATE_DELETED',
     entityType: 'DOCUMENT_TEMPLATE',
     entityId:   params.id,

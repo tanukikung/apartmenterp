@@ -13,10 +13,10 @@ import {
   FileText,
   Hash,
   Link2,
-  Link2Off,
   RefreshCw,
   Upload,
 } from 'lucide-react';
+import { getPaymentInvoiceHref } from '../payment-detail-links';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -185,8 +185,6 @@ export default function PaymentDetailPage() {
   const [payment, setPayment] = useState<PaymentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [unmatching, setUnmatching] = useState(false);
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!paymentId) return;
@@ -206,26 +204,6 @@ export default function PaymentDetailPage() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  async function handleUnmatch() {
-    if (!payment) return;
-    setUnmatching(true);
-    setActionMessage(null);
-    setError(null);
-    try {
-      const res = await fetch(`/api/payments/${payment.id}/unmatch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      }).then((r) => r.json());
-      if (!res.success) throw new Error(res.error?.message || 'Unable to unmatch payment');
-      setActionMessage('Payment unmatched successfully.');
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to unmatch payment');
-    } finally {
-      setUnmatching(false);
-    }
-  }
 
   // ------ Loading state ------
   if (loading) {
@@ -300,9 +278,6 @@ export default function PaymentDetailPage() {
       </section>
 
       {/* ── Alerts ─────────────────────────────────────────────────────── */}
-      {actionMessage ? (
-        <div className="auth-alert auth-alert-success">{actionMessage}</div>
-      ) : null}
       {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
 
       {/* ── Hero card ──────────────────────────────────────────────────── */}
@@ -385,7 +360,7 @@ export default function PaymentDetailPage() {
                   label="Matched Invoice"
                   value={
                     <Link
-                      href={`/admin/invoices/${payment.invoiceId}`}
+                      href={getPaymentInvoiceHref()}
                       className="text-indigo-600 hover:underline"
                     >
                       {payment.invoiceId}
@@ -402,10 +377,10 @@ export default function PaymentDetailPage() {
               <div className="admin-card-header">
                 <div className="admin-card-title">Matched Invoice</div>
                 <Link
-                  href={`/admin/invoices/${payment.invoice.id}`}
+                  href={getPaymentInvoiceHref()}
                   className="admin-button text-xs"
                 >
-                  View Invoice
+                  Open Invoices
                 </Link>
               </div>
               <div className="grid gap-3 p-4 sm:grid-cols-2">
@@ -484,22 +459,12 @@ export default function PaymentDetailPage() {
             <div className="flex flex-col gap-3 p-4">
               {isMatched && payment.invoice ? (
                 <Link
-                  href={`/admin/invoices/${payment.invoice.id}`}
+                  href={getPaymentInvoiceHref()}
                   className="admin-button admin-button-primary flex items-center justify-center gap-2"
                 >
                   <FileText className="h-4 w-4" />
-                  View Invoice
+                  Open Invoices
                 </Link>
-              ) : null}
-              {isMatched ? (
-                <button
-                  onClick={() => void handleUnmatch()}
-                  disabled={unmatching}
-                  className="admin-button flex items-center justify-center gap-2 border-red-200 text-red-600 hover:bg-red-50"
-                >
-                  <Link2Off className="h-4 w-4" />
-                  {unmatching ? 'Unmatching...' : 'Unmatch Payment'}
-                </button>
               ) : null}
               {!isMatched ? (
                 <p className="rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-3 text-sm text-amber-700">

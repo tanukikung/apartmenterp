@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { asyncHandler, ApiResponse, NotFoundError } from '@/lib/utils/errors';
-import { prisma, logger } from '@/lib';
-import { v4 as uuidv4 } from 'uuid';
-import { getOutboxProcessor } from '@/lib/outbox';
-import type { Json } from '@/types/prisma-json';
+import { asyncHandler, ApiResponse, AppError } from '@/lib/utils/errors';
+import { logger } from '@/lib';
+import { isLineConfigured } from '@/lib/line';
+import { queueConversationFileSend } from '@/modules/messaging/file-send.service';
 
 const schema = z.object({
-  conversationId: z.string().uuid(),
+  conversationId: z.string().min(1),
   fileId: z.string().min(1),
   name: z.string().min(1).optional(),
   contentType: z.string().optional(),
@@ -16,66 +15,24 @@ const schema = z.object({
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const body = await req.json().catch(() => ({}));
   const input = schema.parse(body);
-
-  const conversation = await prisma.conversation.findUnique({
-    where: { id: input.conversationId },
-  });
-  if (!conversation) {
-    throw new NotFoundError('Conversation', input.conversationId);
+  if (!isLineConfigured()) {
+    throw new AppError(
+      'LINE messaging is unavailable because credentials are not configured.',
+      'LINE_UNAVAILABLE',
+      503,
+    );
   }
 
-  const now = new Date();
-  const messageId = uuidv4();
-  const fileUrlBase = process.env.APP_BASE_URL || '';
-  const publicUrl = `${fileUrlBase}/api/files/${encodeURIComponent(input.fileId)}?inline=1`;
-  const content = JSON.stringify({
-    id: input.fileId,
-    name: input.name || input.fileId.split('/').pop() || 'file',
-    contentType: input.contentType || 'application/octet-stream',
-    previewUrl: publicUrl,
+  const message = await queueConversationFileSend({
+    conversationId: input.conversationId,
+    fileId: input.fileId,
+    name: input.name,
+    contentType: input.contentType,
   });
-
-  // Create message as queued
-  const message = await prisma.message.create({
-    data: {
-      id: messageId,
-      conversation: { connect: { id: conversation.id } },
-      lineMessageId: uuidv4(),
-      direction: 'OUTGOING',
-      type: 'SYSTEM',
-      content,
-      sentAt: now,
-      metadata: {
-        status: 'QUEUED',
-        kind: 'file',
-      },
-    },
-  });
-
-  await prisma.conversation.update({
-    where: { id: conversation.id },
-    data: { lastMessageAt: now },
-  });
-
-  // Enqueue outbox event for worker to send via LINE
-  const processor = getOutboxProcessor();
-  await processor.writeOne(
-    'Conversation',
-    conversation.id,
-    'LineSendFileRequested',
-    {
-      conversationId: conversation.id,
-      messageId: message.id,
-      lineUserId: conversation.lineUserId,
-      fileUrl: publicUrl,
-      contentType: input.contentType || 'application/octet-stream',
-      name: input.name || input.fileId.split('/').pop() || 'file',
-    } as unknown as Json
-  );
 
   logger.info({
     type: 'chat_file_send_enqueued',
-    conversationId: conversation.id,
+    conversationId: input.conversationId,
     messageId: message.id,
     fileId: input.fileId,
   });

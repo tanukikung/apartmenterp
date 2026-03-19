@@ -10,13 +10,14 @@ vi.mock('@/lib', async () => {
       invoice: {
         findUnique: vi.fn().mockResolvedValue({
           id: 'inv-1',
+          roomNo: '101',
           year: 2026,
           month: 3,
-          total: 1234.5,
+          totalAmount: 1234.5,
           dueDate: new Date('2026-03-05T00:00:00Z'),
           room: {
-            roomNumber: '101',
-            roomTenants: [
+            roomNo: '101',
+            tenants: [
               { tenant: { lineUserId: 'U123' } },
             ],
           },

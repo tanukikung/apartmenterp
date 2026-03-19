@@ -8,27 +8,13 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/billing-cycles
  *
- * Returns a paginated list of BillingCycles with aggregate stats:
- *   totalRecords   — number of billing records in the cycle
- *   totalAmount    — sum of billing record subtotals
- *   invoiceCount   — total invoices issued for the cycle
- *   pendingInvoices — invoices not yet PAID (GENERATED + SENT + VIEWED + OVERDUE)
- *
- * Query params:
- *   buildingId?   string
- *   year?         number
- *   month?        number
- *   status?       OPEN | IMPORTED | LOCKED | INVOICED | CLOSED
- *   page          default 1
- *   pageSize      default 20 (max 100)
- *   sortBy        year | month | createdAt (default createdAt)
- *   sortOrder     asc | desc (default desc)
+ * Returns a paginated list of BillingPeriods with aggregate stats.
+ * BillingCycle model was replaced by BillingPeriod in the new schema.
  */
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   requireAuthSession(req);
 
   const url = new URL(req.url);
-  const buildingId = url.searchParams.get('buildingId') ?? undefined;
   const year = url.searchParams.get('year') ? Number(url.searchParams.get('year')) : undefined;
   const month = url.searchParams.get('month') ? Number(url.searchParams.get('month')) : undefined;
   const status = url.searchParams.get('status') ?? undefined;
@@ -38,7 +24,6 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const sortOrder = (url.searchParams.get('sortOrder') ?? 'desc') as 'asc' | 'desc';
 
   const where = {
-    ...(buildingId ? { buildingId } : {}),
     ...(year !== undefined ? { year } : {}),
     ...(month !== undefined ? { month } : {}),
     ...(status ? { status: status as never } : {}),
@@ -51,20 +36,17 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
         ? [{ month: sortOrder }, { year: sortOrder }]
         : [{ createdAt: sortOrder }];
 
-  const [total, cycles] = await Promise.all([
-    prisma.billingCycle.count({ where }),
-    prisma.billingCycle.findMany({
+  const [total, periods] = await Promise.all([
+    prisma.billingPeriod.count({ where }),
+    prisma.billingPeriod.findMany({
       where,
-      orderBy: orderBy as Parameters<typeof prisma.billingCycle.findMany>[0]['orderBy'],
+      orderBy: orderBy as Parameters<typeof prisma.billingPeriod.findMany>[0]['orderBy'],
       skip: (page - 1) * pageSize,
       take: pageSize,
       include: {
-        building: { select: { id: true, name: true } },
-        billingRecords: {
-          select: {
-            id: true,
-            subtotal: true,
-            invoices: {
+        roomBillings: {
+          include: {
+            invoice: {
               select: { id: true, status: true },
             },
           },
@@ -78,13 +60,15 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     }),
   ]);
 
-  const data = cycles.map((cycle) => {
-    const totalRecords = cycle.billingRecords.length;
-    const totalAmount = cycle.billingRecords.reduce(
-      (sum, r) => sum + Number(r.subtotal),
+  const data = periods.map((period) => {
+    const totalRecords = period.roomBillings.length;
+    const totalAmount = period.roomBillings.reduce(
+      (sum, r) => sum + Number(r.totalDue),
       0,
     );
-    const allInvoices = cycle.billingRecords.flatMap((r) => r.invoices);
+    const allInvoices = period.roomBillings
+      .map((r) => r.invoice)
+      .filter((inv): inv is NonNullable<typeof inv> => inv !== null);
     const invoiceCount = allInvoices.length;
     const pendingInvoices = allInvoices.filter(
       (inv) =>
@@ -95,21 +79,17 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     ).length;
 
     return {
-      id: cycle.id,
-      year: cycle.year,
-      month: cycle.month,
-      status: cycle.status,
-      building: cycle.building,
-      billingDate: cycle.billingDate,
-      dueDate: cycle.dueDate,
-      overdueDate: cycle.overdueDate,
+      id: period.id,
+      year: period.year,
+      month: period.month,
+      status: period.status,
       totalRecords,
       totalAmount,
       invoiceCount,
       pendingInvoices,
-      importBatchId: cycle.importBatches[0]?.id ?? null,
-      createdAt: cycle.createdAt,
-      updatedAt: cycle.updatedAt,
+      importBatchId: period.importBatches[0]?.id ?? null,
+      createdAt: period.createdAt,
+      updatedAt: period.updatedAt,
     };
   });
 

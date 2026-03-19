@@ -49,6 +49,30 @@ describe('Payment Matching API', () => {
     expect(importMock).toHaveBeenCalled();
   });
 
+  it('returns a validation error for malformed statement files', async () => {
+    const parser = await import('@/modules/payments/bank-statement-parser');
+    vi.mocked(parser.bankStatementParser.parseCSV).mockImplementationOnce(() => {
+      throw new Error('Invalid CSV format');
+    });
+
+    const mod = await import('@/app/api/payments/import/route');
+    const fakeFile = {
+      name: 'statement.csv',
+      size: 100,
+      arrayBuffer: async () => Buffer.from('bad-content'),
+    };
+    const req: any = {
+      formData: async () => ({
+        get: (k: string) => (k === 'file' ? (fakeFile as unknown as File) : null),
+      }),
+      cookies: makeCookieStore('ADMIN'),
+    };
+    const res: Response = await (mod as any).POST(req);
+    expect(res.status).toBe(422);
+    const json = await res.json();
+    expect(json.error.message).toContain('Invalid statement file');
+  });
+
   it('confirms a match', async () => {
     const mod = await import('@/app/api/payments/match/confirm/route');
     const body = { transactionId: '11111111-1111-1111-1111-111111111111', invoiceId: '22222222-2222-2222-2222-222222222222' };

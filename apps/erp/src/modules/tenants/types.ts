@@ -105,7 +105,7 @@ export type LinkLineAccountInput = z.infer<typeof linkLineAccountSchema>;
 // ============================================================================
 
 export const listTenantsQuerySchema = z.object({
-  roomId: z.string().uuid().optional(),
+  roomId: z.string().optional(),
   lineUserId: z.string().optional(),
   search: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -137,15 +137,13 @@ export interface TenantResponse {
 
 export interface RoomTenantResponse {
   id: string;
-  roomId: string;
+  roomNo: string;
   tenantId: string;
   role: TenantRole;
   moveInDate: Date;
   moveOutDate: Date | null;
   room?: {
-    id: string;
-    roomNumber: string;
-    floorId: string;
+    roomNo: string;
   };
 }
 
@@ -180,8 +178,7 @@ export interface TenantUpdatedPayload {
 export interface TenantAssignedToRoomPayload {
   tenantId: string;
   fullName: string;
-  roomId: string;
-  roomNumber: string;
+  roomNo: string;
   role: TenantRole;
   moveInDate: string;
   assignedBy?: string;
@@ -190,8 +187,7 @@ export interface TenantAssignedToRoomPayload {
 export interface TenantRemovedFromRoomPayload {
   tenantId: string;
   fullName: string;
-  roomId: string;
-  roomNumber: string;
+  roomNo: string;
   role: TenantRole;
   moveOutDate: string;
   removedBy?: string;

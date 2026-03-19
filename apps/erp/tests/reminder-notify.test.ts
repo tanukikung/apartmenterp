@@ -10,10 +10,11 @@ vi.mock('@/lib', async () => {
       invoice: {
         findUnique: vi.fn().mockResolvedValue({
           id: 'inv-1',
+          roomNo: '101',
           dueDate: new Date('2026-03-05T00:00:00Z'),
           room: {
-            roomNumber: '101',
-            roomTenants: [
+            roomNo: '101',
+            tenants: [
               { tenant: { lineUserId: 'U777' } },
             ],
           },
@@ -36,4 +37,3 @@ describe('Reminder notification via outbox', () => {
     expect(sendLineMessage).toHaveBeenCalledWith('U777', expect.stringContaining('Reminder: Invoice for Room 101 is due on 2026-03-05.'));
   });
 });
-

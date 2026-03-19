@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { POST as uploadRoute } from '@/app/api/files/route';
+import { makeRequestLike } from '../helpers/auth';
 
 describe('POST /api/files size limits', () => {
   it('rejects oversized uploads based on FILE_MAX_UPLOAD_MB', async () => {
@@ -10,7 +11,12 @@ describe('POST /api/files size limits', () => {
       const file = new File([big], 'b.pdf', { type: 'application/pdf' });
       const form = new FormData();
       form.append('file', file);
-      const req: any = { formData: async () => form };
+      const req = makeRequestLike({
+        url: 'http://localhost/api/files',
+        method: 'POST',
+        role: 'ADMIN',
+        formData: async () => form,
+      });
       const res = await uploadRoute(req as any);
       expect(res.status).toBe(400);
       const body = await res.json();
@@ -22,4 +28,3 @@ describe('POST /api/files size limits', () => {
     }
   });
 });
-

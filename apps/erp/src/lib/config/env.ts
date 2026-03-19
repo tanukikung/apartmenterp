@@ -64,7 +64,18 @@ export function verifyAdminToken(token: string | null | undefined): boolean {
   return token === env.ADMIN_TOKEN;
 }
 
-export function getAuthSecret(): string {
+export function resolveAuthSecret(): string | null {
   const env = getEnv();
-  return env.AUTH_SECRET || env.NEXTAUTH_SECRET || env.ADMIN_TOKEN || 'development-auth-secret';
+  const configured = env.AUTH_SECRET || env.NEXTAUTH_SECRET || env.ADMIN_TOKEN;
+  if (configured) return configured;
+  if (env.NODE_ENV === 'production') return null;
+  return 'development-auth-secret';
+}
+
+export function getAuthSecret(): string {
+  const secret = resolveAuthSecret();
+  if (!secret) {
+    throw new Error('AUTH_SECRET, NEXTAUTH_SECRET, or ADMIN_TOKEN must be configured in production');
+  }
+  return secret;
 }

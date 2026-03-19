@@ -35,7 +35,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         ? input.attachments.map((a) => ({ fileUrl: a.fileUrl, fileType: a.fileType }))
         : undefined,
     },
-    input.tenantId
+    { actorId: 'anonymous', actorRole: 'ANONYMOUS' }
   );
 
   return NextResponse.json({
