@@ -190,7 +190,10 @@ export default function AdminRoomsPage() {
     }
   }
 
-  async function updateStatus(roomId: string, nextStatus: Room['status']) {
+  async function updateStatus(roomId: string, nextStatus: Room['status'], roomNumber: string) {
+    if (nextStatus === 'MAINTENANCE') {
+      if (!confirm(`Mark room ${roomNumber} as MAINTENANCE?\nThis will block new tenant assignments until status changes.`)) return;
+    }
     setWorking(`status:${roomId}`);
     setError(null);
     setMessage(null);
@@ -279,7 +282,7 @@ export default function AdminRoomsPage() {
                         <select
                           className="admin-select min-w-[150px]"
                           value={room.status}
-                          onChange={(e) => void updateStatus(room.id, e.target.value as Room['status'])}
+                          onChange={(e) => void updateStatus(room.id, e.target.value as Room['status'], room.roomNumber)}
                           disabled={working === `status:${room.id}`}
                         >
                           <option value="VACANT">VACANT</option>

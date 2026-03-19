@@ -125,7 +125,7 @@ function parseCsvToPreviewRows(csvText: string, maxRows = 10): PreviewRow[] {
  */
 function readFilePreview(file: File): Promise<PreviewRow[]> {
   return new Promise((resolve) => {
-    if (!file.name.endsWith('.csv')) {
+    if (!file.name.toLowerCase().endsWith('.csv')) {
       // xlsx — skip client-side preview, import will still parse server-side
       resolve([]);
       return;

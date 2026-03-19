@@ -55,6 +55,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       filename: file.name,
       fileBuffer: new Uint8Array(arrayBuffer),
       uploadedFileId,
+      storageKey,
     });
 
     return NextResponse.json({

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import React from 'react';
 import {
   AlertTriangle,
   BarChart2,
@@ -450,8 +451,8 @@ export default function AdminBillingPage() {
                   const genError = generateErrors[cycle.id];
                   const canGenerate = cycle.status === 'LOCKED' || cycle.status === 'IMPORTED';
                   return (
-                    <>
-                      <tr key={cycle.id} className="hover:bg-slate-50 transition-colors">
+                    <React.Fragment key={cycle.id}>
+                      <tr className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
                           {thaiMonthYear(cycle.year, cycle.month)}
                         </td>
@@ -517,7 +518,7 @@ export default function AdminBillingPage() {
                       </tr>
 
                       {genState === 'error' && genError && (
-                        <tr key={`${cycle.id}-err`} className="bg-red-50">
+                        <tr className="bg-red-50">
                           <td colSpan={8} className="px-4 py-2">
                             <div className="flex items-center gap-2 text-xs text-red-700">
                               <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-500" />
@@ -526,7 +527,7 @@ export default function AdminBillingPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>

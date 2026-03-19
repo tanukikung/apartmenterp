@@ -9,6 +9,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: false,
   },
+  serverExternalPackages: ['pino', 'pino-pretty'],
   experimental: {},
   output: 'standalone',
 };

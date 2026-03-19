@@ -44,27 +44,37 @@ export function exportToCsv(
   columns: CsvColumn[],
 ): void {
   if (typeof window === 'undefined') return;
+  if (rows.length === 0) return;
 
-  const header = columns.map((c) => formatCell(c.header)).join(',');
-  const body = rows
-    .map((row) => columns.map((c) => formatCell(row[c.key])).join(','))
-    .join('\r\n');
+  try {
+    const header = columns.map((c) => formatCell(c.header)).join(',');
+    const body = rows
+      .map((row) => columns.map((c) => formatCell(row[c.key])).join(','))
+      .join('\r\n');
 
-  // BOM (\uFEFF) ensures Excel reads the file as UTF-8 (required for Thai)
-  const csvContent = '\uFEFF' + header + '\r\n' + body;
+    // BOM (\uFEFF) ensures Excel reads the file as UTF-8 (required for Thai)
+    const csvContent = '\uFEFF' + header + '\r\n' + body;
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
 
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename.endsWith('.csv') ? filename : `${filename}.csv`;
-  link.style.display = 'none';
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename.endsWith('.csv') ? filename : `${filename}.csv`;
+    link.style.display = 'none';
 
-  document.body.appendChild(link);
-  link.click();
+    document.body.appendChild(link);
+    link.click();
 
-  // Clean up
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    // Clean up
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  } catch (err) {
+    console.error('[exportToCsv] Failed to generate CSV download:', err);
+    // Surface a user-visible error via alert as a last resort
+    // (avoids silent failure when Blob or download is blocked)
+    if (typeof window !== 'undefined') {
+      window.alert('Unable to download CSV. Please try again or check your browser settings.');
+    }
+  }
 }

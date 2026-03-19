@@ -372,7 +372,9 @@ export default function AdminInvoicesPage() {
 
         {/* Record count */}
         <span className="text-sm text-slate-500">
-          {filtered.length} of {total} invoices
+          {search.trim()
+            ? `${filtered.length} matching`
+            : `${total} invoice${total !== 1 ? 's' : ''}`}
         </span>
       </section>
 

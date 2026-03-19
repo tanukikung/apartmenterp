@@ -213,8 +213,18 @@ export default function AdminTenantsPage() {
     }
   }
 
-  async function removeFromRoom(roomId: string) {
+  async function removeFromRoom(roomId: string, roomNumber: string) {
     if (!selectedTenant) return;
+    const moveOutDate = prompt(
+      `Move-out date for ${selectedTenant.fullName} from room ${roomNumber}:\n(Format: YYYY-MM-DD)`,
+      new Date().toISOString().slice(0, 10),
+    );
+    if (!moveOutDate) return; // user cancelled
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(moveOutDate)) {
+      setError('Invalid date format. Use YYYY-MM-DD (e.g. 2026-03-19).');
+      return;
+    }
+    if (!confirm(`Remove ${selectedTenant.fullName} from room ${roomNumber}?\nMove-out date: ${moveOutDate}\n\nThis cannot be undone.`)) return;
     setWorking(`remove:${selectedTenant.id}:${roomId}`);
     setError(null);
     setMessage(null);
@@ -222,10 +232,10 @@ export default function AdminTenantsPage() {
       const res = await fetch(`/api/rooms/${roomId}/tenants/${selectedTenant.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ moveOutDate: new Date().toISOString().slice(0, 10) }),
+        body: JSON.stringify({ moveOutDate }),
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'Unable to remove tenant from room');
-      setMessage('Tenant removed from room');
+      setMessage(`Tenant removed from room ${roomNumber} (move-out: ${moveOutDate})`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to remove tenant from room');
@@ -380,7 +390,7 @@ export default function AdminTenantsPage() {
                             <div className="font-medium text-slate-900">{roomTenant.room?.roomNumber || roomTenant.roomId}</div>
                             <div className="text-slate-500">{roomTenant.role} · Move in {new Date(roomTenant.moveInDate).toLocaleDateString()}</div>
                           </div>
-                          <button className="admin-button" onClick={() => void removeFromRoom(roomTenant.roomId)} disabled={working === `remove:${selectedTenant.id}:${roomTenant.roomId}`}>
+                          <button className="admin-button" onClick={() => void removeFromRoom(roomTenant.roomId, roomTenant.room?.roomNumber ?? roomTenant.roomId)} disabled={working === `remove:${selectedTenant.id}:${roomTenant.roomId}`}>
                             Remove
                           </button>
                         </div>
