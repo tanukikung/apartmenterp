@@ -40,6 +40,24 @@ export function getOnlyOfficeAppBaseUrl(): string {
   return value;
 }
 
+/**
+ * URL that ONLYOFFICE Document Server uses to call back into this app.
+ *
+ * In Docker Compose the OnlyOffice container cannot reach "localhost" — it
+ * needs the internal service name (e.g. http://app:3000).  Set
+ * ONLYOFFICE_CALLBACK_BASE_URL to the internal URL when running in Docker;
+ * leave it unset in dev/production where APP_BASE_URL is already reachable.
+ *
+ *   Dev (no Docker):  ONLYOFFICE_CALLBACK_BASE_URL not set → uses APP_BASE_URL
+ *   Docker Compose:   ONLYOFFICE_CALLBACK_BASE_URL=http://app:3000
+ *   Production:       ONLYOFFICE_CALLBACK_BASE_URL not set → uses APP_BASE_URL
+ */
+export function getOnlyOfficeCallbackBaseUrl(): string {
+  const override = (process.env.ONLYOFFICE_CALLBACK_BASE_URL || '').trim().replace(/\/+$/, '');
+  if (override) return override;
+  return getOnlyOfficeAppBaseUrl();
+}
+
 export function isOnlyOfficeConfigured(): boolean {
   return Boolean((process.env.ONLYOFFICE_DOCUMENT_SERVER_URL || '').trim() && (process.env.APP_BASE_URL || '').trim());
 }

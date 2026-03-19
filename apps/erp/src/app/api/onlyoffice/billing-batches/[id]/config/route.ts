@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
-import { createOnlyOfficeEditorConfig, getOnlyOfficeAppBaseUrl } from '@/lib/onlyoffice';
+import { createOnlyOfficeEditorConfig, getOnlyOfficeCallbackBaseUrl } from '@/lib/onlyoffice';
 import { getStoredWorkbookForBatch } from '@/lib/onlyoffice/documents';
 
 export const GET = asyncHandler(async (
@@ -16,7 +16,7 @@ export const GET = asyncHandler(async (
     fileType: prepared.fileType,
     documentType: prepared.documentType,
     key: prepared.key,
-    callbackUrl: `${getOnlyOfficeAppBaseUrl()}/api/onlyoffice/billing-batches/${prepared.batch.id}/callback`,
+    callbackUrl: `${getOnlyOfficeCallbackBaseUrl()}/api/onlyoffice/billing-batches/${prepared.batch.id}/callback`,
     user: {
       id: session.sub,
       name: session.displayName,
