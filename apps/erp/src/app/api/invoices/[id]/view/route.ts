@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInvoiceService } from '@/modules/invoices/invoice.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { requireOperatorOrSignedInvoiceAccess } from '@/lib/invoices/access';
@@ -13,7 +13,7 @@ export const POST = asyncHandler(
     const { id } = params;
     requireOperatorOrSignedInvoiceAccess(req, id, 'view');
 
-    const invoiceService = getInvoiceService();
+    const { invoiceService } = getServiceContainer();
     const invoice = await invoiceService.markInvoiceViewed(id);
 
     logger.info({

@@ -41,41 +41,41 @@ interface ToastMessage {
 const JOB_CONFIG: Job[] = [
   {
     id: 'billing-generate',
-    name: 'Generate Billing Cycles',
-    description: 'Auto-generate monthly billing cycles for active rooms',
-    schedule: '1st of each month',
+    name: 'สร้างรอบบิลอัตโนมัติ',
+    description: 'สร้างรอบบิลรายเดือนอัตโนมัติสำหรับห้องที่ใช้งานอยู่',
+    schedule: 'ทุกวันที่ 1 ของเดือน',
     lastRun: null,
     status: 'idle',
   },
   {
     id: 'invoice-send',
-    name: 'Send Invoice Notifications',
-    description: 'Send LINE/email notifications for new invoices',
-    schedule: 'Daily 8:00 AM',
+    name: 'ส่งแจ้งเตือนใบแจ้งหนี้',
+    description: 'ส่งการแจ้งเตือน LINE/อีเมลสำหรับใบแจ้งหนี้ใหม่',
+    schedule: 'ทุกวัน 08:00 น.',
     lastRun: null,
     status: 'idle',
   },
   {
     id: 'overdue-flag',
-    name: 'Flag Overdue Invoices',
-    description: 'Mark invoices past due date as OVERDUE',
-    schedule: 'Daily 9:00 AM',
+    name: 'ตั้งสถานะใบแจ้งหนี้ค้างชำระ',
+    description: 'ตั้งใบแจ้งหนี้ที่เกินกำหนดชำระเป็นค้างชำระ',
+    schedule: 'ทุกวัน 09:00 น.',
     lastRun: null,
     status: 'idle',
   },
   {
     id: 'late-fee',
-    name: 'Apply Late Fees',
-    description: 'Apply penalty fees to overdue accounts',
-    schedule: 'Daily 9:30 AM',
+    name: 'คิดค่าปรับ',
+    description: 'คิดค่าปรับสำหรับบัญชีที่ค้างชำระ',
+    schedule: 'ทุกวัน 09:30 น.',
     lastRun: null,
     status: 'idle',
   },
   {
     id: 'db-cleanup',
-    name: 'Database Cleanup',
-    description: 'Archive old logs and optimize database tables',
-    schedule: 'Weekly Sunday 2:00 AM',
+    name: 'ล้างข้อมูลฐานข้อมูล',
+    description: 'เก็บถาวร log เก่าและปรับปรุงตารางฐานข้อมูล',
+    schedule: 'ทุกวันอาทิตย์ 02:00 น.',
     lastRun: null,
     status: 'idle',
   },
@@ -124,7 +124,7 @@ function StatusBadge({ status }: { status: JobStatus }) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
         <Play className="w-3 h-3" />
-        Running
+        กำลังรัน
       </span>
     );
   }
@@ -139,7 +139,7 @@ function StatusBadge({ status }: { status: JobStatus }) {
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
       <Pause className="w-3 h-3" />
-      Idle
+      รอดำเนินการ
     </span>
   );
 }
@@ -152,16 +152,16 @@ export default function SystemJobsPage() {
   const [jobs, setJobs] = useState<Job[]>(JOB_CONFIG);
   const [workerAvailable, setWorkerAvailable] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [runningJobIds, setRunningJobIds] = useState<Set<string>>(new Set());
+  const [refreshing, setรีเฟรชing] = useState(false);
+  const [runningJobIds, setกำลังรันJobIds] = useState<Set<string>>(new Set());
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // -------------------------------------------------------------------------
   // Fetch job status
   // -------------------------------------------------------------------------
 
-  const fetchJobStatus = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
+  const fetchJobStatus = useCallback(async (isรีเฟรช = false) => {
+    if (isรีเฟรช) setรีเฟรชing(true);
 
     try {
       const res = await fetch('/api/admin/jobs');
@@ -188,7 +188,7 @@ export default function SystemJobsPage() {
       setWorkerAvailable(false);
     } finally {
       setLoading(false);
-      if (isRefresh) setRefreshing(false);
+      if (isรีเฟรช) setรีเฟรชing(false);
     }
   }, []);
 
@@ -210,7 +210,7 @@ export default function SystemJobsPage() {
   const handleRunNow = async (job: Job) => {
     if (!workerAvailable || runningJobIds.has(job.id)) return;
 
-    setRunningJobIds((prev) => new Set(prev).add(job.id));
+    setกำลังรันJobIds((prev) => new Set(prev).add(job.id));
     setJobs((prev) =>
       prev.map((j) => (j.id === job.id ? { ...j, status: 'running' as JobStatus } : j)),
     );
@@ -222,7 +222,7 @@ export default function SystemJobsPage() {
       };
 
       if (!res.ok) {
-        const msg = json?.error?.message ?? `Job failed (HTTP ${res.status}).`;
+        const msg = json?.error?.message ?? `งานล้มเหลว (HTTP ${res.status}).`;
         pushToast(job.id, msg, 'error');
         setJobs((prev) =>
           prev.map((j) => (j.id === job.id ? { ...j, status: 'error' as JobStatus } : j)),
@@ -236,14 +236,14 @@ export default function SystemJobsPage() {
           j.id === job.id ? { ...j, status: 'idle' as JobStatus, lastRun: now } : j,
         ),
       );
-      pushToast(job.id, `${job.name} dispatched successfully.`, 'success');
+      pushToast(job.id, `${job.name} ถูกส่งไปทำงานสำเร็จแล้ว`, 'success');
     } catch {
-      pushToast(job.id, 'A network error occurred. Please try again.', 'error');
+      pushToast(job.id, 'เกิดข้อผิดพลาดเครือข่าย กรุณาลองใหม่', 'error');
       setJobs((prev) =>
         prev.map((j) => (j.id === job.id ? { ...j, status: 'error' as JobStatus } : j)),
       );
     } finally {
-      setRunningJobIds((prev) => {
+      setกำลังรันJobIds((prev) => {
         const next = new Set(prev);
         next.delete(job.id);
         return next;
@@ -256,23 +256,23 @@ export default function SystemJobsPage() {
   // -------------------------------------------------------------------------
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
       {/* Header */}
-      <section className="admin-page-header">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div>
-          <h1 className="admin-page-title">System Jobs</h1>
-          <p className="admin-page-subtitle">
-            Scheduled background tasks, billing automation, and system maintenance jobs.
+          <h1 className="text-xl font-semibold text-on-primary">งานระบบ</h1>
+          <p className="text-sm text-on-primary/80">
+            งานเบื้องหลังที่กำหนดเวลาไว้ ระบบอัตโนมัติบิลลิ่ง และงานบำรุงรักษาระบบ
           </p>
         </div>
-        <div className="admin-toolbar">
+        <div className="flex items-center gap-2 mt-4">
           <button
             onClick={() => fetchJobStatus(true)}
             disabled={refreshing}
-            className="admin-button inline-flex items-center gap-2 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-50"
           >
             <RotateCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Refreshing…' : 'Refresh'}
+            {refreshing ? 'กำลังรีเฟรช…' : 'รีเฟรช'}
           </button>
         </div>
       </section>
@@ -282,7 +282,7 @@ export default function SystemJobsPage() {
         <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
           <div>
-            <span className="font-semibold">Background worker not running.</span>
+            <span className="font-semibold">เวิร์กเกอร์เบื้องหลังไม่ทำงาน</span>
             {' '}Jobs execute automatically on their configured schedule when the worker
             process is deployed. Manual execution is unavailable in this environment.
           </div>
@@ -316,21 +316,21 @@ export default function SystemJobsPage() {
       {loading ? (
         <div className="flex items-center justify-center py-20 text-gray-400 text-sm">
           <RotateCw className="w-5 h-5 animate-spin mr-2" />
-          Loading jobs…
+          กำลังโหลดงาน...
         </div>
       ) : (
         <section className="space-y-4">
           {jobs.map((job) => {
-            const isRunning = runningJobIds.has(job.id) || job.status === 'running';
-            // "Run Now" is only actionable when the worker is confirmed alive.
-            const canRun = workerAvailable === true && !isRunning;
+            const isกำลังรัน = runningJobIds.has(job.id) || job.status === 'running';
+            // "รันทันที" is only actionable when the worker is confirmed alive.
+            const canRun = workerAvailable === true && !isกำลังรัน;
             const jobToast = toasts.find((t) => t.jobId === job.id);
 
             return (
-              <div key={job.id} className="admin-card">
-                <div className="admin-card-header">
+              <div key={job.id} className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+                <div className="px-5 py-4 border-b border-outline-variant">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <h3 className="admin-card-title">{job.name}</h3>
+                    <h3 className="text-sm font-semibold text-primary flex items-center gap-2">{job.name}</h3>
                     <StatusBadge status={job.status} />
                   </div>
                   <button
@@ -338,22 +338,22 @@ export default function SystemJobsPage() {
                     disabled={!canRun}
                     title={
                       !workerAvailable
-                        ? 'Background worker is not running — manual execution unavailable'
-                        : isRunning
-                        ? 'Job is already running'
+                        ? 'เวิร์กเกอร์เบื้องหลังไม่ทำงาน — ไม่สามารถรันด้วยตนเองได้'
+                        : isกำลังรัน
+                        ? 'งานกำลังรันอยู่แล้ว'
                         : `Run ${job.name} now`
                     }
-                    className="admin-button admin-button-primary inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                    className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 mt-3"
                   >
-                    {isRunning ? (
+                    {isกำลังรัน ? (
                       <>
                         <RotateCw className="w-4 h-4 animate-spin" />
-                        Running…
+                        กำลังรัน...
                       </>
                     ) : (
                       <>
                         <Play className="w-4 h-4" />
-                        {workerAvailable ? 'Run Now' : 'Unavailable'}
+                        {workerAvailable ? 'รันทันที' : 'ไม่พร้อม'}
                       </>
                     )}
                   </button>
@@ -365,8 +365,8 @@ export default function SystemJobsPage() {
                   <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
                     <div className="flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5" />
-                      <span className="font-medium">Schedule:</span>
-                      <span className="admin-badge">{job.schedule}</span>
+                      <span className="font-medium">เวลา:</span>
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-surface-container text-on-surface-variant">{job.schedule}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       {job.lastRun ? (
@@ -374,7 +374,7 @@ export default function SystemJobsPage() {
                       ) : (
                         <AlertCircle className="w-3.5 h-3.5 text-gray-400" />
                       )}
-                      <span className="font-medium">Last run:</span>
+                      <span className="font-medium">รันล่าสุด:</span>
                       <span>{formatLastRun(job.lastRun)}</span>
                     </div>
                   </div>
@@ -406,7 +406,7 @@ export default function SystemJobsPage() {
       {/* Footer link */}
       <div className="mt-6">
         <Link href="/admin/system" className="text-sm text-slate-500 hover:text-slate-700">
-          ← System Health
+          ← สถานะระบบ
         </Link>
       </div>
     </main>

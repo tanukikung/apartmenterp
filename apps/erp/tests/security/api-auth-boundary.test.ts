@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { makeRequestLike } from '../helpers/auth';
+import { getServiceContainer } from '@/lib/service-container';
 
 describe('API auth boundary hardening', () => {
   beforeEach(() => {
@@ -7,25 +8,23 @@ describe('API auth boundary hardening', () => {
   });
 
   it('denies anonymous and forged role cookies, denies insufficient role, and allows signed admins', async () => {
-    const serviceModule = await import('@/modules/billing/billing.service');
     const route = await import('@/app/api/billing/[id]/lock/route');
 
-    vi.spyOn(serviceModule, 'getBillingService').mockReturnValue({
-      lockBillingRecord: vi.fn(async () => ({
-        id: 'bill-1',
-        roomId: 'room-1',
-        year: 2026,
-        month: 3,
-        status: 'LOCKED',
-        subtotal: 1000,
-        totalAmount: 1000,
-        lockedAt: new Date('2026-03-17T00:00:00Z'),
-        lockedBy: 'verified-admin',
-        createdAt: new Date('2026-03-17T00:00:00Z'),
-        updatedAt: new Date('2026-03-17T00:00:00Z'),
-        items: [],
-      })),
-    } as any);
+    vi.spyOn(getServiceContainer().billingService, 'lockBillingRecord').mockImplementation(async () => ({
+      id: 'bill-1',
+      roomId: 'room-1',
+      roomNo: '101',
+      billingPeriodId: 'bp-1',
+      year: 2026,
+      month: 3,
+      status: 'LOCKED' as const,
+      subtotal: 1000,
+      totalAmount: 1000,
+      lockedAt: new Date('2026-03-17T00:00:00Z'),
+      lockedBy: 'verified-admin',
+      createdAt: new Date('2026-03-17T00:00:00Z'),
+      updatedAt: new Date('2026-03-17T00:00:00Z'),
+    } as any));
 
     const body = { force: false };
 

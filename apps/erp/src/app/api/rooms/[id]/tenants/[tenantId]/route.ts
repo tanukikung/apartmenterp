@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTenantService } from '@/modules/tenants/tenant.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { removeTenantSchema } from '@/modules/tenants/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
@@ -21,7 +21,7 @@ export const DELETE = asyncHandler(
       moveOutDate: body.moveOutDate || new Date().toISOString().split('T')[0],
     });
 
-    const tenantService = getTenantService();
+    const { tenantService } = getServiceContainer();
     await tenantService.removeTenantFromRoom(roomId, tenantId, input);
 
     logger.info({

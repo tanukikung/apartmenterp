@@ -105,22 +105,22 @@ export default function DocumentDetailPage() {
   }, [document]);
 
   return (
-    <main className="admin-page">
-      <section className="admin-page-header">
+    <main className="space-y-6">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div className="flex items-center gap-4">
-          <Link href="/admin/documents" className="admin-button flex items-center gap-2">
+          <Link href="/admin/documents" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
             <ArrowLeft className="h-4 w-4" />
             Documents
           </Link>
           <div>
-            <h1 className="admin-page-title">{document?.title ?? 'Document Detail'}</h1>
-            <p className="admin-page-subtitle">
+            <h1 className="text-xl font-semibold text-on-primary">{document?.title ?? 'Document Detail'}</h1>
+            <p className="text-sm text-on-primary/80">
               Generated output, template lineage, source context, and downloadable files.
             </p>
           </div>
         </div>
-        <div className="admin-toolbar">
-          <button type="button" className="admin-button" onClick={() => void regenerate()} disabled={working}>
+        <div className="flex items-center gap-2 mt-4">
+          <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={() => void regenerate()} disabled={working}>
             <RotateCcw className="h-4 w-4" />
             {working ? 'Regenerating...' : 'Regenerate'}
           </button>
@@ -135,62 +135,62 @@ export default function DocumentDetailPage() {
       ) : !document ? null : (
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <div className="space-y-6">
-            <section className="admin-card">
-              <div className="admin-card-header">
-                <div className="admin-card-title">Metadata</div>
+            <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+              <div className="px-5 py-4 border-b border-outline-variant">
+                <div className="text-sm font-semibold text-primary">Metadata</div>
               </div>
-              <div className="space-y-4 p-5 text-sm text-slate-600">
+              <div className="space-y-4 p-5 text-sm text-on-surface-variant">
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Status</div>
-                  <div className="mt-1"><span className="admin-badge">{document.status}</span></div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">Status</div>
+                  <div className="mt-1"><span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-surface-container text-on-surface-variant">{document.status}</span></div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Type</div>
-                  <div className="mt-1 text-slate-900">{document.documentType.replace(/_/g, ' ')}</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">Type</div>
+                  <div className="mt-1 text-on-surface">{document.documentType.replace(/_/g, ' ')}</div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Template</div>
-                  <div className="mt-1 text-slate-900">{document.template.name} · v{document.templateVersion.version}</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">Template</div>
+                  <div className="mt-1 text-on-surface">{document.template.name} · v{document.templateVersion.version}</div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Room</div>
-                  <div className="mt-1 text-slate-900">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">Room</div>
+                  <div className="mt-1 text-on-surface">
                     {document.room.roomNumber} · Floor {document.room.floorNumber ?? '—'}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Tenant</div>
-                  <div className="mt-1 text-slate-900">{document.tenantName ?? 'No tenant linked'}</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">Tenant</div>
+                  <div className="mt-1 text-on-surface">{document.tenantName ?? 'No tenant linked'}</div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Generated</div>
-                  <div className="mt-1 text-slate-900">{new Date(document.generatedAt).toLocaleString('th-TH')}</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">Generated</div>
+                  <div className="mt-1 text-on-surface">{new Date(document.generatedAt).toLocaleString('th-TH')}</div>
                 </div>
               </div>
             </section>
 
-            <section className="admin-card">
-              <div className="admin-card-header">
-                <div className="admin-card-title flex items-center gap-2">
-                  <FolderOutput className="h-4 w-4 text-indigo-500" />
+            <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+              <div className="px-5 py-4 border-b border-outline-variant">
+                <div className="text-sm font-semibold text-primary flex items-center gap-2">
+                  <FolderOutput className="h-4 w-4 text-primary" />
                   Output Files
                 </div>
               </div>
               <div className="space-y-3 p-5">
                 {document.files.map((file) => (
-                  <div key={file.id} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 px-4 py-4">
+                  <div key={file.id} className="rounded-xl border border-outline-variant/10 bg-surface-container px-4 py-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="font-medium text-slate-900">{file.fileName}</div>
-                        <div className="mt-1 text-xs text-slate-500">
+                        <div className="font-medium text-on-surface">{file.fileName}</div>
+                        <div className="mt-1 text-xs text-on-surface-variant">
                           {file.role} · {file.mimeType} · {(file.size / 1024).toFixed(1)} KB
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <a href={file.url} className="admin-button text-xs">
+                        <a href={file.url} className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
                           <Download className="h-3.5 w-3.5" />
                         </a>
-                        <a href={file.url} target="_blank" rel="noreferrer" className="admin-button text-xs">
+                        <a href={file.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
                       </div>
@@ -201,10 +201,10 @@ export default function DocumentDetailPage() {
             </section>
           </div>
 
-          <section className="admin-card overflow-hidden">
-            <div className="admin-card-header">
-              <div className="admin-card-title flex items-center gap-2">
-                <FileCode2 className="h-4 w-4 text-indigo-500" />
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="px-5 py-4 border-b border-outline-variant">
+              <div className="text-sm font-semibold text-primary flex items-center gap-2">
+                <FileCode2 className="h-4 w-4 text-primary" />
                 Render Context Snapshot
               </div>
             </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getBillingService } from '@/modules/billing/billing.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { prisma } from '@/lib';
 
 // New schema: BillingRecord/BillingItemType/BillingItem removed.
@@ -27,7 +27,7 @@ vi.mock('@/lib', async () => {
 
 describe('BillingService', () => {
   it('rejects duplicate billing record for same room/month', async () => {
-    const billingService = getBillingService();
+    const billingService = getServiceContainer().billingService;
     // createBillingRecord uses prisma.room.findUnique
     vi.spyOn(prisma.room as any, 'findUnique').mockResolvedValue({ roomNo: 'room-101', defaultAccountId: 'acc-1', defaultRuleCode: 'RULE', defaultRentAmount: 5000 } as any);
     // billingPeriod.findUnique returns existing period
@@ -41,7 +41,7 @@ describe('BillingService', () => {
   });
 
   it('creates billing record atomically', async () => {
-    const billingService = getBillingService();
+    const billingService = getServiceContainer().billingService;
     vi.spyOn(prisma.room as any, 'findUnique').mockResolvedValue({ roomNo: '101', defaultAccountId: 'acc-1', defaultRuleCode: 'RULE', defaultRentAmount: 5000 } as any);
     vi.spyOn(prisma.billingPeriod as any, 'findUnique').mockResolvedValue(null as any);
     vi.spyOn(prisma.billingPeriod as any, 'create').mockResolvedValue({ id: 'period-1', year: 2026, month: 3, dueDay: 25 } as any);

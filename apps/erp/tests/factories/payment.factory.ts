@@ -1,6 +1,6 @@
 export async function createPaymentForInvoice(invoiceId: string, amount: number) {
-  const { getPaymentService } = await import('@/modules/payments/payment.service');
-  const svc = getPaymentService();
+  const { createPaymentService } = await import('@/modules/payments/payment.service');
+  const svc = createPaymentService();
   return svc.createPayment({
     invoiceId,
     amount,

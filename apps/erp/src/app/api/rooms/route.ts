@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRoomService } from '@/modules/rooms/room.service';
+import { getServiceContainer } from '@/lib/service-container';
 import {
   createRoomSchema,
   listRoomsQuerySchema,
@@ -30,7 +30,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   // Validate query
   const validatedQuery = listRoomsQuerySchema.parse(query);
 
-  const roomService = getRoomService();
+  const { roomService } = getServiceContainer();
   const result = await roomService.listRooms(validatedQuery);
 
   return NextResponse.json({
@@ -49,7 +49,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   // Validate input
   const input = createRoomSchema.parse(body);
 
-  const roomService = getRoomService();
+  const { roomService } = getServiceContainer();
   const room = await roomService.createRoom(input);
 
   logger.info({

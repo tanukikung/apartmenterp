@@ -1,538 +1,243 @@
 'use client';
 
-import React, { useCallback, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRef, useState } from 'react';
 import {
   AlertTriangle,
-  ArrowLeft,
-  CheckCircle,
-  FileText,
-  Upload,
+  CheckCircle2,
+  FileSpreadsheet,
+  Loader2,
+  UploadCloud,
 } from 'lucide-react';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type WizardStep = 1 | 2 | 3;
-
-interface PreviewRow {
-  index: number;
-  col1: string;
-  col2: string;
-  col3: string;
-  col4: string;
-}
-
-// ---------------------------------------------------------------------------
-// Step indicator
-// ---------------------------------------------------------------------------
-
-const STEPS: { n: WizardStep; label: string }[] = [
-  { n: 1, label: 'Select File' },
-  { n: 2, label: 'Preview' },
-  { n: 3, label: 'Import' },
-];
-
-function StepIndicator({ current }: { current: WizardStep }) {
-  return (
-    <div className="flex items-center mb-8">
-      {STEPS.map((step, idx) => {
-        const done = current > step.n;
-        const active = current === step.n;
-        return (
-          <React.Fragment key={step.n}>
-            <div className="flex flex-col items-center gap-1">
-              <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-colors ${
-                  done
-                    ? 'bg-green-600 border-green-600 text-white'
-                    : active
-                    ? 'bg-blue-600 border-blue-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-400'
-                }`}
-              >
-                {done ? <CheckCircle className="w-4 h-4" /> : step.n}
-              </div>
-              <span
-                className={`text-xs font-medium whitespace-nowrap ${
-                  active ? 'text-blue-600' : done ? 'text-green-600' : 'text-gray-400'
-                }`}
-              >
-                {step.label}
-              </span>
-            </div>
-            {idx < STEPS.length - 1 && (
-              <div
-                className={`flex-1 h-0.5 mx-2 mt-[-14px] ${
-                  current > step.n ? 'bg-green-500' : 'bg-gray-200'
-                }`}
-              />
-            )}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// CSV parser — reads actual file content for preview (first 10 data rows)
-// ---------------------------------------------------------------------------
-
-/**
- * Parses a CSV string and returns up to `maxRows` data rows as PreviewRow[].
- * Handles quoted fields with embedded commas.
- */
-function parseCsvToPreviewRows(csvText: string, maxRows = 10): PreviewRow[] {
-  const lines = csvText.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  const rows: PreviewRow[] = [];
-
-  for (let i = 0; i < Math.min(lines.length, maxRows + 1); i++) {
-    const line = lines[i];
-    // Minimal CSV split: split on commas not inside quotes
-    const cells: string[] = [];
-    let current = '';
-    let inQuote = false;
-    for (const ch of line) {
-      if (ch === '"') {
-        inQuote = !inQuote;
-      } else if (ch === ',' && !inQuote) {
-        cells.push(current.trim());
-        current = '';
-      } else {
-        current += ch;
-      }
-    }
-    cells.push(current.trim());
-
-    rows.push({
-      index: i + 1,
-      col1: cells[0] ?? '',
-      col2: cells[1] ?? '',
-      col3: cells[2] ?? '',
-      col4: cells[3] ?? '',
-    });
-  }
-
-  return rows;
-}
-
-/**
- * Reads a File and resolves preview rows.
- * CSV files are parsed client-side.
- * Excel files cannot be parsed without a library — returns empty (import still works).
- */
-function readFilePreview(file: File): Promise<PreviewRow[]> {
-  return new Promise((resolve) => {
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      // xlsx — skip client-side preview, import will still parse server-side
-      resolve([]);
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      resolve(parseCsvToPreviewRows(text, 10));
-    };
-    reader.onerror = () => resolve([]);
-    reader.readAsText(file);
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Main page
-// ---------------------------------------------------------------------------
+type UploadResult = {
+  totalEntries: number;
+  imported: number;
+  matched: number;
+  unmatched: number;
+  storageKey: string;
+};
 
 export default function UploadStatementPage() {
-  const [step, setStep] = useState<WizardStep>(1);
-  const [dragging, setDragging] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
-  const [importing, setImporting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [result, setResult] = useState<UploadResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // -------------------------------------------------------------------------
-  // Drag & drop handlers
-  // -------------------------------------------------------------------------
-
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragging(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped) setSelectedFile(dropped);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback(() => setDragging(false), []);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) setSelectedFile(file);
-  };
-
-  // -------------------------------------------------------------------------
-  // Wizard navigation
-  // -------------------------------------------------------------------------
-
-  const handleNext = async () => {
-    setErrorMessage(null);
-    if (step === 1) {
-      if (!selectedFile) {
-        setErrorMessage('Please select a file before continuing.');
-        return;
-      }
-      const rows = await readFilePreview(selectedFile);
-      setPreviewRows(rows);
-      setStep(2);
-    } else if (step === 2) {
-      setStep(3);
-    }
-  };
-
-  const handleBack = () => {
-    setErrorMessage(null);
-    setSuccessMessage(null);
-    if (step === 2) setStep(1);
-    else if (step === 3) setStep(2);
-  };
-
-  // -------------------------------------------------------------------------
-  // Process import
-  // -------------------------------------------------------------------------
-
-  const handleProcessImport = async () => {
-    if (!selectedFile) return;
-    setImporting(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
-
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-
+  async function handleUpload() {
+    if (!file) { setError('Select a bank statement file first.'); return; }
+    setLoading(true); setError(null); setResult(null);
     try {
-      const res = await fetch('/api/payments/statement-upload', {
-        method: 'POST',
-        body: formData,
-      });
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch('/api/payments/statement-upload', { method: 'POST', body: formData });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error?.message ?? 'Unable to upload statement');
+      setResult(json.data as UploadResult);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to upload bank statement');
+    } finally { setLoading(false); }
+  }
 
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({})) as { error?: { message?: string } };
-        setErrorMessage(json?.error?.message ?? `Upload failed with status ${res.status}.`);
-        return;
-      }
-
-      const json = await res.json() as {
-        success?: boolean;
-        data?: { totalEntries?: number; imported?: number; matched?: number; unmatched?: number };
-      };
-      if (json.success === false) {
-        setErrorMessage('The server rejected the upload. Please check the file format and try again.');
-        return;
-      }
-
-      const imported = json?.data?.imported ?? 0;
-      const matched = json?.data?.matched ?? 0;
-      const unmatched = json?.data?.unmatched ?? 0;
-      setSuccessMessage(
-        `Statement imported: ${imported} transaction(s) saved. ${matched} auto-matched, ${unmatched} pending review.`,
-      );
-    } catch {
-      setErrorMessage('A network error occurred. Please check your connection and try again.');
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  // -------------------------------------------------------------------------
-  // Reset wizard
-  // -------------------------------------------------------------------------
-
-  const handleReset = () => {
-    setStep(1);
-    setSelectedFile(null);
-    setPreviewRows([]);
-    setSuccessMessage(null);
-    setErrorMessage(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
+  function resetAll() {
+    setFile(null); setResult(null); setError(null);
+    if (fileRef.current) fileRef.current.value = '';
+  }
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
       {/* Header */}
-      <section className="admin-page-header">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <Link
-            href="/admin/payments"
-            className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Payments
-          </Link>
-          <h1 className="admin-page-title">Upload Bank Statement</h1>
-          <p className="admin-page-subtitle">
-            Import CSV or Excel bank statements to match against outstanding invoices.
-          </p>
+          <h1 className="text-2xl font-bold text-on-surface">อัปโหลด Bank Statement</h1>
+          <p className="mt-1 text-sm text-on-surface-variant">อัปโหลด Statement ธนาคาร (CSV หรือ Excel) เพื่อ parse รายการธุรกรรมและจับคู่กับใบแจ้งหนี้โดยอัตโนมัติ</p>
         </div>
-      </section>
+        <Link href="/admin/payments" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container">
+          กลับไปการเงิน
+        </Link>
+      </div>
 
-      <div className="max-w-3xl mx-auto p-6">
-        <StepIndicator current={step} />
+      {error && (
+        <div className="flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      )}
 
-        {/* Error / success banners */}
-        {errorMessage && (
-          <div className="auth-alert auth-alert-error mb-4 flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
-        {successMessage && (
-          <div className="auth-alert auth-alert-success mb-4 flex items-start gap-2">
-            <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>{successMessage}</span>
-          </div>
-        )}
-
-        {/* ---------------------------------------------------------------- */}
-        {/* STEP 1: Select File                                              */}
-        {/* ---------------------------------------------------------------- */}
-        {step === 1 && (
-          <div className="admin-card space-y-6">
-            <div className="admin-card-header">
-              <h2 className="admin-card-title">Step 1: Select File</h2>
-              <span className="admin-badge">CSV / Excel</span>
-            </div>
-
-            {/* Drop zone */}
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
-              className={`relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-14 cursor-pointer transition-colors ${
-                dragging
-                  ? 'border-blue-400 bg-blue-50'
-                  : selectedFile
-                  ? 'border-green-400 bg-green-50'
-                  : 'border-gray-300 bg-gray-50 hover:border-blue-300 hover:bg-blue-50'
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-              {selectedFile ? (
-                <>
-                  <FileText className="h-12 w-12 text-green-500" />
-                  <p className="text-base font-medium text-green-700">{selectedFile.name}</p>
-                  <p className="text-sm text-green-600">
-                    {(selectedFile.size / 1024).toFixed(1)} KB &mdash; click to change
-                  </p>
-                </>
+      {/* Upload card */}
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
+          <h2 className="text-sm font-semibold text-on-surface">1. อัปโหลด Bank Statement</h2>
+        </div>
+        <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          {/* Drop zone */}
+          <div
+            onClick={() => fileRef.current?.click()}
+            className={`flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 text-center transition-all ${
+              file
+                ? 'border-on-tertiary-container bg-tertiary-container/10'
+                : 'border-outline hover:border-primary/50 hover:bg-surface-container'
+            }`}
+          >
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              className="hidden"
+              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            />
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-container shadow-sm">
+              {file ? (
+                <CheckCircle2 className="h-7 w-7 text-on-tertiary-container" />
               ) : (
-                <>
-                  <Upload className="h-12 w-12 text-gray-400" />
-                  <p className="text-base font-medium text-gray-700">
-                    Click to browse or drag &amp; drop
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Supported: CSV, Excel (.xlsx) &middot; Max 10MB
-                  </p>
-                </>
+                <UploadCloud className="h-7 w-7 text-on-surface-variant" />
               )}
             </div>
+            <div className="text-lg font-semibold text-on-surface">
+              {file ? file.name : 'Drop หรือเลือกไฟล์'}
+            </div>
+            <p className="mt-2 max-w-md text-sm text-on-surface-variant">
+              รองรับ: CSV, XLSX (max 10 MB). ระบบจะ auto-detect คอลัมน์ date, amount และ reference
+            </p>
+          </div>
 
-            <div className="flex justify-end">
+          {/* Workflow sidebar */}
+          <div className="space-y-4 rounded-xl border border-outline-variant bg-surface-container p-5">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">ขั้นตอน</div>
+              <div className="mt-3 space-y-3 text-sm text-on-surface">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary-container text-xs font-semibold text-primary-container">1</span>
+                  อัปโหลด Bank Statement
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary-container text-xs font-semibold text-primary-container">2</span>
+                  ระบบ parse รายการธุรกรรม
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary-container text-xs font-semibold text-primary-container">3</span>
+                  จับคู่กับใบแจ้งหนี้
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary-container text-xs font-semibold text-primary-container">4</span>
+                  ตรวจสอบรายการไม่ตรงใน Payments
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-3 text-sm text-on-surface">
+              รายการที่ไม่ตรงจะถูกส่งเข้าแถวตรวจสอบเพื่อ assign ด้วยตนเอง
+            </div>
+
+            <div className="flex flex-col gap-2">
               <button
-                onClick={handleNext}
-                className="admin-button admin-button-primary"
+                type="button"
+                onClick={() => void handleUpload()}
+                disabled={loading || !file}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Next
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+                {loading ? 'Processing...' : 'Upload & Process'}
+              </button>
+              <button type="button" onClick={resetAll} className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container">
+                Reset
               </button>
             </div>
           </div>
-        )}
-
-        {/* ---------------------------------------------------------------- */}
-        {/* STEP 2: Preview                                                  */}
-        {/* ---------------------------------------------------------------- */}
-        {step === 2 && selectedFile && (
-          <div className="admin-card space-y-6">
-            <div className="admin-card-header">
-              <h2 className="admin-card-title">Step 2: Preview</h2>
-              <span className="admin-badge">{selectedFile.name}</span>
-            </div>
-
-            {/* File summary */}
-            <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-              <FileText className="w-5 h-5 text-gray-400 shrink-0" />
-              <div>
-                <p className="font-medium">{selectedFile.name}</p>
-                <p className="text-gray-500">
-                  {(selectedFile.size / 1024).toFixed(1)} KB &middot; Processing complete
-                </p>
-              </div>
-            </div>
-
-            {/* Preview table */}
-            {previewRows.length === 0 ? (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
-                <FileText className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="font-medium text-gray-700">Preview not available for Excel files</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  The file will be fully parsed during import. Proceed to the next step.
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto rounded-lg border border-gray-200">
-                  <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-12">#</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Col 1</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Col 2</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Col 3</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Col 4</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 bg-white">
-                      {previewRows.map((row) => (
-                        <tr
-                          key={row.index}
-                          className={row.index === 1 ? 'bg-gray-50 font-medium text-gray-500' : 'text-gray-800'}
-                        >
-                          <td className="px-4 py-2.5 text-gray-400 text-xs">{row.index}</td>
-                          <td className="px-4 py-2.5">{row.col1}</td>
-                          <td className="px-4 py-2.5">{row.col2}</td>
-                          <td className="px-4 py-2.5 text-right">{row.col3}</td>
-                          <td className="px-4 py-2.5">{row.col4}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <p className="text-xs text-gray-400">
-                  Showing first {previewRows.length} row(s) from file. Full processing happens on import.
-                </p>
-              </>
-            )}
-
-            <div className="flex items-center justify-between">
-              <button onClick={handleBack} className="admin-button">
-                Back
-              </button>
-              <button onClick={handleNext} className="admin-button admin-button-primary">
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ---------------------------------------------------------------- */}
-        {/* STEP 3: Import                                                   */}
-        {/* ---------------------------------------------------------------- */}
-        {step === 3 && (
-          <div className="admin-card space-y-6">
-            <div className="admin-card-header">
-              <h2 className="admin-card-title">Step 3: Import</h2>
-            </div>
-
-            {successMessage ? (
-              <div className="flex flex-col items-center gap-4 py-6 text-center">
-                <CheckCircle className="w-14 h-14 text-green-500" />
-                <div>
-                  <p className="text-lg font-semibold text-green-800">Import Successful</p>
-                  <p className="text-sm text-green-700 mt-1">{successMessage}</p>
-                </div>
-                <div className="flex gap-3 mt-2">
-                  <Link href="/admin/payments/review-match" className="admin-button admin-button-primary">
-                    Review Queue
-                  </Link>
-                  <Link href="/admin/payments" className="admin-button">
-                    All Payments
-                  </Link>
-                  <button onClick={handleReset} className="admin-button">
-                    Upload Another
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-700 space-y-2">
-                  <p className="font-medium text-gray-900">Ready to import:</p>
-                  {selectedFile && (
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-gray-400" />
-                      <span>{selectedFile.name}</span>
-                      <span className="text-gray-400">({(selectedFile.size / 1024).toFixed(1)} KB)</span>
-                    </div>
-                  )}
-                  <p className="text-gray-500 text-xs">
-                    The system will attempt to match each transaction against outstanding invoices.
-                    Unmatched transactions will be queued for manual review.
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <button onClick={handleBack} className="admin-button" disabled={importing}>
-                    Back
-                  </button>
-                  <button
-                    onClick={handleProcessImport}
-                    disabled={importing}
-                    className="admin-button admin-button-primary inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {importing ? (
-                      <>
-                        <svg
-                          className="w-4 h-4 animate-spin"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8v8H4z"
-                          />
-                        </svg>
-                        Processing…
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4" />
-                        Process Import
-                      </>
-                    )}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        </div>
       </div>
+
+      {/* Format guide */}
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
+          <h2 className="text-sm font-semibold text-on-surface">รูปแบบไฟล์ที่รองรับ</h2>
+        </div>
+        <div className="overflow-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-outline-variant">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">Column</th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">Required</th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">Description</th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">Auto-detect Names</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-outline-variant/5">
+                <td className="px-4 py-3 font-semibold text-on-surface">Date</td>
+                <td className="px-4 py-3"><span className="inline-flex items-center rounded-full bg-error-container px-2.5 py-0.5 text-xs font-semibold text-on-error-container">Required</span></td>
+                <td className="px-4 py-3 text-on-surface-variant">Transaction date</td>
+                <td className="px-4 py-3 text-on-surface-variant/60">date, วันที่</td>
+              </tr>
+              <tr className="border-b border-outline-variant/5">
+                <td className="px-4 py-3 font-semibold text-on-surface">Amount</td>
+                <td className="px-4 py-3"><span className="inline-flex items-center rounded-full bg-error-container px-2.5 py-0.5 text-xs font-semibold text-on-error-container">Required</span></td>
+                <td className="px-4 py-3 text-on-surface-variant">Transaction amount</td>
+                <td className="px-4 py-3 text-on-surface-variant/60">amount, จำนวนเงิน, debit, credit, deposit, withdraw</td>
+              </tr>
+              <tr className="border-b border-outline-variant/5">
+                <td className="px-4 py-3 font-semibold text-on-surface">Description</td>
+                <td className="px-4 py-3"><span className="inline-flex items-center rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant">Optional</span></td>
+                <td className="px-4 py-3 text-on-surface-variant">Transaction description</td>
+                <td className="px-4 py-3 text-on-surface-variant/60">description, รายละเอียด, detail, narrative</td>
+              </tr>
+              <tr>
+                <td className="px-4 py-3 font-semibold text-on-surface">Reference</td>
+                <td className="px-4 py-3"><span className="inline-flex items-center rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant">Optional</span></td>
+                <td className="px-4 py-3 text-on-surface-variant">Reference number</td>
+                <td className="px-4 py-3 text-on-surface-variant/60">reference, เลขที่อ้างอิง, ref</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Result */}
+      {result && (
+        <div className="bg-surface-container-lowest rounded-xl border border-on-tertiary-container/20 overflow-hidden">
+          <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-tertiary-container/20 shadow-sm">
+                <CheckCircle2 className="h-7 w-7 text-on-tertiary-container" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-on-surface">อัปโหลดสำเร็จ!</h2>
+                <p className="mt-1 text-sm text-on-surface-variant">
+                  ประมวลผล {result.totalEntries} รายการจาก Bank Statement ของคุณ
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/admin/payments" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90">
+                ไปที่ Payments
+              </Link>
+              <Link href="/admin/payments/review" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container">
+                ตรวจสอบ ({result.unmatched})
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid gap-4 p-6 pt-0 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="bg-surface-container rounded-xl p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">Total Entries</p>
+              <p className="mt-1 text-2xl font-bold text-on-surface">{result.totalEntries}</p>
+            </div>
+            <div className="bg-surface-container rounded-xl p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">Imported</p>
+              <p className="mt-1 text-2xl font-bold text-on-tertiary-container">{result.imported}</p>
+            </div>
+            <div className="bg-surface-container rounded-xl p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">Auto-Matched</p>
+              <p className="mt-1 text-2xl font-bold text-primary">{result.matched}</p>
+            </div>
+            <div className="bg-surface-container rounded-xl p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">Need Review</p>
+              <p className="mt-1 text-2xl font-bold text-amber-600">{result.unmatched}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

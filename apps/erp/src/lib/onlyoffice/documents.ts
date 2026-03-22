@@ -50,8 +50,6 @@ export async function syncTemplateDocumentToStorage(templateId: string) {
 }
 
 export async function getStoredWorkbookForBatch(batchId: string) {
-  // TODO: BillingImportBatch replaced by ImportBatch in new schema.
-  // ImportBatch does not have uploadedFile relation yet.
   const batch = await prisma.importBatch.findUnique({
     where: { id: batchId },
   });

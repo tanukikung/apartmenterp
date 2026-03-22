@@ -16,11 +16,13 @@ type AuditRow = {
 export default function AdminAuditLogsPage() {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [action, setAction] = useState('');
 
   useEffect(() => {
     async function load() {
       setLoading(true);
+      setError(null);
       try {
         const query = new URLSearchParams({
           limit: '100',
@@ -28,6 +30,9 @@ export default function AdminAuditLogsPage() {
         });
         const res = await fetch(`/api/audit-logs?${query.toString()}`, { cache: 'no-store' }).then((r) => r.json());
         if (res.success) setRows(res.data.rows);
+        else setError(res.error?.message || 'ไม่สามารถโหลดข้อมูลได้');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
       } finally {
         setLoading(false);
       }
@@ -36,36 +41,42 @@ export default function AdminAuditLogsPage() {
   }, [action]);
 
   return (
-    <main className="admin-page">
-      <section className="admin-page-header">
+    <main className="space-y-6">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div>
-          <h1 className="admin-page-title">Audit Logs</h1>
-          <p className="admin-page-subtitle">Operational trail now loaded from real audit records instead of sample rows.</p>
+          <h1 className="text-xl font-semibold text-on-primary">Audit Logs</h1>
+          <p className="text-sm text-on-primary/80">Operational trail now loaded from real audit records instead of sample rows.</p>
         </div>
-        <div className="admin-toolbar">
+        <div className="flex items-center gap-2 mt-4">
           <input
             value={action}
             onChange={(e) => setAction(e.target.value)}
-            className="admin-input w-[240px]"
+            className="w-[240px] rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             placeholder="Filter by action"
           />
         </div>
       </section>
 
-      <section className="admin-card overflow-hidden">
-        <div className="admin-card-header">
-          <div className="admin-card-title">Activity Trail</div>
-          <span className="admin-badge">{rows.length} rows</span>
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden anim-fade-in">
+        <div className="px-5 py-4 border-b border-outline-variant">
+          <div className="text-sm font-semibold text-primary flex items-center gap-2">Activity Trail</div>
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-surface-container text-on-surface-variant mt-1">{rows.length} rows</span>
         </div>
+        {error && (
+          <div className="mx-5 my-4 flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container">
+            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            {error}
+          </div>
+        )}
         <div className="overflow-auto">
-          <table className="admin-table">
-            <thead>
+          <table className="w-full text-sm text-left">
+            <thead className="bg-surface-container">
               <tr>
-                <th>Timestamp</th>
-                <th>User</th>
-                <th>Action</th>
-                <th>Entity</th>
-                <th>Details</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Timestamp</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">User</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Action</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Entity</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Details</th>
               </tr>
             </thead>
             <tbody>

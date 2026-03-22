@@ -266,19 +266,19 @@ export default function BankAccountsPage() {
   // ---------------------------------------------------------------------------
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
       {/* Header */}
-      <section className="admin-page-header">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div className="flex items-center gap-3">
           <Link
             href="/admin/settings"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-colors hover:border-primary/30 hover:bg-surface-container"
           >
-            <ArrowLeft className="h-4 w-4 text-slate-600" />
+            <ArrowLeft className="h-4 w-4 text-on-primary" />
           </Link>
           <div>
-            <h1 className="admin-page-title">Bank Accounts</h1>
-            <p className="admin-page-subtitle">
+            <h1 className="text-xl font-semibold text-on-primary">Bank Accounts</h1>
+            <p className="text-sm text-on-primary/80">
               Manage payment destination accounts used in invoices and receipts.
             </p>
           </div>
@@ -318,23 +318,23 @@ export default function BankAccountsPage() {
       {/* Two-column layout */}
       <div className="grid gap-6 xl:grid-cols-5">
         {/* Left: Table */}
-        <div className="admin-card xl:col-span-3">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900">All Bank Accounts</h2>
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 xl:col-span-3">
+          <div className="mb-4 flex items-center justify-between px-5 py-4">
+            <h2 className="text-base font-semibold text-on-surface">All Bank Accounts</h2>
+            <span className="rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant">
               {totalAccounts} total
             </span>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="admin-table w-full">
-              <thead>
+            <table className="w-full text-sm text-left">
+              <thead className="bg-surface-container">
                 <tr>
-                  <th className="px-4 py-3 text-left">Bank</th>
-                  <th className="px-4 py-3 text-left">Account No</th>
-                  <th className="px-4 py-3 text-left">PromptPay</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-left">Bank</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-left">Account No</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-left">PromptPay</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-center">Status</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -435,44 +435,44 @@ export default function BankAccountsPage() {
         </div>
 
         {/* Right: Add / Edit form */}
-        <div className="admin-card xl:col-span-2">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 xl:col-span-2">
+          <div className="mb-5 flex items-center gap-3 px-5 py-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
               {isEditing ? (
-                <Edit2 className="h-4 w-4 text-indigo-600" />
+                <Edit2 className="h-4 w-4 text-primary" />
               ) : (
-                <PlusCircle className="h-4 w-4 text-indigo-600" />
+                <PlusCircle className="h-4 w-4 text-primary" />
               )}
             </div>
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-on-surface">
               {isEditing ? `Edit: ${editId}` : 'Add Bank Account'}
             </h2>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 px-5 pb-5">
             {!isEditing && (
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label className="mb-1.5 block text-sm font-medium text-on-surface">
                   Account ID <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  className="admin-input w-full font-mono"
+                  className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono"
                   placeholder="e.g. ACC_KBANK_01"
                   value={form.id}
                   onChange={(e) => setForm((prev) => ({ ...prev, id: e.target.value }))}
                 />
-                <p className="mt-1 text-xs text-slate-400">Unique identifier. Cannot be changed after creation.</p>
+                <p className="mt-1 text-xs text-on-surface-variant">Unique identifier. Cannot be changed after creation.</p>
               </div>
             )}
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
                 Display Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                className="admin-input w-full"
+                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="e.g. KBank Main Account"
                 value={form.name}
                 onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -480,12 +480,12 @@ export default function BankAccountsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
                 Bank Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                className="admin-input w-full"
+                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="e.g. กสิกรไทย"
                 list="bank-suggestions"
                 value={form.bankName}
@@ -507,12 +507,12 @@ export default function BankAccountsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
                 Account Number <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                className="admin-input w-full font-mono tracking-wider"
+                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono tracking-wider"
                 placeholder="xxx-x-xxxxx-x"
                 value={form.bankAccountNo}
                 onChange={(e) => setForm((prev) => ({ ...prev, bankAccountNo: e.target.value }))}
@@ -520,27 +520,27 @@ export default function BankAccountsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                PromptPay Number <span className="text-slate-400 font-normal">(optional)</span>
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+                PromptPay Number <span className="text-on-surface-variant font-normal">(optional)</span>
               </label>
               <input
                 type="text"
-                className="admin-input w-full font-mono"
+                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono"
                 placeholder="0XX-XXX-XXXX or Tax ID"
                 value={form.promptpay}
                 onChange={(e) => setForm((prev) => ({ ...prev, promptpay: e.target.value }))}
               />
             </div>
 
-            <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex items-center gap-3 rounded-xl border border-outline-variant bg-surface-container px-4 py-3">
               <input
                 type="checkbox"
                 id="active-toggle"
                 checked={form.active}
                 onChange={(e) => setForm((prev) => ({ ...prev, active: e.target.checked }))}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+                className="h-4 w-4 rounded border-outline text-primary focus:ring-primary"
               />
-              <label htmlFor="active-toggle" className="text-sm font-medium text-slate-700">
+              <label htmlFor="active-toggle" className="text-sm font-medium text-on-surface">
                 Active (available for use in invoices)
               </label>
             </div>
@@ -551,13 +551,13 @@ export default function BankAccountsPage() {
                   <button
                     onClick={() => void handleUpdate()}
                     disabled={saving}
-                    className="admin-button admin-button-primary flex flex-1 items-center justify-center gap-2 disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors flex-1 justify-center disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : 'Save Changes'}
                   </button>
                   <button
                     onClick={cancelEdit}
-                    className="admin-button flex items-center justify-center gap-2"
+                    className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest text-on-surface hover:bg-surface-container px-4 py-2 text-sm font-medium shadow-sm transition-colors justify-center"
                   >
                     Cancel
                   </button>
@@ -566,7 +566,7 @@ export default function BankAccountsPage() {
                 <button
                   onClick={() => void handleCreate()}
                   disabled={saving}
-                  className="admin-button admin-button-primary flex w-full items-center justify-center gap-2 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors w-full justify-center disabled:opacity-50"
                 >
                   <PlusCircle className="h-4 w-4" />
                   {saving ? 'Creating...' : 'Add Bank Account'}

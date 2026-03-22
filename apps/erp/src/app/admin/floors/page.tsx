@@ -112,11 +112,11 @@ export default function AdminFloorsPage() {
   );
 
   return (
-    <main className="admin-page">
-      <section className="admin-page-header">
+    <main className="space-y-6">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div>
-          <h1 className="admin-page-title">Floors</h1>
-          <p className="admin-page-subtitle">Building floor overview &amp; room management</p>
+          <h1 className="text-xl font-semibold text-on-primary">Floors</h1>
+          <p className="text-sm text-on-primary/80">Building floor overview &amp; room management</p>
         </div>
       </section>
 
@@ -126,35 +126,35 @@ export default function AdminFloorsPage() {
 
       {/* Stats row */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="admin-kpi">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="admin-kpi-label">Total Floors</div>
-              <div className="admin-kpi-value">{loading ? '...' : totals.floors}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Total Floors</div>
+              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : totals.floors}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-indigo-200 bg-indigo-50 shadow-sm">
-              <Building2 className="h-5 w-5 text-indigo-600" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 shadow-sm">
+              <Building2 className="h-5 w-5 text-primary" />
             </div>
           </div>
         </div>
 
-        <div className="admin-kpi">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="admin-kpi-label">Total Rooms</div>
-              <div className="admin-kpi-value">{loading ? '...' : totals.rooms}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Total Rooms</div>
+              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : totals.rooms}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 shadow-sm">
-              <DoorOpen className="h-5 w-5 text-slate-600" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-outline-variant bg-surface-container shadow-sm">
+              <DoorOpen className="h-5 w-5 text-on-surface-variant" />
             </div>
           </div>
         </div>
 
-        <div className="admin-kpi">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="admin-kpi-label">Active Rooms</div>
-              <div className="admin-kpi-value">{loading ? '...' : totals.active}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Active Rooms</div>
+              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : totals.active}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm">
               <Users className="h-5 w-5 text-emerald-600" />
@@ -162,11 +162,11 @@ export default function AdminFloorsPage() {
           </div>
         </div>
 
-        <div className="admin-kpi">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="admin-kpi-label">Inactive Rooms</div>
-              <div className="admin-kpi-value">{loading ? '...' : totals.inactive}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Inactive Rooms</div>
+              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : totals.inactive}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 shadow-sm">
               <AlertTriangle className="h-5 w-5 text-sky-500" />

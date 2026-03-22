@@ -7,11 +7,10 @@ process.env.USE_PRISMA_TEST_DB = 'true';
 
 describe('Integration: Payment flow', () => {
   it('generates invoice and marks it PAID after payment', async () => {
-    const [{ prisma }, { getInvoiceService }] = await Promise.all([
+    const [{ prisma }, { getServiceContainer }] = await Promise.all([
       import('@/lib/db/client'),
-      import('@/modules/invoices/invoice.service'),
+      import('@/lib/service-container'),
     ]);
-    const { getPaymentService } = await import('@/modules/payments/payment.service');
     try {
       await prisma.$connect();
     } catch {
@@ -59,9 +58,10 @@ describe('Integration: Payment flow', () => {
       },
     });
 
-    const invSvc = getInvoiceService();
+    const container = getServiceContainer();
+    const invSvc = container.invoiceService;
     const invoice = await invSvc.generateInvoiceFromBilling(billing.id);
-    const paymentSvc = getPaymentService();
+    const paymentSvc = container.paymentService;
     const result = await paymentSvc.createPayment({
       invoiceId: invoice.id,
       amount: invoice.totalAmount,

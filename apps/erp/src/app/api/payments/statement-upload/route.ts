@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, ValidationError } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
-import { getPaymentMatchingService } from '@/modules/payments/payment-matching.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { bankStatementParser } from '@/modules/payments/bank-statement-parser';
 import { logAudit } from '@/modules/audit/audit.service';
 import { logger } from '@/lib/utils/logger';
@@ -84,7 +84,7 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
   }
 
   // Persist transaction rows and attempt auto-matching.
-  const service = getPaymentMatchingService();
+  const service = getServiceContainer().paymentMatchingService;
   const result = await service.importBankStatement(entries, file.name, {
     actorId: session.sub,
     actorRole: session.role,

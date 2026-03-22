@@ -55,7 +55,7 @@ function permissionBadge(perm: string) {
   return (
     <span
       key={perm}
-      className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-600"
+      className="inline-flex items-center rounded-full border border-outline-variant bg-surface-container px-2.5 py-0.5 text-xs text-on-surface-variant"
     >
       {perm}
     </span>
@@ -64,51 +64,62 @@ function permissionBadge(perm: string) {
 
 export default function SettingsRolesPage() {
   return (
-    <main className="admin-page">
-      <section className="admin-page-header">
-        <div className="flex items-center gap-3">
-          <Link href="/admin/settings" className="flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900">
-            <ArrowLeft className="h-4 w-4" /> Settings
-          </Link>
-          <span className="text-slate-300">/</span>
-          <div>
-            <h1 className="admin-page-title">Roles &amp; Permissions</h1>
-            <p className="admin-page-subtitle">
-              Overview of system roles and their access levels. Roles are assigned when creating admin users.
-            </p>
+    <main className="space-y-6">
+      {/* Page header */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
+              <Shield className="h-5 w-5 text-on-primary" strokeWidth={1.75} />
+            </div>
+            <div>
+              <h1 className="text-base font-semibold text-on-primary">บทบาทและสิทธิ์</h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">
+                ภาพรวมบทบาทระบบและระดับการเข้าถึง
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="admin-toolbar">
-          <Link href="/admin/settings/users" className="admin-button admin-button-primary flex items-center gap-2">
-            Manage Users →
+          <Link href="/admin/settings/users" className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30">
+            จัดการผู้ใช้ →
           </Link>
         </div>
-      </section>
+      </div>
 
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-sm">
+        <Link href="/admin/settings" className="flex items-center gap-1 text-on-surface-variant hover:text-on-surface">
+          <ArrowLeft className="h-4 w-4" /> Settings
+        </Link>
+        <span className="text-outline-variant">/</span>
+        <span className="text-on-surface">บทบาทและสิทธิ์</span>
+      </div>
+
+      {/* Role cards */}
       <div className="grid gap-5 md:grid-cols-3">
         {ROLES.map((r) => {
           const colorMap: Record<string, { border: string; bg: string; iconBg: string; iconColor: string; badge: string }> = {
             OWNER: { border: 'border-purple-200', bg: 'bg-purple-50/60', iconBg: 'bg-purple-100', iconColor: 'text-purple-600', badge: 'bg-purple-100 text-purple-700' },
-            ADMIN: { border: 'border-indigo-200', bg: 'bg-indigo-50/60', iconBg: 'bg-indigo-100', iconColor: 'text-indigo-600', badge: 'bg-indigo-100 text-indigo-700' },
-            STAFF: { border: 'border-slate-200', bg: 'bg-slate-50/60', iconBg: 'bg-slate-100', iconColor: 'text-slate-600', badge: 'bg-slate-100 text-slate-700' },
+            ADMIN: { border: 'border-primary/20', bg: 'bg-primary-container/20', iconBg: 'bg-primary-container', iconColor: 'text-primary', badge: 'bg-primary-container text-primary' },
+            STAFF: { border: 'border-outline-variant', bg: 'bg-surface-container', iconBg: 'bg-surface-container-high', iconColor: 'text-on-surface-variant', badge: 'bg-surface-container text-on-surface-variant' },
           };
           const c = colorMap[r.role] ?? colorMap.STAFF;
           return (
-            <div key={r.role} className={`rounded-3xl border p-5 shadow-sm ${c.border} ${c.bg}`}>
+            <div key={r.role} className={`rounded-2xl border p-5 shadow-sm ${c.border} ${c.bg}`}>
               <div className="mb-4 flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${c.iconBg}`}>
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${c.iconBg}`}>
                   <Shield className={`h-5 w-5 ${c.iconColor}`} />
                 </div>
                 <div>
-                  <div className="font-semibold text-slate-900">{r.label}</div>
+                  <div className="font-semibold text-on-surface">{r.label}</div>
                   <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${c.badge}`}>
                     {r.role}
                   </span>
                 </div>
               </div>
-              <p className="mb-4 text-sm text-slate-600">{r.description}</p>
+              <p className="mb-4 text-sm text-on-surface-variant">{r.description}</p>
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Permissions</div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-on-surface-variant/60">Permissions</div>
                 <div className="flex flex-wrap gap-1.5">
                   {r.permissions.map((perm) => permissionBadge(perm))}
                 </div>
@@ -118,7 +129,8 @@ export default function SettingsRolesPage() {
         })}
       </div>
 
-      <div className="rounded-2xl border border-sky-100 bg-sky-50/60 px-5 py-4 text-sm text-sky-800">
+      {/* Note */}
+      <div className="rounded-2xl border border-primary/20 bg-primary-container/10 px-5 py-4 text-sm text-primary">
         <span className="font-semibold">Note:</span> Role assignments are managed under{' '}
         <Link href="/admin/settings/users" className="font-semibold underline underline-offset-2">
           Admin Users

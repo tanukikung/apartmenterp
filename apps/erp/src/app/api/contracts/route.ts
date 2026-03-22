@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getContractService } from '@/modules/contracts/contract.service';
+import { getServiceContainer } from '@/lib/service-container';
 import {
   createContractSchema,
   listContractsQuerySchema,
@@ -30,7 +30,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
   const validatedQuery = listContractsQuerySchema.parse(query);
 
-  const contractService = getContractService();
+  const { contractService } = getServiceContainer();
   const result = await contractService.listContracts(validatedQuery);
 
   return NextResponse.json({
@@ -48,7 +48,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
   const input = createContractSchema.parse(body);
 
-  const contractService = getContractService();
+  const { contractService } = getServiceContainer();
   const contract = await contractService.createContract(input);
 
   logger.info({

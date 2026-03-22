@@ -5,6 +5,11 @@ import { sendLineMessage } from '@/lib';
 
 const bus = getEventBus();
 
+type RoomWithTenants = {
+  roomNo: string;
+  tenants: Array<{ tenant: { lineUserId: string | null } | null }>;
+};
+
 async function handleInvoicePaid(event: InvoicePaid) {
   const invoiceId = event.aggregateId;
   const invoice = await prisma.invoice.findUnique({
@@ -21,7 +26,7 @@ async function handleInvoicePaid(event: InvoicePaid) {
     },
   });
   if (!invoice || !invoice.room) return;
-  const tenant = (invoice.room as any).tenants?.[0]?.tenant;
+  const tenant = (invoice.room as unknown as RoomWithTenants).tenants?.[0]?.tenant;
   const lineUserId = tenant?.lineUserId;
   if (!lineUserId) return;
   const message = `Payment received for Room ${invoice.roomNo}. Thank you.`;

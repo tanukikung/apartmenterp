@@ -16,7 +16,7 @@ import type { ImportBatchStatus } from '@prisma/client';
 import { BadRequestError, NotFoundError } from '@/lib/utils/errors';
 import { prisma } from '@/lib/db/client';
 import { parseFullWorkbook } from './import-parser';
-import { getBillingService } from './billing.service';
+import { createBillingService } from './billing.service';
 import { getStorage } from '@/infrastructure/storage';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -174,7 +174,7 @@ export async function createBillingImportPreviewBatch(input: {
       id: batchId,
       billingPeriodId: period.id,
       filename: input.filename,
-      schemaVersion: config.schemaVersion ?? '1',
+      schemaVersion: 'billing-v2',
       rowsTotal: allRows.length,
       rowsImported: 0,
       rowsSkipped: 0,
@@ -282,7 +282,7 @@ export async function executeBillingImportBatch(
 
   try {
     // 4. Run the full workbook import
-    const billingService = getBillingService();
+    const billingService = createBillingService();
     const result = await billingService.importFullWorkbook(
       new Uint8Array(buffer),
       importedBy ?? batch.importedBy,
@@ -388,6 +388,24 @@ export async function getBillingImportBatchDetail(batchId: string): Promise<Bill
   });
   if (!batch) throw new NotFoundError('ImportBatch', batchId);
 
+  // Attempt to retrieve rows from storage for PENDING batches
+  // (COMPLETED/FAILED batches may no longer have the file available)
+  let rows: unknown[] = [];
+  if (batch.status === 'PENDING') {
+    const errorLogObj = (batch.errorLog ?? {}) as Record<string, unknown>;
+    const storageKey = errorLogObj['storageKey'] as string | null;
+    if (storageKey) {
+      try {
+        const storage = getStorage();
+        const buffer = await storage.downloadFile(storageKey);
+        const parsed = parseFullWorkbook(new Uint8Array(buffer));
+        rows = parsed.floors.flatMap((f) => f.rows);
+      } catch {
+        // Storage file unavailable — rows remain []
+      }
+    }
+  }
+
   return {
     id: batch.id,
     filename: batch.filename,
@@ -406,7 +424,7 @@ export async function getBillingImportBatchDetail(batchId: string): Promise<Bill
         }
       : null,
     errorLog: batch.errorLog,
-    rows: [],
+    rows,
     totalRows: batch.rowsTotal,
     validRows: batch.rowsTotal - batch.rowsErrored,
     invalidRows: batch.rowsErrored,
@@ -414,11 +432,13 @@ export async function getBillingImportBatchDetail(batchId: string): Promise<Bill
   };
 }
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
 export async function updateBillingImportBatchRow(
   _batchId: string,
   _rowId: string,
   _input: Record<string, unknown>,
 ): Promise<unknown> {
+/* eslint-enable @typescript-eslint/no-unused-vars */
   throw new BadRequestError(
     'Row-level editing is not supported. Re-upload the corrected workbook to create a new batch.',
   );

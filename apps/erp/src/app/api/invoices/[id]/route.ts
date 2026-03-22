@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInvoiceService } from '@/modules/invoices/invoice.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { requireAuthSession } from '@/lib/auth/guards';
 
@@ -16,7 +16,7 @@ export const GET = asyncHandler(
     requireAuthSession(req);
 
     const { id } = params;
-    const invoiceService = getInvoiceService();
+    const { invoiceService } = getServiceContainer();
     const invoice = await invoiceService.getInvoiceById(id);
 
     return NextResponse.json({

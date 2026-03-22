@@ -112,7 +112,9 @@ function computeWater(
       ? (row.waterUnitsManual ?? 0)
       : Math.max(0, (row.waterCurr ?? 0) - (row.waterPrev ?? 0));
 
-  const waterUsageCharge = Math.max(waterUnits * rule.waterUnitPrice, rule.waterMinCharge);
+  const waterUsageCharge = waterUnits > 0
+    ? Math.max(waterUnits * rule.waterUnitPrice, rule.waterMinCharge)
+    : 0;
 
   const waterServiceFee = computeServiceFee(
     rule.waterServiceFeeMode,
@@ -162,10 +164,9 @@ function computeElectric(
       ? (row.electricUnitsManual ?? 0)
       : Math.max(0, (row.electricCurr ?? 0) - (row.electricPrev ?? 0));
 
-  const electricUsageCharge = Math.max(
-    electricUnits * rule.electricUnitPrice,
-    rule.electricMinCharge
-  );
+  const electricUsageCharge = electricUnits > 0
+    ? Math.max(electricUnits * rule.electricUnitPrice, rule.electricMinCharge)
+    : 0;
 
   const electricServiceFee = computeServiceFee(
     rule.electricServiceFeeMode,

@@ -400,6 +400,7 @@ export function asyncHandler<Params extends Record<string, string> = Record<stri
           const maxPerWindow = Number(process.env.RATE_LIMIT_MAX || 120);
           const limitWindowSeconds = Math.ceil(windowMs / 1000);
           const key = `${ip}:${requestUrl.pathname}`;
+          // If Redis fails, fall back to in-memory check (degrade gracefully, not fail-closed)
           const count = await redisRateLimit(key, maxPerWindow, limitWindowSeconds).catch(() => 0);
           if (count > maxPerWindow) {
             return NextResponse.json(

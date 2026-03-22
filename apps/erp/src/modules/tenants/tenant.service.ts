@@ -674,15 +674,6 @@ export class TenantService {
 // Factory
 // ============================================================================
 
-let tenantServiceInstance: TenantService | null = null;
-
-export function getTenantService(eventBus?: EventBus): TenantService {
-  if (!tenantServiceInstance) {
-    tenantServiceInstance = new TenantService(eventBus);
-  }
-  return tenantServiceInstance;
-}
-
 export function createTenantService(eventBus?: EventBus): TenantService {
   return new TenantService(eventBus);
 }

@@ -130,10 +130,10 @@ export class PaymentMatchingService {
         },
         {
           id: inv.id,
-          total: Number(inv.totalAmount as unknown as number),
+          total: Number(inv.totalAmount),
           room: {
             roomNumber: inv.roomNo,
-            roomTenants: ((inv.room as any)?.tenants ?? []).map((rt: any) => ({
+            roomTenants: ((inv.room as unknown as { tenants?: Array<{ tenant?: { firstName?: string; lastName?: string } | null }> })?.tenants ?? []).map((rt) => ({
               tenant: {
                 firstName: rt.tenant?.firstName ?? '',
                 lastName: rt.tenant?.lastName ?? '',
@@ -157,8 +157,8 @@ export class PaymentMatchingService {
 
     if (bestMatch) {
       const matchedInvoice = unpaidInvoices.find(inv => inv.id === bestMatch.invoiceId);
-      const invoiceTotal = matchedInvoice ? Number(matchedInvoice.totalAmount as unknown as number) : null;
-      const txAmount = Number((transaction as unknown as { amount: unknown }).amount as number);
+      const invoiceTotal = matchedInvoice ? Number(matchedInvoice.totalAmount) : null;
+      const txAmount = Number(transaction.amount);
       const computedMatchedAmount = invoiceTotal !== null ? Math.min(txAmount, invoiceTotal) : txAmount;
       const computedMatchType =
         invoiceTotal === null
@@ -354,8 +354,8 @@ export class PaymentMatchingService {
       throw new BadRequestError('Invoice is already paid');
     }
 
-    const txAmount = Number((transaction as unknown as { amount: unknown }).amount as number);
-    const invoiceTotal = Number(invoice.totalAmount as unknown as number);
+    const txAmount = Number(transaction.amount);
+    const invoiceTotal = Number(invoice.totalAmount);
     const confirmedMatchedAmount = Math.min(txAmount, invoiceTotal);
     const confirmedMatchType =
       Math.abs(txAmount - invoiceTotal) < 0.01
@@ -534,10 +534,6 @@ export class PaymentMatchingService {
   }
 }
 
-let paymentMatchingServiceInstance: PaymentMatchingService | null = null;
-export function getPaymentMatchingService(): PaymentMatchingService {
-  if (!paymentMatchingServiceInstance) {
-    paymentMatchingServiceInstance = new PaymentMatchingService();
-  }
-  return paymentMatchingServiceInstance;
+export function createPaymentMatchingService(): PaymentMatchingService {
+  return new PaymentMatchingService();
 }

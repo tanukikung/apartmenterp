@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/guards';
-import { getTenantService } from '@/modules/tenants/tenant.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { updateTenantSchema } from '@/modules/tenants/types';
 import { asyncHandler, ApiResponse, formatError, AppError } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
@@ -13,7 +13,7 @@ export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
     const { id } = params;
 
-    const tenantService = getTenantService();
+    const { tenantService } = getServiceContainer();
     const tenant = await tenantService.getTenantById(id);
 
     return NextResponse.json({
@@ -34,7 +34,7 @@ export const PATCH = asyncHandler(
 
     const input = updateTenantSchema.parse(body);
 
-    const tenantService = getTenantService();
+    const { tenantService } = getServiceContainer();
     const tenant = await tenantService.updateTenant(id, input);
 
     logger.info({
@@ -60,13 +60,14 @@ export const DELETE = asyncHandler(
     const { id } = params;
     requireRole(req, ['ADMIN']);
 
-    const tenantService = getTenantService();
+    const { tenantService } = getServiceContainer();
     
     // Check if tenant exists first
     await tenantService.getTenantById(id);
-    
-    // TODO: Add delete logic if needed (with proper checks for active relationships)
-    // For now, just return not implemented
+
+    // Delete is not implemented to prevent accidental data loss.
+    // Tenants have active relationships (RoomTenants, Invoices, Payments).
+    // If deletion is needed, implement soft-delete or proper relationship cleanup first.
     return NextResponse.json(
       formatError(new AppError('Delete not implemented', 'NOT_IMPLEMENTED', 501)),
       { status: 501 }

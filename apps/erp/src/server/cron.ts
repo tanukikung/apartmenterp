@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/utils/logger';
-import { getInvoiceService } from '@/modules/invoices/invoice.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { ReminderService } from '@/modules/reminders/reminder.service';
 
 let initialized = false;
@@ -26,7 +26,7 @@ export function startCronIfEnabled(): void {
         },
         select: { id: true },
       });
-      const svc = getInvoiceService();
+      const svc = getServiceContainer().invoiceService;
       for (const r of locked) {
         try {
           await svc.generateInvoiceFromBilling(r.id);
@@ -42,7 +42,7 @@ export function startCronIfEnabled(): void {
 
   cron.schedule('0 4 * * *', async () => {
     try {
-      const svc = getInvoiceService();
+      const svc = getServiceContainer().invoiceService;
       await svc.checkOverdueInvoices();
       logger.info({ type: 'cron_overdue_check_done' });
     } catch (e) {

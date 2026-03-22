@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRoomService } from '@/modules/rooms/room.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { changeRoomStatusSchema } from '@/modules/rooms/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
@@ -16,7 +16,7 @@ export const PATCH = asyncHandler(
     // Validate input
     const input = changeRoomStatusSchema.parse(body);
 
-    const roomService = getRoomService();
+    const { roomService } = getServiceContainer();
     const room = await roomService.changeRoomStatus(id, input);
 
     logger.info({

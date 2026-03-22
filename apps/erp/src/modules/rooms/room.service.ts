@@ -459,15 +459,6 @@ export class RoomService {
 // Factory
 // ============================================================================
 
-let roomServiceInstance: RoomService | null = null;
-
-export function getRoomService(eventBus?: EventBus): RoomService {
-  if (!roomServiceInstance) {
-    roomServiceInstance = new RoomService(eventBus);
-  }
-  return roomServiceInstance;
-}
-
 export function createRoomService(eventBus?: EventBus): RoomService {
   return new RoomService(eventBus);
 }

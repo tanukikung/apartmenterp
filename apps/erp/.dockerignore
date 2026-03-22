@@ -1,0 +1,38 @@
+# ── Dependencies ─────────────────────────────────────────────
+node_modules
+.npm
+
+# ── Next.js build output ─────────────────────────────────────
+.next
+out
+
+# ── Compiled worker/scheduler ────────────────────────────────
+dist
+
+# ── Environment files (injected via Coolify UI) ──────────────
+.env
+.env.*
+!.env.example
+
+# ── Git ──────────────────────────────────────────────────────
+.git
+.gitignore
+
+# ── Logs ─────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Test files ───────────────────────────────────────────────
+tests/
+*.test.ts
+*.spec.ts
+coverage/
+
+# ── Editor & OS ──────────────────────────────────────────────
+.vscode
+.idea
+*.DS_Store
+Thumbs.db
+
+# ── TypeScript source maps (not needed in image) ─────────────
+*.map

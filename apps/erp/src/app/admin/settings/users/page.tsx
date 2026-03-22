@@ -99,7 +99,7 @@ export default function AdminUsersSettingsPage() {
         error?: { message?: string };
       };
       if (!json.success) {
-        throw new Error(json.error?.message ?? 'Unable to load users');
+        throw new Error(json.error?.message ?? 'ไม่สามารถโหลดผู้ใช้');
       }
       const payload = json.data;
       if (Array.isArray(payload)) {
@@ -115,7 +115,7 @@ export default function AdminUsersSettingsPage() {
         setApiUnavailable(true);
         setUsers([]);
       } else {
-        setError(err instanceof Error ? err.message : 'Unable to load users');
+        setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดผู้ใช้');
       }
     } finally {
       setLoading(false);
@@ -136,15 +136,15 @@ export default function AdminUsersSettingsPage() {
     setSuccessMessage(null);
 
     if (!form.username.trim()) {
-      setFormError('Username is required.');
+      setFormError('กรุณากรอกชื่อผู้ใช้');
       return;
     }
     if (!form.displayName.trim()) {
-      setFormError('Display name is required.');
+      setFormError('กรุณากรอกชื่อที่แสดง');
       return;
     }
     if (form.password.length < 8) {
-      setFormError('Password must be at least 8 characters.');
+      setFormError('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
       return;
     }
 
@@ -166,13 +166,13 @@ export default function AdminUsersSettingsPage() {
         error?: { message?: string };
       };
       if (!json.success) {
-        throw new Error(json.error?.message ?? 'Unable to create user');
+        throw new Error(json.error?.message ?? 'ไม่สามารถสร้างผู้ใช้');
       }
-      setSuccessMessage(`User "${form.username.trim()}" created successfully.`);
+      setSuccessMessage(`สร้างผู้ใช้ "${form.username.trim()}" สำเร็จแล้ว`);
       setForm(EMPTY_FORM);
       await load();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Unable to create user');
+      setFormError(err instanceof Error ? err.message : 'ไม่สามารถสร้างผู้ใช้');
     } finally {
       setSaving(false);
     }
@@ -187,25 +187,25 @@ export default function AdminUsersSettingsPage() {
   // ---------------------------------------------------------------------------
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
       {/* Header */}
-      <section className="admin-page-header">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div className="flex items-center gap-3">
           <Link
             href="/admin/settings"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm hover:bg-slate-50"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm hover:bg-surface-container"
           >
-            <ArrowLeft className="h-4 w-4 text-slate-600" />
+            <ArrowLeft className="h-4 w-4 text-on-primary" />
           </Link>
           <div>
-            <h1 className="admin-page-title">Admin Users</h1>
-            <p className="admin-page-subtitle">
-              Manage administrator accounts, roles, and access control.
+            <h1 className="text-xl font-semibold text-on-primary">ผู้ใช้แอดมิน</h1>
+            <p className="text-sm text-on-primary/80">
+              สร้างและจัดการบัญชีแอดมินและพนักงาน
             </p>
           </div>
         </div>
-        <button onClick={() => void load()} className="admin-button" disabled={loading}>
-          {loading ? 'Loading...' : 'Refresh'}
+        <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container mt-4" disabled={loading}>
+          {loading ? 'กำลังโหลด...' : 'รีเฟรช'}
         </button>
       </section>
 
@@ -220,39 +220,40 @@ export default function AdminUsersSettingsPage() {
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
           <Shield className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            User management API not available. You can manage users directly via database or CLI.
-            The{' '}
+            API จัดการผู้ใช้ไม่พร้อมใช้งาน คุณสามารถจัดการผู้ใช้ได้โดยตรงผ่านฐานข้อมูลหรือ CLI
+            endpoint{' '}
             <code className="rounded bg-amber-100 px-1 font-mono text-xs">
               /api/admin/users
             </code>{' '}
-            endpoint returned 404 — implement the route or use a database seed script to manage
-            admin accounts.
+            คืนค่า 404 — กรุณาสร้าง route นี้หรือใช้สคริปต์ seed เพื่อจัดการบัญชีแอดมิน
           </span>
         </div>
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Users table */}
-        <section className="admin-card overflow-hidden lg:col-span-2">
-          <div className="admin-card-header">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-slate-500" />
-              <div className="admin-card-title">All Admin Users</div>
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden lg:col-span-2">
+          <div className="border-b border-outline-variant px-5 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-on-surface-variant" />
+                <div className="text-sm font-semibold text-on-surface">ผู้ใช้แอดมินทั้งหมด</div>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{users.length} ผู้ใช้</span>
             </div>
-            <span className="admin-badge">{users.length} users</span>
           </div>
 
           <div className="overflow-auto">
-            <table className="admin-table">
+            <table className="w-full text-sm text-left">
               <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Display Name</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Password Reset</th>
-                  <th>Updated</th>
-                  <th>Created</th>
+                <tr className="bg-surface-container">
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ชื่อผู้ใช้</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ชื่อที่แสดง</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">บทบาท</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รีเซ็ตรหัสผ่าน</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">อัปเดต</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สร้าง</th>
                 </tr>
               </thead>
               <tbody>
@@ -260,78 +261,78 @@ export default function AdminUsersSettingsPage() {
                   // Loading skeleton rows
                   Array.from({ length: 4 }).map((_, i) => (
                     <tr key={i}>
-                      <td>
-                        <div className="h-4 w-28 animate-pulse rounded bg-slate-100" />
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-28 animate-pulse rounded bg-surface-container-lowest" />
                       </td>
-                      <td>
-                        <div className="h-4 w-20 animate-pulse rounded bg-slate-100" />
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-20 animate-pulse rounded bg-surface-container-lowest" />
                       </td>
-                      <td>
-                        <div className="h-4 w-14 animate-pulse rounded bg-slate-100" />
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-14 animate-pulse rounded bg-surface-container-lowest" />
                       </td>
-                      <td>
-                        <div className="h-4 w-24 animate-pulse rounded bg-slate-100" />
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-lowest" />
                       </td>
-                      <td>
-                        <div className="h-4 w-24 animate-pulse rounded bg-slate-100" />
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-lowest" />
                       </td>
-                      <td>
-                        <div className="h-4 w-24 animate-pulse rounded bg-slate-100" />
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-lowest" />
                       </td>
-                      <td>
-                        <div className="h-4 w-24 animate-pulse rounded bg-slate-100" />
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-lowest" />
                       </td>
                     </tr>
                   ))
                 ) : users.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-slate-500">
+                    <td colSpan={7} className="py-10 text-center text-on-surface-variant">
                       {apiUnavailable
-                        ? 'Cannot retrieve users — API unavailable.'
-                        : 'No admin users found.'}
+                        ? 'ไม่สามารถดึงข้อมูลผู้ใช้ — API ไม่พร้อมใช้งาน'
+                        : 'ไม่พบผู้ใช้แอดมิน'}
                     </td>
                   </tr>
                 ) : (
                   users.map((user) => (
-                    <tr key={user.id}>
-                      <td>
+                    <tr key={user.id} className="border-b border-outline-variant/10 hover:bg-surface-container-lowest transition-colors">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
                             {user.username.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <div className="font-medium text-slate-800">{user.username}</div>
+                            <div className="font-medium text-on-surface">{user.username}</div>
                             {user.email ? (
-                              <div className="text-xs text-slate-400">{user.email}</div>
+                              <div className="text-xs text-on-surface-variant">{user.email}</div>
                             ) : null}
                           </div>
                         </div>
                       </td>
-                      <td className="text-sm text-slate-600">{user.displayName}</td>
-                      <td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">{user.displayName}</td>
+                      <td className="px-4 py-3">
                         <span className={roleBadgeClass(user.role)}>
                           <Shield className="h-3 w-3" />
                           {user.role}
                         </span>
                       </td>
-                      <td>
+                      <td className="px-4 py-3">
                         {user.isActive ? (
                           <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                            Active
+                            ใช้งาน
                           </span>
                         ) : (
                           <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-500">
-                            Inactive
+                            ไม่ใช้งาน
                           </span>
                       )}
                       </td>
-                      <td className="text-sm text-slate-500">
-                        {user.pendingReset ? 'Pending' : 'None'}
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">
+                        {user.pendingReset ? 'รอดำเนินการ' : 'ไม่มี'}
                       </td>
-                      <td className="text-sm text-slate-500">
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">
                         {formatDate(user.updatedAt)}
                       </td>
-                      <td className="text-sm text-slate-500">
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">
                         {formatDate(user.createdAt)}
                       </td>
                     </tr>
@@ -343,11 +344,11 @@ export default function AdminUsersSettingsPage() {
         </section>
 
         {/* Create user form */}
-        <section className="admin-card h-fit">
-          <div className="admin-card-header">
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 h-fit">
+          <div className="border-b border-outline-variant px-5 py-4">
             <div className="flex items-center gap-2">
-              <UserPlus className="h-4 w-4 text-slate-500" />
-              <div className="admin-card-title">Create User</div>
+              <UserPlus className="h-4 w-4 text-on-surface-variant" />
+              <div className="text-sm font-semibold text-on-surface">สร้างผู้ใช้</div>
             </div>
           </div>
 
@@ -357,13 +358,13 @@ export default function AdminUsersSettingsPage() {
             )}
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                Username <span className="text-red-500">*</span>
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+                ชื่อผู้ใช้ <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                className="admin-input"
-                placeholder="e.g. manager01"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                placeholder="เช่น manager01"
                 value={form.username}
                 onChange={(e) => field('username', e.target.value)}
                 autoComplete="off"
@@ -372,13 +373,13 @@ export default function AdminUsersSettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                Display Name <span className="text-red-500">*</span>
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+                ชื่อที่แสดง <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                className="admin-input"
-                placeholder="e.g. Building Manager"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                placeholder="เช่น ผู้จัดการอาคาร"
                 value={form.displayName}
                 onChange={(e) => field('displayName', e.target.value)}
                 autoComplete="name"
@@ -387,13 +388,13 @@ export default function AdminUsersSettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                Email <span className="text-slate-400 font-normal">(optional)</span>
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+                อีเมล <span className="text-on-surface-variant font-normal">(ไม่บังคับ)</span>
               </label>
               <input
                 type="email"
-                className="admin-input"
-                placeholder="e.g. manager@example.com"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                placeholder="เช่น manager@example.com"
                 value={form.email}
                 onChange={(e) => field('email', e.target.value)}
                 autoComplete="email"
@@ -401,15 +402,15 @@ export default function AdminUsersSettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                Password <span className="text-red-500">*</span>
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+                รหัสผ่าน <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Key className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Key className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
                 <input
                   type="password"
-                  className="admin-input pl-9"
-                  placeholder="Min 8 chars"
+                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 pl-9 text-sm text-on-surface"
+                  placeholder="อย่างน้อย 8 ตัวอักษร"
                   value={form.password}
                   onChange={(e) => field('password', e.target.value)}
                   autoComplete="new-password"
@@ -420,11 +421,11 @@ export default function AdminUsersSettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                Role <span className="text-red-500">*</span>
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+                บทบาท <span className="text-red-500">*</span>
               </label>
               <select
-                className="admin-input"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                 value={form.role}
                 onChange={(e) => field('role', e.target.value)}
               >
@@ -435,16 +436,16 @@ export default function AdminUsersSettingsPage() {
 
             <button
               type="submit"
-              className="admin-button admin-button-primary mt-1"
+              className="mt-1 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
               disabled={saving || apiUnavailable}
             >
               <UserPlus className="h-4 w-4" />
-              {saving ? 'Creating...' : 'Create User'}
+              {saving ? 'กำลังสร้าง...' : 'สร้างผู้ใช้'}
             </button>
 
             {apiUnavailable && (
-              <p className="text-center text-xs text-slate-400">
-                Disabled — API unavailable
+              <p className="text-center text-xs text-on-surface-variant">
+                ปิดใช้งาน — API ไม่พร้อมใช้งาน
               </p>
             )}
           </form>

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
-import { getMaintenanceService } from '@/modules/maintenance/maintenance.service';
+import { getServiceContainer } from '@/lib/service-container';
 
 const createSchema = z.object({
-  roomId: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  roomId: z.string().min(1),
+  tenantId: z.string().min(1),
   title: z.string().min(1),
   description: z.string().min(1),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']),
@@ -23,7 +23,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   const body = await req.json().catch(() => ({}));
   const input = createSchema.parse(body);
 
-  const service = getMaintenanceService();
+  const { maintenanceService: service } = getServiceContainer();
   const ticket = await service.createTicket(
     {
       roomId: input.roomId,

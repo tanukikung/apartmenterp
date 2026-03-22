@@ -9,9 +9,19 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: false,
   },
-  serverExternalPackages: ['pino', 'pino-pretty'],
-  experimental: {},
+  experimental: {
+    // Enable the instrumentation.ts hook (server startup + job scheduler).
+    instrumentationHook: true,
+  },
   output: 'standalone',
+  // Ensure Node.js built-in modules (crypto, fs, etc.) are treated as externals
+  // on the server side, so webpack does not try to polyfill them.
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externalsPresets = { ...config.externalsPresets, node: true };
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;

@@ -115,42 +115,42 @@ export default function OverdueRoomDetailPage() {
   }).format(totalOverdue);
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
       {/* Header */}
-      <section className="admin-page-header">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/admin/overdue"
-            className="flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900"
-          >
-            <ArrowLeft className="h-4 w-4" /> Overdue
-          </Link>
-          <span className="text-slate-300">/</span>
-          <div>
-            <h1 className="admin-page-title">
-              {loading ? 'Loading...' : `Room ${room?.roomNumber ?? roomId}`}
-            </h1>
-            <p className="admin-page-subtitle">Overdue account detail &amp; actions</p>
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link href="/admin/overdue" className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Link>
+            <div>
+              <h1 className="text-base font-semibold text-on-primary">
+                {loading ? 'Loading...' : `Room ${room?.roomNumber ?? roomId}`}
+              </h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">Overdue account detail &amp; actions</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+              onClick={() => void sendReminder()}
+              disabled={notifyWorking || loading}
+            >
+              <MessageSquare className="h-4 w-4" />
+              {notifyWorking ? 'Sending...' : 'Send Reminder'}
+            </button>
+            <Link
+              href={`/admin/payments?roomId=${roomId}`}
+              className="inline-flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100"
+            >
+              <CreditCard className="h-4 w-4" />
+              Record Payment
+            </Link>
           </div>
         </div>
-        <div className="admin-toolbar">
-          <button
-            className="admin-button flex items-center gap-2"
-            onClick={() => void sendReminder()}
-            disabled={notifyWorking || loading}
-          >
-            <MessageSquare className="h-4 w-4" />
-            {notifyWorking ? 'Sending...' : 'Send Reminder'}
-          </button>
-          <Link
-            href={`/admin/payments?roomId=${roomId}`}
-            className="admin-button admin-button-primary flex items-center gap-2"
-          >
-            <CreditCard className="h-4 w-4" />
-            Record Payment
-          </Link>
-        </div>
-      </section>
+      </div>
 
       {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
       {notifyMsg ? (
@@ -161,36 +161,36 @@ export default function OverdueRoomDetailPage() {
 
       {/* KPI row */}
       <section className="grid gap-4 md:grid-cols-3">
-        <div className="admin-kpi">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
           <div className="flex items-start justify-between">
             <div>
-              <div className="admin-kpi-label">Total Overdue</div>
-              <div className="admin-kpi-value text-red-700">{loading ? '...' : totalFormatted}</div>
+              <div className="text-xs font-medium text-on-surface-variant">Total Overdue</div>
+              <div className="text-xl font-semibold text-on-surface mt-1">{loading ? '...' : totalFormatted}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-200 bg-red-50">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-200 bg-red-50">
               <DollarSign className="h-5 w-5 text-red-600" />
             </div>
           </div>
         </div>
-        <div className="admin-kpi">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
           <div className="flex items-start justify-between">
             <div>
-              <div className="admin-kpi-label">Overdue Invoices</div>
-              <div className="admin-kpi-value">{loading ? '...' : invoices.length}</div>
+              <div className="text-xs font-medium text-on-surface-variant">Overdue Invoices</div>
+              <div className="text-xl font-semibold text-on-surface mt-1">{loading ? '...' : invoices.length}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-200 bg-amber-50">
               <AlertTriangle className="h-5 w-5 text-amber-600" />
             </div>
           </div>
         </div>
-        <div className="admin-kpi">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
           <div className="flex items-start justify-between">
             <div>
-              <div className="admin-kpi-label">Days Overdue (max)</div>
-              <div className="admin-kpi-value text-red-700">{loading ? '...' : maxOverdueDays}</div>
+              <div className="text-xs font-medium text-on-surface-variant">Days Overdue (max)</div>
+              <div className="text-xl font-semibold text-on-surface mt-1">{loading ? '...' : maxOverdueDays}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50">
-              <Calendar className="h-5 w-5 text-slate-600" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-outline-variant bg-surface-container-lowest">
+              <Calendar className="h-5 w-5 text-on-surface-variant" />
             </div>
           </div>
         </div>
@@ -198,32 +198,32 @@ export default function OverdueRoomDetailPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
         {/* Overdue invoices table */}
-        <section className="admin-card overflow-hidden">
-          <div className="admin-card-header">
-            <div className="admin-card-title">Overdue Invoices</div>
-            <span className="admin-badge">{invoices.length}</span>
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant">
+            <div className="text-sm font-semibold text-on-surface">Overdue Invoices</div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{invoices.length}</span>
           </div>
           <div className="overflow-auto">
-            <table className="admin-table">
+            <table className="w-full text-sm">
               <thead>
-                <tr>
-                  <th>Invoice #</th>
-                  <th>Amount</th>
-                  <th>Due Date</th>
-                  <th>Days Overdue</th>
-                  <th>Status</th>
+                <tr className="border-b border-outline-variant bg-surface-container-lowest">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-on-surface-variant">Invoice #</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-on-surface-variant">Amount</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-on-surface-variant">Due Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-on-surface-variant">Days Overdue</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-on-surface-variant">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-slate-500">
+                    <td colSpan={5} className="px-4 py-8 text-center text-on-surface-variant">
                       Loading invoices...
                     </td>
                   </tr>
                 ) : invoices.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-slate-500">
+                    <td colSpan={5} className="px-4 py-8 text-center text-on-surface-variant">
                       No overdue invoices found.
                     </td>
                   </tr>
@@ -231,23 +231,23 @@ export default function OverdueRoomDetailPage() {
                   invoices.map((inv) => {
                     const days = daysSince(inv.dueDate);
                     return (
-                      <tr key={inv.id}>
-                        <td className="font-medium">{inv.invoiceNumber}</td>
-                        <td>
+                      <tr key={inv.id} className="border-b border-outline-variant/50 hover:bg-surface-container-low">
+                        <td className="px-4 py-3 font-medium text-on-surface">{inv.invoiceNumber}</td>
+                        <td className="px-4 py-3 text-on-surface">
                           {new Intl.NumberFormat('th-TH', {
                             style: 'currency',
                             currency: 'THB',
                             maximumFractionDigits: 0,
                           }).format(inv.totalAmount)}
                         </td>
-                        <td>{new Date(inv.dueDate).toLocaleDateString()}</td>
-                        <td>
+                        <td className="px-4 py-3 text-on-surface">{new Date(inv.dueDate).toLocaleDateString()}</td>
+                        <td className="px-4 py-3">
                           <span className={`font-semibold ${days > 30 ? 'text-red-700' : 'text-amber-700'}`}>
                             {days}d
                           </span>
                         </td>
-                        <td>
-                          <span className="admin-badge admin-status-error">{inv.status}</span>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">{inv.status}</span>
                         </td>
                       </tr>
                     );
@@ -260,42 +260,41 @@ export default function OverdueRoomDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-4">
-          <section className="admin-card">
-            <div className="admin-card-header">
-              <div className="admin-card-title flex items-center gap-1.5">
-                <User className="h-4 w-4 text-slate-400" /> Primary Tenant
-              </div>
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-outline-variant">
+              <User className="h-4 w-4 text-on-surface-variant" />
+              <div className="text-sm font-semibold text-on-surface">Primary Tenant</div>
             </div>
             <div className="p-4">
               {loading ? (
-                <div className="text-sm text-slate-500">Loading...</div>
+                <div className="text-sm text-on-surface-variant">Loading...</div>
               ) : primaryTenant ? (
                 <div className="space-y-2">
-                  <div className="font-semibold text-slate-900">{primaryTenant.fullName}</div>
-                  <div className="text-sm text-slate-500">{primaryTenant.phone}</div>
-                  <div className="text-xs text-slate-400">
+                  <div className="font-semibold text-on-surface">{primaryTenant.fullName}</div>
+                  <div className="text-sm text-on-surface-variant">{primaryTenant.phone}</div>
+                  <div className="text-xs text-outline-variant">
                     LINE: {primaryTenant.lineUserId ? 'Linked' : 'Not linked'}
                   </div>
                   <Link
                     href={`/admin/tenants/${primaryTenant.id}`}
-                    className="admin-button block w-full text-center text-xs"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container w-full"
                   >
                     View Tenant →
                   </Link>
                 </div>
               ) : (
-                <div className="text-sm text-slate-400">No primary tenant assigned.</div>
+                <div className="text-sm text-on-surface-variant">No primary tenant assigned.</div>
               )}
             </div>
           </section>
 
-          <section className="admin-card">
-            <div className="admin-card-header">
-              <div className="admin-card-title">Quick Actions</div>
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="px-4 py-3 border-b border-outline-variant">
+              <div className="text-sm font-semibold text-on-surface">Quick Actions</div>
             </div>
             <div className="grid gap-2 p-4">
               <button
-                className="admin-button flex items-center justify-center gap-2"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
                 onClick={() => void sendReminder()}
                 disabled={notifyWorking}
               >
@@ -304,14 +303,14 @@ export default function OverdueRoomDetailPage() {
               </button>
               <Link
                 href={`/admin/payments?roomId=${roomId}`}
-                className="admin-button admin-button-primary flex items-center justify-center gap-2"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-500 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100"
               >
                 <CreditCard className="h-4 w-4" />
                 Record Payment
               </Link>
               <Link
                 href={`/admin/rooms/${roomId}`}
-                className="admin-button flex items-center justify-center gap-2"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
               >
                 View Room Detail →
               </Link>

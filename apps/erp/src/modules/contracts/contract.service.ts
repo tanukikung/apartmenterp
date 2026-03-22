@@ -620,15 +620,6 @@ export class ContractService {
 // Factory
 // ============================================================================
 
-let contractServiceInstance: ContractService | null = null;
-
-export function getContractService(eventBus?: EventBus): ContractService {
-  if (!contractServiceInstance) {
-    contractServiceInstance = new ContractService(eventBus);
-  }
-  return contractServiceInstance;
-}
-
 export function createContractService(eventBus?: EventBus): ContractService {
   return new ContractService(eventBus);
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/guards';
-import { getBillingService } from '@/modules/billing/billing.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { lockBillingSchema } from '@/modules/billing/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
@@ -17,7 +17,7 @@ export const POST = asyncHandler(
 
     const input = lockBillingSchema.parse(body);
 
-    const billingService = getBillingService();
+    const { billingService } = getServiceContainer();
     const record = await billingService.lockBillingRecord(billingRecordId, input, session.sub);
 
     logger.info({

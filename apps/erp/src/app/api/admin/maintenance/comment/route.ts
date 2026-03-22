@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getVerifiedActor } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
-import { getMaintenanceService } from '@/modules/maintenance/maintenance.service';
+import { getServiceContainer } from '@/lib/service-container';
 
 const schema = z.object({
   ticketId: z.string().uuid(),
@@ -14,7 +14,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   const input = schema.parse(body);
   const actor = getVerifiedActor(req);
 
-  const service = getMaintenanceService();
+  const { maintenanceService: service } = getServiceContainer();
   const comment = await service.addComment(
     {
       ticketId: input.ticketId,

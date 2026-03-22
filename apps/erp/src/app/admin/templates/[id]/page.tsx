@@ -112,89 +112,92 @@ export default function TemplateDetailPage() {
   }, [template]);
 
   return (
-    <main className="admin-page">
-      <section className="admin-page-header">
-        <div className="flex items-center gap-4">
-          <Link href="/admin/templates" className="admin-button flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Templates
-          </Link>
-          <div>
-            <h1 className="admin-page-title">{template?.name ?? 'Template Detail'}</h1>
-            <p className="admin-page-subtitle">
-              Inspect versions, field bindings, sample preview, and generation readiness.
-            </p>
+    <main className="space-y-6">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link href="/admin/templates" className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Link>
+            <div>
+              <h1 className="text-base font-semibold text-on-primary">Template Detail</h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">
+                Inspect versions, field bindings, sample preview, and generation readiness.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href={`/admin/templates/${params.id}/edit`} className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30">
+              Open Editor Workspace
+            </Link>
           </div>
         </div>
-        <div className="admin-toolbar">
-          <Link href={`/admin/templates/${params.id}/edit`} className="admin-button admin-button-primary">
-            Open Editor Workspace
-          </Link>
-        </div>
-      </section>
+      </div>
 
       {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
 
       {loading ? (
-        <div className="py-16 text-center text-slate-500">Loading template...</div>
+        <div className="py-16 text-center text-on-surface-variant">Loading template...</div>
       ) : !template ? null : (
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <div className="space-y-6">
-            <section className="admin-card">
-              <div className="admin-card-header">
-                <div className="admin-card-title flex items-center gap-2">
-                  <Layers3 className="h-4 w-4 text-indigo-500" />
+            <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+              <div className="px-5 py-4 border-b border-outline-variant">
+                <div className="flex items-center gap-2 text-sm font-semibold text-on-surface">
+                  <Layers3 className="h-4 w-4 text-primary" />
                   Metadata
                 </div>
               </div>
-              <div className="space-y-4 p-5 text-sm text-slate-600">
+              <div className="space-y-4 p-5 text-sm text-on-surface-variant">
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Type</div>
-                  <div className="mt-1 font-medium text-slate-900">{template.type.replace(/_/g, ' ')}</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-outline-variant">Type</div>
+                  <div className="mt-1 font-medium text-on-surface">{template.type.replace(/_/g, ' ')}</div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Status</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-outline-variant">Status</div>
                   <div className="mt-1">
-                    <span className="admin-badge">{template.status}</span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{template.status}</span>
                   </div>
                 </div>
                 {template.subject ? (
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Subject</div>
-                    <div className="mt-1 text-slate-800">{template.subject}</div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-outline-variant">Subject</div>
+                    <div className="mt-1 text-on-surface">{template.subject}</div>
                   </div>
                 ) : null}
                 {template.description ? (
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Description</div>
-                    <div className="mt-1 text-slate-800">{template.description}</div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-outline-variant">Description</div>
+                    <div className="mt-1 text-on-surface">{template.description}</div>
                   </div>
                 ) : null}
               </div>
             </section>
 
-            <section className="admin-card overflow-hidden">
-              <div className="admin-card-header">
-                <div className="admin-card-title">Versions</div>
-                <span className="admin-badge">{template.versions?.length ?? 0}</span>
+            <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+              <div className="px-5 py-4 border-b border-outline-variant flex items-center justify-between">
+                <div className="text-sm font-semibold text-on-surface">Versions</div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{template.versions?.length ?? 0}</span>
               </div>
               <div className="overflow-auto">
-                <table className="admin-table">
+                <table className="w-full text-sm">
                   <thead>
-                    <tr>
-                      <th>Version</th>
-                      <th>Status</th>
-                      <th>File</th>
+                    <tr className="border-b border-outline-variant bg-surface-container-lowest">
+                      <th className="px-4 py-3 text-left font-medium text-on-surface">Version</th>
+                      <th className="px-4 py-3 text-left font-medium text-on-surface">Status</th>
+                      <th className="px-4 py-3 text-left font-medium text-on-surface">File</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(template.versions ?? []).map((version) => (
-                      <tr key={version.id}>
-                        <td className="font-semibold text-slate-900">v{version.version}</td>
-                        <td>
-                          <span className="admin-badge">{version.status}</span>
+                      <tr key={version.id} className="border-b border-outline-variant/50">
+                        <td className="px-4 py-3 font-semibold text-on-surface">v{version.version}</td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{version.status}</span>
                         </td>
-                        <td>{version.fileType.toUpperCase()}</td>
+                        <td className="px-4 py-3 text-on-surface-variant">{version.fileType.toUpperCase()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -204,27 +207,27 @@ export default function TemplateDetailPage() {
           </div>
 
           <div className="space-y-6">
-            <section className="admin-card">
-              <div className="admin-card-header">
-                <div className="admin-card-title flex items-center gap-2">
-                  <FileCode2 className="h-4 w-4 text-indigo-500" />
+            <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+              <div className="px-5 py-4 border-b border-outline-variant">
+                <div className="flex items-center gap-2 text-sm font-semibold text-on-surface">
+                  <FileCode2 className="h-4 w-4 text-primary" />
                   Field Catalog
                 </div>
               </div>
               <div className="grid gap-4 p-5 md:grid-cols-2">
                 {groupedFields.map(([group, fields]) => (
-                  <div key={group} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-4">
-                    <div className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{group}</div>
+                  <div key={group} className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-4">
+                    <div className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-outline-variant">{group}</div>
                     <div className="space-y-3">
                       {fields.map((field) => (
-                        <div key={field.key} className="rounded-[1.25rem] bg-white px-3 py-3 shadow-sm">
+                        <div key={field.key} className="rounded-xl bg-surface-container-lowest border border-outline-variant/30 px-3 py-3 shadow-sm">
                           <div className="flex items-center gap-2">
-                            <div className="font-medium text-slate-900">{field.label}</div>
-                            {field.isRequired ? <span className="admin-badge admin-status-bad">Required</span> : null}
-                            {field.isCollection ? <span className="admin-badge admin-status-warn">Collection</span> : null}
+                            <div className="font-medium text-on-surface">{field.label}</div>
+                            {field.isRequired ? <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Required</span> : null}
+                            {field.isCollection ? <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Collection</span> : null}
                           </div>
-                          <div className="mt-1 font-mono text-xs text-indigo-600">{field.key}</div>
-                          {field.description ? <div className="mt-1 text-xs text-slate-500">{field.description}</div> : null}
+                          <div className="mt-1 font-mono text-xs text-primary">{field.key}</div>
+                          {field.description ? <div className="mt-1 text-xs text-on-surface-variant">{field.description}</div> : null}
                         </div>
                       ))}
                     </div>
@@ -233,13 +236,13 @@ export default function TemplateDetailPage() {
               </div>
             </section>
 
-            <section className="admin-card">
-              <div className="admin-card-header">
-                <div className="admin-card-title flex items-center gap-2">
-                  <Eye className="h-4 w-4 text-indigo-500" />
+            <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+              <div className="px-5 py-4 border-b border-outline-variant flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-on-surface">
+                  <Eye className="h-4 w-4 text-primary" />
                   Sample Preview
                 </div>
-                <span className="admin-badge">{previewLoading ? 'Building…' : 'Ready'}</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{previewLoading ? 'Building…' : 'Ready'}</span>
               </div>
               {preview?.missingFields?.length ? (
                 <div className="px-5 pt-4 text-sm text-amber-700">
@@ -247,9 +250,9 @@ export default function TemplateDetailPage() {
                 </div>
               ) : null}
               <div className="p-5">
-                <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white">
+                <div className="overflow-hidden rounded-2xl border border-outline-variant bg-white">
                   {previewLoading ? (
-                    <div className="px-6 py-16 text-center text-sm text-slate-500">Building preview...</div>
+                    <div className="px-6 py-16 text-center text-sm text-on-surface-variant">Building preview...</div>
                   ) : preview ? (
                     <iframe
                       title="Template preview"
@@ -257,13 +260,13 @@ export default function TemplateDetailPage() {
                       srcDoc={preview.html}
                     />
                   ) : (
-                    <div className="px-6 py-16 text-center text-sm text-slate-500">Preview unavailable.</div>
+                    <div className="px-6 py-16 text-center text-sm text-on-surface-variant">Preview unavailable.</div>
                   )}
                 </div>
               </div>
-              <div className="border-t border-slate-200 px-5 py-4 text-sm text-slate-500">
-                <div className="flex items-center gap-2 font-medium text-slate-700">
-                  <Sparkles className="h-4 w-4 text-indigo-500" />
+              <div className="border-t border-outline-variant px-5 py-4 text-sm text-on-surface-variant">
+                <div className="flex items-center gap-2 font-medium text-on-surface">
+                  <Sparkles className="h-4 w-4 text-primary" />
                   Preview is rendered from live ERP resolver data, not fake frontend placeholders.
                 </div>
               </div>

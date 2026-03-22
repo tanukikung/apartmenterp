@@ -3,13 +3,10 @@ import { prisma, EventBus, logger, EventTypes } from '@/lib';
 import { Json } from '@/types/prisma-json';
 import {
   CreateBillingRecordInput,
-  AddBillingItemInput,
-  UpdateBillingItemInput,
   LockBillingInput,
   ListBillingRecordsQuery,
   BillingRecordResponse,
   BillingRecordsListResponse,
-  BillingItemResponse,
   BillingRecordCreatedPayload,
   BillingLockedPayload,
   InvoiceGenerationRequestedPayload,
@@ -26,6 +23,18 @@ import {
   ConflictError,
   BadRequestError,
 } from '@/lib/utils/errors';
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Normalise the wider meter mode from the parser ('DISABLED' | 'FLAT' | 'STEP'
+ * are not in the Prisma MeterMode enum) to the DB-safe 'NORMAL' | 'MANUAL'.
+ */
+function normaliseMeterMode(mode: string): 'NORMAL' | 'MANUAL' {
+  return mode === 'MANUAL' ? 'MANUAL' : 'NORMAL';
+}
 
 // ============================================================================
 // Billing Service — redesigned for BillingPeriod/RoomBilling schema
@@ -84,6 +93,12 @@ export class BillingService {
       );
     }
 
+    // Compute totalDue from rentAmount (water/electric are 0 when no meter data provided)
+    // Note: minimum charges are NOT applied for 0 units — a room without a water meter
+    // should not be charged the minimum water fee.
+    const rentNum = Number(room.defaultRentAmount);
+    const totalDue = rentNum;
+
     // Create room billing using room defaults
     const roomBilling = await prisma.roomBilling.create({
       data: {
@@ -95,6 +110,7 @@ export class BillingService {
         rentAmount: room.defaultRentAmount,
         waterMode: 'NORMAL',
         electricMode: 'NORMAL',
+        totalDue: totalDue,
         status: 'DRAFT',
       },
     });
@@ -195,7 +211,7 @@ export class BillingService {
               ruleOverrideCode: row.ruleOverrideCode,
               ruleCode: row.ruleOverrideCode ?? room.defaultRuleCode,
               rentAmount: row.rentAmount,
-              waterMode: row.waterMode,
+              waterMode: normaliseMeterMode(row.waterMode),
               waterPrev: row.waterPrev,
               waterCurr: row.waterCurr,
               waterUnitsManual: row.waterUnitsManual,
@@ -204,7 +220,7 @@ export class BillingService {
               waterServiceFeeManual: row.waterServiceFeeManual,
               waterServiceFee: row.waterServiceFee,
               waterTotal: row.waterTotal,
-              electricMode: row.electricMode,
+              electricMode: normaliseMeterMode(row.electricMode),
               electricPrev: row.electricPrev,
               electricCurr: row.electricCurr,
               electricUnitsManual: row.electricUnitsManual,
@@ -236,7 +252,7 @@ export class BillingService {
               ruleOverrideCode: row.ruleOverrideCode,
               ruleCode: row.ruleOverrideCode ?? room.defaultRuleCode,
               rentAmount: row.rentAmount,
-              waterMode: row.waterMode,
+              waterMode: normaliseMeterMode(row.waterMode),
               waterPrev: row.waterPrev,
               waterCurr: row.waterCurr,
               waterUnitsManual: row.waterUnitsManual,
@@ -245,7 +261,7 @@ export class BillingService {
               waterServiceFeeManual: row.waterServiceFeeManual,
               waterServiceFee: row.waterServiceFee,
               waterTotal: row.waterTotal,
-              electricMode: row.electricMode,
+              electricMode: normaliseMeterMode(row.electricMode),
               electricPrev: row.electricPrev,
               electricCurr: row.electricCurr,
               electricUnitsManual: row.electricUnitsManual,
@@ -294,50 +310,176 @@ export class BillingService {
   }
 
   /**
-   * Import billing rows with batch tracking (stub)
+   * Import billing rows with batch tracking.
+   * Updates ImportBatch status as rows are processed.
    */
   async importBillingRowsWithBatch(
-    _workbook: WorkbookParseResult,
-    _batchId: string,
-    _billingPeriodId: string,
-    _importedBy?: string
-  ): Promise<{ created: Array<{ roomNo: string; billingRecordId: string }> }> {
-    // TODO: implement full ImportBatch flow for BillingPeriod/RoomBilling
-    logger.warn({ type: 'billing_import_rows_with_batch_stub', message: 'importBillingRowsWithBatch is a stub' });
-    return { created: [] };
-  }
+    workbook: WorkbookParseResult,
+    batchId: string,
+    billingPeriodId: string,
+    importedBy?: string
+  ): Promise<{
+    created: Array<{ roomNo: string; billingRecordId: string }>;
+    skipped: Array<{ roomNo: string; reason: string }>;
+    errors: Array<{ roomNo: string; error: string }>;
+  }> {
+    const allRows = workbook.floors.flatMap((f) => f.rows);
+    const created: Array<{ roomNo: string; billingRecordId: string }> = [];
+    const skipped: Array<{ roomNo: string; reason: string }> = [];
+    const errors: Array<{ roomNo: string; error: string }> = [];
 
-  /**
-   * Add billing item — not applicable in new schema (items are fields on RoomBilling).
-   * Kept for API compatibility; throws BadRequestError.
-   */
-  async addBillingItem(
-    _billingRecordId: string,
-    _input: AddBillingItemInput,
-    _addedBy?: string
-  ): Promise<BillingItemResponse> {
-    throw new BadRequestError('addBillingItem is not supported in the new billing schema. Update RoomBilling fields directly.');
-  }
+    let rowsImported = 0;
+    let rowsSkipped = 0;
+    let rowsErrored = 0;
 
-  /**
-   * Update billing item — not applicable in new schema.
-   */
-  async updateBillingItem(
-    _itemId: string,
-    _input: UpdateBillingItemInput,
-    _updatedBy?: string
-  ): Promise<BillingItemResponse> {
-    throw new BadRequestError('updateBillingItem is not supported in the new billing schema. Update RoomBilling fields directly.');
-  }
+    for (const row of allRows) {
+      const { roomNo } = row;
+      try {
+        // Check room exists
+        const room = await prisma.room.findUnique({ where: { roomNo } });
+        if (!room) {
+          skipped.push({ roomNo, reason: 'Room not found in database' });
+          rowsSkipped++;
+          await prisma.importBatch.update({
+            where: { id: batchId },
+            data: { rowsSkipped, rowsErrored },
+          });
+          continue;
+        }
 
-  /**
-   * Remove billing item — not applicable in new schema.
-   */
-  async removeBillingItem(
-    _itemId: string,
-    _removedBy?: string
-  ): Promise<void> {
-    throw new BadRequestError('removeBillingItem is not supported in the new billing schema. Update RoomBilling fields directly.');
+        // Check for existing RoomBilling
+        const existing = await prisma.roomBilling.findUnique({
+          where: { billingPeriodId_roomNo: { billingPeriodId, roomNo } },
+        });
+        if (existing) {
+          if (existing.status !== 'DRAFT') {
+            skipped.push({ roomNo, reason: `Already ${existing.status}` });
+            rowsSkipped++;
+            await prisma.importBatch.update({
+              where: { id: batchId },
+              data: { rowsSkipped, rowsErrored },
+            });
+            continue;
+          }
+          // Overwrite DRAFT record
+          await prisma.roomBilling.update({
+            where: { id: existing.id },
+            data: {
+              recvAccountOverrideId: row.recvAccountOverrideId,
+              recvAccountId: row.recvAccountOverrideId ?? room.defaultAccountId,
+              ruleOverrideCode: row.ruleOverrideCode,
+              ruleCode: row.ruleOverrideCode ?? room.defaultRuleCode,
+              rentAmount: row.rentAmount,
+              waterMode: normaliseMeterMode(row.waterMode),
+              waterPrev: row.waterPrev,
+              waterCurr: row.waterCurr,
+              waterUnitsManual: row.waterUnitsManual,
+              waterUnits: row.waterUnits,
+              waterUsageCharge: row.waterUsageCharge,
+              waterServiceFeeManual: row.waterServiceFeeManual,
+              waterServiceFee: row.waterServiceFee,
+              waterTotal: row.waterTotal,
+              electricMode: normaliseMeterMode(row.electricMode),
+              electricPrev: row.electricPrev,
+              electricCurr: row.electricCurr,
+              electricUnitsManual: row.electricUnitsManual,
+              electricUnits: row.electricUnits,
+              electricUsageCharge: row.electricUsageCharge,
+              electricServiceFeeManual: row.electricServiceFeeManual,
+              electricServiceFee: row.electricServiceFee,
+              electricTotal: row.electricTotal,
+              furnitureFee: row.furnitureFee,
+              otherFee: row.otherFee,
+              totalDue: row.totalDue,
+              note: row.note,
+              checkNotes: row.checkNotes,
+            },
+          });
+          created.push({ roomNo, billingRecordId: existing.id });
+          rowsImported++;
+          await prisma.importBatch.update({
+            where: { id: batchId },
+            data: { rowsImported, rowsSkipped, rowsErrored },
+          });
+          continue;
+        }
+
+        // Create new RoomBilling with outbox event
+        const rb = await prisma.$transaction(async (tx) => {
+          const roomBilling = await tx.roomBilling.create({
+            data: {
+              id: uuidv4(),
+              billingPeriodId,
+              roomNo,
+              recvAccountOverrideId: row.recvAccountOverrideId,
+              recvAccountId: row.recvAccountOverrideId ?? room.defaultAccountId,
+              ruleOverrideCode: row.ruleOverrideCode,
+              ruleCode: row.ruleOverrideCode ?? room.defaultRuleCode,
+              rentAmount: row.rentAmount,
+              waterMode: normaliseMeterMode(row.waterMode),
+              waterPrev: row.waterPrev,
+              waterCurr: row.waterCurr,
+              waterUnitsManual: row.waterUnitsManual,
+              waterUnits: row.waterUnits,
+              waterUsageCharge: row.waterUsageCharge,
+              waterServiceFeeManual: row.waterServiceFeeManual,
+              waterServiceFee: row.waterServiceFee,
+              waterTotal: row.waterTotal,
+              electricMode: normaliseMeterMode(row.electricMode),
+              electricPrev: row.electricPrev,
+              electricCurr: row.electricCurr,
+              electricUnitsManual: row.electricUnitsManual,
+              electricUnits: row.electricUnits,
+              electricUsageCharge: row.electricUsageCharge,
+              electricServiceFeeManual: row.electricServiceFeeManual,
+              electricServiceFee: row.electricServiceFee,
+              electricTotal: row.electricTotal,
+              furnitureFee: row.furnitureFee,
+              otherFee: row.otherFee,
+              totalDue: row.totalDue,
+              note: row.note,
+              checkNotes: row.checkNotes,
+              status: 'DRAFT',
+            },
+          });
+          await tx.outboxEvent.create({
+            data: {
+              id: uuidv4(),
+              aggregateType: 'RoomBilling',
+              aggregateId: roomBilling.id,
+              eventType: EventTypes.BILLING_RECORD_CREATED,
+              payload: {
+                billingRecordId: roomBilling.id,
+                roomNo,
+                billingPeriodId,
+                importedBy,
+              } as unknown as Json,
+              retryCount: 0,
+            },
+          });
+          return roomBilling;
+        });
+
+        created.push({ roomNo, billingRecordId: rb.id });
+        rowsImported++;
+        await prisma.importBatch.update({
+          where: { id: batchId },
+          data: { rowsImported, rowsSkipped, rowsErrored },
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push({ roomNo, error: msg });
+        rowsErrored++;
+        await prisma.importBatch.update({
+          where: { id: batchId },
+          data: { rowsSkipped, rowsErrored },
+        }).catch(() => {/* batch might already be updated */});
+        logger.error({ type: 'billing_import_row_error', roomNo, error: msg });
+      }
+    }
+
+    logger.info({ type: 'billing_import_rows_with_batch_done', batchId, created: created.length, skipped: skipped.length, errors: errors.length });
+    return { created, skipped, errors };
   }
 
   /**
@@ -348,8 +490,6 @@ export class BillingService {
     input: LockBillingInput,
     lockedBy?: string
   ): Promise<BillingRecordResponse> {
-    const lockTimestamp = new Date();
-
     const updated = await prisma.$transaction(async (tx) => {
       const roomBilling = await tx.roomBilling.findUnique({
         where: { id: billingRecordId },
@@ -534,17 +674,7 @@ export class BillingService {
       lockedBy: null,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
-      items: [],
     };
-  }
-
-  /**
-   * Format billing item for response
-   */
-  private formatBillingItemResponse(
-    _item: unknown
-  ): BillingItemResponse {
-    throw new BadRequestError('formatBillingItemResponse is not supported in the new billing schema');
   }
 
   // ============================================================================
@@ -554,12 +684,13 @@ export class BillingService {
   /**
    * Import a full billing workbook (all sheets):
    *  1. Upserts BankAccounts from ACCOUNTS sheet
-   *  2. Upserts BillingRules from RULES sheet
-   *  3. Upserts Rooms from ROOM_MASTER sheet
-   *  4. Gets/creates BillingPeriod from CONFIG year/month
-   *  5. Creates ImportBatch (PROCESSING)
-   *  6. For each floor row: computes amounts via BillingCalculator, upserts RoomBilling
-   *  7. Updates ImportBatch to COMPLETED
+   *  2. Upserts BillingRules from RULES sheet (maps new RuleRow fields to DB schema)
+   *  3. Gets/creates BillingPeriod from CONFIG year/month
+   *  4. Creates ImportBatch (PROCESSING)
+   *  5. For each floor row: computes amounts via BillingCalculator, upserts RoomBilling
+   *  6. Updates ImportBatch to COMPLETED
+   *
+   * Note: No ROOM_MASTER sheet in the new template — rooms must exist in the DB.
    */
   async importFullWorkbook(
     buffer: Uint8Array,
@@ -574,7 +705,7 @@ export class BillingService {
     errors: number;
   }> {
     const parsed: FullWorkbookParseResult = parseFullWorkbook(buffer);
-    const { config, accounts, rules, rooms } = parsed;
+    const { config, accounts, rules } = parsed;
 
     const year = config.billingYear;
     const month = config.billingMonth;
@@ -582,86 +713,77 @@ export class BillingService {
     // ── 1. Upsert BankAccounts ──────────────────────────────────────────────
     for (const acc of accounts) {
       await prisma.bankAccount.upsert({
-        where: { id: acc.accountId },
+        where: { id: acc.id },
         create: {
-          id: acc.accountId,
+          id: acc.id,
           name: acc.accountName,
-          bankName: acc.bankName,
-          bankAccountNo: acc.bankAccountNo,
-          promptpay: acc.promptpay ?? undefined,
-          active: acc.active,
+          bankName: acc.bank,
+          bankAccountNo: acc.accountNumber,
+          active: acc.isDefault,
         },
         update: {
           name: acc.accountName,
-          bankName: acc.bankName,
-          bankAccountNo: acc.bankAccountNo,
-          promptpay: acc.promptpay ?? undefined,
-          active: acc.active,
+          bankName: acc.bank,
+          bankAccountNo: acc.accountNumber,
+          active: acc.isDefault,
         },
       });
     }
 
     // ── 2. Upsert BillingRules ──────────────────────────────────────────────
+    // Map new RuleRow fields to the existing BillingRule Prisma model fields.
+    // The DB model uses the old column shape; we derive compatible values from
+    // the new expanded RuleRow without touching the Prisma schema.
     for (const rule of rules) {
+      const waterEnabled   = rule.waterMode !== 'DISABLED';
+      const electricEnabled = rule.electricMode !== 'DISABLED';
+
+      // Derive a single unit price from the new rate fields
+      const waterUnitPrice   = rule.waterRate > 0 ? rule.waterRate : rule.waterS1Rate;
+      const electricUnitPrice = rule.electricRate > 0 ? rule.electricRate : rule.electricS1Rate;
+
+      // Map new fee modes to the old ServiceFeeMode enum values
+      type OldFeeMode = 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE';
+      const mapFeeMode = (m: string): OldFeeMode => {
+        if (m === 'FLAT') return 'FLAT_ROOM';
+        if (m === 'PER_UNIT') return 'PER_UNIT';
+        if (m === 'MANUAL') return 'MANUAL_FEE';
+        return 'NONE';
+      };
+
       await prisma.billingRule.upsert({
         where: { code: rule.code },
         create: {
           code: rule.code,
-          descriptionTh: rule.descriptionTh,
-          waterEnabled: rule.waterEnabled,
-          waterUnitPrice: rule.waterUnitPrice,
+          descriptionTh: rule.description,
+          waterEnabled,
+          waterUnitPrice,
           waterMinCharge: rule.waterMinCharge,
-          waterServiceFeeMode: rule.waterServiceFeeMode,
-          waterServiceFeeAmount: rule.waterServiceFeeAmount,
-          electricEnabled: rule.electricEnabled,
-          electricUnitPrice: rule.electricUnitPrice,
+          waterServiceFeeMode: mapFeeMode(rule.waterFeeMode),
+          waterServiceFeeAmount: rule.waterFeeAmount > 0 ? rule.waterFeeAmount : rule.waterFeePerUnit,
+          electricEnabled,
+          electricUnitPrice,
           electricMinCharge: rule.electricMinCharge,
-          electricServiceFeeMode: rule.electricServiceFeeMode,
-          electricServiceFeeAmount: rule.electricServiceFeeAmount,
+          electricServiceFeeMode: mapFeeMode(rule.electricFeeMode),
+          electricServiceFeeAmount: rule.electricFeeAmount > 0 ? rule.electricFeeAmount : rule.electricFeePerUnit,
         },
         update: {
-          descriptionTh: rule.descriptionTh,
-          waterEnabled: rule.waterEnabled,
-          waterUnitPrice: rule.waterUnitPrice,
+          descriptionTh: rule.description,
+          waterEnabled,
+          waterUnitPrice,
           waterMinCharge: rule.waterMinCharge,
-          waterServiceFeeMode: rule.waterServiceFeeMode,
-          waterServiceFeeAmount: rule.waterServiceFeeAmount,
-          electricEnabled: rule.electricEnabled,
-          electricUnitPrice: rule.electricUnitPrice,
+          waterServiceFeeMode: mapFeeMode(rule.waterFeeMode),
+          waterServiceFeeAmount: rule.waterFeeAmount > 0 ? rule.waterFeeAmount : rule.waterFeePerUnit,
+          electricEnabled,
+          electricUnitPrice,
           electricMinCharge: rule.electricMinCharge,
-          electricServiceFeeMode: rule.electricServiceFeeMode,
-          electricServiceFeeAmount: rule.electricServiceFeeAmount,
+          electricServiceFeeMode: mapFeeMode(rule.electricFeeMode),
+          electricServiceFeeAmount: rule.electricFeeAmount > 0 ? rule.electricFeeAmount : rule.electricFeePerUnit,
         },
       });
     }
 
-    // ── 3. Upsert Rooms ─────────────────────────────────────────────────────
-    for (const rm of rooms) {
-      await prisma.room.upsert({
-        where: { roomNo: rm.roomNo },
-        create: {
-          roomNo: rm.roomNo,
-          floorNo: rm.floorNo,
-          defaultAccountId: rm.defaultAccountId,
-          defaultRuleCode: rm.defaultRuleCode,
-          defaultRentAmount: rm.defaultRentAmount,
-          hasFurniture: rm.hasFurniture,
-          defaultFurnitureAmount: rm.defaultFurnitureAmount,
-          roomStatus: rm.roomStatus,
-        },
-        update: {
-          floorNo: rm.floorNo,
-          defaultAccountId: rm.defaultAccountId,
-          defaultRuleCode: rm.defaultRuleCode,
-          defaultRentAmount: rm.defaultRentAmount,
-          hasFurniture: rm.hasFurniture,
-          defaultFurnitureAmount: rm.defaultFurnitureAmount,
-          roomStatus: rm.roomStatus,
-        },
-      });
-    }
-
-    // ── 4. Get or create BillingPeriod ──────────────────────────────────────
+    // ── 3. Get or create BillingPeriod ──────────────────────────────────────
     let period = await prisma.billingPeriod.findUnique({
       where: { year_month: { year, month } },
     });
@@ -671,7 +793,7 @@ export class BillingService {
       });
     }
 
-    // ── 5. Create ImportBatch (PROCESSING) ──────────────────────────────────
+    // ── 4. Create ImportBatch (PROCESSING) ──────────────────────────────────
     const allRows = parsed.floors.flatMap((f) => f.rows);
     const rowsTotal = allRows.length;
     const batchId = uuidv4();
@@ -680,8 +802,8 @@ export class BillingService {
       data: {
         id: batchId,
         billingPeriodId: period.id,
-        filename: 'apartment_excel_template.xlsx',
-        schemaVersion: config.schemaVersion,
+        filename: 'billing_template.xlsx',
+        schemaVersion: 'billing-v2',
         rowsTotal,
         rowsImported: 0,
         rowsSkipped: 0,
@@ -694,32 +816,28 @@ export class BillingService {
     // Build a Map for O(1) rule lookup
     const rulesMap = new Map(rules.map((r) => [r.code, r]));
 
-    // Build a Set of known room IDs from ROOM_MASTER for fast existence check
-    const masterRoomSet = new Set(rooms.map((r) => r.roomNo));
-
     let imported = 0;
     let skipped = 0;
     let errors = 0;
     const errorLog: Array<{ roomNo: string; error: string }> = [];
 
-    // ── 6. Process each floor row ────────────────────────────────────────────
+    // ── 5. Process each floor row ────────────────────────────────────────────
     for (const row of allRows) {
       const { roomNo } = row;
       try {
-        // Verify room exists in ROOM_MASTER or DB
-        if (!masterRoomSet.has(roomNo)) {
-          const dbRoom = await prisma.room.findUnique({ where: { roomNo } });
-          if (!dbRoom) {
-            logger.warn({ type: 'billing_import_room_missing', roomNo });
-            skipped++;
-            continue;
-          }
+        // Verify room exists in DB (no ROOM_MASTER in new template)
+        const dbRoom = await prisma.room.findUnique({ where: { roomNo } });
+        if (!dbRoom) {
+          logger.warn({ type: 'billing_import_room_missing', roomNo });
+          skipped++;
+          continue;
         }
 
-        // Determine effective rule
+        // Determine effective rule — use override from row, else room default
         const effectiveRuleCode =
           row.ruleOverrideCode ??
-          rooms.find((r) => r.roomNo === roomNo)?.defaultRuleCode ??
+          dbRoom.defaultRuleCode ??
+          config.defaultRuleCode ??
           '';
 
         const ruleData = rulesMap.get(effectiveRuleCode);
@@ -729,16 +847,43 @@ export class BillingService {
           continue;
         }
 
+        // Adapt new RuleRow to BillingRuleData shape expected by the calculator
+        type OldFeeMode2 = 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE';
+        const mapFeeMode2 = (m: string): OldFeeMode2 => {
+          if (m === 'FLAT') return 'FLAT_ROOM';
+          if (m === 'PER_UNIT') return 'PER_UNIT';
+          if (m === 'MANUAL') return 'MANUAL_FEE';
+          return 'NONE';
+        };
+        const billingRuleData = {
+          waterEnabled:           ruleData.waterMode !== 'DISABLED',
+          waterUnitPrice:         ruleData.waterRate > 0 ? ruleData.waterRate : ruleData.waterS1Rate,
+          waterMinCharge:         ruleData.waterMinCharge,
+          waterServiceFeeMode:    mapFeeMode2(ruleData.waterFeeMode),
+          waterServiceFeeAmount:  ruleData.waterFeeAmount > 0 ? ruleData.waterFeeAmount : ruleData.waterFeePerUnit,
+          electricEnabled:        ruleData.electricMode !== 'DISABLED',
+          electricUnitPrice:      ruleData.electricRate > 0 ? ruleData.electricRate : ruleData.electricS1Rate,
+          electricMinCharge:      ruleData.electricMinCharge,
+          electricServiceFeeMode: mapFeeMode2(ruleData.electricFeeMode),
+          electricServiceFeeAmount: ruleData.electricFeeAmount > 0 ? ruleData.electricFeeAmount : ruleData.electricFeePerUnit,
+        };
+
+        // Normalise meter modes to the calculator's narrower enum ('NORMAL' | 'MANUAL')
+        const normWaterMode: 'NORMAL' | 'MANUAL' =
+          row.waterMode === 'MANUAL' ? 'MANUAL' : 'NORMAL';
+        const normElectricMode: 'NORMAL' | 'MANUAL' =
+          row.electricMode === 'MANUAL' ? 'MANUAL' : 'NORMAL';
+
         // Compute billing using BillingCalculator (ignores Excel-computed columns)
         const computed = computeRoomBilling(
           {
             rentAmount: row.rentAmount,
-            waterMode: row.waterMode,
+            waterMode: normWaterMode,
             waterPrev: row.waterPrev,
             waterCurr: row.waterCurr,
             waterUnitsManual: row.waterUnitsManual,
             waterServiceFeeManual: row.waterServiceFeeManual,
-            electricMode: row.electricMode,
+            electricMode: normElectricMode,
             electricPrev: row.electricPrev,
             electricCurr: row.electricCurr,
             electricUnitsManual: row.electricUnitsManual,
@@ -746,16 +891,16 @@ export class BillingService {
             furnitureFee: row.furnitureFee,
             otherFee: row.otherFee,
           },
-          ruleData
+          billingRuleData
         );
 
         const checkNotes = computeCheckNotes(
           {
-            waterMode: row.waterMode,
+            waterMode: normWaterMode,
             waterPrev: row.waterPrev,
             waterCurr: row.waterCurr,
             waterUnitsManual: row.waterUnitsManual,
-            electricMode: row.electricMode,
+            electricMode: normElectricMode,
             electricPrev: row.electricPrev,
             electricCurr: row.electricCurr,
             electricUnitsManual: row.electricUnitsManual,
@@ -763,11 +908,11 @@ export class BillingService {
           computed
         );
 
-        // Get effective account ID
-        const masterRoom = rooms.find((r) => r.roomNo === roomNo);
+        // Get effective account ID — use row override, else room default, else config default
         const effectiveAccountId =
           row.recvAccountOverrideId ??
-          masterRoom?.defaultAccountId ??
+          dbRoom.defaultAccountId ??
+          config.defaultAccountId ??
           '';
 
         // Upsert RoomBilling — create if not exists, update if DRAFT
@@ -786,7 +931,7 @@ export class BillingService {
           ruleOverrideCode: row.ruleOverrideCode ?? undefined,
           ruleCode: effectiveRuleCode,
           rentAmount: row.rentAmount,
-          waterMode: row.waterMode,
+          waterMode: normWaterMode,
           waterPrev: row.waterPrev ?? undefined,
           waterCurr: row.waterCurr ?? undefined,
           waterUnitsManual: row.waterUnitsManual ?? undefined,
@@ -795,7 +940,7 @@ export class BillingService {
           waterServiceFeeManual: row.waterServiceFeeManual ?? undefined,
           waterServiceFee: computed.waterServiceFee,
           waterTotal: computed.waterTotal,
-          electricMode: row.electricMode,
+          electricMode: normElectricMode,
           electricPrev: row.electricPrev ?? undefined,
           electricCurr: row.electricCurr ?? undefined,
           electricUnitsManual: row.electricUnitsManual ?? undefined,
@@ -868,15 +1013,6 @@ export class BillingService {
 // ============================================================================
 // Factory
 // ============================================================================
-
-let billingServiceInstance: BillingService | null = null;
-
-export function getBillingService(eventBus?: EventBus): BillingService {
-  if (!billingServiceInstance) {
-    billingServiceInstance = new BillingService(eventBus);
-  }
-  return billingServiceInstance;
-}
 
 export function createBillingService(eventBus?: EventBus): BillingService {
   return new BillingService(eventBus);

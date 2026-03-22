@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRoomService } from '@/modules/rooms/room.service';
+import { getServiceContainer } from '@/lib/service-container';
 import {
   updateRoomSchema,
 } from '@/modules/rooms/types';
@@ -15,7 +15,7 @@ export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
     const { id } = params;
 
-    const roomService = getRoomService();
+    const { roomService } = getServiceContainer();
     const room = await roomService.getRoomById(id);
     const roomTenants = await prisma.roomTenant.findMany({
       where: {
@@ -68,7 +68,7 @@ export const PATCH = asyncHandler(
     // Validate input
     const input = updateRoomSchema.parse(body);
 
-    const roomService = getRoomService();
+    const { roomService } = getServiceContainer();
     const room = await roomService.updateRoom(id, input);
 
     logger.info({
@@ -92,7 +92,7 @@ export const DELETE = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
     const { id } = params;
 
-    const roomService = getRoomService();
+    const { roomService } = getServiceContainer();
     await roomService.deleteRoom(id);
 
     logger.info({

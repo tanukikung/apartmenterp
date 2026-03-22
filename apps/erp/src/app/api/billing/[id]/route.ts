@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBillingService } from '@/modules/billing/billing.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 
 // ============================================================================
@@ -10,7 +10,7 @@ export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
     const { id } = params;
 
-    const billingService = getBillingService();
+    const { billingService } = getServiceContainer();
     const record = await billingService.getBillingRecord(id);
 
     return NextResponse.json({

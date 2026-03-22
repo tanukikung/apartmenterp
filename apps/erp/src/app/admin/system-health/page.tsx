@@ -74,23 +74,23 @@ function statusIcon(status: ServiceStatus | null, size = 'h-5 w-5') {
   if (status === 'error')
     return <XCircle className={`${size} text-red-500`} />;
   if (status === 'not_configured')
-    return <AlertTriangle className={`${size} text-slate-400`} />;
-  return <Clock className={`${size} text-slate-300`} />;
+    return <AlertTriangle className={`${size} text-on-surface-variant`} />;
+  return <Clock className={`${size} text-outline-variant`} />;
 }
 
 function statusLabel(status: ServiceStatus | null): string {
   switch (status) {
     case 'ok':
     case 'connected':
-      return 'OK';
+      return 'ปกติ';
     case 'degraded':
-      return 'Degraded';
+      return 'เสื่อม';
     case 'error':
-      return 'Error';
+      return 'ข้อผิดพลาด';
     case 'not_configured':
-      return 'Not Configured';
+      return 'ไม่ได้ตั้งค่า';
     default:
-      return 'Unknown';
+      return 'ไม่ทราบ';
   }
 }
 
@@ -98,21 +98,21 @@ function statusCardBorder(status: ServiceStatus | null): string {
   if (status === 'ok' || status === 'connected') return 'border-emerald-200 bg-emerald-50/40';
   if (status === 'degraded') return 'border-amber-200 bg-amber-50/40';
   if (status === 'error') return 'border-red-200 bg-red-50/40';
-  return 'border-slate-200 bg-slate-50/40';
+  return 'border-outline-variant bg-surface-container-lowest';
 }
 
 function statusTextColor(status: ServiceStatus | null): string {
   if (status === 'ok' || status === 'connected') return 'text-emerald-700';
   if (status === 'degraded') return 'text-amber-700';
   if (status === 'error') return 'text-red-700';
-  return 'text-slate-500';
+  return 'text-on-surface-variant';
 }
 
 function globalBadgeClass(status: 'ok' | 'degraded' | 'error' | undefined): string {
-  if (status === 'ok') return 'admin-badge admin-status-good';
-  if (status === 'degraded') return 'admin-badge admin-status-warn';
-  if (status === 'error') return 'admin-badge admin-status-bad';
-  return 'admin-badge';
+  if (status === 'ok') return 'inline-flex items-center gap-2 rounded-full bg-success-container/30 px-3 py-1 text-xs font-semibold text-success';
+  if (status === 'degraded') return 'inline-flex items-center gap-2 rounded-full bg-warning-container/30 px-3 py-1 text-xs font-semibold text-warning';
+  if (status === 'error') return 'inline-flex items-center gap-2 rounded-full bg-error-container/30 px-3 py-1 text-xs font-semibold text-error';
+  return 'inline-flex items-center gap-2 rounded-full bg-surface-container-lowest px-3 py-1 text-xs font-semibold text-on-surface-variant';
 }
 
 function fmtTs(iso: string | null | undefined): string {
@@ -141,20 +141,20 @@ function buildHealthCards(data: HealthData): HealthCard[] {
   const cards: HealthCard[] = [
     {
       id: 'database',
-      label: 'Database',
+      label: 'ฐานข้อมูล',
       icon: <Database className="h-6 w-6" />,
       status: dbStatus,
       detail:
         dbStatus === 'ok'
-          ? `PostgreSQL connected`
+          ? `เชื่อมต่อแล้ว`
           : data.error
             ? data.error.slice(0, 80)
-            : 'Connection failed',
+            : 'การเชื่อมต่อล้มเหลว',
       latencyMs: detailed?.database?.latencyMs ?? data.latencies?.databaseMs,
     },
     {
       id: 'line',
-      label: 'LINE API',
+      label: 'API LINE',
       icon: <MessageSquare className="h-6 w-6" />,
       status:
         data.missingEnv?.some((k) => k.toLowerCase().includes('line')) === false
@@ -162,8 +162,8 @@ function buildHealthCards(data: HealthData): HealthCard[] {
           : 'not_configured',
       detail:
         data.missingEnv?.some((k) => k.toLowerCase().includes('line')) === false
-          ? 'Channel credentials configured'
-          : 'LINE_CHANNEL_ID or LINE_ACCESS_TOKEN not set',
+          ? 'กำหนดค่าข้อมูลรับรองแล้ว'
+          : 'ไม่ได้ตั้งค่า LINE_CHANNEL_ID หรือ LINE_ACCESS_TOKEN',
     },
     {
       id: 'redis',
@@ -179,34 +179,34 @@ function buildHealthCards(data: HealthData): HealthCard[] {
               : 'not_configured',
       detail:
         detailed?.redis?.status === 'ok' || data.services.redis === 'connected'
-          ? 'Redis connected'
+          ? 'เชื่อมต่อ Redis แล้ว'
           : data.services.redis === 'error'
-            ? 'Redis connection failed'
-            : 'Redis not configured (optional)',
+            ? 'การเชื่อมต่อ Redis ล้มเหลว'
+            : 'Redis ไม่ได้ตั้งค่า (ตัวเลือก)',
       latencyMs: detailed?.redis?.latencyMs,
     },
     {
       id: 'memory',
-      label: 'Memory',
+      label: 'หน่วยความจำ',
       icon: <MemoryStick className="h-6 w-6" />,
       status: 'ok',
-      detail: 'Node.js runtime — heap usage tracked server-side',
+      detail: 'รันไทม์ Node.js — การใช้งาน heap ติดตามฝั่งเซิร์ฟเวอร์',
     },
     {
       id: 'disk',
-      label: 'Disk',
+      label: 'ดิสก์',
       icon: <HardDrive className="h-6 w-6" />,
       status: 'ok',
-      detail: 'Disk usage not exposed via this endpoint',
+      detail: 'ข้อมูลการใช้งานดิสก์ไม่แสดงผ่าน endpoint นี้',
     },
     {
       id: 'worker',
-      label: 'Background Worker',
+      label: 'โปรแกรมทำงานเบื้องหลัง',
       icon: <Activity className="h-6 w-6" />,
       status: detailed?.worker?.status ?? 'not_configured',
       detail: detailed?.worker?.lastHeartbeatAt
-        ? `Last heartbeat: ${fmtTs(detailed.worker.lastHeartbeatAt)}`
-        : 'No heartbeat received',
+        ? `สัญญาณชีพล่าสุด: ${fmtTs(detailed.worker.lastHeartbeatAt)}`
+        : 'ไม่ได้รับสัญญาณชีพ',
     },
   ];
 
@@ -227,12 +227,12 @@ function buildServiceRows(data: HealthData): ServiceRow[] {
   const detailed = data.servicesDetailed;
   return [
     {
-      name: 'Application Server',
+      name: 'เซิร์ฟเวอร์แอปพลิเคชัน',
       status: data.services.app === 'ok' ? 'ok' : 'error',
       lastHeartbeat: data.timestamp,
     },
     {
-      name: 'PostgreSQL Database',
+      name: 'ฐานข้อมูล PostgreSQL',
       status:
         data.services.database === 'connected' || data.services.database === 'ok'
           ? 'ok'
@@ -240,7 +240,7 @@ function buildServiceRows(data: HealthData): ServiceRow[] {
       lastHeartbeat: data.timestamp,
     },
     {
-      name: 'Redis Cache',
+      name: 'แคช Redis',
       status:
         detailed?.redis?.status === 'ok' || data.services.redis === 'connected'
           ? 'ok'
@@ -250,7 +250,7 @@ function buildServiceRows(data: HealthData): ServiceRow[] {
       lastHeartbeat: data.services.redis === 'connected' ? data.timestamp : null,
     },
     {
-      name: 'Outbox Processor',
+      name: 'ตัวประมวลผลกล่องขาออก',
       status: detailed?.outbox?.status ?? 'not_configured',
       lastHeartbeat:
         detailed?.outbox
@@ -258,12 +258,12 @@ function buildServiceRows(data: HealthData): ServiceRow[] {
           : null,
     },
     {
-      name: 'Background Worker',
+      name: 'โปรแกรมทำงานเบื้องหลัง',
       status: detailed?.worker?.status ?? 'not_configured',
       lastHeartbeat: detailed?.worker?.lastHeartbeatAt ?? null,
     },
     {
-      name: 'LINE Messaging',
+      name: 'การส่งข้อความ LINE',
       status: data.missingEnv?.some((k) => k.toLowerCase().includes('line'))
         ? 'not_configured'
         : 'ok',
@@ -291,23 +291,23 @@ function HealthCardItem({ card }: { card: HealthCard }) {
   return (
     <div
       className={[
-        'rounded-2xl border p-4 flex flex-col gap-2',
+        'rounded-xl border p-4 flex flex-col gap-2',
         statusCardBorder(card.status),
       ].join(' ')}
     >
       <div className="flex items-center justify-between">
-        <span className="text-slate-500">{card.icon}</span>
+        <span className="text-on-surface-variant">{card.icon}</span>
         {statusIcon(card.status)}
       </div>
       <div>
-        <div className="font-semibold text-slate-800">{card.label}</div>
+        <div className="font-semibold text-on-surface">{card.label}</div>
         <div className={['text-xs font-medium mt-0.5', statusTextColor(card.status)].join(' ')}>
           {statusLabel(card.status)}
           {card.latencyMs != null ? ` · ${card.latencyMs}ms` : ''}
         </div>
       </div>
       {card.detail ? (
-        <p className="text-xs text-slate-500 leading-relaxed">{card.detail}</p>
+        <p className="text-xs text-on-surface-variant leading-relaxed">{card.detail}</p>
       ) : null}
     </div>
   );
@@ -355,13 +355,17 @@ export default function SystemHealthPage() {
 
   if (loading) {
     return (
-      <main className="admin-page">
-        <section className="admin-page-header">
-          <div>
-            <h1 className="admin-page-title">System Health</h1>
-            <p className="admin-page-subtitle">Running diagnostics...</p>
+      <main className="space-y-6">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+          <div className="relative flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-base font-semibold text-on-primary">สถานะระบบ</h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">กำลังตรวจสอบ...</p>
+            </div>
+            <div className="flex items-center gap-3"></div>
           </div>
-        </section>
+        </div>
       </main>
     );
   }
@@ -372,19 +376,22 @@ export default function SystemHealthPage() {
 
   if (error && !data) {
     return (
-      <main className="admin-page">
-        <section className="admin-page-header">
-          <div>
-            <h1 className="admin-page-title">System Health</h1>
+      <main className="space-y-6">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+          <div className="relative flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-base font-semibold text-on-primary">สถานะระบบ</h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <button onClick={() => void load(true)} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+                <RefreshCw className="h-4 w-4" />
+                ลองอีกครั้ง
+              </button>
+            </div>
           </div>
-          <div className="admin-toolbar">
-            <button onClick={() => void load(true)} className="admin-button">
-              <RefreshCw className="h-4 w-4" />
-              Retry
-            </button>
-          </div>
-        </section>
-        <div className="auth-alert auth-alert-error">{error}</div>
+        </div>
+        <div className="rounded-xl border border-error/30 bg-error-container/20 px-4 py-3 text-sm text-error">{error}</div>
       </main>
     );
   }
@@ -415,39 +422,42 @@ export default function SystemHealthPage() {
   });
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <section className="admin-page-header">
-        <div>
-          <h1 className="admin-page-title">System Health</h1>
-          <p className="admin-page-subtitle">
-            {lastChecked
-              ? `Last checked: ${fmtTs(lastChecked)}`
-              : 'Live diagnostics across all services.'}
-          </p>
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-base font-semibold text-on-primary">สถานะระบบ</h1>
+            <p className="text-xs text-on-primary/80 mt-0.5">
+              {lastChecked
+                ? `ตรวจสอบล่าสุด: ${fmtTs(lastChecked)}`
+                : 'การวินิจฉัยแบบเรียลไทม์ข้างบริการทั้งหมด'}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={globalBadgeClass(data.status)}>
+              {data.status?.toUpperCase() ?? 'UNKNOWN'}
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface-variant shadow-sm">v{data.version}</span>
+            <button
+              onClick={() => void load(true)}
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+            >
+              <RefreshCw className={['h-4 w-4', refreshing ? 'animate-spin' : ''].join(' ')} />
+              {refreshing ? 'กำลังรีเฟรช...' : 'รีเฟรช'}
+            </button>
+          </div>
         </div>
-        <div className="admin-toolbar">
-          <span className={globalBadgeClass(data.status)}>
-            {data.status?.toUpperCase() ?? 'UNKNOWN'}
-          </span>
-          <span className="admin-badge text-slate-500">v{data.version}</span>
-          <button
-            onClick={() => void load(true)}
-            disabled={refreshing}
-            className="admin-button"
-          >
-            <RefreshCw className={['h-4 w-4', refreshing ? 'animate-spin' : ''].join(' ')} />
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </button>
-        </div>
-      </section>
+      </div>
 
-      {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
+      {error ? <div className="rounded-xl border border-error/30 bg-error-container/20 px-4 py-3 text-sm text-error">{error}</div> : null}
 
       {/* ── Health indicator cards ──────────────────────────────────────── */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-slate-400">
-          Service Indicators
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
+          ตัวชี้วัดบริการ
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {healthCards.map((card) => (
@@ -458,16 +468,16 @@ export default function SystemHealthPage() {
 
       {/* ── Missing env vars warning ───────────────────────────────────── */}
       {data.missingEnv && data.missingEnv.length > 0 ? (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <div className="flex items-center gap-2 font-semibold text-amber-800 text-sm">
+        <section className="rounded-xl border border-warning/30 bg-warning-container/20 px-4 py-3">
+          <div className="flex items-center gap-2 font-semibold text-warning text-sm">
             <AlertTriangle className="h-4 w-4" />
-            Missing environment variables
+            ตัวแปรสภาพแวดล้อมที่ขาดหายไป
           </div>
           <ul className="mt-2 flex flex-wrap gap-2">
             {data.missingEnv.map((key) => (
               <li
                 key={key}
-                className="rounded bg-amber-100 px-2 py-0.5 font-mono text-xs text-amber-900"
+                className="rounded bg-warning-container/50 px-2 py-0.5 font-mono text-xs text-warning"
               >
                 {key}
               </li>
@@ -478,28 +488,28 @@ export default function SystemHealthPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         {/* ── Service status list ─────────────────────────────────────── */}
-        <section className="admin-card overflow-hidden">
-          <div className="admin-card-header">
-            <div className="admin-card-title flex items-center gap-2">
-              <Server className="h-4 w-4 text-slate-400" />
-              Service Status
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+          <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium text-on-surface">
+              <Server className="h-4 w-4 text-on-surface-variant" />
+              สถานะบริการ
             </div>
-            <span className="admin-badge">{serviceRows.length} services</span>
+            <span className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1 text-xs font-medium text-on-surface-variant shadow-sm">{serviceRows.length} บริการ</span>
           </div>
           <div className="overflow-auto">
-            <table className="admin-table">
+            <table className="w-full text-sm">
               <thead>
                 <tr>
-                  <th>Service</th>
-                  <th>Status</th>
-                  <th>Last Heartbeat</th>
+                  <th>บริการ</th>
+                  <th>สถานะ</th>
+                  <th>สัญญาณชีพล่าสุด</th>
                 </tr>
               </thead>
               <tbody>
                 {serviceRows.map((row) => (
                   <tr key={row.name}>
                     <td>
-                      <div className="flex items-center gap-2 font-medium text-slate-800">
+                      <div className="flex items-center gap-2 font-medium text-on-surface">
                         {statusIcon(row.status, 'h-4 w-4')}
                         {row.name}
                       </div>
@@ -514,7 +524,7 @@ export default function SystemHealthPage() {
                         {statusLabel(row.status)}
                       </span>
                     </td>
-                    <td className="text-xs text-slate-500">{fmtTs(row.lastHeartbeat)}</td>
+                    <td className="text-xs text-on-surface-variant">{fmtTs(row.lastHeartbeat)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -523,27 +533,27 @@ export default function SystemHealthPage() {
         </section>
 
         {/* ── Background jobs ──────────────────────────────────────────── */}
-        <section className="admin-card overflow-hidden">
-          <div className="admin-card-header">
-            <div className="admin-card-title flex items-center gap-2">
-              <Gauge className="h-4 w-4 text-slate-400" />
-              Background Jobs
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+          <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium text-on-surface">
+              <Gauge className="h-4 w-4 text-on-surface-variant" />
+              งานเบื้องหลัง
             </div>
           </div>
           <div className="overflow-auto">
-            <table className="admin-table">
+            <table className="w-full text-sm">
               <thead>
                 <tr>
-                  <th>Job</th>
-                  <th>Last Run</th>
-                  <th>Status</th>
+                  <th>งาน</th>
+                  <th>รันล่าสุด</th>
+                  <th>สถานะ</th>
                 </tr>
               </thead>
               <tbody>
                 {jobs.map((job) => (
                   <tr key={job.name}>
-                    <td className="font-medium text-slate-800 text-sm">{job.name}</td>
-                    <td className="text-xs text-slate-500">{fmtTs(job.lastRun)}</td>
+                    <td className="font-medium text-on-surface text-sm">{job.name}</td>
+                    <td className="text-xs text-on-surface-variant">{fmtTs(job.lastRun)}</td>
                     <td>
                       <div className="flex items-center gap-1.5">
                         {statusIcon(job.status, 'h-3.5 w-3.5')}
@@ -560,30 +570,30 @@ export default function SystemHealthPage() {
 
           {/* Outbox stats */}
           {outbox ? (
-            <div className="grid grid-cols-2 gap-3 border-t border-slate-100 p-4">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.07em] text-slate-400">
-                  Queue Length
+            <div className="grid grid-cols-2 gap-3 border-t border-outline-variant/10 p-4">
+              <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest px-4 py-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">
+                  ความยาวคิว
                 </div>
-                <div className="mt-1 text-2xl font-bold text-slate-900">
+                <div className="mt-1 text-2xl font-bold text-on-surface">
                   {outbox.queueLength}
                 </div>
               </div>
               <div
                 className={[
-                  'rounded-2xl border px-4 py-3',
+                  'rounded-xl border px-4 py-3',
                   outbox.failedCount > 0
-                    ? 'border-red-200 bg-red-50'
-                    : 'border-slate-100 bg-slate-50',
+                    ? 'border-error/30 bg-error-container/20'
+                    : 'border-outline-variant/10 bg-surface-container-lowest',
                 ].join(' ')}
               >
-                <div className="text-xs font-semibold uppercase tracking-[0.07em] text-slate-400">
-                  Failed Events
+                <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">
+                  เหตุการณ์ที่ล้มเหลว
                 </div>
                 <div
                   className={[
                     'mt-1 text-2xl font-bold',
-                    outbox.failedCount > 0 ? 'text-red-600' : 'text-slate-900',
+                    outbox.failedCount > 0 ? 'text-error' : 'text-on-surface',
                   ].join(' ')}
                 >
                   {outbox.failedCount}
@@ -595,25 +605,25 @@ export default function SystemHealthPage() {
       </div>
 
       {/* ── Environment info ────────────────────────────────────────────── */}
-      <section className="admin-card cute-surface">
-        <div className="admin-card-header">
-          <div className="admin-card-title flex items-center gap-2">
-            <Wifi className="h-4 w-4 text-slate-400" />
-            Environment
+      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary shadow-lg">
+        <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-medium text-on-surface">
+            <Wifi className="h-4 w-4 text-on-surface-variant" />
+            สภาพแวดล้อม
           </div>
         </div>
         <div className="grid gap-3 p-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-slate-400">Version</div>
-            <div className="mt-1 font-mono text-sm font-medium text-slate-800">{data.version}</div>
+          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest/60 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">Version</div>
+            <div className="mt-1 font-mono text-sm font-medium text-on-surface">{data.version}</div>
           </div>
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-slate-400">Environment</div>
-            <div className="mt-1 font-mono text-sm font-medium text-slate-800">{data.environment}</div>
+          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest/60 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">Environment</div>
+            <div className="mt-1 font-mono text-sm font-medium text-on-surface">{data.environment}</div>
           </div>
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-slate-400">DB Latency</div>
-            <div className="mt-1 font-mono text-sm font-medium text-slate-800">
+          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest/60 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">DB Latency</div>
+            <div className="mt-1 font-mono text-sm font-medium text-on-surface">
               {data.latencies?.databaseMs != null
                 ? `${data.latencies.databaseMs}ms`
                 : data.servicesDetailed?.database?.latencyMs != null

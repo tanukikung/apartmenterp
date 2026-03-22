@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeBillingImportBatch } from '@/modules/billing/import-batch.service';
 import { asyncHandler, type ApiResponse, ValidationError } from '@/lib/utils/errors';
-import { getSessionFromRequest } from '@/lib/auth/session';
 import { requireRole } from '@/lib/auth/guards';
 import { z } from 'zod';
 

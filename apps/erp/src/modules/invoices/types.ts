@@ -73,6 +73,8 @@ export interface InvoiceResponse {
   roomNo: string;
   /** New schema: FK to RoomBilling */
   roomBillingId: string;
+  /** FK to BillingPeriod — used for navigation to billing cycle */
+  billingPeriodId: string;
   year: number;
   month: number;
   status: InvoiceStatus;

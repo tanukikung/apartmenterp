@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInvoiceService } from '@/modules/invoices/invoice.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { generateInvoiceSchema } from '@/modules/invoices/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
@@ -14,7 +14,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   const { searchParams } = new URL(req.url);
   const confirm = searchParams.get('confirm') === 'true';
 
-  const invoiceService = getInvoiceService();
+  const { invoiceService } = getServiceContainer();
   let invoice;
   if (confirm) {
     invoice = await invoiceService.generateInvoice(input);

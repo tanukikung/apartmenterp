@@ -129,10 +129,6 @@ export class ReminderService {
   }
 }
 
-let reminderServiceInstance: ReminderService | null = null;
-export function getReminderService(): ReminderService {
-  if (!reminderServiceInstance) {
-    reminderServiceInstance = new ReminderService();
-  }
-  return reminderServiceInstance;
+export function createReminderService(): ReminderService {
+  return new ReminderService();
 }

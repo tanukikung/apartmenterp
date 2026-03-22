@@ -70,11 +70,11 @@ function FieldRow({
 }) {
   return (
     <div className="flex items-start gap-4">
-      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-container text-on-surface-variant">
         {icon}
       </div>
       <div className="flex-1">
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">{label}</label>
+        <label className="mb-1.5 block text-sm font-medium text-on-surface">{label}</label>
         {children}
       </div>
     </div>
@@ -83,7 +83,7 @@ function FieldRow({
 
 function LetterheadPreview({ profile }: { profile: BuildingProfile }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-sm">
       {/* Gradient header strip */}
       <div className="h-2 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
 
@@ -106,11 +106,11 @@ function LetterheadPreview({ profile }: { profile: BuildingProfile }) {
             </div>
           )}
           <div>
-            <div className="text-lg font-bold leading-tight text-slate-900">
-              {profile.name || <span className="italic text-slate-300">Building Name</span>}
+            <div className="text-lg font-bold leading-tight text-on-surface">
+              {profile.name || <span className="italic text-on-surface-variant">Building Name</span>}
             </div>
             {profile.taxId && (
-              <div className="mt-0.5 text-xs text-slate-400">
+              <div className="mt-0.5 text-xs text-on-surface-variant">
                 Tax ID: {profile.taxId}
               </div>
             )}
@@ -118,35 +118,35 @@ function LetterheadPreview({ profile }: { profile: BuildingProfile }) {
         </div>
 
         {/* Divider */}
-        <div className="my-4 border-t border-slate-100" />
+        <div className="my-4 border-t border-outline-variant" />
 
         {/* Contact grid */}
-        <div className="grid gap-2 text-sm text-slate-600">
+        <div className="grid gap-2 text-sm text-on-surface-variant">
           {profile.address && (
             <div className="flex items-start gap-2">
-              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
               <span className="leading-snug">{profile.address}</span>
             </div>
           )}
           {profile.phone && (
             <div className="flex items-center gap-2">
-              <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <Phone className="h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
               <span>{profile.phone}</span>
             </div>
           )}
           {profile.email && (
             <div className="flex items-center gap-2">
-              <Mail className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <Mail className="h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
               <span>{profile.email}</span>
             </div>
           )}
           {!profile.address && !profile.phone && !profile.email && (
-            <p className="italic text-slate-300">Fill in your contact details to see the preview.</p>
+            <p className="italic text-on-surface-variant">Fill in your contact details to see the preview.</p>
           )}
         </div>
 
         {/* Footer strip */}
-        <div className="mt-5 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-400">
+        <div className="mt-5 rounded-xl bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
           This is a live preview of how your building info will appear on invoices and documents.
         </div>
       </div>
@@ -165,10 +165,6 @@ export default function BuildingProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  // ---------------------------------------------------------------------------
-  // Load
-  // ---------------------------------------------------------------------------
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -192,10 +188,6 @@ export default function BuildingProfilePage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  // ---------------------------------------------------------------------------
-  // Save
-  // ---------------------------------------------------------------------------
-
   async function handleSave() {
     setSaving(true);
     setError(null);
@@ -215,7 +207,6 @@ export default function BuildingProfilePage() {
       });
       const json = (await res.json()) as { success: boolean; error?: { message?: string } };
       if (!json.success) throw new Error(json.error?.message ?? 'Failed to save building profile');
-      // Refresh to get updated timestamp
       await load();
       setMessage('Building profile saved successfully.');
     } catch (err) {
@@ -224,10 +215,6 @@ export default function BuildingProfilePage() {
       setSaving(false);
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
 
   const isDirty =
     fields.name !== originalFields.name ||
@@ -241,42 +228,45 @@ export default function BuildingProfilePage() {
     setFields((prev) => ({ ...prev, [key]: value }));
   }
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
-
   return (
-    <main className="admin-page">
-      {/* Header */}
-      <section className="admin-page-header">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/admin/settings"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50"
-          >
-            <ArrowLeft className="h-4 w-4 text-slate-600" />
-          </Link>
-          <div>
-            <h1 className="admin-page-title flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-indigo-600" />
-              Building Profile
-            </h1>
-            <p className="admin-page-subtitle">
-              Configure your building&apos;s name, address, and contact details for documents.
-            </p>
+    <main className="space-y-6">
+      {/* Page header */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
+              <Building2 className="h-5 w-5 text-on-primary" strokeWidth={1.75} />
+            </div>
+            <div>
+              <h1 className="text-base font-semibold text-on-primary">ข้อมูลอาคาร</h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">ตั้งค่าชื่ออาคาร ที่อยู่ และข้อมูลติดต่อที่พิมพ์บนเอกสาร</p>
+            </div>
           </div>
+          <Link href="/admin/settings" className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30">
+            <ArrowLeft className="h-4 w-4" /> กลับ
+          </Link>
         </div>
-      </section>
+      </div>
+
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-sm">
+        <Link href="/admin/settings" className="flex items-center gap-1 text-on-surface-variant hover:text-on-surface">
+          Settings
+        </Link>
+        <span className="text-outline-variant">/</span>
+        <span className="text-on-surface">ข้อมูลอาคาร</span>
+      </div>
 
       {/* Alerts */}
       {message && (
-        <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+        <div className="flex items-center gap-2 rounded-xl border border-tertiary-container bg-tertiary-container/20 px-4 py-3 text-sm font-medium text-on-tertiary-container">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           {message}
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        <div className="flex items-center gap-2 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm font-medium text-on-error-container">
           <XCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>
@@ -285,17 +275,17 @@ export default function BuildingProfilePage() {
       {/* Two-column layout: form + preview */}
       <div className="grid gap-6 xl:grid-cols-5">
         {/* Form */}
-        <div className="admin-card xl:col-span-3">
-          <h2 className="mb-6 text-base font-semibold text-slate-900">Building Information</h2>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 xl:col-span-3">
+          <h2 className="mb-6 text-base font-semibold text-on-surface">Building Information</h2>
 
           {loading ? (
             <div className="space-y-5">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-start gap-4">
-                  <div className="h-9 w-9 animate-pulse rounded-xl bg-slate-100" />
+                  <div className="h-9 w-9 animate-pulse rounded-xl bg-surface-container" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 w-24 animate-pulse rounded-lg bg-slate-100" />
-                    <div className="h-10 w-full animate-pulse rounded-xl bg-slate-100" />
+                    <div className="h-4 w-24 animate-pulse rounded-lg bg-surface-container" />
+                    <div className="h-10 w-full animate-pulse rounded-xl bg-surface-container" />
                   </div>
                 </div>
               ))}
@@ -305,7 +295,7 @@ export default function BuildingProfilePage() {
               <FieldRow label="Building Name" icon={<Building2 className="h-4 w-4" />}>
                 <input
                   type="text"
-                  className="admin-input w-full"
+                  className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="Sunset Apartments"
                   value={fields.name}
                   onChange={(e) => setField('name', e.target.value)}
@@ -314,7 +304,7 @@ export default function BuildingProfilePage() {
 
               <FieldRow label="Address" icon={<MapPin className="h-4 w-4" />}>
                 <textarea
-                  className="admin-input w-full resize-none"
+                  className="w-full resize-none rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   rows={3}
                   placeholder="123 Main Street, Bangkok 10100"
                   value={fields.address}
@@ -325,7 +315,7 @@ export default function BuildingProfilePage() {
               <FieldRow label="Phone Number" icon={<Phone className="h-4 w-4" />}>
                 <input
                   type="tel"
-                  className="admin-input w-full"
+                  className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="02-XXX-XXXX"
                   value={fields.phone}
                   onChange={(e) => setField('phone', e.target.value)}
@@ -335,7 +325,7 @@ export default function BuildingProfilePage() {
               <FieldRow label="Email Address" icon={<Mail className="h-4 w-4" />}>
                 <input
                   type="email"
-                  className="admin-input w-full"
+                  className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="contact@yourbuilding.com"
                   value={fields.email}
                   onChange={(e) => setField('email', e.target.value)}
@@ -345,7 +335,7 @@ export default function BuildingProfilePage() {
               <FieldRow label="Tax ID / เลขที่ผู้เสียภาษี" icon={<ReceiptText className="h-4 w-4" />}>
                 <input
                   type="text"
-                  className="admin-input w-full font-mono tracking-wider"
+                  className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm font-mono tracking-wider text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="0-1234-56789-01-2"
                   value={fields.taxId}
                   onChange={(e) => setField('taxId', e.target.value)}
@@ -356,19 +346,19 @@ export default function BuildingProfilePage() {
                 label={
                   <>
                     Logo URL{' '}
-                    <span className="ml-1 text-xs font-normal text-slate-400">(optional)</span>
+                    <span className="ml-1 text-xs font-normal text-on-surface-variant">(optional)</span>
                   </>
                 }
                 icon={<Globe className="h-4 w-4" />}
               >
                 <input
                   type="url"
-                  className="admin-input w-full"
+                  className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="https://example.com/logo.png"
                   value={fields.logoUrl}
                   onChange={(e) => setField('logoUrl', e.target.value)}
                 />
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-on-surface-variant">
                   Publicly accessible URL. Will appear on invoice letterhead.
                 </p>
               </FieldRow>
@@ -378,24 +368,24 @@ export default function BuildingProfilePage() {
 
         {/* Preview */}
         <div className="space-y-4 xl:col-span-2">
-          <div className="admin-card">
-            <h2 className="mb-4 text-base font-semibold text-slate-900">Letterhead Preview</h2>
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+            <h2 className="mb-4 text-base font-semibold text-on-surface">Letterhead Preview</h2>
             <LetterheadPreview profile={fields} />
           </div>
 
           {/* Last updated */}
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
-            <Clock className="h-4 w-4 shrink-0 text-slate-400" />
+          <div className="flex items-center gap-2 rounded-xl border border-outline-variant bg-surface-container-lowest px-4 py-3 text-sm text-on-surface-variant shadow-sm">
+            <Clock className="h-4 w-4 shrink-0 text-on-surface-variant" />
             <span>
-              Last saved: <span className="font-medium text-slate-700">{formatTs(fields.updatedAt)}</span>
+              Last saved: <span className="font-medium text-on-surface">{formatTs(fields.updatedAt)}</span>
             </span>
           </div>
         </div>
       </div>
 
       {/* Save bar */}
-      <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-        <div className="text-sm text-slate-500">
+      <div className="flex items-center justify-between rounded-xl border border-outline-variant bg-surface-container-lowest px-5 py-4 shadow-sm">
+        <div className="text-sm text-on-surface-variant">
           {isDirty ? (
             <span className="font-medium text-amber-600">You have unsaved changes.</span>
           ) : (
@@ -410,7 +400,7 @@ export default function BuildingProfilePage() {
                 setMessage(null);
                 setError(null);
               }}
-              className="admin-button"
+              className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
             >
               Discard
             </button>
@@ -418,7 +408,7 @@ export default function BuildingProfilePage() {
           <button
             onClick={() => void handleSave()}
             disabled={saving || loading || !isDirty}
-            className="admin-button admin-button-primary flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Save className="h-4 w-4" />
             {saving ? 'Saving...' : 'Save Profile'}

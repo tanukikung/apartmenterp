@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler } from '@/lib/utils/errors';
-import { getPaymentMatchingService } from '@/modules/payments/payment-matching.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { z } from 'zod';
 
 const reviewListSchema = z.object({
@@ -23,7 +23,7 @@ export const GET = asyncHandler(async (request: NextRequest): Promise<NextRespon
   }
 
   try {
-    const service = getPaymentMatchingService();
+    const service = getServiceContainer().paymentMatchingService;
     const result = await service.getMatchesForReview(limit, offset);
 
     return NextResponse.json({

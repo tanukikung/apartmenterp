@@ -3,6 +3,7 @@ import http from 'http';
 import supertest from 'supertest';
 import { hashPassword } from '@/lib/auth/password';
 import { buildSignedAuthCookie, parseCookieHeader } from '../helpers/auth';
+import { getServiceContainer } from '@/lib/service-container';
 
 describe('API routes (supertest)', () => {
   let server: http.Server;
@@ -98,23 +99,21 @@ describe('API routes (supertest)', () => {
   });
 
   it('billing lock requires admin role', async () => {
-    const mod = await import('@/modules/billing/billing.service');
-    vi.spyOn(mod, 'getBillingService').mockReturnValue({
-      lockBillingRecord: vi.fn(async () => ({
-        id: 'bill-1',
-        roomId: 'room-1',
-        year: 2026,
-        month: 3,
-        status: 'LOCKED',
-        subtotal: 1000,
-        totalAmount: 1000,
-        lockedAt: new Date(),
-        lockedBy: 'admin',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        items: [],
-      })),
-    } as any);
+    vi.spyOn(getServiceContainer().billingService, 'lockBillingRecord').mockImplementation(async () => ({
+      id: 'bill-1',
+      roomId: 'room-1',
+      roomNo: '101',
+      billingPeriodId: 'bp-1',
+      year: 2026,
+      month: 3,
+      status: 'LOCKED' as const,
+      subtotal: 1000,
+      totalAmount: 1000,
+      lockedAt: new Date(),
+      lockedBy: 'admin',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any));
 
     const anonymous = await request
       .post('/api/billing/bill-1/lock')

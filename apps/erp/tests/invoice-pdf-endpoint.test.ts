@@ -7,22 +7,25 @@ const markInvoiceViewedMock = vi.fn(async () => ({
   status: 'VIEWED',
 }));
 
-vi.mock('@/modules/invoices/invoice.service', () => ({
-  getInvoiceService: () => ({
-    getInvoicePreview: vi.fn(async () => ({
-      invoiceId: 'test-invoice-id',
-      buildingName: 'Test Building',
-      roomNumber: '101',
-      tenantName: 'Somchai Jaidee',
-      year: 2024,
-      month: 3,
-      version: 1,
-      dueDate: '2024-03-31',
-      subtotal: 5000,
-      totalAmount: 5500,
-      items: [],
-    })),
-    markInvoiceViewed: markInvoiceViewedMock,
+vi.mock('@/lib/service-container', () => ({
+  getServiceContainer: () => ({
+    invoiceService: {
+      getInvoicePreview: vi.fn(async () => ({
+        invoiceId: 'test-invoice-id',
+        buildingName: 'Test Building',
+        roomNumber: '101',
+        tenantName: 'Somchai Jaidee',
+        year: 2024,
+        month: 3,
+        version: 1,
+        dueDate: '2024-03-31',
+        subtotal: 5000,
+        totalAmount: 5500,
+        items: [],
+      })),
+      markInvoiceViewed: markInvoiceViewedMock,
+    },
+    eventBus: { publish: vi.fn(), subscribe: vi.fn() },
   }),
 }));
 

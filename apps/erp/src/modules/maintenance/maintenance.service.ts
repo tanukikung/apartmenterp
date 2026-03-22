@@ -69,7 +69,7 @@ export class MaintenanceService {
       const created = await mtx.maintenanceTicket.create({
         data: {
           id: uuidv4(),
-          roomId: input.roomId,
+          roomNo: input.roomId,
           tenantId: input.tenantId,
           title: input.title,
           description: input.description,
@@ -211,11 +211,6 @@ export class MaintenanceService {
   }
 }
 
-let maintenanceServiceInstance: MaintenanceService | null = null;
-
-export function getMaintenanceService(): MaintenanceService {
-  if (!maintenanceServiceInstance) {
-    maintenanceServiceInstance = new MaintenanceService();
-  }
-  return maintenanceServiceInstance;
+export function createMaintenanceService(): MaintenanceService {
+  return new MaintenanceService();
 }

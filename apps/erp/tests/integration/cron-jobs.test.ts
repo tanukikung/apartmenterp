@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { prisma } from '@/lib/db/client';
-import { getInvoiceService } from '@/modules/invoices/invoice.service';
 import { ReminderService } from '@/modules/reminders/reminder.service';
-import { getEventBus, EventTypes } from '@/lib';
+import { EventTypes } from '@/lib';
+import { getServiceContainer } from '@/lib/service-container';
 
 describe('Cron jobs', () => {
   beforeEach(() => {
@@ -15,7 +15,7 @@ describe('Cron jobs', () => {
       { id: 'b1' } as any,
       { id: 'b2' } as any,
     ]);
-    const svc = getInvoiceService();
+    const svc = getServiceContainer().invoiceService;
     const genSpy = vi.spyOn(svc, 'generateInvoiceFromBilling').mockImplementation(async (id: string) => {
       if (processed.has(id)) throw new Error('duplicate');
       processed.add(id);
@@ -54,9 +54,9 @@ describe('Cron jobs', () => {
     const inv = { id: 'inv-od', dueDate: past, status: 'SENT', roomId: 'room-1', room: { roomNumber: '101' } };
     vi.spyOn(prisma.invoice, 'findMany').mockResolvedValue([inv] as any);
     const updateSpy = vi.spyOn(prisma.invoice, 'update').mockResolvedValue({ ...inv, status: 'OVERDUE' } as any);
-    const bus = getEventBus();
+    const bus = getServiceContainer().eventBus;
     const pubSpy = vi.spyOn(bus as any, 'publish').mockResolvedValue({ type: EventTypes.INVOICE_MARKED_OVERDUE } as any);
-    const svc = getInvoiceService();
+    const svc = getServiceContainer().invoiceService;
     await svc.checkOverdueInvoices();
     expect(updateSpy).toHaveBeenCalled();
     expect(pubSpy).toHaveBeenCalledWith(

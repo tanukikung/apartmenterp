@@ -88,6 +88,30 @@ const EXPLICIT_POLICIES: ApiRoutePolicy[] = [
     guardApplied: 'public',
   },
   {
+    pattern: '/api/health/onlyoffice',
+    methods: ['GET'],
+    accessClass: 'public',
+    guardApplied: 'public',
+  },
+  {
+    pattern: '/api/admin/setup/complete',
+    methods: ['POST'],
+    accessClass: 'public',
+    guardApplied: 'public',
+  },
+  {
+    pattern: '/api/admin/setup/status',
+    methods: ['GET'],
+    accessClass: 'public',
+    guardApplied: 'public',
+  },
+  {
+    pattern: '/api/admin/setup/reset',
+    methods: ['POST'],
+    accessClass: 'operator',
+    guardApplied: 'requireRole(ADMIN)',
+  },
+  {
     pattern: '/api/metrics',
     methods: ['GET'],
     accessClass: 'public',
@@ -125,12 +149,6 @@ const EXPLICIT_POLICIES: ApiRoutePolicy[] = [
   },
   {
     pattern: '/api/invoices/[id]/pdf',
-    methods: ['GET'],
-    accessClass: 'custom',
-    guardApplied: 'requireOperatorOrSignedInvoiceAccess',
-  },
-  {
-    pattern: '/api/invoice/[id]/pdf',
     methods: ['GET'],
     accessClass: 'custom',
     guardApplied: 'requireOperatorOrSignedInvoiceAccess',
@@ -241,7 +259,16 @@ export function isCsrfExemptApiRoute(pathname: string, method: string): boolean 
       pathname === '/api/auth/login' ||
       pathname === '/api/auth/signup' ||
       pathname === '/api/auth/forgot-password' ||
-      pathname === '/api/auth/reset-password') &&
+      pathname === '/api/auth/reset-password' ||
+      pathname === '/api/auth/reset-limit') &&
+    normalizedMethod === 'POST'
+  ) {
+    return true;
+  }
+
+  // Setup wizard POST endpoints - human-controlled through UI wizard
+  if (
+    (pathname.startsWith('/api/admin/setup/')) &&
     normalizedMethod === 'POST'
   ) {
     return true;

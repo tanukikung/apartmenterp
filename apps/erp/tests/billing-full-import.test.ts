@@ -42,47 +42,46 @@ import { prisma } from '@/lib';
 function buildWorkbookBuffer(): Uint8Array {
   const wb = XLSX.utils.book_new();
 
-  // CONFIG sheet (row 0 unused, row 1 = headers, row 2+ = data)
+  // CONFIG sheet: row 0 = title, row 1 = description, row 2 = headers, row 3+ = data
+  // The actual Excel template has: title row, then description row (with field labels),
+  // then column headers row (field names), then data rows.
   const configWs = XLSX.utils.aoa_to_sheet([
-    ['CONFIG'],
-    ['key', 'value', 'label_th', 'note'],
-    ['schema_version', 'apartment_billing_v13', '', ''],
-    ['billing_year', '2026', '', ''],
+    ['CONFIG'],                                          // row 0 = title
+    ['key', 'value', 'label_th', 'note'],              // row 1 = description (field labels)
+    ['schema_version', 'apartment_billing_v13', '', ''], // row 2 = headers
+    ['billing_year', '2026', '', ''],                    // row 3+ = data
     ['billing_month', '3', '', ''],
     ['billing_period_key', '2026-03', '', ''],
     ['currency', 'THB', '', ''],
   ]);
   XLSX.utils.book_append_sheet(wb, configWs, 'CONFIG');
 
-  // ACCOUNTS sheet (row 0 title, row 1 headers, row 2+ data)
+  // ACCOUNTS sheet: row 0 = title, row 1 = description, row 2 = headers, row 3+ = data
   const accountsWs = XLSX.utils.aoa_to_sheet([
-    ['ACCOUNTS'],
-    ['account_id', 'account_name', 'bank_name', 'bank_account_no', 'promptpay', 'active'],
-    ['ACC_F1', 'บัญชีชั้น 1', 'กสิกร', '1234567890', null, 'ENABLE'],
+    ['ACCOUNTS'],                                         // row 0 = title
+    ['รหัสบัญชี', 'ชื่อบัญชี', 'ธนาคาร', 'เลขบัญชี', 'พร้อมเพย์', 'สถานะ'], // row 1 = description (Thai labels)
+    ['account_id', 'account_name', 'bank_name', 'bank_account_no', 'promptpay', 'active'], // row 2 = headers
+    ['ACC_F1', 'บัญชีชั้น 1', 'กสิกร', '1234567890', null, 'ENABLE'],  // row 3+ = data
     ['ACC_F2', 'บัญชีชั้น 2', 'กรุงไทย', '0987654321', '0812345678', 'ENABLE'],
   ]);
   XLSX.utils.book_append_sheet(wb, accountsWs, 'ACCOUNTS');
 
-  // RULES sheet (row 0 title, row 1 headers, row 2+ data)
+  // RULES sheet: row 0 = title, row 1 = description, row 2 = headers, row 3+ = data
   const rulesWs = XLSX.utils.aoa_to_sheet([
-    ['RULES'],
-    [
-      'rule_code', 'description_th',
-      'water_enabled', 'water_unit_price', 'water_min_charge',
-      'water_service_fee_mode', 'water_service_fee_amount',
-      'electric_enabled', 'electric_unit_price', 'electric_min_charge',
-      'electric_service_fee_mode', 'electric_service_fee_amount',
-    ],
-    ['STANDARD', 'มาตรฐาน', 1, 20, 100, 'FLAT_ROOM', 20, 1, 9, 45, 'FLAT_ROOM', 20],
+    ['RULES'],                                            // row 0 = title
+    ['รหัสกฎ', 'คำอธิบาย', 'คิดน้ำ', 'ค่าน้ำ/หน่วย', 'ค่าน้ำขั้นต่ำ', 'ค่าบริการน้ำ', 'ค่าบริการน้ำ/หน่วย', 'คิดไฟ', 'ค่าไฟ/หน่วย', 'ค่าไฟขั้นต่ำ', 'ค่าบริการไฟ', 'ค่าบริการไฟ/หน่วย'], // row 1 = description (Thai labels)
+    ['rule_code', 'description_th', 'water_enabled', 'water_unit_price', 'water_min_charge', 'water_service_fee_mode', 'water_service_fee_amount', 'electric_enabled', 'electric_unit_price', 'electric_min_charge', 'electric_service_fee_mode', 'electric_service_fee_amount'], // row 2 = headers
+    ['STANDARD', 'มาตรฐาน', 1, 20, 100, 'FLAT_ROOM', 20, 1, 9, 45, 'FLAT_ROOM', 20], // row 3+ = data
     ['NO_WATER', 'ไม่คิดน้ำ', 0, 18, 0, 'NONE', 0, 1, 8, 0, 'NONE', 0],
   ]);
   XLSX.utils.book_append_sheet(wb, rulesWs, 'RULES');
 
-  // ROOM_MASTER sheet (row 0 title, row 1 headers, row 2+ data)
+  // ROOM_MASTER sheet: row 0 = title, row 1 = description, row 2 = headers, row 3+ = data
   const roomMasterWs = XLSX.utils.aoa_to_sheet([
-    ['ROOM_MASTER'],
-    ['room_no', 'floor_no', 'default_account_id', 'default_rule_code', 'default_rent_amount', 'has_furniture', 'default_furniture_amount', 'room_status'],
-    ['101', 1, 'ACC_F1', 'STANDARD', 3000, 'NO', 0, 'ACTIVE'],
+    ['ROOM_MASTER'],                                     // row 0 = title
+    ['รหัสห้อง', 'ชั้น', 'บัญชีเริ่มต้น', 'กฎเริ่มต้น', 'ค่าเช่าเริ่มต้น', 'มีเฟอร์นิเจอร์', 'ค่าเฟอร์นิเจอร์', 'สถานะ'], // row 1 = description (Thai labels)
+    ['room_no', 'floor_no', 'default_account_id', 'default_rule_code', 'default_rent_amount', 'has_furniture', 'default_furniture_amount', 'room_status'], // row 2 = headers (field names)
+    ['101', 1, 'ACC_F1', 'STANDARD', 3000, 'NO', 0, 'ACTIVE'],  // row 3+ = data
     ['201', 2, 'ACC_F2', 'STANDARD', 4000, 'YES', 500, 'ACTIVE'],
   ]);
   XLSX.utils.book_append_sheet(wb, roomMasterWs, 'ROOM_MASTER');

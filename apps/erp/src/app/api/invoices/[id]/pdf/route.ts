@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInvoiceService } from '@/modules/invoices/invoice.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { generateInvoicePdf } from '@/modules/invoices/pdf';
 import { asyncHandler } from '@/lib/utils/errors';
 import { prisma } from '@/lib/db/client';
@@ -24,7 +24,7 @@ export const GET = asyncHandler(
 
     logger.info({ type: 'pdf_render_start', invoiceId: id });
 
-    const invoiceService = getInvoiceService();
+    const { invoiceService } = getServiceContainer();
     const preview = await invoiceService.getInvoicePreview(id);
 
     // DocumentTemplate runtime lookup — uses the active INVOICE template if one exists.

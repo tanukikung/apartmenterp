@@ -68,6 +68,12 @@ export default function TemplateEditPage() {
   const [working, setWorking] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [onlyofficeStatus, setOnlyofficeStatus] = useState<{
+    enabled: boolean;
+    configured: boolean;
+    connected: boolean;
+    error?: string;
+  } | null>(null);
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -107,6 +113,25 @@ export default function TemplateEditPage() {
     if (isNew) return;
     void loadTemplate(params.id);
   }, [isNew, params.id]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch('/api/health/onlyoffice', { cache: 'no-store' });
+        const json = await res.json();
+        if (json?.success && json?.data) {
+          setOnlyofficeStatus({
+            enabled: json.data.enabled,
+            configured: json.data.configured,
+            connected: json.data.connected,
+            error: json.data.error,
+          });
+        }
+      } catch {
+        // Silently fail — OnlyOfficeFrame handles its own error display
+      }
+    })();
+  }, []);
 
   const groupedFields = useMemo(() => {
     const groups = new Map<string, TemplateField[]>();
@@ -237,47 +262,79 @@ export default function TemplateEditPage() {
   }
 
   return (
-    <main className="admin-page">
-      <section className="admin-page-header">
-        <div className="flex items-center gap-4">
-          <Link href={isNew ? '/admin/templates' : `/admin/templates/${params.id}`} className="admin-button flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            {isNew ? 'Templates' : 'Template Detail'}
-          </Link>
-          <div>
-            <h1 className="admin-page-title">{isNew ? 'Create Template' : 'Template Editor Workspace'}</h1>
-            <p className="admin-page-subtitle">
-              Manage metadata, versions, structured fields, and edit the document in ONLYOFFICE.
-            </p>
+    <main className="space-y-6">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link href={isNew ? '/admin/templates' : `/admin/templates/${params.id}`} className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Link>
+            <div>
+              <h1 className="text-base font-semibold text-on-primary">{isNew ? 'Create Template' : 'Template Editor Workspace'}</h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">
+                Manage metadata, versions, structured fields, and edit the document in ONLYOFFICE.
+              </p>
+            </div>
+            {!isNew && onlyofficeStatus ? (
+              <div className="ml-auto flex items-center gap-2">
+                {onlyofficeStatus.enabled ? (
+                  onlyofficeStatus.configured ? (
+                    onlyofficeStatus.connected ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-200 border border-emerald-400/30">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        ONLYOFFICE Connected
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-200 border border-amber-400/30">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                        ONLYOFFICE Unreachable
+                      </span>
+                    )
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-500/20 px-3 py-1 text-xs font-medium text-slate-300 border border-slate-400/30">
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                      ONLYOFFICE Not Configured
+                    </span>
+                  )
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-500/20 px-3 py-1 text-xs font-medium text-slate-300 border border-slate-400/30">
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                    ONLYOFFICE Disabled
+                  </span>
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
-      </section>
+      </div>
 
       {message ? <div className="auth-alert auth-alert-success">{message}</div> : null}
       {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
 
       {loading ? (
-        <div className="py-16 text-center text-slate-500">Loading template workspace...</div>
+        <div className="py-16 text-center text-on-surface-variant">Loading template workspace...</div>
       ) : (
         <div className="space-y-6">
-          <section className="admin-card">
-            <div className="admin-card-header">
-              <div className="admin-card-title">Template Settings</div>
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="px-5 py-4 border-b border-outline-variant">
+              <div className="text-sm font-semibold text-on-surface">Template Settings</div>
             </div>
             <div className="grid gap-4 p-5 lg:grid-cols-4">
               <div className="lg:col-span-2">
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Name</label>
+                <label className="mb-1.5 block text-sm font-medium text-on-surface">Name</label>
                 <input
-                  className="admin-input"
+                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                   value={form.name}
                   onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
                   placeholder="Monthly Invoice"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Type</label>
+                <label className="mb-1.5 block text-sm font-medium text-on-surface">Type</label>
                 <select
-                  className="admin-select"
+                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                   value={form.type}
                   onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))}
                 >
@@ -289,29 +346,29 @@ export default function TemplateEditPage() {
                 </select>
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Subject</label>
+                <label className="mb-1.5 block text-sm font-medium text-on-surface">Subject</label>
                 <input
-                  className="admin-input"
+                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                   value={form.subject}
                   onChange={(event) => setForm((current) => ({ ...current, subject: event.target.value }))}
                   placeholder="Invoice for Room {{room.number}}"
                 />
               </div>
               <div className="lg:col-span-4">
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Description</label>
+                <label className="mb-1.5 block text-sm font-medium text-on-surface">Description</label>
                 <textarea
-                  className="admin-textarea min-h-[96px]"
+                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface min-h-[96px]"
                   value={form.description}
                   onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
                   placeholder="What this template is used for and when it should be generated."
                 />
               </div>
             </div>
-            <div className="border-t border-slate-200 px-5 py-4">
+            <div className="border-t border-outline-variant px-5 py-4">
               <button
                 type="button"
                 onClick={() => void saveMetadata()}
-                className="admin-button admin-button-primary flex items-center gap-2"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:from-indigo-600 hover:to-indigo-700"
                 disabled={saving}
               >
                 <Save className="h-4 w-4" />
@@ -323,53 +380,55 @@ export default function TemplateEditPage() {
           {!isNew ? (
             <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
               <div className="space-y-6">
-                <section className="admin-card">
-                  <div className="admin-card-header">
-                    <div className="admin-card-title flex items-center gap-2">
-                      <Layers3 className="h-4 w-4 text-indigo-500" />
-                      Versions
-                    </div>
-                    <div className="admin-toolbar">
-                      <button
-                        type="button"
-                        onClick={() => void createDraft()}
-                        className="admin-button flex items-center gap-2 text-xs"
-                        disabled={working === 'draft'}
-                      >
-                        <FilePlus2 className="h-3.5 w-3.5" />
-                        {working === 'draft' ? 'Creating...' : 'New Draft'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => fileRef.current?.click()}
-                        className="admin-button flex items-center gap-2 text-xs"
-                        disabled={working === 'upload'}
-                      >
-                        <UploadCloud className="h-3.5 w-3.5" />
-                        Upload
-                      </button>
-                      <input
-                        ref={fileRef}
-                        type="file"
-                        accept=".html,.htm"
-                        className="hidden"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          if (file) {
-                            void uploadVersion(file);
-                          }
-                        }}
-                      />
+                <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-outline-variant">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-on-surface">
+                        <Layers3 className="h-4 w-4 text-primary" />
+                        Versions
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void createDraft()}
+                          className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+                          disabled={working === 'draft'}
+                        >
+                          <FilePlus2 className="h-3.5 w-3.5" />
+                          {working === 'draft' ? 'Creating...' : 'New Draft'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => fileRef.current?.click()}
+                          className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+                          disabled={working === 'upload'}
+                        >
+                          <UploadCloud className="h-3.5 w-3.5" />
+                          Upload
+                        </button>
+                        <input
+                          ref={fileRef}
+                          type="file"
+                          accept=".html,.htm"
+                          className="hidden"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) {
+                              void uploadVersion(file);
+                            }
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-3 p-4">
                     {(template?.versions ?? []).map((version) => (
                       <div
                         key={version.id}
-                        className={`rounded-[1.5rem] border px-4 py-4 ${
+                        className={`rounded-2xl border px-4 py-4 ${
                           selectedVersionId === version.id
-                            ? 'border-indigo-300 bg-indigo-50/80'
-                            : 'border-slate-200 bg-slate-50/70'
+                            ? 'border-primary bg-primary-container/50'
+                            : 'border-outline-variant bg-surface-container-lowest'
                         }`}
                       >
                         <button
@@ -379,11 +438,11 @@ export default function TemplateEditPage() {
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div>
-                              <div className="font-semibold text-slate-900">v{version.version}</div>
-                              <div className="text-xs text-slate-500">{version.fileType.toUpperCase()} · {version.status}</div>
+                              <div className="font-semibold text-on-surface">v{version.version}</div>
+                              <div className="text-xs text-on-surface-variant">{version.fileType.toUpperCase()} · {version.status}</div>
                             </div>
                             {template.activeVersionId === version.id ? (
-                              <span className="admin-badge admin-status-good">Active</span>
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Active</span>
                             ) : null}
                           </div>
                         </button>
@@ -392,7 +451,7 @@ export default function TemplateEditPage() {
                             <button
                               type="button"
                               onClick={() => void activateVersion(version.id)}
-                              className="admin-button flex-1 text-xs"
+                              className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container flex-1"
                               disabled={working === version.id}
                             >
                               {working === version.id ? 'Activating...' : 'Activate'}
@@ -401,7 +460,7 @@ export default function TemplateEditPage() {
                           <button
                             type="button"
                             onClick={() => void loadTemplate(params.id)}
-                            className="admin-button text-xs"
+                            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
                           >
                             <RefreshCw className="h-3.5 w-3.5" />
                           </button>
@@ -411,29 +470,29 @@ export default function TemplateEditPage() {
                   </div>
                 </section>
 
-                <section className="admin-card">
-                  <div className="admin-card-header">
-                    <div className="admin-card-title">Field Browser</div>
+                <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-outline-variant">
+                    <div className="text-sm font-semibold text-on-surface">Field Browser</div>
                   </div>
                   <div className="space-y-4 p-4">
                     {groupedFields.map(([group, fields]) => (
                       <div key={group}>
-                        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{group}</div>
+                        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-outline-variant">{group}</div>
                         <div className="space-y-2">
                           {fields.map((field) => (
-                            <div key={field.key} className="rounded-[1.25rem] border border-slate-200 bg-slate-50/80 px-3 py-3">
+                            <div key={field.key} className="rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-3">
                               <div className="flex items-start justify-between gap-3">
                                 <div>
-                                  <div className="font-medium text-slate-900">{field.label}</div>
-                                  <div className="mt-1 font-mono text-[11px] text-indigo-600">{field.key}</div>
+                                  <div className="font-medium text-on-surface">{field.label}</div>
+                                  <div className="mt-1 font-mono text-[11px] text-primary">{field.key}</div>
                                   {field.description ? (
-                                    <div className="mt-1 text-xs text-slate-500">{field.description}</div>
+                                    <div className="mt-1 text-xs text-on-surface-variant">{field.description}</div>
                                   ) : null}
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => void copyFieldMarkup(field)}
-                                  className="admin-button flex items-center gap-1 text-xs"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
                                 >
                                   <Copy className="h-3.5 w-3.5" />
                                   Copy
@@ -448,10 +507,10 @@ export default function TemplateEditPage() {
                 </section>
               </div>
 
-              <section className="admin-card overflow-hidden">
-                <div className="admin-card-header">
-                  <div className="admin-card-title">ONLYOFFICE Editor</div>
-                  <span className="admin-badge">
+              <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+                <div className="px-5 py-4 border-b border-outline-variant flex items-center justify-between">
+                  <div className="text-sm font-semibold text-on-surface">ONLYOFFICE Editor</div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">
                     {selectedVersionId ? `Version ${template?.versions?.find((version) => version.id === selectedVersionId)?.version ?? '-'}` : 'No version selected'}
                   </span>
                 </div>
@@ -459,7 +518,7 @@ export default function TemplateEditPage() {
                   {editorConfigUrl ? (
                     <OnlyOfficeFrame configUrl={editorConfigUrl} />
                   ) : (
-                    <div className="rounded-[2rem] border border-slate-200 bg-slate-50 px-6 py-20 text-center text-sm text-slate-500">
+                    <div className="rounded-2xl border border-outline-variant bg-surface-container-lowest px-6 py-20 text-center text-sm text-on-surface-variant">
                       Select or create a version to start editing.
                     </div>
                   )}

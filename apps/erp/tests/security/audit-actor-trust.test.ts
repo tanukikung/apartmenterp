@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { makeRequestLike } from '../helpers/auth';
+import { getServiceContainer } from '@/lib/service-container';
 
 describe('Audit actor trust hardening', () => {
   it('ignores spoofed actor fields in request bodies and uses the verified session actor', async () => {
-    const serviceModule = await import('@/modules/maintenance/maintenance.service');
     const route = await import('@/app/api/admin/maintenance/comment/route');
 
     const addComment = vi.fn(async (input: any) => ({
@@ -13,9 +13,7 @@ describe('Audit actor trust hardening', () => {
       message: input.message,
     }));
 
-    vi.spyOn(serviceModule, 'getMaintenanceService').mockReturnValue({
-      addComment,
-    } as any);
+    vi.spyOn(getServiceContainer().maintenanceService, 'addComment').mockImplementation(addComment);
 
     const req = makeRequestLike({
       url: 'http://localhost/api/admin/maintenance/comment',
@@ -43,7 +41,6 @@ describe('Audit actor trust hardening', () => {
   });
 
   it('does not treat submitted tenantId as a verified audit actor on public maintenance create', async () => {
-    const serviceModule = await import('@/modules/maintenance/maintenance.service');
     const route = await import('@/app/api/maintenance/create/route');
 
     const createTicket = vi.fn(async (input: any) => ({
@@ -53,11 +50,10 @@ describe('Audit actor trust hardening', () => {
       title: input.title,
       description: input.description,
       priority: input.priority,
+      status: 'OPEN' as const,
     }));
 
-    vi.spyOn(serviceModule, 'getMaintenanceService').mockReturnValue({
-      createTicket,
-    } as any);
+    vi.spyOn(getServiceContainer().maintenanceService, 'createTicket').mockImplementation(createTicket);
 
     const req = makeRequestLike({
       url: 'http://localhost/api/maintenance/create',

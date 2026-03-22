@@ -9,18 +9,27 @@ const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResp
   const url = new URL(req.url);
   const page = parseInt(url.searchParams.get('page') || '1', 10);
   const pageSize = parseInt(url.searchParams.get('pageSize') || '20', 10);
+  const lineUserId = url.searchParams.get('lineUserId');
+  const tenantId = url.searchParams.get('tenantId');
 
-  const total = await prisma.conversation.count();
-  const items = await prisma.conversation.findMany({
-    include: {
-      lineUser: true,
-      tenant: true,
-      room: true,
-    },
-    orderBy: { lastMessageAt: 'desc' },
-    skip: (page - 1) * pageSize,
-    take: pageSize,
-  });
+  const where: Record<string, unknown> = {};
+  if (lineUserId) where.lineUserId = lineUserId;
+  if (tenantId) where.tenantId = tenantId;
+
+  const [items, total] = await Promise.all([
+    prisma.conversation.findMany({
+      where,
+      include: {
+        lineUser: true,
+        tenant: true,
+        room: true,
+      },
+      orderBy: { lastMessageAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.conversation.count({ where }),
+  ]);
 
   // Optimize: Fetch all invoice data in a single query to avoid N+1
   const roomNos = items.map(conv => conv.roomNo).filter(Boolean) as string[];

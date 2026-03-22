@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
-import { getPaymentMatchingService } from '@/modules/payments/payment-matching.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { z } from 'zod';
 
 const rejectMatchSchema = z.object({
@@ -25,7 +25,7 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
   const userId = session.sub;
 
   try {
-    const service = getPaymentMatchingService();
+    const service = getServiceContainer().paymentMatchingService;
     await service.rejectMatch(transactionId, userId, rejectReason);
 
     return NextResponse.json({

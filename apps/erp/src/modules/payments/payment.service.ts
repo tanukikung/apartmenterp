@@ -164,10 +164,6 @@ export class PaymentService {
   }
 }
 
-let paymentServiceInstance: PaymentService | null = null;
-export function getPaymentService(): PaymentService {
-  if (!paymentServiceInstance) {
-    paymentServiceInstance = new PaymentService();
-  }
-  return paymentServiceInstance;
+export function createPaymentService(): PaymentService {
+  return new PaymentService();
 }

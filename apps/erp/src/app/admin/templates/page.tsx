@@ -35,11 +35,11 @@ export default function TemplatesPage() {
         const response = await fetch('/api/templates?pageSize=100', { cache: 'no-store' });
         const json = await response.json();
         if (!response.ok || !json.success) {
-          throw new Error(json.error?.message ?? 'Unable to load templates');
+          throw new Error(json.error?.message ?? 'ไม่สามารถโหลดเทมเพลต');
         }
         setTemplates((json.data?.data ?? []) as TemplateRow[]);
       } catch (nextError) {
-        setError(nextError instanceof Error ? nextError.message : 'Unable to load templates');
+        setError(nextError instanceof Error ? nextError.message : 'ไม่สามารถโหลดเทมเพลต');
       } finally {
         setLoading(false);
       }
@@ -49,55 +49,55 @@ export default function TemplatesPage() {
   }, []);
 
   return (
-    <main className="admin-page">
-      <section className="admin-page-header">
+    <main className="space-y-6">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div>
-          <h1 className="admin-page-title">Templates</h1>
-          <p className="admin-page-subtitle">
-            Versioned document templates powered by ONLYOFFICE with ERP field bindings and preview.
+          <h1 className="text-xl font-semibold text-on-primary">เทมเพลต</h1>
+          <p className="text-sm text-on-primary/80">
+            เทมเพลตเอกสารเวอร์ชันต่างๆ ที่ขับเคลื่อนด้วย ONLYOFFICE พร้อมการผูกข้อมูลฟิลด์ ERP และการแสดงตัวอย่าง
           </p>
         </div>
-        <div className="admin-toolbar">
-          <Link href="/admin/templates/new/edit" className="admin-button admin-button-primary flex items-center gap-2">
+        <div className="flex items-center gap-2 mt-4">
+          <Link href="/admin/templates/new/edit" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors">
             <FilePlus2 className="h-4 w-4" />
-            New Template
+            เทมเพลตใหม่
           </Link>
         </div>
       </section>
 
       {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
 
-      <section className="admin-card overflow-hidden">
-        <div className="admin-card-header">
-          <div className="admin-card-title flex items-center gap-2">
-            <Layers3 className="h-4 w-4 text-indigo-500" />
-            Template Registry
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="px-5 py-4 border-b border-outline-variant">
+          <div className="text-sm font-semibold text-primary flex items-center gap-2">
+            <Layers3 className="h-4 w-4 text-primary" />
+            ทะเบียนเทมเพลต
           </div>
-          <span className="admin-badge">{templates.length} templates</span>
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-surface-container text-on-surface-variant mt-1">{templates.length} เทมเพลต</span>
         </div>
         <div className="overflow-auto">
-          <table className="admin-table">
-            <thead>
+          <table className="w-full text-sm text-left">
+            <thead className="bg-surface-container">
               <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Active Version</th>
-                <th>Updated</th>
-                <th>Actions</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ชื่อ</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ประเภท</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เวอร์ชันที่ใช้งาน</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">อัปเดต</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">การดำเนินการ</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">
-                    Loading templates...
+                    กำลังโหลดเทมเพลต...
                   </td>
                 </tr>
               ) : templates.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">
-                    No templates yet. Create the first one to start batch document generation.
+                    ยังไม่มีเทมเพลต สร้างเทมเพลตแรกเพื่อเริ่มสร้างเอกสารแบบแบตช์
                   </td>
                 </tr>
               ) : (
@@ -110,16 +110,16 @@ export default function TemplatesPage() {
                       ) : null}
                     </td>
                     <td>
-                      <span className="admin-badge">{template.type.replace(/_/g, ' ')}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-surface-container text-on-surface-variant">{template.type.replace(/_/g, ' ')}</span>
                     </td>
                     <td>
                       <span
-                        className={`admin-badge ${
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                           template.status === 'ACTIVE'
-                            ? 'admin-status-good'
+                            ? 'bg-tertiary-container text-on-tertiary-container'
                             : template.status === 'ARCHIVED'
-                              ? 'admin-status-bad'
-                              : 'admin-status-warn'
+                              ? 'bg-error-container text-on-error-container'
+                              : 'bg-amber-50 text-amber-700 border border-amber-200'
                         }`}
                       >
                         {template.status}
@@ -128,25 +128,25 @@ export default function TemplatesPage() {
                     <td>
                       {template.activeVersion ? (
                         <div className="space-y-1">
-                          <div className="font-medium text-slate-800">v{template.activeVersion.version}</div>
-                          <div className="text-xs text-slate-500">{template.activeVersion.status}</div>
+                          <div className="font-medium text-on-surface">v{template.activeVersion.version}</div>
+                          <div className="text-xs text-on-surface-variant">{template.activeVersion.status}</div>
                         </div>
                       ) : (
-                        <span className="text-sm text-slate-400">No active version</span>
+                        <span className="text-sm text-on-surface-variant">ไม่มีเวอร์ชันที่ใช้งาน</span>
                       )}
                     </td>
                     <td>{new Date(template.updatedAt).toLocaleString('th-TH')}</td>
                     <td>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Link href={`/admin/templates/${template.id}`} className="admin-button flex items-center gap-1 text-xs">
+                        <Link href={`/admin/templates/${template.id}`} className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
                           <ExternalLink className="h-3.5 w-3.5" />
-                          Detail
+                          รายละเอียด
                         </Link>
-                        <Link href={`/admin/templates/${template.id}/edit`} className="admin-button flex items-center gap-1 text-xs">
+                        <Link href={`/admin/templates/${template.id}/edit`} className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
                           <PencilLine className="h-3.5 w-3.5" />
-                          Edit
+                          แก้ไข
                         </Link>
-                        <Link href={`/admin/templates/${template.id}/edit`} className="admin-button flex items-center gap-1 text-xs">
+                        <Link href={`/admin/templates/${template.id}/edit`} className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
                           <FileStack className="h-3.5 w-3.5" />
                           ONLYOFFICE
                         </Link>

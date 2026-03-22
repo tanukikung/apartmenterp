@@ -23,8 +23,6 @@ import {
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type LineStatus = 'REGISTERED' | 'UNREGISTERED';
-
 type Tenant = {
   id: string;
   firstName: string;
@@ -33,20 +31,16 @@ type Tenant = {
   phone: string;
   email: string | null;
   lineUserId: string | null;
-  lineDisplayName: string | null;
-  lineStatus: LineStatus;
-  idCard: string | null;
   emergencyContact: string | null;
   emergencyPhone: string | null;
-  notes: string | null;
   createdAt: string;
   roomTenants?: Array<{
     id: string;
-    roomId: string;
+    roomNo: string;
     role: 'PRIMARY' | 'SECONDARY';
     moveInDate: string;
     moveOutDate: string | null;
-    room?: { id: string; roomNumber: string } | null;
+    room?: { roomNo: string } | null;
   }>;
 };
 
@@ -60,10 +54,9 @@ type Contract = {
   monthlyRent: number;
   deposit: number;
   status: ContractStatus;
-  notes: string | null;
 };
 
-type InvoiceStatus = 'DRAFT' | 'GENERATED' | 'SENT' | 'VIEWED' | 'PAID' | 'OVERDUE';
+type InvoiceStatus = 'GENERATED' | 'SENT' | 'VIEWED' | 'PAID' | 'OVERDUE';
 
 type Invoice = {
   id: string;
@@ -129,12 +122,6 @@ function fmtDate(iso: string) {
   });
 }
 
-function maskIdCard(id: string | null) {
-  if (!id) return '-';
-  if (id.length <= 4) return id;
-  return id.slice(0, 3) + '·'.repeat(id.length - 6) + id.slice(-3);
-}
-
 function truncateLineId(id: string | null) {
   if (!id) return '-';
   if (id.length <= 16) return id;
@@ -144,25 +131,25 @@ function truncateLineId(id: string | null) {
 // ── Status helpers ─────────────────────────────────────────────────────────────
 
 function invoiceStatusClass(s: InvoiceStatus) {
-  if (s === 'PAID') return 'admin-status-good';
-  if (s === 'OVERDUE') return 'admin-status-bad';
-  if (s === 'SENT' || s === 'VIEWED') return 'admin-status-warn';
+  if (s === 'PAID') return 'inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700';
+  if (s === 'OVERDUE') return 'inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600';
+  if (s === 'SENT' || s === 'VIEWED') return 'inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700';
   return '';
 }
 
 function contractStatusClass(s: ContractStatus) {
-  if (s === 'ACTIVE') return 'admin-status-good';
-  if (s === 'TERMINATED') return 'admin-status-bad';
-  return 'border-slate-200 bg-slate-50 text-slate-600';
+  if (s === 'ACTIVE') return 'inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700';
+  if (s === 'TERMINATED') return 'inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600';
+  return 'inline-flex items-center gap-1.5 rounded-full bg-surface-container-lowest border border-outline-variant px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant';
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-lg border border-slate-100 bg-slate-50/60 px-4 py-3">
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{label}</span>
-      <span className="text-sm text-slate-800 break-all">{value || '-'}</span>
+    <div className="flex flex-col gap-0.5 rounded-lg border border-outline-variant bg-surface-container-lowest/80 px-4 py-3">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant">{label}</span>
+      <span className="text-sm text-on-surface break-all">{value || '-'}</span>
     </div>
   );
 }
@@ -286,13 +273,12 @@ export default function TenantDetailPage() {
           // Fallback: synthesise from roomTenants
           const derived: Contract[] = tenant.roomTenants.map((rt) => ({
             id: rt.id,
-            roomNumber: rt.room?.roomNumber ?? rt.roomId,
+            roomNumber: rt.room?.roomNo ?? rt.roomNo,
             startDate: rt.moveInDate,
             endDate: rt.moveOutDate,
             monthlyRent: 0,
             deposit: 0,
             status: rt.moveOutDate ? 'TERMINATED' : 'ACTIVE',
-            notes: null,
           }));
           setContracts(derived);
         }
@@ -300,13 +286,12 @@ export default function TenantDetailPage() {
         if (tenant?.roomTenants) {
           const derived: Contract[] = tenant.roomTenants.map((rt) => ({
             id: rt.id,
-            roomNumber: rt.room?.roomNumber ?? rt.roomId,
+            roomNumber: rt.room?.roomNo ?? rt.roomNo,
             startDate: rt.moveInDate,
             endDate: rt.moveOutDate,
             monthlyRent: 0,
             deposit: 0,
             status: rt.moveOutDate ? 'TERMINATED' : 'ACTIVE',
-            notes: null,
           }));
           setContracts(derived);
         }
@@ -399,19 +384,19 @@ export default function TenantDetailPage() {
 
   if (loading) {
     return (
-      <main className="admin-page">
-        <div className="flex items-center justify-center py-24 text-slate-400">Loading tenant profile…</div>
+      <main className="space-y-6">
+        <div className="flex items-center justify-center py-24 text-on-surface-variant">Loading tenant profile…</div>
       </main>
     );
   }
 
   if (error || !tenant) {
     return (
-      <main className="admin-page">
+      <main className="space-y-6">
         <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
           <AlertCircle className="h-10 w-10 text-red-400" />
-          <div className="text-slate-600">{error ?? 'Tenant not found'}</div>
-          <Link href="/admin/tenants" className="admin-button">
+          <div className="text-on-surface-variant">{error ?? 'Tenant not found'}</div>
+          <Link href="/admin/tenants" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
             Back to Tenants
           </Link>
         </div>
@@ -427,26 +412,26 @@ export default function TenantDetailPage() {
     : invoices;
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
 
       {/* ── Breadcrumb ─────────────────────────────────────────────────────── */}
-      <nav className="flex items-center gap-1.5 text-sm text-slate-500">
-        <Link href="/admin/tenants" className="hover:text-slate-800 transition-colors">Tenants</Link>
-        <ChevronRight size={14} className="shrink-0 text-slate-300" />
-        <span className="font-medium text-slate-800">{tenant.fullName}</span>
+      <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
+        <Link href="/admin/tenants" className="hover:text-on-surface transition-colors">Tenants</Link>
+        <ChevronRight size={14} className="shrink-0 text-outline-variant" />
+        <span className="font-medium text-on-surface">{tenant.fullName}</span>
       </nav>
 
       {/* ── Hero card ──────────────────────────────────────────────────────── */}
-      <section className="admin-card">
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
         <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:gap-6">
           {/* Avatar */}
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-xl font-bold text-indigo-700 shadow-sm">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary-container text-xl font-bold text-primary shadow-sm">
             {initials}
           </div>
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-semibold text-slate-900">{tenant.fullName}</h1>
-            <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-slate-500">
+            <h1 className="text-lg font-semibold text-on-surface">{tenant.fullName}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-on-surface-variant">
               {tenant.phone && (
                 <span className="flex items-center gap-1">
                   <Phone size={13} /> {tenant.phone}
@@ -464,8 +449,8 @@ export default function TenantDetailPage() {
           </div>
           {/* LINE status badge */}
           <div className="shrink-0">
-            <span className={`admin-badge ${tenant.lineStatus === 'REGISTERED' ? 'admin-status-good' : ''}`}>
-              {tenant.lineStatus === 'REGISTERED' ? (
+            <span className={` ${tenant.lineUserId ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700' : ''}`}>
+              {tenant.lineUserId ? (
                 <><CheckCircle size={11} className="mr-1" />LINE Registered</>
               ) : (
                 <><AlertCircle size={11} className="mr-1" />LINE Unregistered</>
@@ -477,28 +462,28 @@ export default function TenantDetailPage() {
 
       {/* ── Quick stats ────────────────────────────────────────────────────── */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="admin-kpi">
-          <div className="admin-kpi-label">Invoices</div>
-          <div className="admin-kpi-value">{stats.invoicesCount}</div>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">Invoices</div>
+          <div className="text-xl font-semibold text-on-surface">{stats.invoicesCount}</div>
         </div>
-        <div className="admin-kpi">
-          <div className="admin-kpi-label">Total Paid</div>
-          <div className="admin-kpi-value text-emerald-600">{money(stats.totalPaid)}</div>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">Total Paid</div>
+          <div className="text-xl font-semibold text-emerald-600">{money(stats.totalPaid)}</div>
         </div>
-        <div className="admin-kpi">
-          <div className="admin-kpi-label">Outstanding</div>
-          <div className={`admin-kpi-value ${stats.outstanding > 0 ? 'text-amber-600' : ''}`}>{money(stats.outstanding)}</div>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">Outstanding</div>
+          <div className={`text-xl font-semibold ${stats.outstanding > 0 ? 'text-amber-600' : 'text-on-surface'}`}>{money(stats.outstanding)}</div>
         </div>
-        <div className="admin-kpi">
-          <div className="admin-kpi-label">Open Tickets</div>
-          <div className={`admin-kpi-value ${stats.openTickets > 0 ? 'text-red-500' : ''}`}>{stats.openTickets}</div>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">Open Tickets</div>
+          <div className={`text-xl font-semibold ${stats.openTickets > 0 ? 'text-red-500' : 'text-on-surface'}`}>{stats.openTickets}</div>
         </div>
       </section>
 
       {/* ── Tabs ───────────────────────────────────────────────────────────── */}
-      <div className="admin-card overflow-visible">
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-visible">
         {/* Tab bar */}
-        <div className="flex overflow-x-auto border-b border-slate-200 bg-white">
+        <div className="flex overflow-x-auto border-b border-outline-variant bg-surface-container-lowest">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -508,8 +493,8 @@ export default function TenantDetailPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex shrink-0 items-center gap-2 border-b-2 px-5 py-3.5 text-sm font-medium transition-colors ${
                   active
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-on-surface-variant hover:text-on-surface'
                 }`}
               >
                 <Icon size={14} />
@@ -527,7 +512,7 @@ export default function TenantDetailPage() {
             <div className="grid gap-6 xl:grid-cols-2">
               {/* Personal info */}
               <div className="space-y-4">
-                <h2 className="admin-card-title">Personal Information</h2>
+                <h2 className="text-base font-semibold text-on-surface">Personal Information</h2>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <InfoRow label="First Name" value={tenant.firstName} />
                   <InfoRow label="Last Name" value={tenant.lastName} />
@@ -541,59 +526,43 @@ export default function TenantDetailPage() {
                         : null
                     }
                   />
-                  <InfoRow label="LINE Display Name" value={tenant.lineDisplayName} />
-                  <InfoRow label="ID Card" value={maskIdCard(tenant.idCard)} />
                   <InfoRow label="Emergency Contact" value={tenant.emergencyContact} />
                   <InfoRow label="Emergency Phone" value={tenant.emergencyPhone} />
                   <InfoRow label="Member Since" value={fmtDate(tenant.createdAt)} />
                 </div>
               </div>
 
-              {/* Notes */}
-              <div className="space-y-4">
-                <h2 className="admin-card-title">Notes</h2>
-                {tenant.notes ? (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
-                    {tenant.notes}
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
-                    No notes recorded for this tenant.
-                  </div>
-                )}
-
-                {/* Room assignments */}
-                {tenant.roomTenants && tenant.roomTenants.length > 0 && (
-                  <div className="space-y-2">
-                    <h2 className="admin-card-title">Room Assignments</h2>
-                    {tenant.roomTenants.map((rt) => (
-                      <div key={rt.id} className="flex items-center justify-between rounded-lg border border-indigo-100 bg-indigo-50/50 px-4 py-3 text-sm">
-                        <div>
-                          <div className="font-medium text-slate-900">Room {rt.room?.roomNumber ?? rt.roomId}</div>
-                          <div className="text-slate-500">
-                            {rt.role} · Move in {fmtDate(rt.moveInDate)}
-                            {rt.moveOutDate ? ` · Move out ${fmtDate(rt.moveOutDate)}` : ''}
-                          </div>
+              {/* Room assignments */}
+              {tenant.roomTenants && tenant.roomTenants.length > 0 && (
+                <div className="space-y-2">
+                  <h2 className="text-base font-semibold text-on-surface">Room Assignments</h2>
+                  {tenant.roomTenants.map((rt) => (
+                    <div key={rt.id} className="flex items-center justify-between rounded-lg border border-primary-container bg-primary-container/50 px-4 py-3 text-sm">
+                      <div>
+                        <div className="font-medium text-on-surface">Room {rt.room?.roomNo ?? rt.roomNo}</div>
+                        <div className="text-on-surface-variant">
+                          {rt.role} · Move in {fmtDate(rt.moveInDate)}
+                          {rt.moveOutDate ? ` · Move out ${fmtDate(rt.moveOutDate)}` : ''}
                         </div>
-                        <span className={`admin-badge ${!rt.moveOutDate ? 'admin-status-good' : ''}`}>
-                          {rt.moveOutDate ? 'Past' : 'Active'}
-                        </span>
+                      </div>
+                      <span className={` ${!rt.moveOutDate ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700' : ''}`}>
+                        {rt.moveOutDate ? 'Past' : 'Active'}
+                      </span>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
             </div>
           )}
 
           {/* ── CONTRACTS ──────────────────────────────────────────────────── */}
           {activeTab === 'contracts' && (
             <div className="space-y-3">
-              <h2 className="admin-card-title">Contracts</h2>
+              <h2 className="text-base font-semibold text-on-surface">Contracts</h2>
               {contractsLoading ? (
-                <div className="py-10 text-center text-slate-400">Loading contracts…</div>
+                <div className="py-10 text-center text-on-surface-variant">Loading contracts…</div>
               ) : contracts.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
+                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
                   No contracts found for this tenant.
                 </div>
               ) : (
@@ -601,10 +570,10 @@ export default function TenantDetailPage() {
                   {contracts.map((contract) => {
                     const expanded = expandedContracts.has(contract.id);
                     return (
-                      <div key={contract.id} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                      <div key={contract.id} className="rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm overflow-hidden">
                         {/* Row header */}
                         <button
-                          className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-slate-50 transition-colors"
+                          className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-surface-container-lowest transition-colors"
                           onClick={() =>
                             setExpandedContracts((prev) => {
                               const next = new Set(prev);
@@ -615,12 +584,12 @@ export default function TenantDetailPage() {
                           }
                         >
                           <div className="flex items-center gap-4 min-w-0">
-                            <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-surface-container-lowest text-on-surface-variant">
                               <FileText size={15} />
                             </div>
                             <div className="min-w-0">
-                              <div className="font-medium text-slate-900">Room {contract.roomNumber}</div>
-                              <div className="text-xs text-slate-500">
+                              <div className="font-medium text-on-surface">Room {contract.roomNumber}</div>
+                              <div className="text-xs text-on-surface-variant">
                                 {fmtDate(contract.startDate)}
                                 {contract.endDate ? ` → ${fmtDate(contract.endDate)}` : ' · ongoing'}
                               </div>
@@ -628,18 +597,18 @@ export default function TenantDetailPage() {
                           </div>
                           <div className="flex items-center gap-3 shrink-0">
                             {contract.monthlyRent > 0 && (
-                              <span className="text-sm text-slate-600">{money(contract.monthlyRent)}/mo</span>
+                              <span className="text-sm text-on-surface-variant">{money(contract.monthlyRent)}/mo</span>
                             )}
-                            <span className={`admin-badge ${contractStatusClass(contract.status)}`}>
+                            <span className={` ${contractStatusClass(contract.status)}`}>
                               {contract.status}
                             </span>
-                            {expanded ? <ChevronUp size={15} className="text-slate-400" /> : <ChevronDown size={15} className="text-slate-400" />}
+                            {expanded ? <ChevronUp size={15} className="text-on-surface-variant" /> : <ChevronDown size={15} className="text-on-surface-variant" />}
                           </div>
                         </button>
 
                         {/* Expanded details */}
                         {expanded && (
-                          <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-4">
+                          <div className="border-t border-outline-variant bg-surface-container-lowest/60 px-5 py-4">
                             <div className="grid gap-3 sm:grid-cols-3">
                               <InfoRow label="Start Date" value={fmtDate(contract.startDate)} />
                               <InfoRow label="End Date" value={contract.endDate ? fmtDate(contract.endDate) : 'Ongoing'} />
@@ -649,11 +618,6 @@ export default function TenantDetailPage() {
                               )}
                               {contract.deposit > 0 && (
                                 <InfoRow label="Deposit" value={money(contract.deposit)} />
-                              )}
-                              {contract.notes && (
-                                <div className="sm:col-span-3">
-                                  <InfoRow label="Notes" value={contract.notes} />
-                                </div>
                               )}
                             </div>
                           </div>
@@ -670,9 +634,9 @@ export default function TenantDetailPage() {
           {activeTab === 'invoices' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h2 className="admin-card-title">Invoices</h2>
+                <h2 className="text-base font-semibold text-on-surface">Invoices</h2>
                 <select
-                  className="admin-select w-auto min-w-[160px]"
+                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface w-auto min-w-[160px]"
                   value={invoiceFilter}
                   onChange={(e) => setInvoiceFilter(e.target.value)}
                 >
@@ -687,14 +651,14 @@ export default function TenantDetailPage() {
               </div>
 
               {invoicesLoading ? (
-                <div className="py-10 text-center text-slate-400">Loading invoices…</div>
+                <div className="py-10 text-center text-on-surface-variant">Loading invoices…</div>
               ) : filteredInvoices.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
+                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
                   No invoices found{invoiceFilter ? ` with status ${invoiceFilter}` : ''}.
                 </div>
               ) : (
-                <div className="overflow-auto rounded-xl border border-slate-200">
-                  <table className="admin-table">
+                <div className="overflow-auto rounded-xl border border-outline-variant">
+                  <table className="w-full text-sm [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-on-surface-variant [&_th]:uppercase [&_th]:tracking-wider [&_th]:pb-3 [&_td]:text-on-surface [&_td]:py-3">
                     <thead>
                       <tr>
                         <th>Invoice #</th>
@@ -710,14 +674,14 @@ export default function TenantDetailPage() {
                       {filteredInvoices.map((inv) => (
                         <tr key={inv.id}>
                           <td>
-                            <span className="font-mono text-xs text-slate-600">{inv.id.slice(0, 12)}…</span>
+                            <span className="font-mono text-xs text-on-surface-variant">{inv.id.slice(0, 12)}…</span>
                           </td>
                           <td>{inv.room?.roomNumber ?? '-'}</td>
                           <td>{inv.year}-{String(inv.month).padStart(2, '0')}</td>
                           <td>{money(inv.totalAmount)}</td>
                           <td>{fmtDate(inv.dueDate)}</td>
                           <td>
-                            <span className={`admin-badge ${invoiceStatusClass(inv.status)}`}>{inv.status}</span>
+                            <span className={` ${invoiceStatusClass(inv.status)}`}>{inv.status}</span>
                           </td>
                           <td>{inv.paidAt ? fmtDate(inv.paidAt) : '-'}</td>
                         </tr>
@@ -732,16 +696,16 @@ export default function TenantDetailPage() {
           {/* ── PAYMENTS ───────────────────────────────────────────────────── */}
           {activeTab === 'payments' && (
             <div className="space-y-4">
-              <h2 className="admin-card-title">Payment History</h2>
+              <h2 className="text-base font-semibold text-on-surface">Payment History</h2>
               {paymentsLoading ? (
-                <div className="py-10 text-center text-slate-400">Loading payments…</div>
+                <div className="py-10 text-center text-on-surface-variant">Loading payments…</div>
               ) : payments.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
+                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
                   No payment records found for this tenant.
                 </div>
               ) : (
-                <div className="overflow-auto rounded-xl border border-slate-200">
-                  <table className="admin-table">
+                <div className="overflow-auto rounded-xl border border-outline-variant">
+                  <table className="w-full text-sm [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-on-surface-variant [&_th]:uppercase [&_th]:tracking-wider [&_th]:pb-3 [&_td]:text-on-surface [&_td]:py-3">
                     <thead>
                       <tr>
                         <th>Date</th>
@@ -761,7 +725,7 @@ export default function TenantDetailPage() {
                           <td>{pmt.invoice?.room?.roomNumber ?? '-'}</td>
                           <td className="font-mono text-xs">{pmt.invoice?.id ? pmt.invoice.id.slice(0, 10) + '…' : '-'}</td>
                           <td>
-                            <span className={`admin-badge ${pmt.status === 'MATCHED' ? 'admin-status-good' : ''}`}>
+                            <span className={` ${pmt.status === 'MATCHED' ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700' : ''}`}>
                               {pmt.status}
                             </span>
                           </td>
@@ -777,20 +741,20 @@ export default function TenantDetailPage() {
           {/* ── CHAT ───────────────────────────────────────────────────────── */}
           {activeTab === 'chat' && (
             <div className="space-y-4">
-              <h2 className="admin-card-title">LINE Chat</h2>
+              <h2 className="text-base font-semibold text-on-surface">LINE Chat</h2>
               {!tenant.lineUserId ? (
-                <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
-                  <MessageSquare size={28} className="mx-auto mb-2 text-slate-300" />
+                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
+                  <MessageSquare size={28} className="mx-auto mb-2 text-outline-variant" />
                   This tenant has no linked LINE account. Link a LINE UID first to enable messaging.
                 </div>
               ) : chatLoading ? (
-                <div className="py-10 text-center text-slate-400">Loading messages…</div>
+                <div className="py-10 text-center text-on-surface-variant">Loading messages…</div>
               ) : (
                 <div className="space-y-4">
                   {/* Recent messages preview */}
                   {chatMessages.length > 0 ? (
                     <div className="space-y-2">
-                      <div className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">
+                      <div className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-3">
                         Recent Messages
                       </div>
                       {chatMessages.map((msg) => (
@@ -802,11 +766,11 @@ export default function TenantDetailPage() {
                             className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
                               msg.direction === 'OUTGOING'
                                 ? 'bg-indigo-600 text-white'
-                                : 'bg-slate-100 text-slate-800'
+                                : 'bg-surface-container-lowest text-on-surface'
                             }`}
                           >
                             <div className="break-words">{msg.content}</div>
-                            <div className={`mt-1 text-[10px] ${msg.direction === 'OUTGOING' ? 'text-indigo-200' : 'text-slate-400'}`}>
+                            <div className={`mt-1 text-[10px] ${msg.direction === 'OUTGOING' ? 'text-primary-container' : 'text-on-surface-variant'}`}>
                               {new Date(msg.sentAt).toLocaleString()}
                             </div>
                           </div>
@@ -814,7 +778,7 @@ export default function TenantDetailPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
+                    <div className="rounded-lg border border-dashed border-outline-variant p-6 text-center text-sm text-on-surface-variant">
                       No messages found in this conversation.
                     </div>
                   )}
@@ -824,7 +788,7 @@ export default function TenantDetailPage() {
                     <div className="pt-2">
                       <Link
                         href={`/admin/chat?conversationId=${conversation.id}`}
-                        className="admin-button admin-button-primary inline-flex items-center gap-2"
+                        className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container-primary inline-flex items-center gap-2"
                       >
                         <ExternalLink size={14} />
                         Open Full Chat
@@ -839,16 +803,16 @@ export default function TenantDetailPage() {
           {/* ── ACTIVITY ───────────────────────────────────────────────────── */}
           {activeTab === 'activity' && (
             <div className="space-y-4">
-              <h2 className="admin-card-title">Audit Activity</h2>
+              <h2 className="text-base font-semibold text-on-surface">Audit Activity</h2>
               {auditLoading ? (
-                <div className="py-10 text-center text-slate-400">Loading activity…</div>
+                <div className="py-10 text-center text-on-surface-variant">Loading activity…</div>
               ) : auditRows.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
+                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
                   No audit activity recorded for this tenant.
                 </div>
               ) : (
-                <div className="overflow-auto rounded-xl border border-slate-200">
-                  <table className="admin-table">
+                <div className="overflow-auto rounded-xl border border-outline-variant">
+                  <table className="w-full text-sm [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-on-surface-variant [&_th]:uppercase [&_th]:tracking-wider [&_th]:pb-3 [&_td]:text-on-surface [&_td]:py-3">
                     <thead>
                       <tr>
                         <th>Timestamp</th>
@@ -864,10 +828,10 @@ export default function TenantDetailPage() {
                           <td className="whitespace-nowrap">{new Date(row.createdAt).toLocaleString()}</td>
                           <td>{row.userName || row.userId}</td>
                           <td>
-                            <span className="admin-badge">{row.action}</span>
+                            <span className="">{row.action}</span>
                           </td>
-                          <td className="font-mono text-xs text-slate-500">{row.entityType}:{row.entityId.slice(0, 8)}</td>
-                          <td className="max-w-[300px] truncate text-xs text-slate-500">
+                          <td className="font-mono text-xs text-on-surface-variant">{row.entityType}:{row.entityId.slice(0, 8)}</td>
+                          <td className="max-w-[300px] truncate text-xs text-on-surface-variant">
                             {row.details ? JSON.stringify(row.details) : '-'}
                           </td>
                         </tr>

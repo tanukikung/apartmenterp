@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
-import { getMaintenanceService } from '@/modules/maintenance/maintenance.service';
+import { getServiceContainer } from '@/lib/service-container';
 
 const querySchema = z.object({
   tenantId: z.string().uuid(),
@@ -12,7 +12,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const tenantId = url.searchParams.get('tenantId') || '';
   const input = querySchema.parse({ tenantId });
 
-  const service = getMaintenanceService();
+  const { maintenanceService: service } = getServiceContainer();
   const tickets = await service.listTenantTickets(input.tenantId);
 
   return NextResponse.json({

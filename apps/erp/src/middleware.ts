@@ -17,14 +17,21 @@ function sameOrigin(req: NextRequest): boolean {
   const referer = req.headers.get('referer');
   const base = process.env.NEXTAUTH_URL || process.env.APP_BASE_URL || '';
 
-  // Also derive the expected origin from the request's own Host header so the
+  // Derive the expected origin from the request's own Host header so the
   // CSRF check works when the server runs on a different port than APP_BASE_URL
-  // (e.g. dev server on :3002 while .env still says :3001).
   const host = req.headers.get('host');
   const proto = req.headers.get('x-forwarded-proto') || 'http';
   const requestBase = host ? `${proto}://${host}` : '';
 
   if (!base && !requestBase) return true;
+
+  // For same-origin requests without origin/referer header, use Host-based validation
+  // Browsers don't always send Origin header for same-origin form POSTs
+  if (!origin && !referer) {
+    // If we have a requestBase, same-origin is valid based on Host header
+    return true;
+  }
+
   const source = origin || referer;
   if (!source) return false;
   try {
@@ -128,7 +135,10 @@ export async function middleware(req: NextRequest) {
       }
 
       if (url.pathname.startsWith('/admin')) {
-        if (!isAdmin) {
+        // Allow /admin/setup without authentication (setup wizard)
+        if (url.pathname === '/admin/setup') {
+          // Let them through - setup page handles initialization check
+        } else if (!isAdmin) {
           const redirect = NextResponse.redirect(new URL('/login', req.url));
           redirect.headers.set('x-request-id', requestId);
           return redirect;

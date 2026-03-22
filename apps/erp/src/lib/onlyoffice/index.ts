@@ -58,8 +58,21 @@ export function getOnlyOfficeCallbackBaseUrl(): string {
   return getOnlyOfficeAppBaseUrl();
 }
 
+/**
+ * Whether the ONLYOFFICE integration is explicitly enabled via env var.
+ * Set ONLYOFFICE_ENABLED=false to disable even if URL is configured.
+ */
+export function isOnlyOfficeEnabled(): boolean {
+  const enabled = (process.env.ONLYOFFICE_ENABLED || 'true').trim().toLowerCase();
+  return enabled !== 'false' && enabled !== '0' && enabled !== 'no';
+}
+
+/**
+ * Whether ONLYOFFICE is fully configured and usable.
+ * Requires: enabled flag ON + DOCUMENT_SERVER_URL set + APP_BASE_URL set.
+ */
 export function isOnlyOfficeConfigured(): boolean {
-  return Boolean((process.env.ONLYOFFICE_DOCUMENT_SERVER_URL || '').trim() && (process.env.APP_BASE_URL || '').trim());
+  return isOnlyOfficeEnabled() && Boolean((process.env.ONLYOFFICE_DOCUMENT_SERVER_URL || '').trim() && (process.env.APP_BASE_URL || '').trim());
 }
 
 export function signOnlyOfficeToken(payload: Record<string, unknown>): string | undefined {

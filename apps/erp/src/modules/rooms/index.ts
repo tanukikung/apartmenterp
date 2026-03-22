@@ -1,5 +1,5 @@
 // Room Service
-export { RoomService, getRoomService, createRoomService } from './room.service';
+export { RoomService, createRoomService } from './room.service';
 
 // Types
 export * from './types';

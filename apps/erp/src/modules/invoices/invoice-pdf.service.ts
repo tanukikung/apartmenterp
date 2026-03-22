@@ -90,7 +90,7 @@ export class InvoicePDFService {
 
     if (!invoice) throw new NotFoundError('Invoice', invoiceId);
 
-    const primaryTenant = (invoice.room as any).tenants?.[0]?.tenant;
+    const primaryTenant = (invoice.room as unknown as { tenants?: Array<{ tenant?: { firstName?: string; lastName?: string; lineUserId?: string | null } | null }> })?.tenants?.[0]?.tenant;
     if (!primaryTenant) throw new Error('No active tenant found for room');
 
     const computedInvoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.roomNo}`;
@@ -427,10 +427,6 @@ export class InvoicePDFService {
   }
 }
 
-let invoicePDFServiceInstance: InvoicePDFService | null = null;
-export function getInvoicePDFService(): InvoicePDFService {
-  if (!invoicePDFServiceInstance) {
-    invoicePDFServiceInstance = new InvoicePDFService();
-  }
-  return invoicePDFServiceInstance;
+export function createInvoicePDFService(): InvoicePDFService {
+  return new InvoicePDFService();
 }

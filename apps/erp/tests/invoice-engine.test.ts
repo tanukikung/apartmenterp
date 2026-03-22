@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getInvoiceService } from '@/modules/invoices/invoice.service';
 import { prisma } from '@/lib/db/client';
 import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
+import { getServiceContainer } from '@/lib/service-container';
 
 vi.mock('@/lib/db/client', () => {
   const prismaMock = {
@@ -49,7 +49,7 @@ function mockPrisma() {
 
 describe('Invoice Engine', () => {
   it('creates invoice from locked billing and writes outbox', async () => {
-    const svc = getInvoiceService();
+    const svc = getServiceContainer().invoiceService;
     const dueDate = new Date();
     const { billingFindUnique, invoiceFindUnique } = mockPrisma();
     billingFindUnique.mockResolvedValue({
@@ -66,7 +66,7 @@ describe('Invoice Engine', () => {
   });
 
   it('requires confirm when regenerating if invoice exists', async () => {
-    const svc = getInvoiceService();
+    const svc = getServiceContainer().invoiceService;
     const { billingFindUnique, invoiceFindUnique } = mockPrisma();
     billingFindUnique.mockResolvedValue({
       id: 'br-1',
@@ -80,7 +80,7 @@ describe('Invoice Engine', () => {
   });
 
   it('increments version when generating with confirm path', async () => {
-    const svc = getInvoiceService();
+    const svc = getServiceContainer().invoiceService;
     const { billingFindUnique, invoiceFindUnique } = mockPrisma();
     billingFindUnique.mockResolvedValue({
       id: 'br-1',
@@ -103,12 +103,13 @@ describe('Invoice Engine', () => {
 });
 
 vi.mock('@/modules/invoices/invoice.service', async () => {
+  const { getServiceContainer } = await import('@/lib/service-container');
   const actual = await vi.importActual<any>('@/modules/invoices/invoice.service');
   return {
     ...actual,
-    getInvoiceService: () => {
-      const real = actual.getInvoiceService();
-      (real as any).getInvoicePreview = vi.fn().mockResolvedValue({
+    getServiceContainer: () => {
+      const container = getServiceContainer();
+      (container.invoiceService as any).getInvoicePreview = vi.fn().mockResolvedValue({
         invoiceId: 'inv-1',
         year: 2026,
         month: 3,
@@ -120,7 +121,7 @@ vi.mock('@/modules/invoices/invoice.service', async () => {
         totalAmount: 1000,
         dueDate: '2026-03-05',
       });
-      return real;
+      return container;
     },
   };
 });

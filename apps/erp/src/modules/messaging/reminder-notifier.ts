@@ -4,6 +4,11 @@ import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
 
 const bus = getEventBus();
 
+type RoomWithTenants = {
+  roomNo: string;
+  tenants: Array<{ tenant: { lineUserId: string | null } | null }>;
+};
+
 async function sendReminder(invoiceId: string) {
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
@@ -19,7 +24,7 @@ async function sendReminder(invoiceId: string) {
     },
   });
   if (!invoice || !invoice.room) return;
-  const tenant = (invoice.room as any).tenants?.[0]?.tenant;
+  const tenant = (invoice.room as unknown as RoomWithTenants).tenants?.[0]?.tenant;
   const lineUserId = tenant?.lineUserId;
   if (!lineUserId) {
     logger.warn({ type: 'reminder_skipped_no_line', invoiceId });

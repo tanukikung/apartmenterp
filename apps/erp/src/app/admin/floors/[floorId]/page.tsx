@@ -132,32 +132,32 @@ export default function FloorDetailPage() {
   const floorLabel = floor ? `ชั้น ${floor.floorNumber}` : `ชั้น ...`;
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-slate-500">
-        <Link href="/admin/dashboard" className="hover:text-indigo-600">
+      <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
+        <Link href="/admin/dashboard" className="hover:text-primary">
           Dashboard
         </Link>
         <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
-        <Link href="/admin/floors" className="hover:text-indigo-600">
+        <Link href="/admin/floors" className="hover:text-primary">
           Floors
         </Link>
         <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
-        <span className="font-medium text-slate-700">{floorLabel}</span>
+        <span className="font-medium text-on-surface">{floorLabel}</span>
       </nav>
 
       {/* Page header */}
-      <section className="admin-page-header">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div className="flex items-center gap-4">
           <Link
             href="/admin/floors"
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-colors hover:border-primary/30 hover:bg-surface-container"
           >
-            <ArrowLeft className="h-4 w-4 text-slate-600" />
+            <ArrowLeft className="h-4 w-4 text-on-primary" />
           </Link>
           <div>
-            <h1 className="admin-page-title">{floorLabel}</h1>
-            <p className="admin-page-subtitle">
+            <h1 className="text-xl font-semibold text-on-primary">{floorLabel}</h1>
+            <p className="text-sm text-on-primary/80">
               {loading ? 'Loading rooms...' : `${stats.total} rooms on this floor`}
             </p>
           </div>
@@ -170,23 +170,23 @@ export default function FloorDetailPage() {
 
       {/* Stats row */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="admin-kpi">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="admin-kpi-label">Total Rooms</div>
-              <div className="admin-kpi-value">{loading ? '...' : stats.total}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Total Rooms</div>
+              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : stats.total}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-indigo-200 bg-indigo-50 shadow-sm">
-              <DoorOpen className="h-5 w-5 text-indigo-600" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 shadow-sm">
+              <DoorOpen className="h-5 w-5 text-primary" />
             </div>
           </div>
         </div>
 
-        <div className="admin-kpi">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="admin-kpi-label">Occupied</div>
-              <div className="admin-kpi-value">{loading ? '...' : stats.occupied}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Occupied</div>
+              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : stats.occupied}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm">
               <Users className="h-5 w-5 text-emerald-600" />
@@ -194,11 +194,11 @@ export default function FloorDetailPage() {
           </div>
         </div>
 
-        <div className="admin-kpi">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="admin-kpi-label">Vacant</div>
-              <div className="admin-kpi-value">{loading ? '...' : stats.vacant}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Vacant</div>
+              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : stats.vacant}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 shadow-sm">
               <Building2 className="h-5 w-5 text-sky-500" />
@@ -206,11 +206,11 @@ export default function FloorDetailPage() {
           </div>
         </div>
 
-        <div className="admin-kpi">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="admin-kpi-label">Maintenance</div>
-              <div className="admin-kpi-value">{loading ? '...' : stats.maintenance}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Maintenance</div>
+              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : stats.maintenance}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 shadow-sm">
               <AlertTriangle className="h-5 w-5 text-amber-500" />

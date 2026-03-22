@@ -71,39 +71,53 @@ export default function AdminSettingsClient() {
 
   if (loading) {
     return (
-      <main className="admin-page">
-        <section className="admin-page-header">
-          <div>
-            <h1 className="admin-page-title">Settings</h1>
-            <p className="admin-page-subtitle">Loading operational defaults.</p>
+      <main className="space-y-6">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+          <div className="relative flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-base font-semibold text-on-primary">Settings</h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">Loading operational defaults.</p>
+            </div>
+            <div className="flex items-center gap-3"></div>
           </div>
-        </section>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="admin-page">
-      <section className="admin-page-header">
-        <div>
-          <h1 className="admin-page-title">Settings</h1>
-          <p className="admin-page-subtitle">Configure billing cadence and review environment-backed integrations.</p>
+    <main className="space-y-6">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-base font-semibold text-on-primary">Settings</h1>
+            <p className="text-xs text-on-primary/80 mt-0.5">Configure billing cadence and review environment-backed integrations.</p>
+          </div>
+          <div className="flex items-center gap-3"></div>
         </div>
-      </section>
+      </div>
 
       {message ? <div className="auth-alert auth-alert-success">{message}</div> : null}
       {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <section className="admin-card cute-surface">
-          <div className="admin-card-header">
-            <div className="admin-card-title">Billing Configuration</div>
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-4 shadow-lg">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+            <div className="relative flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-base font-semibold text-on-primary">Billing Configuration</h2>
+              </div>
+              <div className="flex items-center gap-3"></div>
+            </div>
           </div>
           <form className="grid gap-4 p-4 md:grid-cols-3" onSubmit={saveBillingSettings}>
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Billing Day</label>
+              <label className="mb-2 block text-sm font-medium text-on-surface">Billing Day</label>
               <input
-                className="admin-input"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                 type="number"
                 min={1}
                 max={28}
@@ -112,9 +126,9 @@ export default function AdminSettingsClient() {
               />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Due Day</label>
+              <label className="mb-2 block text-sm font-medium text-on-surface">Due Day</label>
               <input
-                className="admin-input"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                 type="number"
                 min={1}
                 max={31}
@@ -123,9 +137,9 @@ export default function AdminSettingsClient() {
               />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Overdue Day</label>
+              <label className="mb-2 block text-sm font-medium text-on-surface">Overdue Day</label>
               <input
-                className="admin-input"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                 type="number"
                 min={1}
                 max={31}
@@ -134,31 +148,37 @@ export default function AdminSettingsClient() {
               />
             </div>
             <div className="md:col-span-3">
-              <button className="admin-button admin-button-primary" disabled={working}>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-primary bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" disabled={working}>
                 {working ? 'Saving...' : 'Save Billing Settings'}
               </button>
             </div>
           </form>
         </section>
 
-        <section className="admin-card cute-surface">
-          <div className="admin-card-header">
-            <div className="admin-card-title">Integrations</div>
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-4 shadow-lg">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+            <div className="relative flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-base font-semibold text-on-primary">Integrations</h2>
+              </div>
+              <div className="flex items-center gap-3"></div>
+            </div>
           </div>
-          <div className="grid gap-3 p-4 text-sm text-slate-600">
-            <div className="rounded-3xl border border-indigo-100 bg-indigo-50/70 px-4 py-3">
-              <div className="font-medium text-slate-900">App Base URL</div>
+          <div className="grid gap-3 p-4 text-sm text-on-surface-variant">
+            <div className="rounded-3xl border border-primary-container bg-primary-container/70 px-4 py-3">
+              <div className="font-medium text-on-surface">App Base URL</div>
               <div className="mt-1">{settings?.appBaseUrl || 'Not set in environment'}</div>
             </div>
-            <div className="rounded-3xl border border-sky-100 bg-sky-50/70 px-4 py-3">
-              <div className="font-medium text-slate-900">LINE Channel ID</div>
+            <div className="rounded-3xl border border-primary-container bg-primary-container/70 px-4 py-3">
+              <div className="font-medium text-on-surface">LINE Channel ID</div>
               <div className="mt-1">{settings?.lineChannelIdConfigured ? 'Configured' : 'Missing'}</div>
             </div>
-            <div className="rounded-3xl border border-amber-100 bg-amber-50/70 px-4 py-3">
-              <div className="font-medium text-slate-900">LINE Access Token</div>
+            <div className="rounded-3xl border border-primary-container bg-primary-container/70 px-4 py-3">
+              <div className="font-medium text-on-surface">LINE Access Token</div>
               <div className="mt-1">{settings?.lineAccessTokenConfigured ? 'Configured' : 'Missing'}</div>
             </div>
-            <div className="rounded-3xl border border-sky-100 bg-sky-50 px-4 py-3 text-sky-800">
+            <div className="rounded-3xl border border-primary-container bg-primary-container px-4 py-3 text-on-surface-variant">
               User creation, role assignment, and password reset operations are managed from the Admin Users screen.
             </div>
           </div>

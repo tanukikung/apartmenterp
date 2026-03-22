@@ -3,7 +3,7 @@ import { getVerifiedActor } from '@/lib/auth/guards';
 import { payInvoiceSchema } from '@/modules/invoices/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
-import { getPaymentService } from '@/modules/payments/payment.service';
+import { getServiceContainer } from '@/lib/service-container';
 
 // ============================================================================
 // POST /api/invoices/[id]/pay - Record a manual settlement payment
@@ -16,7 +16,7 @@ export const POST = asyncHandler(
     const body = await req.json().catch(() => ({}));
     const input = payInvoiceSchema.parse(body);
 
-    const paymentService = getPaymentService();
+    const { paymentService } = getServiceContainer();
     const result = await paymentService.settleOutstandingBalance(
       id,
       {

@@ -118,10 +118,10 @@ function resolveDisplayStatus(contract: ContractRecord): 'ACTIVE' | 'EXPIRED' | 
 
 function StatusBadge({ status }: { status: ReturnType<typeof resolveDisplayStatus> }) {
   const cfg = {
-    ACTIVE:        { label: 'Active',         cls: 'bg-emerald-100 text-emerald-800 border border-emerald-200',  Icon: CheckCircle2 },
-    EXPIRING_SOON: { label: 'Expiring Soon',  cls: 'bg-amber-100 text-amber-800 border border-amber-200',       Icon: Clock },
-    EXPIRED:       { label: 'Expired',        cls: 'bg-red-100 text-red-700 border border-red-200',             Icon: XCircle },
-    TERMINATED:    { label: 'Terminated',     cls: 'bg-slate-100 text-slate-600 border border-slate-200',       Icon: XCircle },
+    ACTIVE:        { label: 'ใช้งาน',         cls: 'bg-emerald-100 text-emerald-800 border border-emerald-200',  Icon: CheckCircle2 },
+    EXPIRING_SOON: { label: 'ใกล้หมดอายุ',  cls: 'bg-amber-100 text-amber-800 border border-amber-200',       Icon: Clock },
+    EXPIRED:       { label: 'หมดอายุ',        cls: 'bg-red-100 text-red-700 border border-red-200',             Icon: XCircle },
+    TERMINATED:    { label: 'ยกเลิก',     cls: 'bg-surface-container text-on-surface border border-outline-variant',       Icon: XCircle },
   }[status];
 
   return (
@@ -148,14 +148,14 @@ function KpiCard({
   icon: React.ElementType;
 }) {
   return (
-    <div className="admin-card flex items-center gap-4 py-4 px-5">
+    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 flex items-center gap-4 py-4 px-5">
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${color}`}>
         <Icon size={20} className="text-white" strokeWidth={2} />
       </div>
       <div className="min-w-0">
-        <div className="text-[11px] font-medium uppercase tracking-wider text-slate-500">{label}</div>
-        <div className="text-2xl font-bold text-slate-800 leading-tight">{value}</div>
-        {sub && <div className="text-[11px] text-slate-400 mt-0.5">{sub}</div>}
+        <div className="text-[11px] font-medium uppercase tracking-wider text-on-surface-variant">{label}</div>
+        <div className="text-2xl font-bold text-on-surface leading-tight">{value}</div>
+        {sub && <div className="text-[11px] text-on-surface-variant mt-0.5">{sub}</div>}
       </div>
     </div>
   );
@@ -420,67 +420,70 @@ export default function AdminContractsPage() {
     <div className="flex min-h-0 flex-1">
       {/* ── Main content ─────────────────────────────────────────── */}
       <main
-        className={`admin-page flex-1 min-w-0 transition-all duration-200 ${
+        className={`space-y-6 flex-1 min-w-0 transition-all duration-200 ${
           panelMode !== 'none' ? 'mr-0 xl:mr-[420px]' : ''
         }`}
       >
         {/* Header */}
-        <section className="admin-page-header">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 shadow-sm">
-              <FileSignature size={20} className="text-white" strokeWidth={2} />
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
+                <FileSignature size={20} className="text-white" strokeWidth={2} />
+              </div>
+              <div>
+                <h1 className="text-base font-semibold text-on-primary">สัญญาเช่า</h1>
+                <p className="text-xs text-on-primary/80 mt-0.5">จัดการสัญญาเช่าสำหรับทุกห้องที่มีผู้เช่า</p>
+              </div>
             </div>
-            <div>
-              <h1 className="admin-page-title">Contracts</h1>
-              <p className="admin-page-subtitle">Manage lease agreements for all occupied rooms</p>
+            <div className="flex items-center gap-3">
+              <button
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30"
+                onClick={() => void loadContracts()}
+                title="Refresh"
+              >
+                <RefreshCw size={13} />
+                รีเฟรช
+              </button>
+              <button
+                className="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30"
+                onClick={openNew}
+              >
+                <Plus size={14} strokeWidth={2.5} />
+                สร้างสัญญาใหม่
+              </button>
             </div>
           </div>
-          <div className="admin-toolbar">
-            <button
-              className="admin-button flex items-center gap-1.5"
-              onClick={() => void loadContracts()}
-              title="Refresh"
-            >
-              <RefreshCw size={13} />
-              Refresh
-            </button>
-            <button
-              className="admin-button admin-button-primary flex items-center gap-1.5"
-              onClick={openNew}
-            >
-              <Plus size={14} strokeWidth={2.5} />
-              New Contract
-            </button>
-          </div>
-        </section>
+        </div>
 
         {/* KPI Row */}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 mb-1">
           <KpiCard
-            label="Total Contracts"
+            label="สัญญาทั้งหมด"
             value={kpis.total}
-            sub="all time"
+            sub="ทั้งหมด"
             color="bg-indigo-500"
             icon={FileText}
           />
           <KpiCard
-            label="Active"
+            label="ใช้งาน"
             value={kpis.active}
-            sub="currently running"
+            sub="กำลังใช้งาน"
             color="bg-emerald-500"
             icon={CheckCircle2}
           />
           <KpiCard
-            label="Expiring Soon"
+            label="ใกล้หมดอายุ"
             value={kpis.expiringSoon}
-            sub="within 30 days"
+            sub="ภายใน 30 วัน"
             color="bg-amber-500"
             icon={Clock}
           />
           <KpiCard
-            label="Expired"
+            label="หมดอายุ"
             value={kpis.expired}
-            sub="past end date"
+            sub="เกินวันสิ้นสุด"
             color="bg-red-400"
             icon={XCircle}
           />
@@ -489,52 +492,52 @@ export default function AdminContractsPage() {
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2 mb-4 mt-4">
           <div className="relative flex-1 min-w-[200px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
             <input
-              className="admin-input pl-8 w-full"
-              placeholder="Search room number or tenant name..."
+              className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 pl-8 w-full"
+              placeholder="ค้นหาหมายเลขห้องหรือชื่อผู้เช่า..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <select
-            className="admin-select"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             value={filterStatus}
             onChange={(e) => {
               setFilterStatus(e.target.value);
               setPage(1);
             }}
           >
-            <option value="">All Statuses</option>
-            <option value="ACTIVE">Active</option>
-            <option value="EXPIRING_SOON">Expiring Soon</option>
-            <option value="EXPIRED">Expired</option>
-            <option value="TERMINATED">Terminated</option>
+            <option value="">ทุกสถานะ</option>
+            <option value="ACTIVE">ใช้งาน</option>
+            <option value="EXPIRING_SOON">ใกล้หมดอายุ</option>
+            <option value="EXPIRED">หมดอายุ</option>
+            <option value="TERMINATED">ยกเลิก</option>
           </select>
         </div>
 
         {/* Error banner */}
         {error && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-error-container bg-error-container/20 px-4 py-3 text-sm font-medium text-on-error-container">
             <AlertCircle size={15} />
             {error}
           </div>
         )}
 
         {/* Table */}
-        <div className="admin-card overflow-hidden p-0">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden p-0">
           <div className="overflow-x-auto">
-            <table className="admin-table w-full">
+            <table className="w-full text-sm text-left">
               <thead>
-                <tr>
-                  <th className="pl-4">Room No</th>
-                  <th>Tenant Name</th>
-                  <th>Start Date</th>
-                  <th>End Date</th>
-                  <th>Monthly Rent</th>
-                  <th>Deposit</th>
-                  <th>Status</th>
-                  <th className="pr-4 text-right">Actions</th>
+                <tr className="bg-surface-container">
+                  <th className="pl-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">หมายเลขห้อง</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ชื่อผู้เช่า</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">วันที่เริ่ม</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">วันที่สิ้นสุด</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ค่าเช่ารายเดือน</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เงินมัดจำ</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
+                  <th className="pr-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-right">การดำเนินการ</th>
                 </tr>
               </thead>
               <tbody>
@@ -543,7 +546,7 @@ export default function AdminContractsPage() {
                     <tr key={i}>
                       {Array.from({ length: 8 }).map((__, j) => (
                         <td key={j}>
-                          <div className="h-4 rounded bg-slate-100 animate-pulse" style={{ width: `${60 + Math.random() * 40}%` }} />
+                          <div className="h-4 rounded bg-surface-container animate-pulse" style={{ width: `${70 + (i * 13 + j * 17) % 25}%` }} />
                         </td>
                       ))}
                     </tr>
@@ -563,28 +566,28 @@ export default function AdminContractsPage() {
                         : displayStatus === 'EXPIRED'
                         ? 'bg-red-50/40'
                         : displayStatus === 'TERMINATED'
-                        ? 'bg-slate-50/80'
+                        ? 'bg-surface-container-lowest/80'
                         : '';
                     const isSelected = selectedContract?.id === c.id && panelMode === 'edit';
                     return (
                       <tr
                         key={c.id}
-                        className={`${rowCls} ${isSelected ? 'ring-2 ring-inset ring-indigo-400' : ''} cursor-pointer hover:bg-slate-50`}
+                        className={`${rowCls} ${isSelected ? 'ring-2 ring-inset ring-primary' : ''} cursor-pointer hover:bg-surface-container-lowest`}
                         onClick={() => openEdit(c)}
                       >
-                        <td className="pl-4 font-semibold text-slate-800">
+                        <td className="pl-4 font-semibold text-on-surface">
                           {c.roomNo}
                         </td>
                         <td>
-                          <div className="font-medium text-slate-800">
+                          <div className="font-medium text-on-surface">
                             {c.primaryTenant?.fullName ?? '—'}
                           </div>
                           {c.primaryTenant?.phone && (
-                            <div className="text-[11px] text-slate-400">{c.primaryTenant.phone}</div>
+                            <div className="text-[11px] text-on-surface-variant">{c.primaryTenant.phone}</div>
                           )}
                         </td>
-                        <td className="text-slate-600">{fmtDate(c.startDate)}</td>
-                        <td className="text-slate-600">
+                        <td className="text-on-surface">{fmtDate(c.startDate)}</td>
+                        <td className="text-on-surface">
                           <span>{fmtDate(c.endDate)}</span>
                           {displayStatus === 'EXPIRING_SOON' && (
                             <span className="ml-1.5 text-[11px] font-semibold text-amber-600">
@@ -592,21 +595,21 @@ export default function AdminContractsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="font-medium text-slate-800">{fmtMoney(c.rentAmount)}</td>
-                        <td className="text-slate-600">{fmtMoney(c.depositAmount)}</td>
+                        <td className="font-medium text-on-surface">{fmtMoney(c.rentAmount)}</td>
+                        <td className="text-on-surface">{fmtMoney(c.depositAmount)}</td>
                         <td>
                           <StatusBadge status={displayStatus} />
                         </td>
                         <td className="pr-4 text-right">
                           <button
-                            className="admin-button flex items-center gap-1 text-xs"
+                            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container flex items-center gap-1 text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
                               openEdit(c);
                             }}
                           >
                             <Pencil size={11} />
-                            Edit
+                            แก้ไข
                           </button>
                         </td>
                       </tr>
@@ -619,25 +622,25 @@ export default function AdminContractsPage() {
 
           {/* Pagination footer */}
           {!loading && filteredContracts.length > 0 && (
-            <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2.5">
-              <span className="text-xs text-slate-400">
+            <div className="flex items-center justify-between border-t border-outline-variant px-4 py-2.5">
+              <span className="text-xs text-on-surface-variant">
                 Showing {filteredContracts.length} of {total} contracts
               </span>
               <div className="flex items-center gap-1">
                 <button
-                  className="admin-button text-xs"
+                  className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  Prev
+                  ก่อนหน้า
                 </button>
-                <span className="px-2 text-xs text-slate-500">Page {page}</span>
+                <span className="px-2 text-xs text-on-surface-variant">หน้า {page}</span>
                 <button
-                  className="admin-button text-xs"
+                  className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed"
                   disabled={filteredContracts.length < 50}
                   onClick={() => setPage((p) => p + 1)}
                 >
-                  Next
+                  ถัดไป
                 </button>
               </div>
             </div>
@@ -647,22 +650,22 @@ export default function AdminContractsPage() {
 
       {/* ── Side Panel ───────────────────────────────────────────── */}
       {panelMode !== 'none' && (
-        <aside className="fixed right-0 top-0 z-30 flex h-full w-full flex-col border-l border-slate-200 bg-white shadow-2xl xl:w-[420px]">
+        <aside className="fixed right-0 top-0 z-30 flex h-full w-full flex-col border-l border-outline-variant bg-surface-container-lowest shadow-2xl xl:w-[420px]">
           {/* Panel header */}
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div className="flex items-center justify-between border-b border-outline-variant px-5 py-4">
             <div className="flex items-center gap-2">
               {panelMode === 'new' ? (
-                <Plus size={16} className="text-indigo-600" />
+                <Plus size={16} className="text-primary" />
               ) : (
-                <Pencil size={15} className="text-indigo-600" />
+                <Pencil size={15} className="text-primary" />
               )}
-              <span className="text-[15px] font-semibold text-slate-800">
-                {panelMode === 'new' ? 'New Contract' : `Edit — Room ${selectedContract?.roomNo}`}
+              <span className="text-[15px] font-semibold text-on-surface">
+                {panelMode === 'new' ? 'สัญญาใหม่' : `แก้ไข — ห้อง ${selectedContract?.roomNo}`}
               </span>
             </div>
             <button
               onClick={closePanel}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
             >
               <X size={15} />
             </button>
@@ -743,23 +746,23 @@ function NewContractForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <p className="text-[12px] text-slate-500 leading-relaxed">
+      <p className="text-[12px] text-on-surface-variant leading-relaxed">
         Create a new lease contract. The selected tenant must be the <strong>PRIMARY</strong> tenant
         of the chosen room, with no existing active contract for that room.
       </p>
 
       {/* Room select */}
       <div>
-        <label className="mb-1 block text-[12px] font-semibold text-slate-700">
-          Room Number <span className="text-red-500">*</span>
+        <label className="mb-1 block text-[12px] font-semibold text-on-surface">
+          หมายเลขห้อง <span className="text-red-500">*</span>
         </label>
         <select
-          className="admin-select w-full"
+          className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
           required
           value={form.roomId}
           onChange={(e) => onRoomChange(e.target.value)}
         >
-          <option value="">— Select room —</option>
+          <option value="">— เลือกห้อง —</option>
           {rooms.map((r) => (
             <option key={r.roomNo} value={r.roomNo}>
               {r.roomNo} (Floor {r.floorNo})
@@ -770,22 +773,22 @@ function NewContractForm({
 
       {/* Tenant select */}
       <div>
-        <label className="mb-1 block text-[12px] font-semibold text-slate-700">
-          Primary Tenant <span className="text-red-500">*</span>
+        <label className="mb-1 block text-[12px] font-semibold text-on-surface">
+          ผู้เช่าหลัก <span className="text-red-500">*</span>
         </label>
         {tenantsLoading ? (
-          <div className="flex h-9 items-center rounded-md border border-slate-200 px-3 text-xs text-slate-400 animate-pulse">
-            Loading tenants…
+          <div className="flex h-9 items-center rounded-md border border-outline-variant px-3 text-xs text-on-surface-variant animate-pulse">
+            กำลังโหลดผู้เช่า…
           </div>
         ) : (
           <select
-            className="admin-select w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             required
             disabled={!form.roomId}
             value={form.primaryTenantId}
             onChange={(e) => patch('primaryTenantId', e.target.value)}
           >
-            <option value="">— Select tenant —</option>
+            <option value="">— เลือกผู้เช่า —</option>
             {tenants.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.fullName} · {t.phone}
@@ -795,7 +798,7 @@ function NewContractForm({
         )}
         {form.roomId && !tenantsLoading && tenants.length === 0 && (
           <p className="mt-1 text-[11px] text-amber-600">
-            No tenants found for this room. Assign a PRIMARY tenant first.
+            ไม่พบผู้เช่าสำหรับห้องนี้ กรุณากำหนดผู้เช่าหลักก่อน
           </p>
         )}
       </div>
@@ -803,24 +806,24 @@ function NewContractForm({
       {/* Date range */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-slate-700">
-            Start Date <span className="text-red-500">*</span>
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">
+            วันที่เริ่ม <span className="text-red-500">*</span>
           </label>
           <input
             type="date"
-            className="admin-input w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             required
             value={form.startDate}
             onChange={(e) => patch('startDate', e.target.value)}
           />
         </div>
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-slate-700">
-            End Date <span className="text-red-500">*</span>
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">
+            วันที่สิ้นสุด <span className="text-red-500">*</span>
           </label>
           <input
             type="date"
-            className="admin-input w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             required
             value={form.endDate}
             onChange={(e) => patch('endDate', e.target.value)}
@@ -831,15 +834,15 @@ function NewContractForm({
       {/* Rent & Deposit */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-slate-700">
-            Monthly Rent (฿) <span className="text-red-500">*</span>
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">
+            ค่าเช่ารายเดือน (฿) <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
             min="1"
             max="999999"
             step="0.01"
-            className="admin-input w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             required
             placeholder="e.g. 8000"
             value={form.rentAmount}
@@ -847,15 +850,15 @@ function NewContractForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-slate-700">
-            Deposit (฿)
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">
+            เงินมัดจำ (฿)
           </label>
           <input
             type="number"
             min="0"
             max="999999"
             step="0.01"
-            className="admin-input w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             placeholder="e.g. 16000"
             value={form.depositAmount}
             onChange={(e) => patch('depositAmount', e.target.value)}
@@ -865,11 +868,11 @@ function NewContractForm({
 
       {/* Notes */}
       <div>
-        <label className="mb-1 block text-[12px] font-semibold text-slate-700">Notes</label>
+        <label className="mb-1 block text-[12px] font-semibold text-on-surface">หมายเหตุ</label>
         <textarea
-          className="admin-input w-full resize-none"
+          className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full resize-none"
           rows={3}
-          placeholder="Optional notes about this contract…"
+          placeholder="หมายเหตุเพิ่มเติมเกี่ยวกับสัญญานี้…"
           value={form.notes}
           onChange={(e) => patch('notes', e.target.value)}
         />
@@ -877,7 +880,7 @@ function NewContractForm({
 
       {/* Error */}
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
+        <div className="flex items-start gap-2 rounded-lg border border-error-container bg-error-container/20 px-3 py-2.5 text-xs font-medium text-on-error-container">
           <AlertCircle size={13} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -885,23 +888,23 @@ function NewContractForm({
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-1">
-        <button type="button" className="admin-button" onClick={onCancel}>
-          Cancel
+        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={onCancel}>
+          ยกเลิก
         </button>
         <button
           type="submit"
           disabled={saving}
-          className="admin-button admin-button-primary flex items-center gap-1.5 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
         >
           {saving ? (
             <>
               <RefreshCw size={12} className="animate-spin" />
-              Saving…
+              กำลังบันทึก…
             </>
           ) : (
             <>
               <ChevronRight size={13} />
-              Save Contract
+              บันทึกสัญญา
             </>
           )}
         </button>
@@ -939,51 +942,51 @@ function EditContractForm({
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       {/* Contract summary card */}
-      <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 space-y-1">
+      <div className="rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-3 space-y-1">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Contract ID</span>
-          <span className="font-mono text-[11px] text-slate-600">{contract.id.slice(0, 8)}…</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">รหัสสัญญา</span>
+          <span className="font-mono text-[11px] text-on-surface">{contract.id.slice(0, 8)}…</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Tenant</span>
-          <span className="text-[12px] font-medium text-slate-800">{contract.primaryTenant?.fullName ?? '—'}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">ผู้เช่า</span>
+          <span className="text-[12px] font-medium text-on-surface">{contract.primaryTenant?.fullName ?? '—'}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Status</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">สถานะ</span>
           <StatusBadge status={displayStatus} />
         </div>
         {contract.terminationReason && (
           <div className="flex items-start justify-between gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 shrink-0">Reason</span>
-            <span className="text-[11px] text-slate-600 text-right">{contract.terminationReason}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant shrink-0">เหตุผล</span>
+            <span className="text-[11px] text-on-surface text-right">{contract.terminationReason}</span>
           </div>
         )}
       </div>
 
       {contract.status !== 'ACTIVE' && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-medium text-amber-900">
           <AlertCircle size={13} className="shrink-0" />
-          Only active contracts can be edited. This contract is <strong>{contract.status}</strong>.
+          สามารถแก้ไขได้เฉพาะสัญญาที่ใช้งานอยู่เท่านั้น สัญญานี้มีสถานะ <strong>{contract.status}</strong>.
         </div>
       )}
 
       {/* Dates */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-slate-700">Start Date</label>
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">วันที่เริ่ม</label>
           <input
             type="date"
-            className="admin-input w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             disabled={contract.status !== 'ACTIVE'}
             value={form.startDate}
             onChange={(e) => patch('startDate', e.target.value)}
           />
         </div>
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-slate-700">End Date</label>
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">วันที่สิ้นสุด</label>
           <input
             type="date"
-            className="admin-input w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             disabled={contract.status !== 'ACTIVE'}
             value={form.endDate}
             onChange={(e) => patch('endDate', e.target.value)}
@@ -994,26 +997,26 @@ function EditContractForm({
       {/* Rent & Deposit */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-slate-700">Monthly Rent (฿)</label>
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">ค่าเช่ารายเดือน (฿)</label>
           <input
             type="number"
             min="1"
             max="999999"
             step="0.01"
-            className="admin-input w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             disabled={contract.status !== 'ACTIVE'}
             value={form.rentAmount}
             onChange={(e) => patch('rentAmount', e.target.value)}
           />
         </div>
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-slate-700">Deposit (฿)</label>
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">เงินมัดจำ (฿)</label>
           <input
             type="number"
             min="0"
             max="999999"
             step="0.01"
-            className="admin-input w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             disabled={contract.status !== 'ACTIVE'}
             value={form.depositAmount}
             onChange={(e) => patch('depositAmount', e.target.value)}
@@ -1023,13 +1026,13 @@ function EditContractForm({
 
       {/* Error / success */}
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
+        <div className="flex items-start gap-2 rounded-lg border border-error-container bg-error-container/20 px-3 py-2.5 text-xs font-medium text-on-error-container">
           <AlertCircle size={13} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-700">
+        <div className="flex items-center gap-2 rounded-lg border border-tertiary-container bg-tertiary-container/20 px-3 py-2.5 text-xs font-medium text-on-tertiary-container">
           <CheckCircle2 size={13} />
           {success}
         </div>
@@ -1037,23 +1040,23 @@ function EditContractForm({
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-1">
-        <button type="button" className="admin-button" onClick={onCancel}>
-          Cancel
+        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={onCancel}>
+          ยกเลิก
         </button>
         <button
           type="submit"
           disabled={saving || contract.status !== 'ACTIVE'}
-          className="admin-button admin-button-primary flex items-center gap-1.5 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
         >
           {saving ? (
             <>
               <RefreshCw size={12} className="animate-spin" />
-              Saving…
+              กำลังบันทึก…
             </>
           ) : (
             <>
               <ChevronRight size={13} />
-              Update Contract
+              อัปเดตสัญญา
             </>
           )}
         </button>
@@ -1067,24 +1070,24 @@ function EditContractForm({
 function EmptyState({ onNew, hasFilter }: { onNew: () => void; hasFilter: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
-        <FileSignature size={28} className="text-slate-400" strokeWidth={1.5} />
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-container">
+        <FileSignature size={28} className="text-on-surface-variant" strokeWidth={1.5} />
       </div>
-      <h3 className="text-[15px] font-semibold text-slate-700">
-        {hasFilter ? 'No contracts match your filters' : 'No contracts yet'}
+      <h3 className="text-[15px] font-semibold text-on-surface">
+        {hasFilter ? 'ไม่พบสัญญาที่ตรงกับตัวกรอง' : 'ยังไม่มีสัญญา'}
       </h3>
-      <p className="mt-1 max-w-xs text-[13px] text-slate-400">
+      <p className="mt-1 max-w-xs text-[13px] text-on-surface-variant">
         {hasFilter
-          ? 'Try clearing the search or changing the status filter.'
-          : 'Create your first lease contract by clicking the button below.'}
+          ? 'ลองล้างการค้นหาหรือเปลี่ยนตัวกรองสถานะ'
+          : 'สร้างสัญญาเช่าแรกของคุณโดยคลิกปุ่มด้านล่าง'}
       </p>
       {!hasFilter && (
         <button
           onClick={onNew}
-          className="admin-button admin-button-primary mt-5 flex items-center gap-1.5"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 mt-5"
         >
           <Plus size={14} strokeWidth={2.5} />
-          New Contract
+          สร้างสัญญาใหม่
         </button>
       )}
     </div>

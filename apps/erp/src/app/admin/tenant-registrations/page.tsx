@@ -51,10 +51,10 @@ function fmtDate(iso: string) {
 }
 
 function statusClass(s: RegistrationStatus) {
-  if (s === 'APPROVED') return 'admin-status-good';
-  if (s === 'REJECTED') return 'admin-status-bad';
-  if (s === 'CORRECTION_REQUESTED') return 'border-orange-300 bg-orange-50 text-orange-700';
-  return 'admin-status-warn';
+  if (s === 'APPROVED') return 'bg-emerald-100 text-emerald-700';
+  if (s === 'REJECTED') return 'bg-red-100 text-red-600';
+  if (s === 'CORRECTION_REQUESTED') return 'bg-orange-100 text-orange-700';
+  return 'bg-amber-100 text-amber-700';
 }
 
 function statusIcon(s: RegistrationStatus) {
@@ -93,24 +93,24 @@ function RejectModal({
   const [reason, setReason] = useState('');
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-        <h2 className="mb-1 text-base font-semibold text-slate-900">Reject Registration</h2>
-        <p className="mb-4 text-sm text-slate-500">
+      <div className="w-full max-w-md rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 shadow-xl">
+        <h2 className="mb-1 text-base font-semibold text-on-surface">Reject Registration</h2>
+        <p className="mb-4 text-sm text-on-surface-variant">
           Optionally provide a reason. This will be stored with the record.
         </p>
         <textarea
-          className="admin-textarea mb-4"
+          className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface mb-4"
           placeholder="Reason for rejection (optional)"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
         />
         <div className="flex justify-end gap-2">
-          <button className="admin-button" onClick={onCancel} disabled={working}>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={onCancel} disabled={working}>
             Cancel
           </button>
           <button
-            className="admin-button inline-flex items-center gap-1.5 border-red-500 bg-red-500 text-white hover:bg-red-600 hover:border-red-600"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-500 bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-600 hover:border-red-600"
             onClick={() => onConfirm(reason)}
             disabled={working}
           >
@@ -142,37 +142,37 @@ function CorrectionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-        <h2 className="mb-1 text-base font-semibold text-slate-900">Request Correction</h2>
-        <p className="mb-4 text-sm text-slate-500">
+      <div className="w-full max-w-md rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 shadow-xl">
+        <h2 className="mb-1 text-base font-semibold text-on-surface">Request Correction</h2>
+        <p className="mb-4 text-sm text-on-surface-variant">
           Update the registration details and send a correction note to the tenant.
         </p>
 
-        <div className="space-y-3 mb-4">
+        <div className="mb-4 space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">Phone</label>
+            <label className="mb-1 block text-sm font-medium text-on-surface">Phone</label>
             <input
-              className="admin-input"
+              className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Phone number"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">Claimed Room</label>
+            <label className="mb-1 block text-sm font-medium text-on-surface">Claimed Room</label>
             <input
-              className="admin-input"
+              className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
               value={claimedRoom}
               onChange={(e) => setClaimedRoom(e.target.value)}
               placeholder="Room number (e.g. 101)"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">
+            <label className="mb-1 block text-sm font-medium text-on-surface">
               Correction Note <span className="text-red-500">*</span>
             </label>
             <textarea
-              className="admin-textarea"
+              className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
               value={correctionNote}
               onChange={(e) => setCorrectionNote(e.target.value)}
               placeholder="Explain what needs to be corrected…"
@@ -182,11 +182,11 @@ function CorrectionModal({
         </div>
 
         <div className="flex justify-end gap-2">
-          <button className="admin-button" onClick={onCancel} disabled={working}>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={onCancel} disabled={working}>
             Cancel
           </button>
           <button
-            className="admin-button inline-flex items-center gap-1.5 border-orange-500 bg-orange-500 text-white hover:bg-orange-600 hover:border-orange-600"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-orange-500 bg-orange-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-orange-600 hover:border-orange-600"
             onClick={() => onConfirm({ phone, claimedRoom, correctionNote })}
             disabled={working || !correctionNote.trim()}
           >
@@ -331,34 +331,37 @@ export default function TenantRegistrationsPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <section className="admin-page-header">
-        <div>
-          <h1 className="admin-page-title">Tenant Registrations</h1>
-          <p className="admin-page-subtitle">
-            Review and action LINE registration requests from prospective tenants.
-          </p>
-        </div>
-        <div className="admin-toolbar">
-          <span className="admin-badge">
-            <Clock size={11} className="mr-1" />
-            {counts.PENDING} pending
-          </span>
-          {counts.CORRECTION_REQUESTED > 0 && (
-            <span className="admin-badge border-orange-300 bg-orange-50 text-orange-700">
-              <Edit2 size={11} className="mr-1" />
-              {counts.CORRECTION_REQUESTED} correction
+      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.15),transparent_60%)]" />
+        <div className="relative flex items-center justify-between">
+          <div>
+            <h1 className="text-base font-semibold text-on-primary">Tenant Registrations</h1>
+            <p className="text-xs text-on-primary/80 mt-0.5">
+              Review and action LINE registration requests from prospective tenants.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">
+              <Clock size={11} className="mr-1" />
+              {counts.PENDING} pending
             </span>
-          )}
-          <button
-            className="admin-button inline-flex items-center gap-1.5"
-            onClick={() => void load()}
-            disabled={loading}
-          >
-            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
+            {counts.CORRECTION_REQUESTED > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-semibold text-orange-700">
+                <Edit2 size={11} className="mr-1" />
+                {counts.CORRECTION_REQUESTED} correction
+              </span>
+            )}
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+              onClick={() => void load()}
+              disabled={loading}
+            >
+              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          </div>
         </div>
       </section>
 
@@ -377,9 +380,9 @@ export default function TenantRegistrationsPage() {
       )}
 
       {/* ── Content ────────────────────────────────────────────────────────── */}
-      <div className="admin-card overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
         {/* ── Status tabs ──────────────────────────────────────────────────── */}
-        <div className="flex overflow-x-auto border-b border-slate-200 bg-white">
+        <div className="flex overflow-x-auto border-b border-outline-variant bg-surface-container-lowest">
           {TABS.map((tab) => {
             const active = activeTab === tab.id;
             return (
@@ -388,14 +391,14 @@ export default function TenantRegistrationsPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex shrink-0 items-center gap-2 border-b-2 px-5 py-3.5 text-sm font-medium transition-colors ${
                   active
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-on-surface-variant hover:text-on-surface'
                 }`}
               >
                 {tab.label}
                 <span
                   className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
-                    active ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'
+                    active ? 'bg-primary-container text-primary' : 'bg-surface-container text-on-surface-variant'
                   }`}
                 >
                   {counts[tab.id]}
@@ -408,17 +411,17 @@ export default function TenantRegistrationsPage() {
         {/* ── Registration list ─────────────────────────────────────────────── */}
         <div className="p-5">
           {loading ? (
-            <div className="py-14 text-center text-slate-400">Loading registrations…</div>
+            <div className="py-14 text-center text-on-surface-variant">Loading registrations…</div>
           ) : visible.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-14 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50">
-                <MessageSquare size={22} className="text-slate-300" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-container-lowest">
+                <MessageSquare size={22} className="text-outline-variant" />
               </div>
               <div>
-                <div className="font-medium text-slate-700">
+                <div className="font-medium text-on-surface">
                   {activeTab === 'PENDING' ? 'No pending registrations' : 'Nothing to show'}
                 </div>
-                <div className="text-sm text-slate-400">
+                <div className="text-sm text-on-surface-variant">
                   {activeTab === 'PENDING'
                     ? 'All registrations have been processed.'
                     : `No ${activeTab.toLowerCase().replace('_', ' ')} registrations found.`}
@@ -430,32 +433,32 @@ export default function TenantRegistrationsPage() {
               {visible.map((reg) => (
                 <div
                   key={reg.id}
-                  className={`flex flex-col gap-4 rounded-xl border bg-white p-5 shadow-sm transition-shadow hover:shadow-md ${
+                  className={`flex flex-col gap-4 rounded-xl border bg-surface-container-lowest p-5 shadow-sm transition-shadow hover:shadow-md ${
                     reg.status === 'PENDING'
-                      ? 'border-amber-200'
+                      ? 'border-amber-300'
                       : reg.status === 'CORRECTION_REQUESTED'
-                      ? 'border-orange-200'
-                      : 'border-slate-200'
+                      ? 'border-orange-300'
+                      : 'border-outline-variant'
                   }`}
                 >
                   {/* Top row: avatar + name + badge */}
                   <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-sm font-bold text-indigo-700">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-container text-sm font-bold text-primary">
                       {initials(reg.lineDisplayName)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="truncate font-medium text-slate-900">
+                      <div className="truncate font-medium text-on-surface">
                         {reg.lineDisplayName ?? 'Unknown'}
                       </div>
                       <div
-                        className="truncate font-mono text-[10px] text-slate-400"
+                        className="truncate font-mono text-[10px] text-outline-variant"
                         title={reg.lineUserId}
                       >
                         {reg.lineUserId.slice(0, 20)}
                         {reg.lineUserId.length > 20 ? '…' : ''}
                       </div>
                     </div>
-                    <span className={`admin-badge shrink-0 ${statusClass(reg.status)}`}>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface shrink-0 ${statusClass(reg.status)}`}>
                       {statusIcon(reg.status)}
                       {reg.status.replace('_', ' ')}
                     </span>
@@ -479,16 +482,16 @@ export default function TenantRegistrationsPage() {
                   {/* Details */}
                   <div className="grid gap-1.5 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Phone</span>
-                      <span className="font-medium text-slate-700">{reg.phone ?? '-'}</span>
+                      <span className="text-outline-variant">Phone</span>
+                      <span className="font-medium text-on-surface">{reg.phone ?? '-'}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Claimed Room</span>
-                      <span className="font-medium text-slate-700">{reg.claimedRoom ?? '-'}</span>
+                      <span className="text-outline-variant">Claimed Room</span>
+                      <span className="font-medium text-on-surface">{reg.claimedRoom ?? '-'}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Registered</span>
-                      <span className="text-slate-600">{fmtDate(reg.createdAt)}</span>
+                      <span className="text-outline-variant">Registered</span>
+                      <span className="text-on-surface-variant">{fmtDate(reg.createdAt)}</span>
                     </div>
                     {reg.correctionNote && (
                       <div className="mt-1 rounded-lg bg-orange-50 px-3 py-2 text-xs text-orange-700">
@@ -507,7 +510,7 @@ export default function TenantRegistrationsPage() {
                     <div className="flex flex-col gap-2 pt-1">
                       <div className="flex gap-2">
                         <button
-                          className="admin-button flex-1 justify-center border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600 hover:border-emerald-600 disabled:opacity-50"
+                          className="inline-flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-600 hover:border-emerald-600 disabled:opacity-50 flex-1 justify-center"
                           onClick={() => void approve(reg)}
                           disabled={
                             !!working ||
@@ -529,7 +532,7 @@ export default function TenantRegistrationsPage() {
                           {working === `approve:${reg.id}` ? 'Approving…' : 'Approve'}
                         </button>
                         <button
-                          className="admin-button flex-1 justify-center border-red-500 bg-red-500 text-white hover:bg-red-600 hover:border-red-600 disabled:opacity-50"
+                          className="inline-flex items-center gap-2 rounded-lg border border-red-500 bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-600 hover:border-red-600 disabled:opacity-50 flex-1 justify-center"
                           onClick={() => setRejectTarget(reg)}
                           disabled={!!working}
                         >
@@ -538,7 +541,7 @@ export default function TenantRegistrationsPage() {
                         </button>
                       </div>
                       <button
-                        className="admin-button w-full justify-center border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-100 disabled:opacity-50"
+                        className="inline-flex items-center gap-2 rounded-lg border border-orange-400 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-700 shadow-sm transition-colors hover:bg-orange-100 disabled:opacity-50 w-full justify-center"
                         onClick={() => setCorrectionTarget(reg)}
                         disabled={!!working}
                       >
@@ -557,35 +560,35 @@ export default function TenantRegistrationsPage() {
       {/* ── KPI summary ────────────────────────────────────────────────────── */}
       {!loading && registrations.length > 0 && (
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="admin-kpi">
-            <div className="admin-kpi-label flex items-center gap-1.5">
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant flex items-center gap-1.5">
               <Users size={12} />
               Total
             </div>
-            <div className="admin-kpi-value">{counts.ALL}</div>
+            <div className="text-xl font-semibold text-on-surface">{counts.ALL}</div>
           </div>
-          <div className="admin-kpi">
-            <div className="admin-kpi-label flex items-center gap-1.5">
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant flex items-center gap-1.5">
               <Clock size={12} />
               Pending
             </div>
-            <div className={`admin-kpi-value ${counts.PENDING > 0 ? 'text-amber-600' : ''}`}>
+            <div className={`text-xl font-semibold ${counts.PENDING > 0 ? 'text-amber-600' : 'text-on-surface'}`}>
               {counts.PENDING}
             </div>
           </div>
-          <div className="admin-kpi">
-            <div className="admin-kpi-label flex items-center gap-1.5">
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant flex items-center gap-1.5">
               <CheckCircle size={12} />
               Approved
             </div>
-            <div className="admin-kpi-value text-emerald-600">{counts.APPROVED}</div>
+            <div className="text-xl font-semibold text-emerald-600">{counts.APPROVED}</div>
           </div>
-          <div className="admin-kpi">
-            <div className="admin-kpi-label flex items-center gap-1.5">
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant flex items-center gap-1.5">
               <XCircle size={12} />
               Rejected
             </div>
-            <div className={`admin-kpi-value ${counts.REJECTED > 0 ? 'text-red-500' : ''}`}>
+            <div className={`text-xl font-semibold ${counts.REJECTED > 0 ? 'text-red-500' : 'text-on-surface'}`}>
               {counts.REJECTED}
             </div>
           </div>

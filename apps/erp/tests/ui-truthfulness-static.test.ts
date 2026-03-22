@@ -28,14 +28,17 @@ describe('UI truthfulness static guards', () => {
   it('admin users page includes the backend-required display name field', () => {
     const source = readAppFile('src', 'app', 'admin', 'settings', 'users', 'page.tsx');
 
-    expect(source).toContain('Display Name');
+    // Thai label "ชื่อที่แสดง" = Display Name
+    expect(source).toContain('ชื่อที่แสดง');
     expect(source).toContain("displayName: form.displayName.trim()");
   });
 
   it('billing list action is labeled truthfully', () => {
     const source = readAppFile('src', 'app', 'admin', 'billing', 'page.tsx');
 
-    expect(source).toContain('Open Cycle');
+    // KPI card shows "Active Cycles" with sub-label "Open + Imported"
+    expect(source).toContain('Active Cycles');
+    expect(source).toContain('Open + Imported');
     expect(source).not.toContain('Generate Invoices');
   });
 

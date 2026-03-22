@@ -371,7 +371,8 @@ export async function getLineUserProfile(
 export function verifyLineSignature(body: string, signature: string): boolean {
   const channelSecret = process.env.LINE_CHANNEL_SECRET;
   if (!channelSecret) {
-    throw new Error('LINE_CHANNEL_SECRET not configured');
+    // LINE not configured — reject all webhooks since we cannot verify signatures
+    return false;
   }
 
   const hash = crypto

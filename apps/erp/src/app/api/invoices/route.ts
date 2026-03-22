@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInvoiceService } from '@/modules/invoices/invoice.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { listInvoicesQuerySchema, generateInvoiceSchema } from '@/modules/invoices/types';
 import { asyncHandler, ApiResponse, formatError, AppError } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
@@ -27,7 +27,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
   const validatedQuery = listInvoicesQuerySchema.parse(query);
 
-  const invoiceService = getInvoiceService();
+  const { invoiceService } = getServiceContainer();
   const result = await invoiceService.listInvoices(validatedQuery);
 
   return NextResponse.json({
@@ -47,12 +47,11 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   if (url.pathname.endsWith('/generate')) {
     const body = await req.json();
     const input = generateInvoiceSchema.parse(body);
-    const confirm = url.searchParams.get('confirm') === 'true';
 
-    const invoiceService = getInvoiceService();
-    const invoice = confirm
-      ? await invoiceService.generateInvoice(input)
-      : await invoiceService.generateInvoiceFromBilling(input.billingRecordId);
+    const { invoiceService, billingService } = getServiceContainer();
+    // Lock the billing record first, then generate the invoice
+    await billingService.lockBillingRecord(input.billingRecordId, { force: false });
+    const invoice = await invoiceService.generateInvoiceFromBilling(input.billingRecordId);
 
     logger.info({
       type: 'invoice_generated_api',

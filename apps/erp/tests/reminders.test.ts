@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getReminderService } from '@/modules/reminders/reminder.service';
 import { EventTypes } from '@/lib';
 import { prisma } from '@/lib/db/client';
+import { getServiceContainer } from '@/lib/service-container';
 
 vi.mock('@/lib/db/client', () => {
   return {
@@ -23,7 +23,7 @@ describe('Invoice reminders selection and outbox', () => {
   });
 
   it('selects due soon, due today, overdue by 3 and writes outbox events', async () => {
-    const service = getReminderService();
+    const service = getServiceContainer().reminderService;
     const base = new Date('2026-03-10T00:00:00Z');
 
     (prisma.invoice.findMany as any)

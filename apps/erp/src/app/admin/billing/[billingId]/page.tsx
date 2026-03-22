@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import {
@@ -14,6 +14,7 @@ import {
   FileText,
   Hash,
   Inbox,
+  Lock,
   MessageSquare,
   Package,
   Receipt,
@@ -22,6 +23,9 @@ import {
   Users,
   XCircle,
 } from 'lucide-react';
+
+// Workaround: cast Lock to React.FC for TypeScript compatibility with lucide-react
+const LockIcon: React.FC<{ className?: string }> = Lock as React.FC<{ className?: string }>;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -220,11 +224,11 @@ function StatCard({
   iconColor: string;
 }) {
   return (
-    <div className="admin-kpi">
+    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="admin-kpi-label">{label}</div>
-          <div className="admin-kpi-value">{value}</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</div>
+          <div className="text-xl font-semibold text-on-surface mt-0.5">{value}</div>
         </div>
         <div
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border shadow-sm ${iconBg} ${iconColor}`}
@@ -251,7 +255,7 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
     setError(null);
     (async () => {
       try {
-        const res = await fetch(`/api/billing?billingCycleId=${cycleId}&pageSize=100`, {
+        const res = await fetch(`/api/billing?billingPeriodId=${cycleId}&pageSize=100`, {
           cache: 'no-store',
         }).then((r) => r.json());
         if (res.success && res.data) {
@@ -299,15 +303,15 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
 
   return (
     <div className="overflow-auto">
-      <table className="admin-table">
-        <thead>
+      <table className="w-full text-sm text-left">
+        <thead className="bg-surface-container">
           <tr>
-            <th />
-            <th>Room</th>
-            <th>Tenant</th>
-            <th>Items Summary</th>
-            <th>Total</th>
-            <th>Status</th>
+            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant" />
+            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Room</th>
+            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Tenant</th>
+            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Items Summary</th>
+            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Total</th>
+            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Status</th>
           </tr>
         </thead>
         <tbody>
@@ -319,8 +323,8 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
                 ? items.map((it) => it.description).join(', ')
                 : `${items.length} items`;
             return (
-              <>
-                <tr key={rec.id} className="cursor-pointer hover:bg-slate-50" onClick={() => toggleRow(rec.id)}>
+              <React.Fragment key={rec.id}>
+                <tr className="cursor-pointer hover:bg-slate-50" onClick={() => toggleRow(rec.id)}>
                   <td className="w-8 text-center">
                     {isOpen ? (
                       <ChevronUp className="h-4 w-4 text-slate-400 inline" />
@@ -383,10 +387,33 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
                           </tbody>
                         </table>
                       )}
+
+                      {/* Lock button for DRAFT records */}
+                      {rec.status === 'DRAFT' && (
+                        <div className="mt-3 flex items-center gap-2 border-t border-slate-200 pt-3">
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              // Optimistic update
+                              setRecords((prev) => prev.map(r => r.id === rec.id ? { ...r, status: 'LOCKED' } : r));
+                              // Revert on failure
+                              const res = await fetch(`/api/billing/${rec.id}/lock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+                              if (!res.ok) {
+                                setRecords((prev) => prev.map(r => r.id === rec.id ? { ...r, status: 'DRAFT' } : r));
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                          >
+                            <LockIcon className="h-3.5 w-3.5" />
+                            Lock Record
+                          </button>
+                          <span className="text-xs text-slate-500">Lock to enable invoice generation</span>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             );
           })}
         </tbody>
@@ -490,7 +517,7 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
           <button
             onClick={() => void sendAllUnsent()}
             disabled={sendingAll}
-            className="admin-button admin-button-primary flex items-center gap-2"
+            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors"
           >
             <Send className="h-4 w-4" />
             {sendingAll ? 'Sending...' : 'Send All Unsent'}
@@ -505,26 +532,29 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
         </div>
       ) : (
         <div className="overflow-auto">
-          <table className="admin-table">
-            <thead>
+          <table className="w-full text-sm text-left">
+            <thead className="bg-surface-container">
               <tr>
-                <th>Invoice ID</th>
-                <th>Room</th>
-                <th>Tenant</th>
-                <th>Amount</th>
-                <th>Due Date</th>
-                <th>Status</th>
-                <th>Sent At</th>
-                <th>Actions</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Invoice ID</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Room</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Tenant</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Amount</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Due Date</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Status</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Sent At</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Actions</th>
               </tr>
             </thead>
             <tbody>
               {invoices.map((inv) => (
                 <tr key={inv.id}>
                   <td>
-                    <span className="font-mono text-xs text-slate-500" title={inv.id}>
+                    <Link
+                      href={`/admin/invoices/${inv.id}`}
+                      className="font-mono text-xs text-primary hover:underline" title={inv.id}
+                    >
                       {inv.id.slice(0, 8)}…
-                    </span>
+                    </Link>
                   </td>
                   <td className="font-semibold text-slate-800">{getRoomNumber(inv)}</td>
                   <td className="text-slate-600">{getTenantName(inv)}</td>
@@ -657,13 +687,13 @@ function BatchTab({ batchId }: { batchId: string }) {
         <p className="py-8 text-center text-sm text-slate-400">No row details available.</p>
       ) : (
         <div className="overflow-auto">
-          <table className="admin-table">
-            <thead>
+          <table className="w-full text-sm text-left">
+            <thead className="bg-surface-container">
               <tr>
-                <th>#</th>
-                <th>Room</th>
-                <th>Validation</th>
-                <th>Error</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">#</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Room</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Validation</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Error</th>
               </tr>
             </thead>
             <tbody>
@@ -722,6 +752,7 @@ export default function BillingCycleDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
+  const [bulkMessage, setBulkMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const load = useCallback(async () => {
     if (!billingId) return;
@@ -761,8 +792,8 @@ export default function BillingCycleDetailPage() {
   // Loading state
   if (loading) {
     return (
-      <main className="admin-page">
-        <div className="py-16 text-center text-sm text-slate-500">Loading billing cycle...</div>
+      <main className="space-y-6">
+        <div className="py-16 text-center text-sm text-on-surface-variant">Loading billing cycle...</div>
       </main>
     );
   }
@@ -770,23 +801,23 @@ export default function BillingCycleDetailPage() {
   // Not found fallback
   if (notFound || (!loading && !cycle)) {
     return (
-      <main className="admin-page">
-        <nav className="flex items-center gap-1.5 text-sm text-slate-500">
-          <Link href="/admin/billing" className="hover:text-indigo-600 transition-colors">
+      <main className="space-y-6">
+        <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
+          <Link href="/admin/billing" className="hover:text-primary transition-colors">
             Billing
           </Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <span className="font-medium text-slate-700">Not Found</span>
+          <span className="font-medium text-on-surface">Not Found</span>
         </nav>
-        <div className="flex flex-col items-center gap-4 rounded-3xl border border-slate-200 bg-white py-20 text-center shadow-sm">
-          <AlertTriangle className="h-12 w-12 text-amber-400" />
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-outline-variant/10 bg-surface-container-lowest py-20 text-center">
+          <AlertTriangle className="h-12 w-12 text-tertiary" />
           <div>
-            <h2 className="text-lg font-semibold text-slate-800">Billing Cycle Not Found</h2>
+            <h2 className="text-lg font-semibold text-on-surface">Billing Cycle Not Found</h2>
             <p className="mt-1 text-sm text-slate-500">
               The billing cycle or invoice with ID <code className="font-mono text-xs">{billingId}</code> could not be found.
             </p>
           </div>
-          <Link href="/admin/billing" className="admin-button admin-button-primary mt-2 flex items-center gap-2">
+          <Link href="/admin/billing" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors mt-2">
             <ArrowLeft className="h-4 w-4" />
             Back to Billing
           </Link>
@@ -803,28 +834,28 @@ export default function BillingCycleDetailPage() {
   const batchId = cycle?.importBatchId;
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-slate-500">
-        <Link href="/admin/billing" className="hover:text-indigo-600 transition-colors">
+      <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
+        <Link href="/admin/billing" className="hover:text-primary transition-colors">
           Billing
         </Link>
         <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-        <span className="font-medium text-slate-700">{cycleLabel}</span>
+        <span className="font-medium text-on-surface">{cycleLabel}</span>
       </nav>
 
       {/* Page header */}
-      <section className="admin-page-header">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div className="flex items-center gap-4">
           <Link
             href="/admin/billing"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-colors hover:border-primary/30 hover:bg-surface-container"
           >
-            <ArrowLeft className="h-4 w-4 text-slate-600" />
+            <ArrowLeft className="h-4 w-4 text-on-primary" />
           </Link>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="admin-page-title">{cycleLabel}</h1>
+              <h1 className="text-xl font-semibold text-on-primary">{cycleLabel}</h1>
               {cycle?.status && (
                 <span
                   className={`inline-flex items-center rounded-full border px-3 py-0.5 text-xs font-semibold ${cycleBadgeClass(cycle.status as CycleStatus)}`}
@@ -833,25 +864,118 @@ export default function BillingCycleDetailPage() {
                 </span>
               )}
             </div>
-            <p className="admin-page-subtitle">
+            <p className="text-sm text-on-primary/80">
               {building}
               {batchId && (
-                <span className="ml-2 font-mono text-xs text-slate-400">
+                <span className="ml-2 font-mono text-xs text-on-primary/60">
                   Batch: {batchId.slice(0, 8)}…
                 </span>
               )}
             </p>
           </div>
         </div>
-        <div className="admin-toolbar">
+        <div className="flex items-center gap-2 mt-4">
           <button
             onClick={() => void load()}
-            className="admin-button flex items-center gap-2"
+            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
           >
             <RefreshCw className="h-4 w-4" />
             Refresh
           </button>
+
+          {/* Lock All — fetches records inline to lock all DRAFT records */}
+          <button
+            onClick={async () => {
+              setBulkMessage(null);
+              const allRecords: BillingRecord[] = [];
+              let page = 1;
+              while (true) {
+                const res = await fetch(`/api/billing?billingPeriodId=${billingId}&page=${page}&pageSize=100`, { cache: 'no-store' }).then(r => r.json());
+                if (!res.success) break;
+                const records: BillingRecord[] = res.data?.data ?? res.data ?? [];
+                if (records.length === 0) break;
+                allRecords.push(...records);
+                if (records.length < 100) break;
+                page++;
+              }
+              const draftRecords = allRecords.filter(r => r.status === 'DRAFT');
+              if (draftRecords.length === 0) {
+                setBulkMessage({ type: 'success', text: 'No DRAFT records to lock.' });
+                return;
+              }
+              let locked = 0;
+              let failed = 0;
+              for (const rec of draftRecords) {
+                const res = await fetch(`/api/billing/${rec.id}/lock`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({}),
+                });
+                if (res.ok) locked++;
+                else failed++;
+              }
+              setBulkMessage({
+                type: failed > 0 ? 'error' : 'success',
+                text: `Locked ${locked} of ${draftRecords.length} record${draftRecords.length !== 1 ? 's' : ''}${failed > 0 ? `. ${failed} failed.` : '.'}`,
+              });
+              await load();
+              setActiveTab('records');
+            }}
+            className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 shadow-sm transition-colors hover:bg-amber-100"
+          >
+            <Lock className="h-4 w-4" />
+            Lock All Records
+          </button>
+
+          {/* Generate Invoices — fetches records inline to generate for all LOCKED records */}
+          <button
+            onClick={async () => {
+              setBulkMessage(null);
+              const allRecords: BillingRecord[] = [];
+              let page = 1;
+              while (true) {
+                const res = await fetch(`/api/billing?billingPeriodId=${billingId}&page=${page}&pageSize=100`, { cache: 'no-store' }).then(r => r.json());
+                if (!res.success) break;
+                const records: BillingRecord[] = res.data?.data ?? res.data ?? [];
+                if (records.length === 0) break;
+                allRecords.push(...records);
+                if (records.length < 100) break;
+                page++;
+              }
+              const lockedRecords = allRecords.filter(r => r.status === 'LOCKED');
+              if (lockedRecords.length === 0) {
+                setBulkMessage({ type: 'success', text: 'No LOCKED records to invoice.' });
+                return;
+              }
+              let generated = 0;
+              let failed = 0;
+              for (const rec of lockedRecords) {
+                const res = await fetch('/api/invoices/generate', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ billingRecordId: rec.id }),
+                });
+                if (res.ok) generated++;
+                else failed++;
+              }
+              setBulkMessage({
+                type: failed > 0 ? 'error' : 'success',
+                text: `Generated ${generated} invoice${generated !== 1 ? 's' : ''}${failed > 0 ? `. ${failed} failed.` : '.'}`,
+              });
+              await load();
+              setActiveTab('invoices');
+            }}
+            className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100"
+          >
+            <FileText className="h-4 w-4" />
+            Generate Invoices
+          </button>
         </div>
+        {bulkMessage && (
+          <div className={`mt-3 rounded-lg px-4 py-2 text-sm ${bulkMessage.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+            {bulkMessage.text}
+          </div>
+        )}
       </section>
 
       {error && <div className="auth-alert auth-alert-error">{error}</div>}
@@ -889,9 +1013,9 @@ export default function BillingCycleDetailPage() {
       </section>
 
       {/* Tabs + content */}
-      <section className="admin-card overflow-hidden">
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
         {/* Tab bar */}
-        <div className="flex border-b border-slate-200 px-4">
+        <div className="flex border-b border-outline-variant px-4">
           <TabButton active={activeTab === 'records'} onClick={() => setActiveTab('records')}>
             <Hash className="h-4 w-4" />
             Records

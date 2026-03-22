@@ -27,7 +27,7 @@ export const createBillingRecordSchema = z.object({
 export type CreateBillingRecordInput = z.infer<typeof createBillingRecordSchema>;
 
 // ============================================================================
-// Billing Item Types (legacy — for API compatibility stubs)
+// Billing Item Type Codes (for Excel import compatibility)
 // ============================================================================
 
 export const billingItemTypeCodes = [
@@ -43,26 +43,6 @@ export const billingItemTypeCodes = [
 
 export const billingItemTypeSchema = z.enum(billingItemTypeCodes);
 export type BillingItemTypeCode = z.infer<typeof billingItemTypeSchema>;
-
-export const addBillingItemSchema = z.object({
-  typeCode: billingItemTypeSchema,
-  description: z.string().max(500).optional(),
-  quantity: z.number()
-    .positive('Quantity must be positive')
-    .default(1),
-  unitPrice: z.number()
-    .min(0, 'Unit price cannot be negative'),
-});
-
-export type AddBillingItemInput = z.infer<typeof addBillingItemSchema>;
-
-export const updateBillingItemSchema = z.object({
-  description: z.string().max(500).optional(),
-  quantity: z.number().positive().optional(),
-  unitPrice: z.number().min(0).optional(),
-});
-
-export type UpdateBillingItemInput = z.infer<typeof updateBillingItemSchema>;
 
 // ============================================================================
 // Lock Billing DTO
@@ -110,24 +90,10 @@ export interface BillingRecordResponse {
   lockedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
-  items?: BillingItemResponse[];
   contract?: {
     id: string;
     rentAmount: number;
   };
-}
-
-export interface BillingItemResponse {
-  id: string;
-  billingRecordId: string;
-  typeCode: string;
-  typeName: string;
-  description: string | null;
-  quantity: number;
-  unitPrice: number;
-  total: number;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface BillingItemTypeResponse {
@@ -159,35 +125,6 @@ export const billingRecordCreatedPayloadSchema = z.object({
   createdBy: z.string().optional(),
 });
 export type BillingRecordCreatedPayload = z.infer<typeof billingRecordCreatedPayloadSchema>;
-
-export const billingItemAddedPayloadSchema = z.object({
-  billingRecordId: z.string(),
-  itemId: z.string(),
-  typeCode: z.string(),
-  typeName: z.string(),
-  quantity: z.number(),
-  unitPrice: z.number(),
-  total: z.number(),
-  addedBy: z.string().optional(),
-});
-export type BillingItemAddedPayload = z.infer<typeof billingItemAddedPayloadSchema>;
-
-export const billingItemUpdatedPayloadSchema = z.object({
-  billingRecordId: z.string(),
-  itemId: z.string(),
-  typeCode: z.string(),
-  changes: z.record(z.object({ old: z.unknown(), new: z.unknown() })),
-  updatedBy: z.string().optional(),
-});
-export type BillingItemUpdatedPayload = z.infer<typeof billingItemUpdatedPayloadSchema>;
-
-export const billingItemRemovedPayloadSchema = z.object({
-  billingRecordId: z.string(),
-  itemId: z.string(),
-  typeCode: z.string(),
-  removedBy: z.string().optional(),
-});
-export type BillingItemRemovedPayload = z.infer<typeof billingItemRemovedPayloadSchema>;
 
 export const billingLockedPayloadSchema = z.object({
   billingRecordId: z.string(),

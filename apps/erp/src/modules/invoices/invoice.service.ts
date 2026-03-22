@@ -83,6 +83,9 @@ type InvoiceResponseRecord = {
       } | null;
     }>;
   };
+  roomBilling?: {
+    billingPeriodId: string;
+  };
   deliveries?: Array<{
     id: string;
     channel: string;
@@ -227,7 +230,7 @@ export class InvoiceService {
 
     const response = this.formatInvoiceResponse(invoice);
 
-    const action: 'INVOICE_GENERATED' = 'INVOICE_GENERATED';
+    const action = 'INVOICE_GENERATED' as const;
     await logAudit({
       actorId: generatedBy || 'system',
       actorRole: 'ADMIN',
@@ -300,10 +303,10 @@ export class InvoiceService {
         items.push({ typeCode: 'RENT', typeName: 'ค่าเช่า', description: null, quantity: 1, unitPrice: Number(rb.rentAmount), total: Number(rb.rentAmount) });
       }
       if (Number(rb.waterTotal) > 0) {
-        items.push({ typeCode: 'WATER', typeName: 'ค่าน้ำ', description: null, quantity: Number(rb.waterUnits), unitPrice: Number(rb.waterTotal) / Math.max(Number(rb.waterUnits), 1), total: Number(rb.waterTotal) });
+        items.push({ typeCode: 'WATER', typeName: 'ค่าน้ำ', description: null, quantity: Number(rb.waterUnits), unitPrice: Number(rb.waterUsageCharge) / Math.max(Number(rb.waterUnits), 1), total: Number(rb.waterTotal) });
       }
       if (Number(rb.electricTotal) > 0) {
-        items.push({ typeCode: 'ELECTRIC', typeName: 'ค่าไฟ', description: null, quantity: Number(rb.electricUnits), unitPrice: Number(rb.electricTotal) / Math.max(Number(rb.electricUnits), 1), total: Number(rb.electricTotal) });
+        items.push({ typeCode: 'ELECTRIC', typeName: 'ค่าไฟ', description: null, quantity: Number(rb.electricUnits), unitPrice: Number(rb.electricUsageCharge) / Math.max(Number(rb.electricUnits), 1), total: Number(rb.electricTotal) });
       }
       if (Number(rb.furnitureFee) > 0) {
         items.push({ typeCode: 'FURNITURE', typeName: 'ค่าเฟอร์นิเจอร์', description: null, quantity: 1, unitPrice: Number(rb.furnitureFee), total: Number(rb.furnitureFee) });
@@ -348,6 +351,7 @@ export class InvoiceService {
           },
         },
         deliveries: { orderBy: { createdAt: 'desc' } },
+        roomBilling: true,
       },
     });
 
@@ -390,6 +394,7 @@ export class InvoiceService {
           },
         },
         deliveries: { orderBy: { createdAt: 'desc' } },
+        roomBilling: true,
       },
       orderBy: { [prismaOrderField]: sortOrder },
       skip: (page - 1) * pageSize,
@@ -656,6 +661,7 @@ export class InvoiceService {
           },
         },
         deliveries: { orderBy: { createdAt: 'desc' } },
+        roomBilling: true,
       },
     });
 
@@ -777,7 +783,13 @@ export class InvoiceService {
   private formatInvoiceResponse(
     invoice: InvoiceResponseRecord
   ): InvoiceResponse {
-    const primaryTenant = (invoice.room as any)?.tenants?.[0]?.tenant ?? (invoice.room as any)?.roomTenants?.[0]?.tenant;
+    type RoomWithTenants = {
+      roomNo: string;
+      tenants?: Array<{ tenant?: { id?: string; firstName?: string; lastName?: string; phone?: string; lineUserId?: string | null } | null }>;
+      roomTenants?: Array<{ tenant?: { id?: string; firstName?: string; lastName?: string; phone?: string; lineUserId?: string | null } | null }>;
+    };
+    const room = invoice.room as unknown as RoomWithTenants | undefined;
+    const primaryTenant = room?.tenants?.[0]?.tenant ?? room?.roomTenants?.[0]?.tenant;
     const tenantName = primaryTenant
       ? `${primaryTenant.firstName ?? ''} ${primaryTenant.lastName ?? ''}`.trim() || null
       : null;
@@ -788,6 +800,7 @@ export class InvoiceService {
       invoiceNumber,
       roomNo: invoice.roomNo,
       roomBillingId: invoice.roomBillingId,
+      billingPeriodId: invoice.roomBilling?.billingPeriodId ?? '',
       year: invoice.year,
       month: invoice.month,
       status: invoice.status as InvoiceStatus,
@@ -798,9 +811,9 @@ export class InvoiceService {
       paidAt: invoice.paidAt ?? null,
       createdAt: invoice.createdAt,
       updatedAt: invoice.updatedAt,
-      room: invoice.room
+      room: room
         ? {
-            roomNo: (invoice.room as any).roomNo,
+            roomNo: room.roomNo,
           }
         : undefined,
       tenant: primaryTenant?.id
@@ -830,15 +843,6 @@ export class InvoiceService {
 // ============================================================================
 // Factory
 // ============================================================================
-
-let invoiceServiceInstance: InvoiceService | null = null;
-
-export function getInvoiceService(eventBus?: EventBus): InvoiceService {
-  if (!invoiceServiceInstance) {
-    invoiceServiceInstance = new InvoiceService(eventBus);
-  }
-  return invoiceServiceInstance;
-}
 
 export function createInvoiceService(eventBus?: EventBus): InvoiceService {
   return new InvoiceService(eventBus);

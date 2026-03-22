@@ -89,20 +89,20 @@ export default function ChatConversationPage() {
   const tenantName = conversation?.tenant?.fullName ?? conversation?.lineUserId ?? 'Unknown';
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
       {/* Header */}
-      <section className="admin-page-header">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div className="flex items-center gap-3">
           <Link
             href="/admin/chat"
-            className="flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900"
+            className="flex items-center gap-1 text-sm font-medium text-on-primary/80 hover:text-on-primary"
           >
             <ArrowLeft className="h-4 w-4" /> Chat
           </Link>
-          <span className="text-slate-300">/</span>
+          <span className="text-on-primary/40">/</span>
           <div>
-            <h1 className="admin-page-title">{tenantName}</h1>
-            <p className="admin-page-subtitle">
+            <h1 className="text-xl font-semibold text-on-primary">{tenantName}</h1>
+            <p className="text-sm text-on-primary/80">
               {conversation ? `Conversation · ${conversation.status}` : 'Loading conversation...'}
             </p>
           </div>
@@ -114,21 +114,21 @@ export default function ChatConversationPage() {
       {/* Chat layout */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
         {/* Message thread */}
-        <section className="admin-card flex flex-col overflow-hidden" style={{ minHeight: '60vh' }}>
-          <div className="admin-card-header">
-            <div className="admin-card-title flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-indigo-500" />
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 flex flex-col overflow-hidden" style={{ minHeight: '60vh' }}>
+          <div className="px-5 py-4 border-b border-outline-variant">
+            <div className="text-sm font-semibold text-primary flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-primary" />
               Messages
             </div>
-            <span className="admin-badge">{messages.length}</span>
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-surface-container text-on-surface-variant mt-1">{messages.length}</span>
           </div>
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto space-y-3 p-4">
             {loading ? (
-              <div className="py-8 text-center text-sm text-slate-500">Loading messages...</div>
+              <div className="py-8 text-center text-sm text-on-surface-variant">Loading messages...</div>
             ) : messages.length === 0 ? (
-              <div className="py-8 text-center text-sm text-slate-500">No messages yet.</div>
+              <div className="py-8 text-center text-sm text-on-surface-variant">No messages yet.</div>
             ) : (
               messages.map((msg) => {
                 const isOutbound = msg.direction === 'OUTGOING';
@@ -140,14 +140,14 @@ export default function ChatConversationPage() {
                     <div
                       className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
                         isOutbound
-                          ? 'rounded-tr-sm bg-indigo-600 text-white'
-                          : 'rounded-tl-sm border border-slate-200 bg-white text-slate-800'
+                          ? 'rounded-tr-sm bg-primary text-on-primary'
+                          : 'rounded-tl-sm border border-outline-variant bg-surface-container text-on-surface'
                       }`}
                     >
                       <p className="whitespace-pre-wrap">{msg.content}</p>
                       <p
                         className={`mt-1 text-[10px] ${
-                          isOutbound ? 'text-indigo-200' : 'text-slate-400'
+                          isOutbound ? 'text-on-primary/60' : 'text-on-surface-variant'
                         }`}
                       >
                         {new Date(msg.sentAt).toLocaleString()}
@@ -162,13 +162,13 @@ export default function ChatConversationPage() {
           </div>
 
           {/* Reply box */}
-          <div className="border-t border-slate-100 p-4">
+          <div className="border-t border-outline-variant p-4">
             {sendError ? (
-              <div className="mb-2 text-xs text-red-600">{sendError}</div>
+              <div className="mb-2 text-xs text-error">{sendError}</div>
             ) : null}
             <form onSubmit={(e) => void sendReply(e)} className="flex gap-2">
               <input
-                className="admin-input flex-1"
+                className="flex-1 rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="Type a reply..."
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
@@ -176,7 +176,7 @@ export default function ChatConversationPage() {
               />
               <button
                 type="submit"
-                className="admin-button admin-button-primary flex items-center gap-1"
+                className="inline-flex items-center gap-1 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors"
                 disabled={sending || !replyText.trim()}
               >
                 <Send className="h-4 w-4" />
@@ -188,31 +188,31 @@ export default function ChatConversationPage() {
 
         {/* Sidebar info */}
         <div className="space-y-4">
-          <section className="admin-card">
-            <div className="admin-card-header">
-              <div className="admin-card-title">Tenant</div>
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+            <div className="px-5 py-4 border-b border-outline-variant">
+              <div className="text-sm font-semibold text-primary">Tenant</div>
             </div>
             <div className="p-4 space-y-3">
               {loading ? (
-                <div className="text-sm text-slate-500">Loading...</div>
+                <div className="text-sm text-on-surface-variant">Loading...</div>
               ) : conversation?.tenant ? (
                 <>
                   <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-slate-400" />
-                    <span className="text-sm font-medium text-slate-900">
+                    <User className="h-4 w-4 text-on-surface-variant" />
+                    <span className="text-sm font-medium text-on-surface">
                       {conversation.tenant.fullName}
                     </span>
                   </div>
-                  <div className="text-sm text-slate-500">{conversation.tenant.phone}</div>
+                  <div className="text-sm text-on-surface-variant">{conversation.tenant.phone}</div>
                   <Link
                     href={`/admin/tenants/${conversation.tenant.id}`}
-                    className="admin-button w-full text-center text-xs"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container w-full text-center"
                   >
                     View Tenant Profile →
                   </Link>
                 </>
               ) : (
-                <div className="text-sm text-slate-500">
+                <div className="text-sm text-on-surface-variant">
                   LINE User: {conversation?.lineUserId ?? '-'}
                   <p className="mt-1 text-xs">No tenant linked to this LINE account.</p>
                 </div>
@@ -220,24 +220,24 @@ export default function ChatConversationPage() {
             </div>
           </section>
 
-          <section className="admin-card">
-            <div className="admin-card-header">
-              <div className="admin-card-title">Conversation</div>
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+            <div className="px-5 py-4 border-b border-outline-variant">
+              <div className="text-sm font-semibold text-primary">Conversation</div>
             </div>
             <div className="p-4 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-500">Status</span>
-                <span className="admin-badge">{conversation?.status ?? '-'}</span>
+                <span className="text-on-surface-variant">Status</span>
+                <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-surface-container text-on-surface-variant">{conversation?.status ?? '-'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Started</span>
-                <span className="text-slate-700">
+                <span className="text-on-surface-variant">Started</span>
+                <span className="text-on-surface">
                   {conversation ? new Date(conversation.createdAt).toLocaleDateString() : '-'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Last activity</span>
-                <span className="text-slate-700">
+                <span className="text-on-surface-variant">Last activity</span>
+                <span className="text-on-surface">
                   {conversation ? new Date(conversation.updatedAt).toLocaleDateString() : '-'}
                 </span>
               </div>

@@ -1,17 +1,20 @@
 /**
  * Billing Excel Import Parser
  *
- * Reads the official apartment_excel_template.xlsx format.
+ * Reads the new billing_template.xlsx format.
  *
- * Sheet structure (per FLOOR_x sheet):
- *   row 0  — title  "FLOOR_x — กรอกช่องเหลืองเท่านั้น"  (skip)
- *   row 1  — instructions in Thai                          (skip)
- *   row 2  — English column headers (room, water_mode …)  ← header row
- *   row 3  — Thai translation labels                       (skip)
- *   row 4+ — actual room-billing data
+ * Sheet structure (per ชั้น_N floor sheet):
+ *   row 0 (index 0) — title "ข้อมูลบิล ชั้น X" (merged, skip)
+ *   row 1 (index 1) — English column headers  ← header row
+ *   row 2 (index 2) — Thai labels             (skip)
+ *   row 3+ (index 3+) — actual room-billing data
  *
- * Only FLOOR_* sheets are parsed; all others (CONFIG, ACCOUNTS, RULES,
- * ROOM_MASTER, DICTIONARY, README, _VALIDATION) are ignored.
+ * Floor sheet names: ชั้น_1 through ชั้น_8 (underscore, NOT space)
+ *
+ * CONFIG sheet: label-based lookup (col A = Thai label, col B = value)
+ * ACCOUNTS sheet: header at index 1, data from index 3
+ * RULES sheet: header at index 1, data from index 3
+ * No ROOM_MASTER sheet in the new template.
  */
 
 import * as XLSX from 'xlsx';
@@ -25,7 +28,7 @@ import { z } from 'zod';
 export const roomBillingRowSchema = z.object({
   /** Excel `room` column, e.g. "798/1" */
   roomNo: z.string().min(1),
-  floorSheetName: z.string(), // which FLOOR_x sheet this row came from
+  floorSheetName: z.string(), // which ชั้น_N sheet this row came from
 
   // Account override (optional — only if this room uses a different account)
   recvAccountOverrideId: z.string().nullable(),
@@ -36,7 +39,7 @@ export const roomBillingRowSchema = z.object({
   rentAmount: z.number(),
 
   // Water meter
-  waterMode: z.enum(['NORMAL', 'MANUAL']).default('NORMAL'),
+  waterMode: z.enum(['NORMAL', 'MANUAL', 'DISABLED', 'FLAT', 'STEP']).default('NORMAL'),
   waterPrev: z.number().nullable(),
   waterCurr: z.number().nullable(),
   waterUnitsManual: z.number().nullable(),
@@ -48,7 +51,7 @@ export const roomBillingRowSchema = z.object({
   waterTotal: z.number().default(0),
 
   // Electric meter
-  electricMode: z.enum(['NORMAL', 'MANUAL']).default('NORMAL'),
+  electricMode: z.enum(['NORMAL', 'MANUAL', 'DISABLED', 'FLAT', 'STEP']).default('NORMAL'),
   electricPrev: z.number().nullable(),
   electricCurr: z.number().nullable(),
   electricUnitsManual: z.number().nullable(),
@@ -83,6 +86,64 @@ export interface WorkbookParseResult {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Full workbook types — CONFIG, ACCOUNTS, RULES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface WorkbookConfig {
+  billingYear: number;
+  billingMonth: number;
+  defaultAccountId: string;
+  defaultRuleCode: string;
+  defaultWaterMode: string;
+  defaultElectricMode: string;
+  waterFallbackRate: number;
+  waterFallbackMin: number;
+  electricFallbackRate: number;
+  electricFallbackMin: number;
+}
+
+export interface AccountRow {
+  id: string;
+  accountName: string;
+  bank: string;
+  accountNumber: string;
+  isDefault: boolean;
+  note: string;
+}
+
+export interface RuleRow {
+  code: string;
+  description: string;
+  waterMode: 'NORMAL' | 'MANUAL' | 'DISABLED' | 'FLAT' | 'STEP';
+  waterRate: number;
+  waterMinCharge: number;
+  waterFlatAmount: number;
+  waterS1Upto: number; waterS1Rate: number;
+  waterS2Upto: number; waterS2Rate: number;
+  waterS3Upto: number; waterS3Rate: number;
+  waterFeeMode: 'NONE' | 'FLAT' | 'PER_UNIT' | 'MANUAL';
+  waterFeeAmount: number;
+  waterFeePerUnit: number;
+  electricMode: 'NORMAL' | 'MANUAL' | 'DISABLED' | 'FLAT' | 'STEP';
+  electricRate: number;
+  electricMinCharge: number;
+  electricFlatAmount: number;
+  electricS1Upto: number; electricS1Rate: number;
+  electricS2Upto: number; electricS2Rate: number;
+  electricS3Upto: number; electricS3Rate: number;
+  electricFeeMode: 'NONE' | 'FLAT' | 'PER_UNIT' | 'MANUAL';
+  electricFeeAmount: number;
+  electricFeePerUnit: number;
+  note: string;
+}
+
+export interface FullWorkbookParseResult extends WorkbookParseResult {
+  config: WorkbookConfig;
+  accounts: AccountRow[];
+  rules: RuleRow[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -109,9 +170,21 @@ function toStr(value: unknown): string | null {
   return s.length > 0 ? s : null;
 }
 
-function toMeterMode(value: unknown): 'NORMAL' | 'MANUAL' {
+function toMeterMode(value: unknown): 'NORMAL' | 'MANUAL' | 'DISABLED' | 'FLAT' | 'STEP' {
   const s = String(value ?? '').trim().toUpperCase();
-  return s === 'MANUAL' ? 'MANUAL' : 'NORMAL';
+  if (s === 'MANUAL') return 'MANUAL';
+  if (s === 'DISABLED') return 'DISABLED';
+  if (s === 'FLAT') return 'FLAT';
+  if (s === 'STEP') return 'STEP';
+  return 'NORMAL';
+}
+
+function toFeeMode(value: unknown): 'NONE' | 'FLAT' | 'PER_UNIT' | 'MANUAL' {
+  const s = String(value ?? '').trim().toUpperCase();
+  if (s === 'FLAT') return 'FLAT';
+  if (s === 'PER_UNIT') return 'PER_UNIT';
+  if (s === 'MANUAL') return 'MANUAL';
+  return 'NONE';
 }
 
 function toRoomStatus(value: unknown): 'ACTIVE' | 'INACTIVE' {
@@ -120,67 +193,85 @@ function toRoomStatus(value: unknown): 'ACTIVE' | 'INACTIVE' {
 }
 
 /**
- * Convert a raw row array (from `header:1` read) into a RoomBillingRow.
+ * Convert a raw row array (from header:1 read) into a RoomBillingRow.
  * headers[] must map positionally to the values.
+ *
+ * New column names (row 1 in new template):
+ *   account_id, rule_code, water_charge, water_fee, water_fee_manual,
+ *   electric_charge, electric_fee, electric_fee_manual
+ * water_total = water_charge + water_fee  (no separate column)
+ * electric_total = electric_charge + electric_fee
  */
 function parseDataRow(
   headers: (string | null)[],
   values: unknown[],
   sheetName: string
 ): RoomBillingRow {
-  // Build a name→value map using the English headers (row 2)
+  // Build a name→value map using the English headers (row index 1)
   const row: RawRow = {};
   for (let i = 0; i < headers.length; i++) {
     const h = headers[i];
     if (h) row[h] = values[i] ?? null;
   }
 
+  const waterCharge = toNum(row['water_charge']);
+  const waterFee    = toNum(row['water_fee']);
+  const electricCharge = toNum(row['electric_charge']);
+  const electricFee    = toNum(row['electric_fee']);
+
   return roomBillingRowSchema.parse({
-    roomNo:                  String(row['room'] ?? '').trim(),
-    floorSheetName:          sheetName,
-    recvAccountOverrideId:   toStr(row['recv_account_override_id']),
-    ruleOverrideCode:        toStr(row['rule_override_code']),
-    rentAmount:              toNum(row['rent_amount']),
-    waterMode:               toMeterMode(row['water_mode']),
-    waterPrev:               toNumOrNull(row['water_prev']),
-    waterCurr:               toNumOrNull(row['water_curr']),
-    waterUnitsManual:        toNumOrNull(row['water_units_manual']),
-    waterUnits:              toNum(row['water_units']),
-    waterUsageCharge:        toNum(row['water_usage_charge']),
-    waterServiceFeeManual:   toNumOrNull(row['water_service_fee_manual']),
-    waterServiceFee:         toNum(row['water_service_fee']),
-    waterTotal:              toNum(row['water_total']),
-    electricMode:            toMeterMode(row['electric_mode']),
-    electricPrev:            toNumOrNull(row['electric_prev']),
-    electricCurr:            toNumOrNull(row['electric_curr']),
-    electricUnitsManual:     toNumOrNull(row['electric_units_manual']),
-    electricUnits:           toNum(row['electric_units']),
-    electricUsageCharge:     toNum(row['electric_usage_charge']),
-    electricServiceFeeManual: toNumOrNull(row['electric_service_fee_manual']),
-    electricServiceFee:      toNum(row['electric_service_fee']),
-    electricTotal:           toNum(row['electric_total']),
-    furnitureFee:            toNum(row['furniture_fee']),
-    otherFee:                toNum(row['other_fee']),
-    totalDue:                toNum(row['total_due']),
-    note:                    toStr(row['note']),
-    checkNotes:              toStr(row['check_notes']),
-    roomStatus:              toRoomStatus(row['room_status']),
+    roomNo:                   String(row['room'] ?? '').trim(),
+    floorSheetName:           sheetName,
+    recvAccountOverrideId:    toStr(row['account_id']),
+    ruleOverrideCode:         toStr(row['rule_code']),
+    rentAmount:               toNum(row['rent_amount']),
+    waterMode:                toMeterMode(row['water_mode']),
+    waterPrev:                toNumOrNull(row['water_prev']),
+    waterCurr:                toNumOrNull(row['water_curr']),
+    waterUnitsManual:         toNumOrNull(row['water_units_manual']),
+    waterUnits:               toNum(row['water_units']),
+    waterUsageCharge:         waterCharge,
+    waterServiceFeeManual:    toNumOrNull(row['water_fee_manual']),
+    waterServiceFee:          waterFee,
+    waterTotal:               waterCharge + waterFee,
+    electricMode:             toMeterMode(row['electric_mode']),
+    electricPrev:             toNumOrNull(row['electric_prev']),
+    electricCurr:             toNumOrNull(row['electric_curr']),
+    electricUnitsManual:      toNumOrNull(row['electric_units_manual']),
+    electricUnits:            toNum(row['electric_units']),
+    electricUsageCharge:      electricCharge,
+    electricServiceFeeManual: toNumOrNull(row['electric_fee_manual']),
+    electricServiceFee:       electricFee,
+    electricTotal:            electricCharge + electricFee,
+    furnitureFee:             toNum(row['furniture_fee']),
+    otherFee:                 toNum(row['other_fee']),
+    totalDue:                 toNum(row['total_due']),
+    note:                     toStr(row['note']),
+    checkNotes:               toStr(row['check_notes']),
+    roomStatus:               toRoomStatus(row['room_status']),
   });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Public API
+// Public API — floor sheets
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Parse a full billing workbook buffer.
- * Only FLOOR_* sheets are processed; all others are silently skipped.
+ * Only ชั้น_N sheets (e.g. ชั้น_1 … ชั้น_8) are processed; all others are skipped.
+ *
+ * New row layout:
+ *   index 0 — title (skip)
+ *   index 1 — English headers (header row)
+ *   index 2 — Thai labels (skip)
+ *   index 3+ — data rows
+ * Minimum rows required: 4 (title + EN-headers + TH-labels + 1 data row)
  */
 export function parseBillingWorkbook(buffer: Uint8Array): WorkbookParseResult {
   const workbook = XLSX.read(buffer, { type: 'array' });
 
   const floorSheetNames = workbook.SheetNames.filter((n) =>
-    /^FLOOR_\d+$/i.test(n)
+    /^ชั้น_\d+$/i.test(n)
   );
 
   const floors: FloorParseResult[] = [];
@@ -195,20 +286,20 @@ export function parseBillingWorkbook(buffer: Uint8Array): WorkbookParseResult {
       defval: null,
     });
 
-    // Need at least 5 rows: title, instructions, EN-headers, TH-labels, 1 data row
-    if (allRows.length < 5) {
+    // Need at least 4 rows: title, EN-headers, TH-labels, 1 data row
+    if (allRows.length < 4) {
       floors.push({ sheetName, rows: [], errors: [] });
       continue;
     }
 
-    // Row 2 (index 2) = English column headers
-    const headers = (allRows[2] as (string | null)[]).map((h) =>
+    // Row index 1 = English column headers
+    const headers = (allRows[1] as (string | null)[]).map((h) =>
       h !== null ? String(h).trim() : null
     );
 
-    // Row 3 = Thai translation labels — skip
-    // Rows 4+ = data
-    const dataRows = allRows.slice(4);
+    // Row index 2 = Thai translation labels — skip
+    // Rows index 3+ = data
+    const dataRows = allRows.slice(3);
 
     const rows: RoomBillingRow[] = [];
     const errors: Array<{ rowIndex: number; roomNo: string; error: string }> = [];
@@ -219,7 +310,7 @@ export function parseBillingWorkbook(buffer: Uint8Array): WorkbookParseResult {
       const roomVal = values[headers.indexOf('room')];
       if (!roomVal) continue;
 
-      const rowIndex = i + 4; // 0-based sheet row index
+      const rowIndex = i + 3; // 0-based sheet row index
       try {
         const parsed = parseDataRow(headers, values, sheetName);
         rows.push(parsed);
@@ -238,7 +329,7 @@ export function parseBillingWorkbook(buffer: Uint8Array): WorkbookParseResult {
 }
 
 /**
- * Convenience: get all successfully-parsed rows from all FLOOR_* sheets.
+ * Convenience: get all successfully-parsed rows from all ชั้น_N sheets.
  */
 export function parseAllFloorRows(buffer: Uint8Array): RoomBillingRow[] {
   const result = parseBillingWorkbook(buffer);
@@ -246,98 +337,61 @@ export function parseAllFloorRows(buffer: Uint8Array): RoomBillingRow[] {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Full workbook types — CONFIG, ACCOUNTS, RULES, ROOM_MASTER
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface WorkbookConfig {
-  schemaVersion: string;
-  billingYear: number;
-  billingMonth: number;
-  currency: string;
-}
-
-export interface AccountRow {
-  accountId: string;
-  accountName: string;
-  bankName: string;
-  bankAccountNo: string;
-  promptpay: string | null;
-  active: boolean;
-}
-
-export interface RuleRow {
-  code: string;
-  descriptionTh: string;
-  waterEnabled: boolean;
-  waterUnitPrice: number;
-  waterMinCharge: number;
-  waterServiceFeeMode: 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE';
-  waterServiceFeeAmount: number;
-  electricEnabled: boolean;
-  electricUnitPrice: number;
-  electricMinCharge: number;
-  electricServiceFeeMode: 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE';
-  electricServiceFeeAmount: number;
-}
-
-export interface RoomMasterRow {
-  roomNo: string;
-  floorNo: number;
-  defaultAccountId: string;
-  defaultRuleCode: string;
-  defaultRentAmount: number;
-  hasFurniture: boolean;
-  defaultFurnitureAmount: number;
-  roomStatus: 'ACTIVE' | 'INACTIVE';
-}
-
-export interface FullWorkbookParseResult extends WorkbookParseResult {
-  config: WorkbookConfig;
-  accounts: AccountRow[];
-  rules: RuleRow[];
-  rooms: RoomMasterRow[];
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Sheet parsers for CONFIG / ACCOUNTS / RULES / ROOM_MASTER
+// Sheet parsers for CONFIG / ACCOUNTS / RULES
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Parse the CONFIG sheet.
- * Row 0 = skipped title, row 1 = headers (key, value, ...), row 2+ = data.
- * We read all rows and build a key→value map.
+ * No header row. Col A = Thai label, col B = value.
+ * Uses partial string match (includes) to find each label.
+ * Skips rows where col A is empty.
  */
-function parseConfigSheet(
-  sheet: XLSX.WorkSheet
-): WorkbookConfig {
+function parseConfigSheet(sheet: XLSX.WorkSheet): WorkbookConfig {
   const allRows = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
     header: 1,
     defval: null,
   });
 
-  // Build key→value from data rows (row index 2 onward, header row is index 1)
-  const map: Record<string, string> = {};
-  for (let i = 2; i < allRows.length; i++) {
+  // Build list of (label, value) pairs — skip empty col-A rows (including row 0 title)
+  const pairs: Array<{ label: string; value: string }> = [];
+  for (let i = 0; i < allRows.length; i++) {
     const row = allRows[i] as (string | number | null)[];
-    const key = row[0] !== null ? String(row[0]).trim() : '';
-    const val = row[1] !== null ? String(row[1]).trim() : '';
-    if (key) map[key] = val;
+    const labelRaw = row[0];
+    if (labelRaw === null || labelRaw === undefined) continue;
+    const label = String(labelRaw).trim();
+    if (!label) continue;
+    const val = row[1] !== null && row[1] !== undefined ? String(row[1]).trim() : '';
+    pairs.push({ label, value: val });
   }
 
-  const billingYear = parseInt(map['billing_year'] ?? '0', 10);
-  const billingMonth = parseInt(map['billing_month'] ?? '0', 10);
+  const find = (keyword: string): string => {
+    const found = pairs.find((p) => p.label.includes(keyword));
+    return found ? found.value : '';
+  };
+
+  const billingYear  = parseInt(find('ปี (ค.ศ.)'), 10);
+  const billingMonth = parseInt(find('เดือน (1-12)'), 10);
 
   return {
-    schemaVersion: map['schema_version'] ?? '',
-    billingYear: Number.isFinite(billingYear) ? billingYear : 0,
-    billingMonth: Number.isFinite(billingMonth) ? billingMonth : 0,
-    currency: map['currency'] ?? 'THB',
+    billingYear:          Number.isFinite(billingYear)  ? billingYear  : 0,
+    billingMonth:         Number.isFinite(billingMonth) ? billingMonth : 0,
+    defaultAccountId:     find('บัญชีรับเงิน (default)'),
+    defaultRuleCode:      find('กฎ billing (default)'),
+    defaultWaterMode:     find('โหมดน้ำ (default)'),
+    defaultElectricMode:  find('โหมดไฟ (default)'),
+    waterFallbackRate:    toNum(find('อัตราน้ำ fallback (บาท/หน่วย)')),
+    waterFallbackMin:     toNum(find('ค่าน้ำขั้นต่ำ fallback (บาท)')),
+    electricFallbackRate: toNum(find('อัตราไฟ fallback (บาท/หน่วย)')),
+    electricFallbackMin:  toNum(find('ค่าไฟขั้นต่ำ fallback (บาท)')),
   };
 }
 
 /**
  * Parse the ACCOUNTS sheet.
- * Row 1 = headers (account_id, account_name, ...), row 2+ = data.
+ * Row 0 (index 0) = title (skip)
+ * Row 1 (index 1) = English headers: id, account_name, bank, account_number, is_default, note
+ * Row 2 (index 2) = Thai labels (skip)
+ * Row 3+ (index 3+) = data
  */
 function parseAccountsSheet(sheet: XLSX.WorkSheet): AccountRow[] {
   const allRows = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
@@ -345,14 +399,15 @@ function parseAccountsSheet(sheet: XLSX.WorkSheet): AccountRow[] {
     defval: null,
   });
 
-  if (allRows.length < 3) return [];
+  if (allRows.length < 4) return [];
 
+  // Row index 1 = English column headers
   const headers = (allRows[1] as (string | null)[]).map((h) =>
     h !== null ? String(h).trim() : null
   );
 
   const accounts: AccountRow[] = [];
-  for (let i = 2; i < allRows.length; i++) {
+  for (let i = 3; i < allRows.length; i++) {
     const values = allRows[i] as (string | number | null)[];
     const row: Record<string, unknown> = {};
     for (let j = 0; j < headers.length; j++) {
@@ -360,16 +415,16 @@ function parseAccountsSheet(sheet: XLSX.WorkSheet): AccountRow[] {
       if (h) row[h] = values[j] ?? null;
     }
 
-    const accountId = toStr(row['account_id']);
-    if (!accountId) continue; // skip blank rows
+    const id = toStr(row['id']);
+    if (!id) continue; // skip blank rows
 
     accounts.push({
-      accountId,
-      accountName: toStr(row['account_name']) ?? '',
-      bankName: toStr(row['bank_name']) ?? '',
-      bankAccountNo: toStr(row['bank_account_no']) ?? '',
-      promptpay: toStr(row['promptpay']),
-      active: String(row['active'] ?? '').trim().toUpperCase() === 'ENABLE',
+      id,
+      accountName:   toStr(row['account_name']) ?? '',
+      bank:          toStr(row['bank']) ?? '',
+      accountNumber: toStr(row['account_number']) ?? '',
+      isDefault:     String(row['is_default'] ?? '').trim().toUpperCase() === 'YES',
+      note:          toStr(row['note']) ?? '',
     });
   }
 
@@ -378,7 +433,10 @@ function parseAccountsSheet(sheet: XLSX.WorkSheet): AccountRow[] {
 
 /**
  * Parse the RULES sheet.
- * Row 1 = headers, row 2+ = data.
+ * Row 0 (index 0) = title (skip)
+ * Row 1 (index 1) = English headers (29 columns)
+ * Row 2 (index 2) = Thai labels (skip)
+ * Row 3+ (index 3+) = data
  */
 function parseRulesSheet(sheet: XLSX.WorkSheet): RuleRow[] {
   const allRows = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
@@ -386,14 +444,15 @@ function parseRulesSheet(sheet: XLSX.WorkSheet): RuleRow[] {
     defval: null,
   });
 
-  if (allRows.length < 3) return [];
+  if (allRows.length < 4) return [];
 
+  // Row index 1 = English column headers
   const headers = (allRows[1] as (string | null)[]).map((h) =>
     h !== null ? String(h).trim() : null
   );
 
   const rules: RuleRow[] = [];
-  for (let i = 2; i < allRows.length; i++) {
+  for (let i = 3; i < allRows.length; i++) {
     const values = allRows[i] as (string | number | null)[];
     const row: Record<string, unknown> = {};
     for (let j = 0; j < headers.length; j++) {
@@ -401,77 +460,43 @@ function parseRulesSheet(sheet: XLSX.WorkSheet): RuleRow[] {
       if (h) row[h] = values[j] ?? null;
     }
 
-    const code = toStr(row['rule_code']);
+    const code = toStr(row['code']);
     if (!code) continue;
-
-    const toServiceFeeMode = (v: unknown): 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE' => {
-      const s = String(v ?? '').trim().toUpperCase();
-      if (s === 'FLAT_ROOM' || s === 'PER_UNIT' || s === 'MANUAL_FEE') return s;
-      return 'NONE';
-    };
 
     rules.push({
       code,
-      descriptionTh: toStr(row['description_th']) ?? '',
-      waterEnabled: toNum(row['water_enabled']) === 1,
-      waterUnitPrice: toNum(row['water_unit_price']),
-      waterMinCharge: toNum(row['water_min_charge']),
-      waterServiceFeeMode: toServiceFeeMode(row['water_service_fee_mode']),
-      waterServiceFeeAmount: toNum(row['water_service_fee_amount']),
-      electricEnabled: toNum(row['electric_enabled']) === 1,
-      electricUnitPrice: toNum(row['electric_unit_price']),
+      description:       toStr(row['description']) ?? '',
+      waterMode:         toMeterMode(row['water_mode']),
+      waterRate:         toNum(row['water_rate']),
+      waterMinCharge:    toNum(row['water_min_charge']),
+      waterFlatAmount:   toNum(row['water_flat_amount']),
+      waterS1Upto:       toNum(row['water_s1_upto']),
+      waterS1Rate:       toNum(row['water_s1_rate']),
+      waterS2Upto:       toNum(row['water_s2_upto']),
+      waterS2Rate:       toNum(row['water_s2_rate']),
+      waterS3Upto:       toNum(row['water_s3_upto']),
+      waterS3Rate:       toNum(row['water_s3_rate']),
+      waterFeeMode:      toFeeMode(row['water_fee_mode']),
+      waterFeeAmount:    toNum(row['water_fee_amount']),
+      waterFeePerUnit:   toNum(row['water_fee_per_unit']),
+      electricMode:      toMeterMode(row['electric_mode']),
+      electricRate:      toNum(row['electric_rate']),
       electricMinCharge: toNum(row['electric_min_charge']),
-      electricServiceFeeMode: toServiceFeeMode(row['electric_service_fee_mode']),
-      electricServiceFeeAmount: toNum(row['electric_service_fee_amount']),
+      electricFlatAmount: toNum(row['electric_flat_amount']),
+      electricS1Upto:    toNum(row['electric_s1_upto']),
+      electricS1Rate:    toNum(row['electric_s1_rate']),
+      electricS2Upto:    toNum(row['electric_s2_upto']),
+      electricS2Rate:    toNum(row['electric_s2_rate']),
+      electricS3Upto:    toNum(row['electric_s3_upto']),
+      electricS3Rate:    toNum(row['electric_s3_rate']),
+      electricFeeMode:   toFeeMode(row['electric_fee_mode']),
+      electricFeeAmount: toNum(row['electric_fee_amount']),
+      electricFeePerUnit: toNum(row['electric_fee_per_unit']),
+      note:              toStr(row['note']) ?? '',
     });
   }
 
   return rules;
-}
-
-/**
- * Parse the ROOM_MASTER sheet.
- * Row 1 = headers, row 2+ = data.
- */
-function parseRoomMasterSheet(sheet: XLSX.WorkSheet): RoomMasterRow[] {
-  const allRows = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
-    header: 1,
-    defval: null,
-  });
-
-  if (allRows.length < 3) return [];
-
-  const headers = (allRows[1] as (string | null)[]).map((h) =>
-    h !== null ? String(h).trim() : null
-  );
-
-  const rooms: RoomMasterRow[] = [];
-  for (let i = 2; i < allRows.length; i++) {
-    const values = allRows[i] as (string | number | null)[];
-    const row: Record<string, unknown> = {};
-    for (let j = 0; j < headers.length; j++) {
-      const h = headers[j];
-      if (h) row[h] = values[j] ?? null;
-    }
-
-    const roomNo = toStr(row['room_no']);
-    if (!roomNo) continue;
-
-    const statusRaw = String(row['room_status'] ?? '').trim().toUpperCase();
-
-    rooms.push({
-      roomNo,
-      floorNo: toNum(row['floor_no']),
-      defaultAccountId: toStr(row['default_account_id']) ?? '',
-      defaultRuleCode: toStr(row['default_rule_code']) ?? '',
-      defaultRentAmount: toNum(row['default_rent_amount']),
-      hasFurniture: String(row['has_furniture'] ?? '').trim().toUpperCase() === 'YES',
-      defaultFurnitureAmount: toNum(row['default_furniture_amount']),
-      roomStatus: statusRaw === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
-    });
-  }
-
-  return rooms;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -479,20 +504,32 @@ function parseRoomMasterSheet(sheet: XLSX.WorkSheet): RoomMasterRow[] {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Parse all sheets: CONFIG, ACCOUNTS, RULES, ROOM_MASTER, FLOOR_*.
+ * Parse all sheets: CONFIG, ACCOUNTS, RULES, ชั้น_N.
  * Returns both the floor billing rows AND the master data sheets.
+ * No ROOM_MASTER sheet in the new template.
  */
 export function parseFullWorkbook(buffer: Uint8Array): FullWorkbookParseResult {
   const workbook = XLSX.read(buffer, { type: 'array' });
 
-  // Parse floor sheets (delegates to existing function logic)
+  // Parse floor sheets
   const base = parseBillingWorkbook(buffer);
 
   // Parse CONFIG sheet
   const configSheet = workbook.Sheets['CONFIG'];
   const config: WorkbookConfig = configSheet
     ? parseConfigSheet(configSheet)
-    : { schemaVersion: '', billingYear: 0, billingMonth: 0, currency: 'THB' };
+    : {
+        billingYear: 0,
+        billingMonth: 0,
+        defaultAccountId: '',
+        defaultRuleCode: '',
+        defaultWaterMode: 'NORMAL',
+        defaultElectricMode: 'NORMAL',
+        waterFallbackRate: 0,
+        waterFallbackMin: 0,
+        electricFallbackRate: 0,
+        electricFallbackMin: 0,
+      };
 
   // Parse ACCOUNTS sheet
   const accountsSheet = workbook.Sheets['ACCOUNTS'];
@@ -502,15 +539,11 @@ export function parseFullWorkbook(buffer: Uint8Array): FullWorkbookParseResult {
   const rulesSheet = workbook.Sheets['RULES'];
   const rules: RuleRow[] = rulesSheet ? parseRulesSheet(rulesSheet) : [];
 
-  // Parse ROOM_MASTER sheet
-  const roomMasterSheet = workbook.Sheets['ROOM_MASTER'];
-  const rooms: RoomMasterRow[] = roomMasterSheet ? parseRoomMasterSheet(roomMasterSheet) : [];
-
   return {
     ...base,
     config,
     accounts,
     rules,
-    rooms,
   };
 }
+

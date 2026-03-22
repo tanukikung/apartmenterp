@@ -3,9 +3,12 @@ import { makeRequestLike } from './helpers/auth';
 
 const settleOutstandingBalanceMock = vi.fn();
 
-vi.mock('@/modules/payments/payment.service', () => ({
-  getPaymentService: () => ({
-    settleOutstandingBalance: settleOutstandingBalanceMock,
+vi.mock('@/lib/service-container', () => ({
+  getServiceContainer: () => ({
+    paymentService: {
+      settleOutstandingBalance: settleOutstandingBalanceMock,
+    },
+    eventBus: { publish: vi.fn(), subscribe: vi.fn() },
   }),
 }));
 

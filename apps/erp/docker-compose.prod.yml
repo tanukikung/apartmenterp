@@ -30,6 +30,34 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # ─── ONLYOFFICE Document Server ──────────────────────────────────────────────
+  # Community Edition — free, self-hosted.
+  # RAM: minimum 2 GB recommended, 4 GB for comfortable editing.
+  # First boot downloads fonts and sets up internal services (~60–120 s).
+  # To disable: set ONLYOFFICE_ENABLED=false in .env.production
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    restart: unless-stopped
+    environment:
+      JWT_ENABLED:  "true"
+      JWT_SECRET:   ${ONLYOFFICE_JWT_SECRET:-changeme-set-a-real-secret}
+      JWT_HEADER:   Authorization
+      JWT_IN_BODY:  "true"
+    ports:
+      - "${ONLYOFFICE_PORT:-8080}:80"
+    volumes:
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_logs:/var/log/onlyoffice
+      - onlyoffice_db:/var/lib/postgresql
+      - onlyoffice_rabbitmq:/var/lib/rabbitmq
+      - onlyoffice_redis:/var/lib/redis
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/healthcheck || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
   erp-app:
     build: .
     env_file:
@@ -37,13 +65,24 @@ services:
     environment:
       NODE_ENV: production
       LOG_DIR: /logs
+      # ── OnlyOffice ──
+      # Public URL that the browser uses to load ONLYOFFICE JS:
+      ONLYOFFICE_DOCUMENT_SERVER_URL: ${ONLYOFFICE_DOCUMENT_SERVER_URL:-http://localhost:8080}
+      # Enable/disable ONLYOFFICE integration (set to false to disable editor):
+      ONLYOFFICE_ENABLED:            ${ONLYOFFICE_ENABLED:-true}
+      # JWT secret — must match JWT_SECRET in the onlyoffice service above:
+      ONLYOFFICE_JWT_SECRET:          ${ONLYOFFICE_JWT_SECRET:-changeme-set-a-real-secret}
+      # Internal URL ONLYOFFICE uses to call back into the app (Docker service name):
+      ONLYOFFICE_CALLBACK_BASE_URL:    ${ONLYOFFICE_CALLBACK_BASE_URL:-http://erp-app:3000}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      # Note: erp-app does NOT wait for onlyoffice to be healthy.
+      # The app handles ONLYOFFICE being unavailable gracefully.
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     volumes:
       - logs:/logs
     healthcheck:
@@ -85,3 +124,8 @@ volumes:
   redisdata: {}
   logs: {}
   backups: {}
+  onlyoffice_data: {}
+  onlyoffice_logs: {}
+  onlyoffice_db: {}
+  onlyoffice_rabbitmq: {}
+  onlyoffice_redis: {}

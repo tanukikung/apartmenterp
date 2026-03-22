@@ -41,20 +41,20 @@ interface TemplateFormData {
 }
 
 // ---------------------------------------------------------------------------
-// Demo / default templates
+// Default templates
 // ---------------------------------------------------------------------------
 
 const DEFAULT_TEMPLATES: MessageTemplate[] = [
   {
     id: 'default-1',
-    name: 'Invoice Notification',
+    name: 'แจ้งส่งใบแจ้งหนี้',
     type: 'INVOICE_SEND',
     body: 'เรียนคุณ {{tenant_name}}\n\nใบแจ้งหนี้ประจำเดือน {{month_year}} ห้อง {{room_number}} มียอดชำระ {{amount}} บาท\nกรุณาชำระภายในวันที่ {{due_date}}\nขอบคุณครับ/ค่ะ',
     variables: ['{{tenant_name}}', '{{month_year}}', '{{room_number}}', '{{amount}}', '{{due_date}}'],
   },
   {
     id: 'default-2',
-    name: 'Payment Reminder',
+    name: 'แจ้งเตือนชำระ',
     type: 'PAYMENT_REMINDER',
     body: 'แจ้งเตือนคุณ {{tenant_name}}\n\nยังไม่ได้รับการชำระค่าห้อง {{room_number}} ประจำเดือน {{month_year}}\nยอดค้างชำระ: {{amount}} บาท\nกรุณาชำระก่อนวันที่ {{due_date}} เพื่อหลีกเลี่ยงค่าปรับ',
     variables: ['{{tenant_name}}', '{{room_number}}', '{{month_year}}', '{{amount}}', '{{due_date}}'],
@@ -73,10 +73,10 @@ const DEFAULT_TEMPLATES: MessageTemplate[] = [
 // ---------------------------------------------------------------------------
 
 const TYPE_OPTIONS: { value: TemplateType; label: string }[] = [
-  { value: 'INVOICE_SEND', label: 'Invoice Send' },
-  { value: 'PAYMENT_REMINDER', label: 'Payment Reminder' },
-  { value: 'OVERDUE_NOTICE', label: 'Overdue Notice' },
-  { value: 'CUSTOM', label: 'Custom' },
+  { value: 'INVOICE_SEND', label: 'ส่งใบแจ้งหนี้' },
+  { value: 'PAYMENT_REMINDER', label: 'แจ้งเตือนชำระ' },
+  { value: 'OVERDUE_NOTICE', label: 'แจ้งเตือนค้างชำระ' },
+  { value: 'CUSTOM', label: 'กำหนดเอง' },
 ];
 
 const VARIABLE_HINTS: { label: string; value: string }[] = [
@@ -90,15 +90,11 @@ const VARIABLE_HINTS: { label: string; value: string }[] = [
 const TYPE_BADGE: Record<TemplateType, { cls: string; label: string }> = {
   INVOICE_SEND: { cls: 'bg-blue-100 text-blue-700 border-blue-200', label: 'INVOICE' },
   PAYMENT_REMINDER: { cls: 'bg-amber-100 text-amber-700 border-amber-200', label: 'REMINDER' },
-  OVERDUE_NOTICE: { cls: 'bg-red-100 text-red-700 border-red-200', label: 'OVERDUE' },
-  CUSTOM: { cls: 'bg-slate-100 text-slate-600 border-slate-200', label: 'CUSTOM' },
+  OVERDUE_NOTICE: { cls: 'bg-error-container text-on-error-container border-error-container/30', label: 'OVERDUE' },
+  CUSTOM: { cls: 'bg-surface-container text-on-surface-variant border-outline-variant', label: 'CUSTOM' },
 };
 
-const EMPTY_FORM: TemplateFormData = {
-  name: '',
-  type: 'INVOICE_SEND',
-  body: '',
-};
+const EMPTY_FORM: TemplateFormData = { name: '', type: 'INVOICE_SEND', body: '' };
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -118,10 +114,7 @@ function generateId() {
 // ---------------------------------------------------------------------------
 
 function TypeBadge({ type }: { type: TemplateType }) {
-  const { cls, label } = TYPE_BADGE[type] ?? {
-    cls: 'bg-slate-100 text-slate-600 border-slate-200',
-    label: type,
-  };
+  const { cls, label } = TYPE_BADGE[type] ?? { cls: 'bg-surface-container text-on-surface-variant border-outline-variant', label: type };
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold tracking-wide ${cls}`}>
       {label}
@@ -135,7 +128,7 @@ function TypeBadge({ type }: { type: TemplateType }) {
 
 function VarChip({ value }: { value: string }) {
   return (
-    <code className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-xs text-slate-600">
+    <code className="inline-flex items-center gap-1 rounded-md border border-outline-variant bg-surface-container px-2 py-0.5 font-mono text-xs text-on-surface-variant">
       {value}
     </code>
   );
@@ -158,32 +151,31 @@ function ConfirmDeleteModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-600">
-          <Trash2 className="h-5 w-5" />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-error-container/30 bg-surface-container-lowest p-6 shadow-xl">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-error-container/20">
+          <Trash2 className="h-5 w-5 text-on-error-container" />
         </div>
-        <h3 className="mb-1 text-base font-semibold text-slate-900">Delete Template</h3>
-        <p className="mb-5 text-sm text-slate-500">
-          Are you sure you want to delete{' '}
-          <span className="font-medium text-slate-700">&ldquo;{templateName}&rdquo;</span>? This action cannot
-          be undone.
+        <h3 className="mb-1 text-base font-semibold text-on-surface">ลบเทมเพลต</h3>
+        <p className="mb-5 text-sm text-on-surface-variant">
+          คุณแน่ใจหรือไม่ว่าต้องการลบ{' '}
+          <span className="font-medium text-on-surface">&ldquo;{templateName}&rdquo;</span>? This action cannot be undone.
         </p>
         <div className="flex gap-2">
           <button
             onClick={onConfirm}
             disabled={deleting}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-error-container px-4 py-2.5 text-sm font-semibold text-on-error-container transition-colors hover:bg-error-container/90 disabled:opacity-50"
           >
             {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
-            Delete
+            ลบ
           </button>
           <button
             onClick={onCancel}
             disabled={deleting}
-            className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+            className="flex-1 rounded-xl border border-outline bg-surface-container-lowest px-4 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
-            Cancel
+            ยกเลิก
           </button>
         </div>
       </div>
@@ -206,7 +198,6 @@ interface TemplateFormProps {
 
 function TemplateForm({ initial, onSave, onCancel, saving, error, title }: TemplateFormProps) {
   const [form, setForm] = useState<TemplateFormData>(initial ?? EMPTY_FORM);
-  // textareaRef reserved for future cursor-position insertion
 
   function insertVariable(v: string) {
     setForm((f) => ({ ...f, body: f.body + v }));
@@ -215,20 +206,20 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
   const vars = extractVariables(form.body);
 
   return (
-    <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-5">
+    <div className="rounded-2xl border border-primary/20 bg-primary-container/10 p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-semibold text-slate-800">{title}</h3>
+        <h3 className="font-semibold text-on-surface">{title}</h3>
         <button
           onClick={onCancel}
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+          className="rounded-lg p-1.5 text-on-surface-variant hover:bg-surface-container transition-colors"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
         </div>
       )}
@@ -236,46 +227,44 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
       <div className="space-y-4">
         {/* Name */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">
-            Template Name <span className="text-red-500">*</span>
+          <label className="mb-1.5 block text-sm font-medium text-on-surface">
+            ชื่อเทมเพลต <span className="text-error-container">*</span>
           </label>
           <input
             type="text"
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            placeholder="e.g. Monthly Invoice — Thai"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+            placeholder="ตัวอย่าง: ใบแจ้งหนี้ประจำเดือน — ภาษาไทย"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
 
         {/* Type */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">
-            Type <span className="text-red-500">*</span>
+          <label className="mb-1.5 block text-sm font-medium text-on-surface">
+            ประเภท <span className="text-error-container">*</span>
           </label>
           <select
             value={form.type}
             onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as TemplateType }))}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
+              <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
         </div>
 
         {/* Variable hints */}
         <div>
-          <p className="mb-2 text-xs font-medium text-slate-500">Insert variable</p>
+          <p className="mb-2 text-xs font-medium text-on-surface-variant">แทรกตัวแปร</p>
           <div className="flex flex-wrap gap-1.5">
             {VARIABLE_HINTS.map((hint) => (
               <button
                 key={hint.value}
                 type="button"
                 onClick={() => insertVariable(hint.value)}
-                className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 font-mono text-xs text-slate-600 shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                className="inline-flex items-center gap-1 rounded-md border border-outline-variant bg-surface-container px-2.5 py-1 font-mono text-xs text-on-surface-variant shadow-sm transition-colors hover:border-primary/30 hover:bg-primary-container/20 hover:text-primary"
               >
                 <Plus className="h-3 w-3" />
                 {hint.label}
@@ -286,26 +275,24 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
 
         {/* Body */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">
-            Message Body <span className="text-red-500">*</span>
+          <label className="mb-1.5 block text-sm font-medium text-on-surface">
+            เนื้อหาข้อความ <span className="text-error-container">*</span>
           </label>
           <textarea
             value={form.body}
             onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
-            placeholder="Write your message here. Use variables like {{tenant_name}} to personalise."
+            placeholder="เขียนข้อความที่นี่ ใช้ตัวแปร เช่น {{tenant_name}} เพื่อปรับแต่งข้อความ"
             rows={6}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-mono text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-y"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 font-mono text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-y"
           />
-          <p className="mt-1.5 text-xs text-slate-400">{form.body.length} characters</p>
+          <p className="mt-1.5 text-xs text-on-surface-variant">{form.body.length} characters</p>
         </div>
 
         {/* Detected variables */}
         {vars.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-slate-500">Detected:</span>
-            {vars.map((v) => (
-              <VarChip key={v} value={v} />
-            ))}
+            <span className="text-xs font-medium text-on-surface-variant">ตัวแปรที่พบ:</span>
+            {vars.map((v) => (<VarChip key={v} value={v} />))}
           </div>
         )}
 
@@ -314,17 +301,17 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
           <button
             onClick={() => void onSave(form)}
             disabled={saving || !form.name.trim() || !form.body.trim()}
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save Template
+            บันทึกเทมเพลต
           </button>
           <button
             onClick={onCancel}
             disabled={saving}
-            className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+            className="rounded-xl border border-outline bg-surface-container-lowest px-5 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
-            Cancel
+            ยกเลิก
           </button>
         </div>
       </div>
@@ -351,55 +338,53 @@ function TemplateCard({ template, onEdit, onDelete, onDuplicate }: TemplateCardP
   const vars = template.variables ?? extractVariables(template.body);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+    <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-5 shadow-sm transition-shadow hover:shadow-md">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-container text-primary">
             <MessageSquare className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <div className="truncate font-semibold text-slate-900">{template.name}</div>
+            <div className="truncate font-semibold text-on-surface">{template.name}</div>
           </div>
         </div>
         <TypeBadge type={template.type} />
       </div>
 
       {/* Preview */}
-      <p className="mt-3 text-sm text-slate-500 leading-relaxed break-words">{preview}</p>
+      <p className="mt-3 text-sm text-on-surface-variant leading-relaxed break-words">{preview}</p>
 
       {/* Variables */}
       {vars.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-slate-400">Variables:</span>
-          {vars.map((v) => (
-            <VarChip key={v} value={v} />
-          ))}
+          <span className="text-xs text-on-surface-variant/60">ตัวแปร:</span>
+          {vars.map((v) => (<VarChip key={v} value={v} />))}
         </div>
       )}
 
       {/* Actions */}
-      <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-4">
+      <div className="mt-4 flex items-center gap-2 border-t border-outline-variant/10 pt-4">
         <button
           onClick={() => onEdit(template)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
         >
           <Pencil className="h-3.5 w-3.5" />
-          Edit
+          แก้ไข
         </button>
         <button
           onClick={() => onDuplicate(template)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
         >
           <ClipboardCopy className="h-3.5 w-3.5" />
-          Duplicate
+          คัดลอก
         </button>
         <button
           onClick={() => onDelete(template)}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:border-red-200 hover:bg-red-100"
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-error-container/30 bg-error-container/10 px-3 py-1.5 text-xs font-medium text-on-error-container transition-colors hover:bg-error-container/20"
         >
           <Trash2 className="h-3.5 w-3.5" />
-          Delete
+          ลบ
         </button>
       </div>
     </div>
@@ -415,13 +400,11 @@ export default function MessageTemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [usingDefaults, setUsingDefaults] = useState(false);
 
-  // Form state
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Delete state
   const [deletingTemplate, setDeletingTemplate] = useState<MessageTemplate | null>(null);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
 
@@ -455,9 +438,7 @@ export default function MessageTemplatesPage() {
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   // ---------------------------------------------------------------------------
   // Toast helper
@@ -477,7 +458,6 @@ export default function MessageTemplatesPage() {
     setFormError(null);
     try {
       if (usingDefaults) {
-        // Local only
         const newT: MessageTemplate = {
           id: generateId(),
           ...data,
@@ -485,7 +465,7 @@ export default function MessageTemplatesPage() {
         };
         setTemplates((prev) => [newT, ...prev]);
         setShowAddForm(false);
-        showToast(true, 'Template added (demo mode — not persisted to API).');
+        showToast(true, 'เพิ่มเทมเพลตแล้ว (โหมดทดลอง — ไม่บันทึกไปยัง API)');
         return;
       }
       const res = await fetch('/api/message-templates', {
@@ -495,13 +475,13 @@ export default function MessageTemplatesPage() {
       });
       const json = await res.json();
       if (!res.ok || json.success === false) {
-        throw new Error(json.error?.message ?? json.message ?? 'Failed to create');
+        throw new Error(json.error?.message ?? json.message ?? 'ไม่สามารถสร้างเทมเพลตได้');
       }
       setShowAddForm(false);
-      showToast(true, 'Template created successfully.');
+      showToast(true, 'สร้างเทมเพลตสำเร็จแล้ว');
       await load();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Unable to save template');
+      setFormError(err instanceof Error ? err.message : 'ไม่สามารถบันทึกเทมเพลตได้');
     } finally {
       setFormSaving(false);
     }
@@ -525,7 +505,7 @@ export default function MessageTemplatesPage() {
           )
         );
         setEditingTemplate(null);
-        showToast(true, 'Template updated (demo mode — not persisted).');
+        showToast(true, 'อัปเดตเทมเพลตแล้ว (โหมดทดลอง — ไม่บันทึกไปยัง API)');
         return;
       }
       const res = await fetch(`/api/message-templates/${editingTemplate.id}`, {
@@ -538,10 +518,10 @@ export default function MessageTemplatesPage() {
         throw new Error(json.error?.message ?? json.message ?? 'Failed to update');
       }
       setEditingTemplate(null);
-      showToast(true, 'Template updated successfully.');
+      showToast(true, 'อัปเดตเทมเพลตสำเร็จแล้ว');
       await load();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Unable to update template');
+      setFormError(err instanceof Error ? err.message : 'ไม่สามารถอัปเดตเทมเพลตได้');
     } finally {
       setFormSaving(false);
     }
@@ -558,18 +538,16 @@ export default function MessageTemplatesPage() {
       if (usingDefaults) {
         setTemplates((prev) => prev.filter((t) => t.id !== deletingTemplate.id));
         setDeletingTemplate(null);
-        showToast(true, 'Template removed (demo mode).');
+        showToast(true, 'ลบเทมเพลตแล้ว (โหมดทดลอง)');
         return;
       }
-      const res = await fetch(`/api/message-templates/${deletingTemplate.id}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(`/api/message-templates/${deletingTemplate.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        throw new Error(json.error?.message ?? 'Failed to delete');
+        throw new Error(json.error?.message ?? 'ไม่สามารถลบเทมเพลตได้');
       }
       setDeletingTemplate(null);
-      showToast(true, 'Template deleted.');
+      showToast(true, 'ลบเทมเพลตสำเร็จแล้ว');
       await load();
     } catch (err) {
       showToast(false, err instanceof Error ? err.message : 'Delete failed');
@@ -596,7 +574,7 @@ export default function MessageTemplatesPage() {
         variables: extractVariables(data.body),
       };
       setTemplates((prev) => [...prev, newT]);
-      showToast(true, 'Template duplicated (demo mode).');
+      showToast(true, 'คัดลอกเทมเพลตแล้ว (โหมดทดลอง)');
       return;
     }
     try {
@@ -607,9 +585,9 @@ export default function MessageTemplatesPage() {
       });
       const json = await res.json();
       if (!res.ok || json.success === false) {
-        throw new Error(json.error?.message ?? json.message ?? 'Failed to duplicate');
+        throw new Error(json.error?.message ?? json.message ?? 'ไม่สามารถคัดลอกเทมเพลตได้');
       }
-      showToast(true, 'Template duplicated.');
+      showToast(true, 'คัดลอกเทมเพลตสำเร็จแล้ว');
       await load();
     } catch (err) {
       showToast(false, err instanceof Error ? err.message : 'Duplicate failed');
@@ -621,57 +599,60 @@ export default function MessageTemplatesPage() {
   // ---------------------------------------------------------------------------
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
       {/* Toast */}
       {toast && (
         <div
           className={[
             'fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium shadow-lg',
             toast.ok
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border-red-200 bg-red-50 text-red-700',
+              ? 'border-tertiary-container bg-tertiary-container/20 text-on-tertiary-container'
+              : 'border-error-container bg-error-container/20 text-on-error-container',
           ].join(' ')}
         >
           {toast.ok ? (
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-on-tertiary-container" />
           ) : (
-            <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
+            <AlertTriangle className="h-4 w-4 shrink-0 text-on-error-container" />
           )}
           {toast.msg}
         </div>
       )}
 
-      {/* Header */}
-      <section className="admin-page-header">
-        <div>
-          <h1 className="admin-page-title">Message Templates</h1>
-          <p className="admin-page-subtitle">
-            Manage reusable LINE message templates for invoices, reminders, and notices.
-          </p>
-        </div>
-        <div className="admin-toolbar">
+      {/* Page header */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
+              <MessageSquare className="h-5 w-5 text-on-primary" strokeWidth={1.75} />
+            </div>
+            <div>
+              <h1 className="text-base font-semibold text-on-primary">เทมเพลตข้อความ</h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">จัดการเทมเพลตข้อความ LINE สำหรับใบแจ้งหนี้ การแจ้งเตือน และประกาศ</p>
+            </div>
+          </div>
           <button
             onClick={() => {
               setEditingTemplate(null);
               setFormError(null);
               setShowAddForm(true);
             }}
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
+            className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30"
           >
             <Plus className="h-4 w-4" />
-            Add Template
+            สร้างเทมเพลต
           </button>
         </div>
-      </section>
+      </div>
 
       {/* Demo notice */}
       {!loading && usingDefaults && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/50 px-4 py-3 text-sm text-amber-800">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
           <span>
-            <span className="font-semibold">Demo mode.</span> The{' '}
-            <code className="font-mono text-xs">/api/message-templates</code> endpoint is not
-            available. Showing built-in default templates — changes will not be persisted.
+            <span className="font-semibold">โหมดทดลอง</span> — The{' '}
+            <code className="font-mono text-xs">/api/message-templates</code> endpoint is not available. Showing built-in default templates — changes will not be persisted.
           </span>
         </div>
       )}
@@ -679,12 +660,9 @@ export default function MessageTemplatesPage() {
       {/* Add form */}
       {showAddForm && !editingTemplate && (
         <TemplateForm
-          title="New Template"
+          title="เทมเพลตใหม่"
           onSave={handleAdd}
-          onCancel={() => {
-            setShowAddForm(false);
-            setFormError(null);
-          }}
+          onCancel={() => { setShowAddForm(false); setFormError(null); }}
           saving={formSaving}
           error={formError}
         />
@@ -694,33 +672,28 @@ export default function MessageTemplatesPage() {
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="animate-pulse rounded-2xl border border-slate-200 bg-white p-5 space-y-3"
-            >
+            <div key={i} className="animate-pulse rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-5 space-y-3">
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-slate-200" />
-                <div className="h-4 w-32 rounded bg-slate-200" />
+                <div className="h-9 w-9 rounded-xl bg-surface-container" />
+                <div className="h-4 w-32 rounded bg-surface-container" />
               </div>
-              <div className="h-3 w-full rounded bg-slate-100" />
-              <div className="h-3 w-3/4 rounded bg-slate-100" />
-              <div className="h-8 w-24 rounded-lg bg-slate-100" />
+              <div className="h-3 w-full rounded bg-surface-container" />
+              <div className="h-3 w-3/4 rounded bg-surface-container" />
+              <div className="h-8 w-24 rounded-lg bg-surface-container" />
             </div>
           ))}
         </div>
       ) : templates.length === 0 && !showAddForm ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white py-20 text-center">
-          <MessageSquare className="mb-3 h-12 w-12 text-slate-300" />
-          <p className="font-semibold text-slate-600">No templates yet</p>
-          <p className="mt-1 text-sm text-slate-400">
-            Create your first message template to get started.
-          </p>
+        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-outline-variant bg-surface-container-lowest py-20 text-center">
+          <MessageSquare className="mb-3 h-12 w-12 text-on-surface-variant/30" />
+          <p className="font-semibold text-on-surface">ยังไม่มีเทมเพลต</p>
+          <p className="mt-1 text-sm text-on-surface-variant">สร้างเทมเพลตข้อความแรกของคุณเพื่อเริ่มต้น</p>
           <button
             onClick={() => setShowAddForm(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition-colors hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" />
-            Add Template
+            สร้างเทมเพลต
           </button>
         </div>
       ) : (
@@ -730,13 +703,10 @@ export default function MessageTemplatesPage() {
               <div key={t.id} className="sm:col-span-2 xl:col-span-3">
                 <TemplateForm
                   key={t.id}
-                  title={`Edit: ${t.name}`}
+                  title={`แก้ไข: ${t.name}`}
                   initial={{ name: t.name, type: t.type, body: t.body }}
                   onSave={handleEdit}
-                  onCancel={() => {
-                    setEditingTemplate(null);
-                    setFormError(null);
-                  }}
+                  onCancel={() => { setEditingTemplate(null); setFormError(null); }}
                   saving={formSaving}
                   error={formError}
                 />
@@ -745,11 +715,7 @@ export default function MessageTemplatesPage() {
               <TemplateCard
                 key={t.id}
                 template={t}
-                onEdit={(tmpl) => {
-                  setShowAddForm(false);
-                  setFormError(null);
-                  setEditingTemplate(tmpl);
-                }}
+                onEdit={(tmpl) => { setShowAddForm(false); setFormError(null); setEditingTemplate(tmpl); }}
                 onDelete={setDeletingTemplate}
                 onDuplicate={handleDuplicate}
               />
@@ -760,7 +726,7 @@ export default function MessageTemplatesPage() {
 
       {/* Template count */}
       {!loading && templates.length > 0 && (
-        <p className="text-right text-xs text-slate-400">
+        <p className="text-right text-xs text-on-surface-variant/60">
           {templates.length} template{templates.length !== 1 ? 's' : ''}
         </p>
       )}

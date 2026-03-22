@@ -442,3 +442,17 @@ These can be added later:
 - Smart lock integration
 - SMS backup (LINE may not reach all users)
 - Mobile app for admins
+
+---
+
+## Operational Runbooks
+
+For day-to-day operations, refer to the dedicated runbook documents:
+
+| Document | Purpose |
+|----------|---------|
+| [DEPLOY_RUNBOOK.md](./DEPLOY_RUNBOOK.md) | Full deploy procedure, env vars, prerequisites, failure handling |
+| [BACKUP_PROCEDURE.md](./BACKUP_PROCEDURE.md) | Backup scripts, scheduling, retention, verification |
+| [RESTORE_GUIDE.md](./RESTORE_GUIDE.md) | Step-by-step restore, validation, destructive warnings |
+| [ROLLBACK_PROCEDURE.md](./ROLLBACK_PROCEDURE.md) | App rollback vs DB rollback, safe sequence, risk table |
+| [ONLYOFFICE_INTEGRATION_DESIGN.md](./ONLYOFFICE_INTEGRATION_DESIGN.md) | Document template architecture, field contracts, rendering pipeline, editor integration, phased implementation |

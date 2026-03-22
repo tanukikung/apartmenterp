@@ -7,11 +7,9 @@ process.env.USE_PRISMA_TEST_DB = 'true';
 
 describe('Integration: Billing → Invoice', () => {
   let prisma: typeof import('@/lib/db/client').prisma;
-  let getInvoiceService: typeof import('@/modules/invoices/invoice.service').getInvoiceService;
 
   beforeAll(async () => {
     ({ prisma } = await import('@/lib/db/client'));
-    ({ getInvoiceService } = await import('@/modules/invoices/invoice.service'));
   });
 
   it('creates locked billing and generates invoice', async () => {
@@ -63,7 +61,8 @@ describe('Integration: Billing → Invoice', () => {
       },
     });
 
-    const svc = getInvoiceService();
+    const { getServiceContainer } = await import('@/lib/service-container');
+    const svc = getServiceContainer().invoiceService;
     const invoice = await svc.generateInvoiceFromBilling(billing.id);
 
     expect(invoice).toBeTruthy();

@@ -7,7 +7,7 @@ import {
 } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
-import { getInvoiceService } from '@/modules/invoices/invoice.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { sendInvoiceSchema } from '@/modules/invoices/types';
 
 export const POST = asyncHandler(
@@ -20,7 +20,7 @@ export const POST = asyncHandler(
     const body = await req.json().catch(() => ({}));
     const input = sendInvoiceSchema.parse(body);
 
-    const invoiceService = getInvoiceService();
+    const { invoiceService } = getServiceContainer();
     const result = await invoiceService.sendInvoice(id, input, actorId);
 
     if (!result.queued) {

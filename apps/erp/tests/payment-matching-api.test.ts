@@ -17,15 +17,27 @@ vi.mock('@/modules/payments/bank-statement-parser', () => {
   };
 });
 
-vi.mock('@/modules/payments/payment-matching.service', () => {
-  return {
-    getPaymentMatchingService: () => ({
+vi.mock('@/lib/service-container', () => ({
+  getServiceContainer: () => ({
+    paymentMatchingService: {
       importBankStatement: importMock,
       confirmMatch: confirmMock,
       rejectMatch: rejectMock,
-    }),
-  };
-});
+    },
+    eventBus: { publish: vi.fn(), subscribe: vi.fn() },
+  }),
+}));
+
+vi.mock('@/infrastructure/storage', () => ({
+  getStorage: () => ({
+    uploadFile: vi.fn().mockResolvedValue({ key: 'test-key', url: undefined }),
+    downloadFile: vi.fn().mockResolvedValue(Buffer.from('')),
+  }),
+}));
+
+vi.mock('@/modules/audit/audit.service', () => ({
+  logAudit: vi.fn().mockResolvedValue(undefined),
+}));
 
 describe('Payment Matching API', () => {
   it('imports bank statement and returns counts', async () => {

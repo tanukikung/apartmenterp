@@ -1,5 +1,5 @@
 // Billing Service
-export { BillingService, getBillingService, createBillingService } from './billing.service';
+export { BillingService, createBillingService } from './billing.service';
 
 // Types
 export * from './types';

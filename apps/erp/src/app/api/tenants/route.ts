@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTenantService } from '@/modules/tenants/tenant.service';
+import { getServiceContainer } from '@/lib/service-container';
 import {
   createTenantSchema,
   listTenantsQuerySchema,
@@ -28,7 +28,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
   const validatedQuery = listTenantsQuerySchema.parse(query);
 
-  const tenantService = getTenantService();
+  const { tenantService } = getServiceContainer();
   const result = await tenantService.listTenants(validatedQuery);
 
   return NextResponse.json({
@@ -46,7 +46,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
   const input = createTenantSchema.parse(body);
 
-  const tenantService = getTenantService();
+  const { tenantService } = getServiceContainer();
   const tenant = await tenantService.createTenant(input);
 
   logger.info({

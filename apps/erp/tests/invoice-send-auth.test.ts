@@ -8,9 +8,12 @@ import {
 const sendInvoiceMock = vi.fn();
 const logAuditMock = vi.fn(async () => {});
 
-vi.mock('@/modules/invoices/invoice.service', () => ({
-  getInvoiceService: () => ({
-    sendInvoice: sendInvoiceMock,
+vi.mock('@/lib/service-container', () => ({
+  getServiceContainer: () => ({
+    invoiceService: {
+      sendInvoice: sendInvoiceMock,
+    },
+    eventBus: { publish: vi.fn(), subscribe: vi.fn() },
   }),
 }));
 

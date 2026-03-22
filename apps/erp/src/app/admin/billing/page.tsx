@@ -1,25 +1,25 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
 import React from 'react';
 import {
   AlertTriangle,
   BarChart2,
-  CheckCircle2,
   ChevronDown,
   FileSpreadsheet,
   FileText,
   Info,
-  Layers,
   Loader2,
-  RefreshCw,
   ReceiptText,
+  RefreshCw,
+  Search,
+  Send,
   Zap,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
-// Types — aligned to GET /api/billing-cycles response
+// Types
 // ---------------------------------------------------------------------------
 
 type CycleStatus = 'OPEN' | 'IMPORTED' | 'LOCKED' | 'INVOICED' | 'CLOSED';
@@ -39,6 +39,21 @@ interface BillingCycle {
   createdAt: string;
 }
 
+type InvoiceStatus = 'GENERATED' | 'SENT' | 'VIEWED' | 'PAID' | 'OVERDUE';
+interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  roomNo: string;
+  tenantName: string;
+  periodLabel: string;
+  totalAmount: number;
+  status: InvoiceStatus;
+  dueDate: string | null;
+  sentAt: string | null;
+  viewedAt: string | null;
+  paidAt: string | null;
+}
+
 interface KpiData {
   openCycles: number;
   totalBilledThisMonth: number;
@@ -56,24 +71,41 @@ const THAI_MONTHS = [
 ];
 
 const STATUS_BADGE: Record<CycleStatus, { cls: string; label: string }> = {
-  OPEN:     { cls: 'bg-sky-100    text-sky-700    border-sky-200',    label: 'Open'     },
-  IMPORTED: { cls: 'bg-blue-100   text-blue-700   border-blue-200',   label: 'Imported' },
-  LOCKED:   { cls: 'bg-amber-100  text-amber-700  border-amber-200',  label: 'Locked'   },
-  INVOICED: { cls: 'bg-green-100  text-green-700  border-green-200',  label: 'Invoiced' },
-  CLOSED:   { cls: 'bg-gray-100   text-gray-500   border-gray-200',   label: 'Closed'   },
+  OPEN:     { cls: 'bg-blue-100 text-blue-700 border-blue-200',           label: 'Open'     },
+  IMPORTED: { cls: 'bg-primary-container text-primary-container',        label: 'Imported' },
+  LOCKED:   { cls: 'bg-amber-100 text-amber-700 border-amber-200',       label: 'Locked'   },
+  INVOICED: { cls: 'bg-tertiary-container text-on-tertiary-container',   label: 'Invoiced' },
+  CLOSED:   { cls: 'bg-surface-container text-on-surface-variant',       label: 'Closed'   },
+};
+
+const INVOICE_STATUS_BADGE: Record<InvoiceStatus, { cls: string; label: string }> = {
+  GENERATED: { cls: 'bg-surface-container text-on-surface-variant',    label: 'รอส่ง' },
+  SENT:      { cls: 'bg-primary-container text-primary-container',     label: 'ส่งแล้ว' },
+  VIEWED:    { cls: 'bg-tertiary-container text-on-tertiary-container', label: 'เปิดแล้ว' },
+  PAID:      { cls: 'bg-tertiary-container text-on-tertiary-container', label: 'ชำระแล้ว' },
+  OVERDUE:   { cls: 'bg-error-container text-on-error-container',       label: 'เกินกำหนด' },
 };
 
 const STATUS_FILTER_OPTIONS: { value: CycleStatus | 'ALL'; label: string }[] = [
-  { value: 'ALL',      label: 'All Statuses' },
-  { value: 'OPEN',     label: 'Open'         },
-  { value: 'IMPORTED', label: 'Imported'     },
-  { value: 'LOCKED',   label: 'Locked'       },
-  { value: 'INVOICED', label: 'Invoiced'     },
-  { value: 'CLOSED',   label: 'Closed'       },
+  { value: 'ALL',      label: 'ทุกสถานะ' },
+  { value: 'OPEN',     label: 'Open'     },
+  { value: 'IMPORTED', label: 'Imported' },
+  { value: 'LOCKED',   label: 'Locked'   },
+  { value: 'INVOICED', label: 'Invoiced' },
+  { value: 'CLOSED',   label: 'Closed'   },
+];
+
+const INVOICE_TABS: { value: InvoiceStatus | 'ALL'; label: string }[] = [
+  { value: 'ALL', label: 'ทั้งหมด' },
+  { value: 'GENERATED', label: 'รอส่ง' },
+  { value: 'SENT', label: 'ส่งแล้ว' },
+  { value: 'VIEWED', label: 'เปิดแล้ว' },
+  { value: 'PAID', label: 'ชำระแล้ว' },
+  { value: 'OVERDUE', label: 'เกินกำหนด' },
 ];
 
 function getMonthOptions(): { value: string; label: string }[] {
-  const options: { value: string; label: string }[] = [{ value: 'ALL', label: 'All Months' }];
+  const options: { value: string; label: string }[] = [{ value: 'ALL', label: 'ทุกเดือน' }];
   const now = new Date();
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -119,7 +151,7 @@ function deriveKpis(cycles: BillingCycle[]): KpiData {
 
 function StatusBadge({ status }: { status: CycleStatus }) {
   const { cls, label } = STATUS_BADGE[status] ?? {
-    cls: 'bg-gray-100 text-gray-600 border-gray-200',
+    cls: 'bg-surface-container text-on-surface-variant',
     label: status,
   };
   return (
@@ -129,34 +161,39 @@ function StatusBadge({ status }: { status: CycleStatus }) {
   );
 }
 
+function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
+  const { cls, label } = INVOICE_STATUS_BADGE[status] ?? {
+    cls: 'bg-surface-container text-on-surface-variant',
+    label: status,
+  };
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${cls}`}>
+      {label}
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
-// KPI card
+// KPI card — M3 surface-container-lowest
 // ---------------------------------------------------------------------------
 
 function KpiCard({
-  label,
-  value,
-  sub,
-  icon,
-  iconBg,
-  iconColor,
+  label, value, sub, icon, iconBg, iconColor,
 }: {
-  label: string;
-  value: string | number;
-  sub?: string;
-  icon: React.ReactNode;
-  iconBg: string;
-  iconColor: string;
+  label: string; value: string | number; sub?: string;
+  icon: React.ReactNode; iconBg: string; iconColor: string;
 }) {
   return (
-    <div className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${iconBg} ${iconColor}`}>
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-        <p className="mt-0.5 text-2xl font-bold text-slate-900">{value}</p>
-        {sub && <p className="mt-0.5 text-xs text-slate-400">{sub}</p>}
+    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+      <div className="flex items-start gap-4">
+        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg} ${iconColor}`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">{label}</p>
+          <p className="mt-0.5 text-2xl font-bold text-on-surface">{value}</p>
+          {sub && <p className="mt-0.5 text-xs text-on-surface-variant">{sub}</p>}
+        </div>
       </div>
     </div>
   );
@@ -173,373 +210,499 @@ type GeneratingMap = Record<string, 'idle' | 'loading' | 'done' | 'error'>;
 // ---------------------------------------------------------------------------
 
 export default function AdminBillingPage() {
+  const [activeTab, setActiveTab] = useState<'cycles' | 'invoices'>('cycles');
   const [cycles, setCycles] = useState<BillingCycle[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [apiAvailable, setApiAvailable] = useState(true);
 
   const [statusFilter, setStatusFilter] = useState<CycleStatus | 'ALL'>('ALL');
   const [monthFilter, setMonthFilter] = useState<string>('ALL');
 
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<InvoiceStatus | 'ALL'>('ALL');
+  const [invoiceSearch, setInvoiceSearch] = useState('');
+
   const [generating, setGenerating] = useState<GeneratingMap>({});
   const [generateErrors, setGenerateErrors] = useState<Record<string, string>>({});
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendSuccess, setSendSuccess] = useState<string | null>(null);
 
   const monthOptions = getMonthOptions();
   const kpis = deriveKpis(cycles);
 
   // ---------------------------------------------------------------------------
-  // Load cycles from the correct endpoint
+  // Load cycles
   // ---------------------------------------------------------------------------
 
-  const load = useCallback(async () => {
+  const loadCycles = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/billing-cycles?pageSize=50&sortBy=year&sortOrder=desc', {
         cache: 'no-store',
       });
-      if (!res.ok) {
-        setApiAvailable(false);
-        setCycles([]);
-        setLoading(false);
-        return;
-      }
+      if (!res.ok) { setApiAvailable(false); setCycles([]); setLoading(false); return; }
       const json = await res.json();
       const list: BillingCycle[] = json.data?.data ?? [];
       setCycles(list);
       setApiAvailable(true);
     } catch {
-      setCycles([]);
-      setApiAvailable(false);
-    } finally {
-      setLoading(false);
-    }
+      setCycles([]); setApiAvailable(false);
+    } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const loadInvoices = useCallback(async () => {
+    setInvoiceLoading(true);
+    try {
+      const params = new URLSearchParams({ pageSize: '50', sortBy: 'createdAt', sortOrder: 'desc' });
+      const res = await fetch(`/api/invoices?${params}`, { cache: 'no-store' });
+      if (!res.ok) {
+        setInvoiceLoading(false);
+        setSendError(`ไม่สามารถโหลดใบแจ้งหนี้: HTTP ${res.status}`);
+        return;
+      }
+      const json = await res.json();
+      setInvoices(json.data?.data ?? []);
+    } catch (err) {
+      setSendError(`ไม่สามารถโหลดใบแจ้งหนี้: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally { setInvoiceLoading(false); }
+  }, []);
 
-  // ---------------------------------------------------------------------------
-  // Open the real billing-cycle workflow
-  // ---------------------------------------------------------------------------
+  useEffect(() => { void loadCycles(); }, [loadCycles]);
+
+  const handleTabChange = (tab: 'cycles' | 'invoices') => {
+    setActiveTab(tab);
+    if (tab === 'invoices' && invoices.length === 0) { void loadInvoices(); }
+  };
 
   async function handleGenerateInvoices(cycleId: string) {
     setGenerating((prev) => ({ ...prev, [cycleId]: 'loading' }));
     setGenerateErrors((prev) => ({ ...prev, [cycleId]: '' }));
     try {
-      // For billing CYCLES we use the cycle's billingRecords via the billing API.
-      // POST to the generate endpoint for the cycle as a whole isn't implemented yet
-      // — for now we navigate to the cycle detail where per-record generation is available.
-      // If the cycle is in LOCKED state we could generate for all records, but that needs
-      // a bulk generate endpoint. Until then, we redirect to the detail page.
       window.location.href = `/admin/billing/${cycleId}`;
     } catch (err) {
       setGenerating((prev) => ({ ...prev, [cycleId]: 'error' }));
-      setGenerateErrors((prev) => ({
-        ...prev,
-        [cycleId]: err instanceof Error ? err.message : 'Failed',
-      }));
+      setGenerateErrors((prev) => ({ ...prev, [cycleId]: err instanceof Error ? err.message : 'Failed' }));
+    }
+  }
+
+  async function handleSendInvoice(invoiceId: string) {
+    setSendError(null);
+    setSendSuccess(null);
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}/send`, { method: 'POST', cache: 'no-store' });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error?.message || `HTTP ${res.status}: ส่งไม่สำเร็จ`);
+      }
+      setSendSuccess(`ส่งใบแจ้งหนี้สำเร็จแล้ว`);
+      void loadInvoices();
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : 'ส่งไม่สำเร็จ');
     }
   }
 
   // ---------------------------------------------------------------------------
-  // Filtered list
+  // Filtered lists
   // ---------------------------------------------------------------------------
 
-  const filtered = cycles.filter((c) => {
+  const filteredCycles = cycles.filter((c) => {
     const matchStatus = statusFilter === 'ALL' || c.status === statusFilter;
-    const matchMonth =
-      monthFilter === 'ALL' ||
-      monthFilter === `${c.year}-${String(c.month).padStart(2, '0')}`;
+    const matchMonth = monthFilter === 'ALL' || monthFilter === `${c.year}-${String(c.month).padStart(2, '0')}`;
     return matchStatus && matchMonth;
   });
+
+  const filteredInvoices = invoices.filter((inv) => {
+    const matchStatus = invoiceStatusFilter === 'ALL' || inv.status === invoiceStatusFilter;
+    const matchSearch =
+      !invoiceSearch.trim() ||
+      inv.invoiceNumber.toLowerCase().includes(invoiceSearch.toLowerCase()) ||
+      inv.roomNo.toLowerCase().includes(invoiceSearch.toLowerCase()) ||
+      inv.tenantName.toLowerCase().includes(invoiceSearch.toLowerCase());
+    return matchStatus && matchSearch;
+  });
+
+  const overdueCount = invoices.filter((i) => i.status === 'OVERDUE').length;
 
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
       {/* Header */}
-      <section className="admin-page-header">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="admin-page-title">Billing Cycles</h1>
-          <p className="admin-page-subtitle">
-            Monthly billing periods — import, review, lock, and open invoice workflows.
-          </p>
+          <h1 className="text-2xl font-bold text-on-surface">บิล</h1>
+          <p className="mt-1 text-sm text-on-surface-variant">จัดการรอบบิล สร้างใบแจ้งหนี้ และติดตามการชำระเงิน</p>
         </div>
-        <div className="admin-toolbar">
-          <Link
-            href="/admin/billing/import"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
-          >
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/admin/billing/import" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container hover:shadow-sm">
             <FileSpreadsheet className="h-4 w-4" />
             Import Excel
           </Link>
-          <Link
-            href="/admin/billing/batches"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
-          >
-            <Layers className="h-4 w-4" />
-            Import Batches
-          </Link>
-          <Link
-            href="/admin/invoices"
-            className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 shadow-sm transition-colors hover:bg-indigo-100"
+          <button
+            onClick={() => { setActiveTab('invoices'); void loadInvoices(); }}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
           >
             <ReceiptText className="h-4 w-4" />
-            View Invoices
-          </Link>
+            ใบแจ้งหนี้
+            {overdueCount > 0 && (
+              <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-bold text-white">{overdueCount}</span>
+            )}
+          </button>
           <button
-            onClick={() => void load()}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
+            onClick={() => void (activeTab === 'cycles' ? loadCycles() : loadInvoices())}
+            disabled={loading || invoiceLoading}
+            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${loading || invoiceLoading ? 'animate-spin' : ''}`} />
           </button>
         </div>
-      </section>
+      </div>
 
-      {/* API unavailable notice */}
-      {!loading && !apiAvailable && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <span className="font-semibold">Billing API not available.</span>{' '}
-            Start by importing your first billing cycle via Excel.
-          </div>
+      {/* Tab Switcher */}
+      <div className="inline-flex items-center gap-1 rounded-xl bg-surface-container p-1 w-fit">
+        {[
+          { id: 'cycles', label: 'รอบบิล', icon: <ReceiptText className="h-4 w-4" />, count: cycles.length },
+          { id: 'invoices', label: 'ใบแจ้งหนี้', icon: <FileText className="h-4 w-4" />, badge: overdueCount > 0 ? `${overdueCount} ค้าง` : null },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => handleTabChange(tab.id as 'cycles' | 'invoices')}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+              activeTab === tab.id
+                ? 'bg-surface-container-lowest text-primary shadow-sm'
+                : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+            {'count' in tab && (
+              <span className="rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-semibold text-on-surface-variant">
+                {tab.count}
+              </span>
+            )}
+            {'badge' in tab && tab.badge && (
+              <span className="rounded-full bg-error-container px-2 py-0.5 text-[11px] font-semibold text-on-error-container">
+                {tab.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Alerts ─────────────────────────────────────────── */}
+      {sendError && (
+        <div className="px-4 py-3 rounded-lg bg-error-container/10 border border-error-container/20 text-sm text-error font-medium">
+          {sendError}
+        </div>
+      )}
+      {sendSuccess && (
+        <div className="px-4 py-3 rounded-lg bg-tertiary-container/10 border border-tertiary-container/20 text-sm text-tertiary-container font-medium">
+          {sendSuccess}
         </div>
       )}
 
-      {/* KPI cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {loading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="animate-pulse flex items-start gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4">
-              <div className="h-11 w-11 rounded-2xl bg-slate-200" />
-              <div className="flex-1 space-y-2 pt-1">
-                <div className="h-3 w-20 rounded bg-slate-200" />
-                <div className="h-6 w-16 rounded bg-slate-200" />
+      {/* ── CYCLE TAB ─────────────────────────────────────────── */}
+      {activeTab === 'cycles' && (
+        <>
+          {/* API unavailable notice */}
+          {!loading && !apiAvailable && (
+            <div className="flex items-start gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest px-4 py-3 text-sm text-on-surface">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div>
+                <span className="font-semibold">Billing API not available.</span>{' '}
+                Start by importing your first billing cycle via Excel.
               </div>
             </div>
-          ))
-        ) : (
-          <>
-            <KpiCard
-              label="Active Cycles"
-              value={kpis.openCycles}
-              sub="Open + Imported"
-              icon={<Zap className="h-5 w-5" />}
-              iconBg="bg-blue-100"
-              iconColor="text-blue-600"
-            />
-            <KpiCard
-              label="Total Billed This Month"
-              value={`฿${formatBaht(kpis.totalBilledThisMonth)}`}
-              icon={<BarChart2 className="h-5 w-5" />}
-              iconBg="bg-emerald-100"
-              iconColor="text-emerald-600"
-            />
-            <KpiCard
-              label="Total Records"
-              value={kpis.totalRecords.toLocaleString()}
-              sub="Billing records across all cycles"
-              icon={<FileText className="h-5 w-5" />}
-              iconBg="bg-indigo-100"
-              iconColor="text-indigo-600"
-            />
-            <KpiCard
-              label="Pending Invoices"
-              value={kpis.pendingInvoices}
-              sub="Not yet paid"
-              icon={<ReceiptText className="h-5 w-5" />}
-              iconBg="bg-amber-100"
-              iconColor="text-amber-600"
-            />
-          </>
-        )}
-      </div>
+          )}
 
-      {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as CycleStatus | 'ALL')}
-            className="appearance-none rounded-xl border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-800 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-          >
-            {STATUS_FILTER_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-        </div>
-
-        <div className="relative">
-          <select
-            value={monthFilter}
-            onChange={(e) => setMonthFilter(e.target.value)}
-            className="appearance-none rounded-xl border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-800 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-          >
-            {monthOptions.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-        </div>
-
-        {(statusFilter !== 'ALL' || monthFilter !== 'ALL') && (
-          <button
-            onClick={() => { setStatusFilter('ALL'); setMonthFilter('ALL'); }}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50"
-          >
-            Clear filters
-          </button>
-        )}
-      </div>
-
-      {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <FileSpreadsheet className="mb-3 h-12 w-12 text-slate-300" />
-            {cycles.length === 0 ? (
-              <>
-                <p className="font-semibold text-slate-600">No billing cycles yet</p>
-                <p className="mt-1 text-sm text-slate-400">Import your first billing cycle to get started.</p>
-                <Link
-                  href="/admin/billing/import"
-                  className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
-                >
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Import your first billing cycle
-                </Link>
-              </>
+          {/* KPI cards */}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 animate-pulse">
+                  <div className="flex items-start gap-4">
+                    <div className="h-11 w-11 rounded-xl bg-surface-container" />
+                    <div className="flex-1 space-y-2 pt-1">
+                      <div className="h-3 w-20 rounded bg-surface-container" />
+                      <div className="h-6 w-16 rounded bg-surface-container" />
+                    </div>
+                  </div>
+                </div>
+              ))
             ) : (
               <>
-                <p className="font-semibold text-slate-600">No cycles match your filters</p>
-                <button
-                  onClick={() => { setStatusFilter('ALL'); setMonthFilter('ALL'); }}
-                  className="mt-3 text-sm text-indigo-600 hover:underline"
-                >
-                  Clear filters
-                </button>
+                <KpiCard label="Active Cycles" value={kpis.openCycles} sub="Open + Imported" icon={<Zap className="h-5 w-5" />} iconBg="bg-primary-container" iconColor="text-primary" />
+                <KpiCard label="Total Billed This Month" value={`฿${formatBaht(kpis.totalBilledThisMonth)}`} icon={<BarChart2 className="h-5 w-5" />} iconBg="bg-tertiary-container" iconColor="text-on-tertiary-container" />
+                <KpiCard label="Total Records" value={kpis.totalRecords.toLocaleString()} sub="Billing records across all cycles" icon={<FileText className="h-5 w-5" />} iconBg="bg-surface-container" iconColor="text-on-surface-variant" />
+                <KpiCard label="Pending Invoices" value={kpis.pendingInvoices} sub="Not yet paid" icon={<ReceiptText className="h-5 w-5" />} iconBg="bg-amber-100" iconColor="text-amber-700" />
               </>
             )}
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  {['Month / Year', 'Building', 'Status', 'Records', 'Total Amount', 'Invoices', 'Due Date', 'Actions'].map((h) => (
-                    <th
-                      key={h}
-                      className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {filtered.map((cycle) => {
-                  const genState = generating[cycle.id] ?? 'idle';
-                  const genError = generateErrors[cycle.id];
-                  const canGenerate = cycle.status === 'LOCKED' || cycle.status === 'IMPORTED';
-                  return (
-                    <React.Fragment key={cycle.id}>
-                      <tr className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
-                          {thaiMonthYear(cycle.year, cycle.month)}
+
+          {/* Filters */}
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as CycleStatus | 'ALL')}
+                className="appearance-none rounded-lg border border-outline bg-surface-container-lowest py-2 pl-3 pr-8 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                {STATUS_FILTER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-on-surface-variant" />
+            </div>
+
+            <div className="relative">
+              <select
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
+                className="appearance-none rounded-lg border border-outline bg-surface-container-lowest py-2 pl-3 pr-8 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                {monthOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-on-surface-variant" />
+            </div>
+
+            {(statusFilter !== 'ALL' || monthFilter !== 'ALL') && (
+              <button
+                onClick={() => { setStatusFilter('ALL'); setMonthFilter('ALL'); }}
+                className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface-variant transition-colors hover:bg-surface-container"
+              >
+                ล้างตัวกรอง
+              </button>
+            )}
+          </div>
+
+          {/* Table */}
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : filteredCycles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <FileSpreadsheet className="mb-3 h-12 w-12 text-outline-variant" />
+                {cycles.length === 0 ? (
+                  <>
+                    <p className="font-semibold text-on-surface">ยังไม่มีรอบบิล</p>
+                    <p className="mt-1 text-sm text-on-surface-variant">เริ่มต้นโดย Import Excel</p>
+                    <Link href="/admin/billing/import" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90">
+                      <FileSpreadsheet className="h-4 w-4" />
+                      Import Excel
+                    </Link>
+                  </>
+                ) : (
+                  <p className="font-semibold text-on-surface">ไม่พบรอบบิลที่ตรงกับตัวกรอง</p>
+                )}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-outline-variant">
+                      {['เดือน/ปี', 'สถานะ', 'รายการ', 'ยอดรวม', 'ใบแจ้งหนี้', 'วันครบกำหนด', 'จัดการ'].map((h) => (
+                        <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredCycles.map((cycle) => {
+                      const genState = generating[cycle.id] ?? 'idle';
+                      const genError = generateErrors[cycle.id];
+                      const canGenerate = cycle.status === 'LOCKED' || cycle.status === 'IMPORTED';
+                      return (
+                        <React.Fragment key={cycle.id}>
+                          <tr className="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors">
+                            <td className="px-4 py-3 font-medium text-on-surface whitespace-nowrap">
+                              {thaiMonthYear(cycle.year, cycle.month)}
+                            </td>
+                            <td className="px-4 py-3">
+                              <StatusBadge status={cycle.status} />
+                            </td>
+                            <td className="px-4 py-3 text-right text-on-surface-variant">
+                              {(cycle.totalRecords ?? 0).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 text-right font-semibold text-on-surface whitespace-nowrap">
+                              ฿{formatBaht(cycle.totalAmount ?? 0)}
+                            </td>
+                            <td className="px-4 py-3 text-right text-on-surface-variant">
+                              {cycle.invoiceCount > 0 ? (
+                                <span>
+                                  {cycle.invoiceCount}
+                                  {cycle.pendingInvoices > 0 && (
+                                    <span className="ml-1.5 text-xs text-error">({cycle.pendingInvoices} รอ)</span>
+                                  )}
+                                </span>
+                              ) : (
+                                <span className="text-outline">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-on-surface-variant whitespace-nowrap text-xs">
+                              {cycle.dueDate
+                                ? new Date(cycle.dueDate).toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' })
+                                : <span className="text-outline">—</span>
+                              }
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-end gap-2">
+                                <Link href={`/admin/billing/${cycle.id}`} className="inline-flex items-center gap-1 rounded-lg border border-outline px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container">
+                                  ดูรายละเอียด
+                                </Link>
+                                {canGenerate && (
+                                  <button
+                                    onClick={() => void handleGenerateInvoices(cycle.id)}
+                                    disabled={genState === 'loading'}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
+                                  >
+                                    {genState === 'loading' ? (
+                                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> กำลังโหลด…</>
+                                    ) : (
+                                      <><Zap className="h-3.5 w-3.5" /> เปิดรอบ</>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                          {genState === 'error' && genError && (
+                            <tr className="bg-error-container/10">
+                              <td colSpan={7} className="px-4 py-2">
+                                <div className="flex items-center gap-2 text-xs text-on-error-container">
+                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                  {genError}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {!loading && filteredCycles.length > 0 && (
+            <p className="text-right text-xs text-on-surface-variant">
+              แสดง {filteredCycles.length} จาก {cycles.length} รอบบิล
+            </p>
+          )}
+        </>
+      )}
+
+      {/* ── INVOICE TAB ──────────────────────────────────────── */}
+      {activeTab === 'invoices' && (
+        <>
+          {/* Invoice search + filter */}
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-on-surface-variant" />
+              <input
+                value={invoiceSearch}
+                onChange={(e) => setInvoiceSearch(e.target.value)}
+                placeholder="ค้นหาเลขใบแจ้งหนี้, ห้อง, ชื่อผู้เช่า..."
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest py-2 pl-9 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div className="relative">
+              <select
+                value={invoiceStatusFilter}
+                onChange={(e) => setInvoiceStatusFilter(e.target.value as InvoiceStatus | 'ALL')}
+                className="appearance-none rounded-lg border border-outline bg-surface-container-lowest py-2 pl-3 pr-8 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                {INVOICE_TABS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-on-surface-variant" />
+            </div>
+          </div>
+
+          {/* Invoice table */}
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            {invoiceLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : filteredInvoices.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <ReceiptText className="mb-3 h-12 w-12 text-outline-variant" />
+                <p className="font-semibold text-on-surface">ไม่พบใบแจ้งหนี้</p>
+                <p className="mt-1 text-sm text-on-surface-variant">สร้างรอบบิลและ Generate Invoice ก่อน</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-outline-variant">
+                      {['เลขที่ใบแจ้งหนี้', 'ห้อง', 'ผู้เช่า', 'เดือน/ปี', 'ยอดรวม', 'สถานะ', 'ครบกำหนด', 'จัดการ'].map((h) => (
+                        <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredInvoices.map((inv) => (
+                      <tr key={inv.id} className="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors">
+                        <td className="px-4 py-3 font-mono text-xs font-medium text-primary">
+                          {inv.invoiceNumber}
                         </td>
-                        <td className="px-4 py-3 text-slate-600">
-                          {cycle.building?.name ?? <span className="italic text-slate-400">—</span>}
+                        <td className="px-4 py-3 font-semibold text-on-surface">{inv.roomNo}</td>
+                        <td className="px-4 py-3 text-on-surface-variant">{inv.tenantName}</td>
+                        <td className="px-4 py-3 text-on-surface-variant">{inv.periodLabel}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-on-surface whitespace-nowrap">
+                          ฿{formatBaht(inv.totalAmount)}
                         </td>
                         <td className="px-4 py-3">
-                          <StatusBadge status={cycle.status} />
+                          <InvoiceStatusBadge status={inv.status} />
                         </td>
-                        <td className="px-4 py-3 text-right text-slate-700">
-                          {(cycle.totalRecords ?? 0).toLocaleString()}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-slate-900 whitespace-nowrap">
-                          ฿{formatBaht(cycle.totalAmount ?? 0)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-slate-600">
-                          {cycle.invoiceCount > 0 ? (
-                            <span>
-                              {cycle.invoiceCount}
-                              {cycle.pendingInvoices > 0 && (
-                                <span className="ml-1.5 text-xs text-amber-600">
-                                  ({cycle.pendingInvoices} pending)
-                                </span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="italic text-slate-400">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 whitespace-nowrap text-xs">
-                          {cycle.dueDate
-                            ? new Date(cycle.dueDate).toLocaleDateString('th-TH', {
-                                day: '2-digit', month: 'short', year: 'numeric',
-                              })
-                            : <span className="italic text-slate-400">—</span>
+                        <td className="px-4 py-3 text-on-surface-variant whitespace-nowrap text-xs">
+                          {inv.dueDate
+                            ? new Date(inv.dueDate).toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : <span className="text-outline">—</span>
                           }
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-2">
-                            <Link
-                              href={`/admin/billing/${cycle.id}`}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 whitespace-nowrap"
-                            >
-                              View Detail
-                            </Link>
-                            {canGenerate && (
+                          <div className="flex items-center gap-2">
+                            {inv.status !== 'PAID' && (
                               <button
-                                onClick={() => void handleGenerateInvoices(cycle.id)}
-                                disabled={genState === 'loading'}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
+                                onClick={() => void handleSendInvoice(inv.id)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
                               >
-                                {genState === 'loading' ? (
-                                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Opening…</>
-                                ) : genState === 'done' ? (
-                                  <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Done</>
-                                ) : (
-                                  <><Zap className="h-3.5 w-3.5" /> Open Cycle</>
-                                )}
+                                <Send className="h-3 w-3" />
+                                ส่ง
                               </button>
                             )}
+                            <Link href={`/admin/invoices/${inv.id}`} className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container">
+                              ดู →
+                            </Link>
                           </div>
                         </td>
                       </tr>
-
-                      {genState === 'error' && genError && (
-                        <tr className="bg-red-50">
-                          <td colSpan={8} className="px-4 py-2">
-                            <div className="flex items-center gap-2 text-xs text-red-700">
-                              <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-500" />
-                              {genError}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {!loading && filtered.length > 0 && (
-        <p className="text-right text-xs text-slate-400">
-          Showing {filtered.length} of {cycles.length} billing cycle{cycles.length !== 1 ? 's' : ''}
-        </p>
+          {!invoiceLoading && (
+            <p className="text-right text-xs text-on-surface-variant">
+              แสดง {filteredInvoices.length} ใบแจ้งหนี้
+            </p>
+          )}
+        </>
       )}
     </main>
   );

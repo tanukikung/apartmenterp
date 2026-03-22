@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getContractService } from '@/modules/contracts/contract.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { terminateContractSchema } from '@/modules/contracts/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
@@ -15,7 +15,7 @@ export const POST = asyncHandler(
 
     const input = terminateContractSchema.parse(body);
 
-    const contractService = getContractService();
+    const { contractService } = getServiceContainer();
     const contract = await contractService.terminateContract(id, input);
 
     logger.info({

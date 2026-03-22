@@ -18,6 +18,11 @@ export class RateLimiter {
   private store = new Map<string, BucketEntry>();
   private callCount = 0;
 
+  /** Clear all entries - useful for testing */
+  reset(): void {
+    this.store.clear();
+  }
+
   /**
    * Check whether the key is within the allowed rate.
    * @param key        Unique identifier (e.g. "login:1.2.3.4")
@@ -79,7 +84,7 @@ let loginLimiter: RateLimiter | null = null;
 let apiLimiter: RateLimiter | null = null;
 let forgotPasswordLimiter: RateLimiter | null = null;
 
-/** 5 attempts per 15 minutes per IP */
+/** 5 attempts per 15 minutes per IP (or 1 minute in TEST_MODE) */
 export function getLoginRateLimiter(): RateLimiter {
   if (!loginLimiter) {
     loginLimiter = new RateLimiter();

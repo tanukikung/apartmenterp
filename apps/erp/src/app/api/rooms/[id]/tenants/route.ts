@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTenantService } from '@/modules/tenants/tenant.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { assignTenantSchema } from '@/modules/tenants/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
@@ -15,7 +15,7 @@ export const POST = asyncHandler(
 
     const input = assignTenantSchema.parse(body);
 
-    const tenantService = getTenantService();
+    const { tenantService } = getServiceContainer();
     const roomTenant = await tenantService.assignTenantToRoom(roomId, input);
 
     logger.info({
@@ -41,7 +41,7 @@ export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
     const { id: roomId } = params;
 
-    const tenantService = getTenantService();
+    const { tenantService } = getServiceContainer();
     const tenants = await tenantService.getTenantsByRoom(roomId);
 
     return NextResponse.json({

@@ -14,7 +14,9 @@ const loginSchema = z.object({
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const limiter = getLoginRateLimiter();
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-  const { allowed, remaining, resetAt } = limiter.check(`login:${ip}`, 5, 15 * 60 * 1000);
+  // TEST_MODE: 5 attempts per 1 minute instead of 15 minutes
+  const windowMs = process.env.RATE_LIMIT_TEST === 'true' ? 60 * 1000 : 15 * 60 * 1000;
+  const { allowed, remaining, resetAt } = limiter.check(`login:${ip}`, 5, windowMs);
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: { message: `Too many login attempts. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
@@ -48,8 +50,12 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
   const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 12;
   const redirectTo = user.forcePasswordChange ? '/change-password' : '/admin/dashboard';
+  // Use Host header to construct redirect URL to avoid origin mismatch
+  const host = req.headers.get('host') || new URL(req.url).origin;
+  const protocol = req.headers.get('x-forwarded-proto') || 'http';
+  const baseUrl = `${protocol}://${host}`;
   const res = isForm
-    ? NextResponse.redirect(new URL(redirectTo, req.url), 303)
+    ? NextResponse.redirect(new URL(redirectTo, baseUrl), 303)
     : NextResponse.json({
     success: true,
     data: {

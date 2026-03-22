@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getContractService } from '@/modules/contracts/contract.service';
+import { getServiceContainer } from '@/lib/service-container';
 import { updateContractSchema, terminateContractSchema } from '@/modules/contracts/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
@@ -19,7 +19,7 @@ export const GET = asyncHandler(
 
     const { id } = params;
 
-    const contractService = getContractService();
+    const { contractService } = getServiceContainer();
     const contract = await contractService.getContractById(id);
 
     return NextResponse.json({
@@ -42,7 +42,7 @@ export const PATCH = asyncHandler(
 
     const input = updateContractSchema.parse(body);
 
-    const contractService = getContractService();
+    const { contractService } = getServiceContainer();
     const contract = await contractService.updateContract(id, input);
 
     logger.info({
@@ -85,7 +85,7 @@ export const DELETE = asyncHandler(
 
     const input = terminateContractSchema.parse(body);
 
-    const contractService = getContractService();
+    const { contractService } = getServiceContainer();
     const contract = await contractService.terminateContract(id, input, session.sub);
 
     logger.info({

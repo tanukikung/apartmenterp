@@ -84,28 +84,28 @@ function statusBadgeClass(status: PaymentStatus): string {
   switch (status) {
     case 'CONFIRMED':
     case 'AUTO_MATCHED':
-      return 'admin-badge admin-status-good';
+      return 'inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700';
     case 'NEED_REVIEW':
     case 'PENDING':
-      return 'admin-badge admin-status-warn';
+      return 'inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700';
     case 'REJECTED':
-      return 'admin-badge admin-status-bad';
+      return 'inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600';
     default:
-      return 'admin-badge';
+      return 'inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600';
   }
 }
 
 function matchTypeBadgeClass(mt: MatchType | null): string {
   switch (mt) {
     case 'FULL':
-      return 'admin-badge admin-status-good';
+      return 'inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700';
     case 'PARTIAL':
     case 'UNDERPAY':
-      return 'admin-badge admin-status-warn';
+      return 'inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700';
     case 'OVERPAY':
-      return 'admin-badge admin-status-bad';
+      return 'inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600';
     default:
-      return 'admin-badge';
+      return 'inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600';
   }
 }
 
@@ -163,11 +163,11 @@ function InfoRow({
   value: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-      <span className="mt-0.5 shrink-0 text-slate-400">{icon}</span>
+    <div className="flex items-start gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest/80 px-4 py-3">
+      <span className="mt-0.5 shrink-0 text-on-surface-variant">{icon}</span>
       <div className="min-w-0">
-        <div className="text-xs font-semibold uppercase tracking-[0.07em] text-slate-400">{label}</div>
-        <div className="mt-0.5 text-sm font-medium text-slate-800 break-all">{value}</div>
+        <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">{label}</div>
+        <div className="mt-0.5 text-sm font-medium text-on-surface break-all">{value}</div>
       </div>
     </div>
   );
@@ -208,13 +208,16 @@ export default function PaymentDetailPage() {
   // ------ Loading state ------
   if (loading) {
     return (
-      <main className="admin-page">
-        <section className="admin-page-header">
+      <main className="space-y-6">
+        <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative flex items-center justify-between gap-4">
           <div>
-            <h1 className="admin-page-title">Payment Detail</h1>
-            <p className="admin-page-subtitle">Loading payment data...</p>
+            <h1 className="text-base font-semibold text-on-primary">Payment Detail</h1>
+            <p className="text-xs text-on-primary/80 mt-0.5">Loading payment data...</p>
           </div>
-        </section>
+        </div>
+      </section>
       </main>
     );
   }
@@ -222,18 +225,21 @@ export default function PaymentDetailPage() {
   // ------ Error state ------
   if (error && !payment) {
     return (
-      <main className="admin-page">
-        <section className="admin-page-header">
+      <main className="space-y-6">
+        <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative flex items-center justify-between gap-4">
           <div>
-            <h1 className="admin-page-title">Payment Detail</h1>
+            <h1 className="text-base font-semibold text-on-primary">Payment Detail</h1>
           </div>
-          <div className="admin-toolbar">
-            <button onClick={() => router.back()} className="admin-button">
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.back()} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
               <ArrowLeft className="h-4 w-4" />
               Back
             </button>
           </div>
-        </section>
+        </div>
+      </section>
         <div className="auth-alert auth-alert-error">{error}</div>
       </main>
     );
@@ -245,35 +251,38 @@ export default function PaymentDetailPage() {
   const isMatched = !!payment.invoiceId;
 
   return (
-    <main className="admin-page">
+    <main className="space-y-6">
       {/* ── Breadcrumb ─────────────────────────────────────────────────── */}
-      <nav className="mb-1 flex items-center gap-1.5 text-sm text-slate-500">
-        <Link href="/admin/payments" className="hover:text-slate-800 transition-colors">
+      <nav className="mb-1 flex items-center gap-1.5 text-sm text-on-surface-variant">
+        <Link href="/admin/payments" className="hover:text-on-surface transition-colors">
           Payments
         </Link>
         <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-        <span className="font-medium text-slate-700 truncate max-w-[200px]" title={payment.id}>
+        <span className="font-medium text-on-surface truncate max-w-[200px]" title={payment.id}>
           {payment.id}
         </span>
       </nav>
 
       {/* ── Page header ────────────────────────────────────────────────── */}
-      <section className="admin-page-header">
-        <div>
-          <h1 className="admin-page-title">Payment {payment.id}</h1>
-          <p className="admin-page-subtitle">
-            Received on {fmtDay(payment.paymentDate)}
-          </p>
-        </div>
-        <div className="admin-toolbar">
-          <button onClick={() => void load()} className="admin-button" disabled={loading}>
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </button>
-          <button onClick={() => router.back()} className="admin-button">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
+      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-base font-semibold text-on-primary">Payment {payment.id}</h1>
+            <p className="text-xs text-on-primary/80 mt-0.5">
+              Received on {fmtDay(payment.paymentDate)}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" disabled={loading}>
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+            <button onClick={() => router.back()} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </button>
+          </div>
         </div>
       </section>
 
@@ -281,19 +290,19 @@ export default function PaymentDetailPage() {
       {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
 
       {/* ── Hero card ──────────────────────────────────────────────────── */}
-      <section className="admin-card cute-surface px-6 py-5">
+      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-container text-primary">
               <Banknote className="h-7 w-7" />
             </div>
             <div>
-              <div className="text-3xl font-bold text-slate-900 tabular-nums">
+              <div className="text-3xl font-bold text-on-primary tabular-nums">
                 {money(payment.amount)}
               </div>
               {payment.referenceNumber ? (
-                <div className="mt-0.5 text-sm text-slate-500">
-                  Ref: <span className="font-medium text-slate-700">{payment.referenceNumber}</span>
+                <div className="mt-0.5 text-sm text-on-primary/80">
+                  Ref: <span className="font-medium text-on-primary">{payment.referenceNumber}</span>
                 </div>
               ) : null}
             </div>
@@ -311,9 +320,9 @@ export default function PaymentDetailPage() {
         {/* ── Left column ──────────────────────────────────────────────── */}
         <div className="flex flex-col gap-6">
           {/* Info grid */}
-          <section className="admin-card">
-            <div className="admin-card-header">
-              <div className="admin-card-title">Payment Details</div>
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="border-b border-outline-variant bg-surface-container px-4 py-3">
+              <div className="text-sm font-semibold text-on-surface">Payment Details</div>
             </div>
             <div className="grid gap-3 p-4 sm:grid-cols-2">
               <InfoRow
@@ -361,7 +370,7 @@ export default function PaymentDetailPage() {
                   value={
                     <Link
                       href={getPaymentInvoiceHref()}
-                      className="text-indigo-600 hover:underline"
+                      className="text-primary hover:underline"
                     >
                       {payment.invoiceId}
                     </Link>
@@ -373,12 +382,12 @@ export default function PaymentDetailPage() {
 
           {/* Matched invoice card */}
           {isMatched && payment.invoice ? (
-            <section className="admin-card">
-              <div className="admin-card-header">
-                <div className="admin-card-title">Matched Invoice</div>
+            <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+              <div className="flex items-center justify-between border-b border-outline-variant bg-surface-container px-4 py-3">
+                <div className="text-sm font-semibold text-on-surface">Matched Invoice</div>
                 <Link
                   href={getPaymentInvoiceHref()}
-                  className="admin-button text-xs"
+                  className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container text-xs"
                 >
                   Open Invoices
                 </Link>
@@ -412,19 +421,19 @@ export default function PaymentDetailPage() {
         {/* ── Right column ─────────────────────────────────────────────── */}
         <div className="flex flex-col gap-6">
           {/* Timeline */}
-          <section className="admin-card">
-            <div className="admin-card-header">
-              <div className="admin-card-title">Timeline</div>
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="border-b border-outline-variant bg-surface-container px-4 py-3">
+              <div className="text-sm font-semibold text-on-surface">Timeline</div>
             </div>
-            <ol className="relative ml-4 mt-2 mb-4 border-l border-slate-200">
+            <ol className="relative ml-4 mt-2 mb-4 border-l border-outline-variant">
               {timeline.map((event, i) => (
                 <li key={i} className="mb-6 ml-5 last:mb-0">
                   <span
                     className={[
                       'absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-white',
                       event.done
-                        ? 'bg-indigo-100 text-indigo-600'
-                        : 'bg-slate-100 text-slate-400',
+                        ? 'bg-primary-container text-primary'
+                        : 'bg-surface-container text-on-surface-variant',
                     ].join(' ')}
                   >
                     {event.icon}
@@ -433,17 +442,17 @@ export default function PaymentDetailPage() {
                     <p
                       className={[
                         'text-sm font-medium',
-                        event.done ? 'text-slate-800' : 'text-slate-400',
+                        event.done ? 'text-on-surface' : 'text-on-surface-variant',
                       ].join(' ')}
                     >
                       {event.label}
                     </p>
                     {event.timestamp ? (
-                      <time className="mt-0.5 block text-xs text-slate-400">
+                      <time className="mt-0.5 block text-xs text-on-surface-variant">
                         {fmtDate(event.timestamp)}
                       </time>
                     ) : (
-                      <span className="mt-0.5 block text-xs text-slate-300">Pending</span>
+                      <span className="mt-0.5 block text-xs text-outline-variant">Pending</span>
                     )}
                   </div>
                 </li>
@@ -452,15 +461,15 @@ export default function PaymentDetailPage() {
           </section>
 
           {/* Actions */}
-          <section className="admin-card">
-            <div className="admin-card-header">
-              <div className="admin-card-title">Actions</div>
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="border-b border-outline-variant bg-surface-container px-4 py-3">
+              <div className="text-sm font-semibold text-on-surface">Actions</div>
             </div>
             <div className="flex flex-col gap-3 p-4">
               {isMatched && payment.invoice ? (
                 <Link
                   href={getPaymentInvoiceHref()}
-                  className="admin-button admin-button-primary flex items-center justify-center gap-2"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
                 >
                   <FileText className="h-4 w-4" />
                   Open Invoices

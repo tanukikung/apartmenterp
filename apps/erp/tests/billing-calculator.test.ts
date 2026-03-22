@@ -84,7 +84,9 @@ describe('computeRoomBilling — water', () => {
       standardRule
     );
     expect(result.waterUnits).toBe(0);
-    expect(result.waterUsageCharge).toBe(100); // still applies min charge
+    // FIX: min charge NOT applied when units = 0 (a room without a water meter
+    // should not be charged the minimum water fee)
+    expect(result.waterUsageCharge).toBe(0);
   });
 
   it('water disabled: all water fields are 0', () => {
@@ -102,7 +104,9 @@ describe('computeRoomBilling — water', () => {
       standardRule
     );
     expect(result.waterUnits).toBe(0);
-    expect(result.waterUsageCharge).toBe(100); // min charge still applies
+    // FIX: min charge NOT applied when units = 0 (meter rollback/correction
+    // should not incur minimum charge)
+    expect(result.waterUsageCharge).toBe(0);
   });
 });
 

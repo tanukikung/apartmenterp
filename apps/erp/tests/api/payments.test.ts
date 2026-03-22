@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { makeRequestLike } from '../helpers/auth';
+import { getServiceContainer } from '@/lib/service-container';
 
 describe('Payment API routes', () => {
   beforeEach(() => {
@@ -7,20 +8,17 @@ describe('Payment API routes', () => {
   });
 
   it('successful payment match: POST /api/payments creates payment and sets invoice PAID', async () => {
-    const mod = await import('@/modules/payments/payment.service');
     const route = await import('@/app/api/payments/route');
     const payments: Array<{ id: string }> = [];
     let invoiceStatus = 'GENERATED';
 
-    vi.spyOn(mod, 'getPaymentService').mockReturnValue({
-      createPayment: vi.fn(async () => {
-        const payment = { id: 'pay-123' } as any;
-        const invoice = { id: 'inv-123', status: 'PAID' } as any;
-        payments.push(payment);
-        invoiceStatus = 'PAID';
-        return { payment, invoice, settled: true };
-      }),
-    } as any);
+    vi.spyOn(getServiceContainer().paymentService, 'createPayment').mockImplementation(async () => {
+      const payment = { id: 'pay-123' } as any;
+      const invoice = { id: 'inv-123', status: 'PAID' } as any;
+      payments.push(payment);
+      invoiceStatus = 'PAID';
+      return { payment, invoice, settled: true };
+    });
 
     const res = await route.POST(
       makeRequestLike({
@@ -42,17 +40,14 @@ describe('Payment API routes', () => {
   });
 
   it('confirm payment: POST /api/payments/match/confirm updates invoice to PAID and creates payment', async () => {
-    const mod = await import('@/modules/payments/payment-matching.service');
     const route = await import('@/app/api/payments/match/confirm/route');
     const payments: string[] = [];
     const invoice = { id: 'inv-789', status: 'GENERATED' };
 
-    vi.spyOn(mod, 'getPaymentMatchingService').mockReturnValue({
-      confirmMatch: vi.fn(async () => {
-        payments.push('pay-999');
-        invoice.status = 'PAID';
-      }),
-    } as any);
+    vi.spyOn(getServiceContainer().paymentMatchingService, 'confirmMatch').mockImplementation(async () => {
+      payments.push('pay-999');
+      invoice.status = 'PAID';
+    });
 
     const res = await route.POST(
       makeRequestLike({
@@ -73,15 +68,12 @@ describe('Payment API routes', () => {
   });
 
   it('reject payment: POST /api/payments/match/reject leaves invoice unchanged', async () => {
-    const mod = await import('@/modules/payments/payment-matching.service');
     const route = await import('@/app/api/payments/match/reject/route');
     const invoice = { id: 'inv-456', status: 'GENERATED' };
 
-    vi.spyOn(mod, 'getPaymentMatchingService').mockReturnValue({
-      rejectMatch: vi.fn(async () => {
-        invoice.status = 'GENERATED';
-      }),
-    } as any);
+    vi.spyOn(getServiceContainer().paymentMatchingService, 'rejectMatch').mockImplementation(async () => {
+      invoice.status = 'GENERATED';
+    });
 
     const res = await route.POST(
       makeRequestLike({

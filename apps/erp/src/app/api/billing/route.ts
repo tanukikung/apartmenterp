@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBillingService } from '@/modules/billing/billing.service';
+import { getServiceContainer } from '@/lib/service-container';
 import {
   createBillingRecordSchema,
   listBillingRecordsQuerySchema,
@@ -30,7 +30,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
   const validatedQuery = listBillingRecordsQuerySchema.parse(query);
 
-  const billingService = getBillingService();
+  const { billingService } = getServiceContainer();
   const result = await billingService.listBillingRecords(validatedQuery);
 
   return NextResponse.json({
@@ -48,7 +48,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
   const input = createBillingRecordSchema.parse(body);
 
-  const billingService = getBillingService();
+  const { billingService } = getServiceContainer();
   const record = await billingService.createBillingRecord(input);
 
   logger.info({
