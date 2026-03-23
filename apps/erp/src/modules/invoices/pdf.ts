@@ -297,10 +297,10 @@ export async function generateInvoicePdf(
     const COL_R_L  = COL_MID + 6;        // left  edge of right column labels
     const COL_R_R  = MR - 5;             // right edge of right column values
 
-    // Section header bar
+    // Section header bar (7 rows: prev, curr, units, rate, usageCharge, serviceFee, total)
     const METER_ROWS = [
-      mr?.water    ? 6 : 0,  // water: 6 data rows
-      mr?.electric ? 6 : 0,  // electric: 6 data rows
+      mr?.water    ? 7 : 0,
+      mr?.electric ? 7 : 0,
     ];
     const METER_TITLE_H = 18;
     const METER_ROW_H   = 15;
@@ -334,12 +334,13 @@ export async function generateInvoicePdf(
       drawText(label, labelX, dataY, 8.5, true, NAVY);
 
       const mRows: [string, string][] = [
-        ['มิเตอร์ก่อน (หน่วย)', detail.prev != null ? fmtNum(detail.prev, 0) : 'ไม่ระบุ'],
-        ['มิเตอร์หลัง (หน่วย)', detail.curr != null ? fmtNum(detail.curr, 0) : 'ไม่ระบุ'],
-        ['จำนวนหน่วย',          fmtNum(detail.units, 2)],
-        ['อัตรา/หน่วย (บาท)',   fmtNum(detail.ratePerUnit, 4)],
-        ['ค่าบริการ (บาท)',      fmtNum(detail.serviceFee, 2)],
-        ['รวม (บาท)',            fmtNum(detail.total, 2)],
+        ['มิเตอร์ก่อน (หน่วย)',  detail.prev != null ? fmtNum(detail.prev, 0) : 'ไม่ระบุ'],
+        ['มิเตอร์หลัง (หน่วย)',  detail.curr != null ? fmtNum(detail.curr, 0) : 'ไม่ระบุ'],
+        ['จำนวนหน่วย',           fmtNum(detail.units, 0)],           // no decimal
+        ['อัตรา/หน่วย (บาท)',    fmtNum(detail.ratePerUnit, 2)],     // 2 decimal
+        ['ค่าใช้น้ำ/ไฟ (บาท)',   fmtNum(detail.usageCharge, 2)],    // usage after min-charge
+        ['ค่าบริการ (บาท)',       fmtNum(detail.serviceFee, 2)],
+        ['รวม (บาท)',             fmtNum(detail.total, 2)],
       ];
 
       let rowY = dataY - METER_ROW_H;
