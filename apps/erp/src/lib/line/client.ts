@@ -473,7 +473,7 @@ export function isLineConfigured(): boolean {
   return !!(
     process.env.LINE_CHANNEL_ID &&
     process.env.LINE_CHANNEL_SECRET &&
-    process.env.LINE_ACCESS_TOKEN
+    (process.env.LINE_ACCESS_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN)
   );
 }
 

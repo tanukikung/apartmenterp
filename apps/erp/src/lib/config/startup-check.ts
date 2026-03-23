@@ -59,7 +59,6 @@ function checkEnv(): CheckResult {
   const optional: Array<{ key: string; feature: string }> = [
     { key: 'LINE_CHANNEL_ID', feature: 'LINE messaging' },
     { key: 'LINE_CHANNEL_SECRET', feature: 'LINE messaging' },
-    { key: 'LINE_ACCESS_TOKEN', feature: 'LINE messaging' },
     { key: 'REDIS_URL', feature: 'Redis (rate-limiting / outbox worker)' },
     { key: 'CRON_SECRET', feature: 'Protected cron endpoints' },
     { key: 'APP_BASE_URL', feature: 'Absolute URL generation (emails, webhooks)' },
@@ -69,6 +68,12 @@ function checkEnv(): CheckResult {
     if (!process.env[key]) {
       warnings.push(`Optional variable ${key} is not set — ${feature} will be unavailable or degraded.`);
     }
+  }
+
+  // LINE access token — accept either name
+  const hasLineToken = !!(process.env.LINE_ACCESS_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN);
+  if (!hasLineToken) {
+    warnings.push('Optional variable LINE_ACCESS_TOKEN (or LINE_CHANNEL_ACCESS_TOKEN) is not set — LINE messaging will be unavailable.');
   }
 
   return {

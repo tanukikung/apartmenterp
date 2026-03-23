@@ -13,11 +13,12 @@ export function getRedisClient(): RedisClientType | null {
       client = createClient({
         url: getRedisUrl(),
         socket: {
+          connectTimeout: 1000, // fail fast if Redis not available
           reconnectStrategy(retries) {
-            if (retries > 10) {
+            if (retries > 3) {
               return new Error('Redis retry attempts exhausted');
             }
-            return Math.min(retries * 100, 3000);
+            return Math.min(retries * 200, 1000);
           },
         },
       });
@@ -35,8 +36,14 @@ export async function ensureRedisConnected(): Promise<RedisClientType | null> {
   const c = getRedisClient();
   if (!c) return null;
   if (!c.isOpen) {
-    await c.connect();
+    try {
+      await c.connect();
+    } catch {
+      // Redis not available — degrade gracefully
+      return null;
+    }
   }
+  if (!c.isReady) return null;
   return c;
 }
 

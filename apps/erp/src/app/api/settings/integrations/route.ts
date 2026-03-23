@@ -42,9 +42,12 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
   const env = getEnv();
 
+  // Accept either LINE_ACCESS_TOKEN or LINE_CHANNEL_ACCESS_TOKEN
+  const envAccessToken = process.env.LINE_ACCESS_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN || '';
+
   // Environment variables take priority when all three are set
   const envOverrideActive = Boolean(
-    env.LINE_CHANNEL_ID && env.LINE_CHANNEL_SECRET && env.LINE_ACCESS_TOKEN,
+    env.LINE_CHANNEL_ID && env.LINE_CHANNEL_SECRET && envAccessToken,
   );
 
   const dbChannelId = readStr('line.channelId');
@@ -55,7 +58,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   // Resolve effective values (env wins)
   const effectiveChannelId = env.LINE_CHANNEL_ID || dbChannelId || '';
   const effectiveChannelSecretExists = Boolean(env.LINE_CHANNEL_SECRET || dbChannelSecret);
-  const effectiveAccessTokenExists = Boolean(env.LINE_ACCESS_TOKEN || dbAccessToken);
+  const effectiveAccessTokenExists = Boolean(envAccessToken || dbAccessToken);
 
   const connected = Boolean(effectiveChannelId && effectiveChannelSecretExists && effectiveAccessTokenExists);
 
@@ -67,7 +70,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     data: {
       channelId: effectiveChannelId,
       channelSecret: maskSecret(env.LINE_CHANNEL_SECRET || dbChannelSecret),
-      accessToken: maskSecret(env.LINE_ACCESS_TOKEN || dbAccessToken),
+      accessToken: maskSecret(envAccessToken || dbAccessToken),
       webhookUrl,
       envOverrideActive,
       connected,
