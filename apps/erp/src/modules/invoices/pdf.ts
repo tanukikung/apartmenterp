@@ -122,7 +122,7 @@ export async function generateInvoicePdf(
     size: number,
     isBold = false,
     color: Color = BLACK,
-  ) => page.drawText(text, { x, y: yBase, size, font: isBold ? bold : font, color });
+  ) => page.drawText(text.normalize('NFC'), { x, y: yBase, size, font: isBold ? bold : font, color });
 
   /** Draw text right-aligned so its right edge is at xRight. */
   const drawRight = (
@@ -134,8 +134,9 @@ export async function generateInvoicePdf(
     color: Color = BLACK,
   ) => {
     const f = isBold ? bold : font;
-    const w2 = f.widthOfTextAtSize(text, size);
-    page.drawText(text, { x: xRight - w2, y: yBase, size, font: f, color });
+    const norm = text.normalize('NFC');
+    const w2 = f.widthOfTextAtSize(norm, size);
+    page.drawText(norm, { x: xRight - w2, y: yBase, size, font: f, color });
   };
 
   /** Draw horizontal rule. */

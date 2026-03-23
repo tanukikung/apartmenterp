@@ -187,3 +187,80 @@ export function documentTemplateHtmlToText(body: string): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
+
+// ── Invoice mail-merge substitution ──────────────────────────────────────────
+//
+// Replaces data-template-field inner content with real invoice data before
+// the HTML is converted to plain text for the PDF notes section.
+//
+export function substituteInvoiceTemplateFields(
+  html: string,
+  data: {
+    roomNo: string;
+    floorNo?: number | null;
+    tenantName?: string | null;
+    tenantPhone?: string | null;
+    periodLabel: string;
+    dueDateLabel: string;
+    totalFormatted: string;
+    items: Array<{
+      typeName: string;
+      quantity: number;
+      unitPrice: number;
+      total: number;
+    }>;
+  },
+): string {
+  let out = html;
+
+  // ── Scalar fields ──────────────────────────────────────────────────────────
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const scalars: Record<string, string> = {
+    'room\\.number':                   esc(data.roomNo),
+    'room\\.floorNumber':              esc(String(data.floorNo ?? '-')),
+    'tenant\\.fullName':               esc(data.tenantName ?? '-'),
+    'tenant\\.phone':                  esc(data.tenantPhone ?? '-'),
+    'computed\\.billingMonthLabel':    esc(data.periodLabel),
+    'computed\\.dueDateLabel':         esc(data.dueDateLabel),
+    'computed\\.totalAmountFormatted': esc(data.totalFormatted),
+  };
+
+  for (const [field, value] of Object.entries(scalars)) {
+    // Replace inner text of any tag with data-template-field="<field>"
+    out = out.replace(
+      new RegExp(
+        `(<[^>]+data-template-field="${field}"[^>]*>)[^<]*(</[^>]*>)`,
+        'g',
+      ),
+      `$1${value}$2`,
+    );
+  }
+
+  // ── Billing items repeat ───────────────────────────────────────────────────
+  // Find <tbody data-template-repeat="billing_items">...</tbody> and expand rows
+  out = out.replace(
+    /(<tbody[^>]+data-template-repeat="billing_items"[^>]*>)([\s\S]*?)(<\/tbody>)/gi,
+    (_match, open, inner, close) => {
+      const rows = data.items.map(item => {
+        let row = inner;
+        const itemScalars: Record<string, string> = {
+          'billing_items\\.typeName':          esc(item.typeName),
+          'billing_items\\.quantity':           esc(String(item.quantity)),
+          'billing_items\\.unitPriceFormatted': esc(item.unitPrice.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })),
+          'billing_items\\.amountFormatted':    esc(item.total.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })),
+        };
+        for (const [f, v] of Object.entries(itemScalars)) {
+          row = row.replace(
+            new RegExp(`(<[^>]+data-template-field="${f}"[^>]*>)[^<]*(</[^>]*>)`, 'g'),
+            `$1${v}$2`,
+          );
+        }
+        return row;
+      });
+      return `${open}${rows.join('')}${close}`;
+    },
+  );
+
+  return out;
+}
