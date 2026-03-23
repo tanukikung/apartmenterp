@@ -203,7 +203,7 @@ function KpiCard({
 // Row action state
 // ---------------------------------------------------------------------------
 
-type GeneratingMap = Record<string, 'idle' | 'loading' | 'done' | 'error'>;
+type BatchState = 'idle' | 'locking' | 'generating' | 'done' | 'error';
 
 // ---------------------------------------------------------------------------
 // Main page
@@ -223,8 +223,8 @@ export default function AdminBillingPage() {
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<InvoiceStatus | 'ALL'>('ALL');
   const [invoiceSearch, setInvoiceSearch] = useState('');
 
-  const [generating, setGenerating] = useState<GeneratingMap>({});
-  const [generateErrors, setGenerateErrors] = useState<Record<string, string>>({});
+  const [batchState, setBatchState] = useState<Record<string, BatchState>>({});
+  const [batchMsg,   setBatchMsg]   = useState<Record<string, string>>({});
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState<string | null>(null);
 
@@ -275,14 +275,61 @@ export default function AdminBillingPage() {
     if (tab === 'invoices' && invoices.length === 0) { void loadInvoices(); }
   };
 
-  async function handleGenerateInvoices(cycleId: string) {
-    setGenerating((prev) => ({ ...prev, [cycleId]: 'loading' }));
-    setGenerateErrors((prev) => ({ ...prev, [cycleId]: '' }));
+  /**
+   * Batch: Lock all DRAFT records → then generate all invoices for a period.
+   * needsLock = true  → OPEN / IMPORTED  (must lock first)
+   * needsLock = false → LOCKED           (already locked, just generate)
+   */
+  async function handleBatchGenerate(periodId: string, needsLock: boolean) {
+    const set = (s: BatchState) => setBatchState(p => ({ ...p, [periodId]: s }));
+    const msg = (m: string)      => setBatchMsg(p  => ({ ...p, [periodId]: m  }));
+
+    set('locking');
+    msg('');
+    setSendError(null);
+
     try {
-      window.location.href = `/admin/billing/${cycleId}`;
+      // ── Step 1: Lock all DRAFT records (skip if already LOCKED) ──────────
+      if (needsLock) {
+        const lockRes = await fetch(`/api/billing/periods/${periodId}/lock-all`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const lockJson = await lockRes.json();
+        if (!lockRes.ok) {
+          throw new Error(lockJson.error?.message ?? `Lock failed: HTTP ${lockRes.status}`);
+        }
+        msg(`Locked ${lockJson.data?.locked ?? 0} records…`);
+      }
+
+      // ── Step 2: Generate invoices for all LOCKED records ─────────────────
+      set('generating');
+      const genRes = await fetch(`/api/billing/periods/${periodId}/generate-invoices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const genJson = await genRes.json();
+      if (!genRes.ok) {
+        throw new Error(genJson.error?.message ?? `Generate failed: HTTP ${genRes.status}`);
+      }
+
+      const { generated, skipped, errors } = genJson.data ?? {};
+      const summary = [
+        `สร้าง ${generated ?? 0} ใบ`,
+        skipped  ? `ข้าม ${skipped} ใบ` : '',
+        errors   ? `ผิดพลาด ${errors} ใบ` : '',
+      ].filter(Boolean).join(' • ');
+
+      set('done');
+      msg(summary);
+      setSendSuccess(`${summary} — สำเร็จ`);
+      void loadCycles();
+      void loadInvoices();
     } catch (err) {
-      setGenerating((prev) => ({ ...prev, [cycleId]: 'error' }));
-      setGenerateErrors((prev) => ({ ...prev, [cycleId]: err instanceof Error ? err.message : 'Failed' }));
+      set('error');
+      const m = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด';
+      msg(m);
+      setSendError(m);
     }
   }
 
@@ -516,9 +563,15 @@ export default function AdminBillingPage() {
                   </thead>
                   <tbody>
                     {filteredCycles.map((cycle) => {
-                      const genState = generating[cycle.id] ?? 'idle';
-                      const genError = generateErrors[cycle.id];
-                      const canGenerate = cycle.status === 'LOCKED' || cycle.status === 'IMPORTED';
+                      const bs   = batchState[cycle.id] ?? 'idle';
+                      const bmsg = batchMsg[cycle.id] ?? '';
+                      const busy = bs === 'locking' || bs === 'generating';
+
+                      // What action is available?
+                      const needsLock   = cycle.status === 'OPEN' || cycle.status === 'IMPORTED';
+                      const needsGen    = cycle.status === 'LOCKED';
+                      const canBatch    = needsLock || needsGen;
+
                       return (
                         <React.Fragment key={cycle.id}>
                           <tr className="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors">
@@ -526,7 +579,7 @@ export default function AdminBillingPage() {
                               {thaiMonthYear(cycle.year, cycle.month)}
                             </td>
                             <td className="px-4 py-3">
-                              <StatusBadge status={cycle.status} />
+                              <StatusBadge status={bs === 'done' ? 'INVOICED' : cycle.status} />
                             </td>
                             <td className="px-4 py-3 text-right text-on-surface-variant">
                               {(cycle.totalRecords ?? 0).toLocaleString()}
@@ -554,31 +607,44 @@ export default function AdminBillingPage() {
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center justify-end gap-2">
-                                <Link href={`/admin/billing/${cycle.id}`} className="inline-flex items-center gap-1 rounded-lg border border-outline px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container">
+                                <Link
+                                  href={`/admin/billing/${cycle.id}`}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-outline px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
+                                >
                                   ดูรายละเอียด
                                 </Link>
-                                {canGenerate && (
+
+                                {canBatch && bs !== 'done' && (
                                   <button
-                                    onClick={() => void handleGenerateInvoices(cycle.id)}
-                                    disabled={genState === 'loading'}
+                                    onClick={() => void handleBatchGenerate(cycle.id, needsLock)}
+                                    disabled={busy}
+                                    title={needsLock ? 'Lock ทั้งหมด แล้ว Generate Invoices' : 'Generate Invoices ทั้งหมด'}
                                     className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
                                   >
-                                    {genState === 'loading' ? (
-                                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> กำลังโหลด…</>
+                                    {bs === 'locking' ? (
+                                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> กำลัง Lock…</>
+                                    ) : bs === 'generating' ? (
+                                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> กำลังสร้างบิล…</>
+                                    ) : needsLock ? (
+                                      <><Zap className="h-3.5 w-3.5" /> Lock + Generate All</>
                                     ) : (
-                                      <><Zap className="h-3.5 w-3.5" /> เปิดรอบ</>
+                                      <><Send className="h-3.5 w-3.5" /> Generate All</>
                                     )}
                                   </button>
+                                )}
+
+                                {bs === 'done' && bmsg && (
+                                  <span className="text-xs font-medium text-tertiary-container">✓ {bmsg}</span>
                                 )}
                               </div>
                             </td>
                           </tr>
-                          {genState === 'error' && genError && (
+                          {bs === 'error' && bmsg && (
                             <tr className="bg-error-container/10">
                               <td colSpan={7} className="px-4 py-2">
                                 <div className="flex items-center gap-2 text-xs text-on-error-container">
                                   <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                  {genError}
+                                  {bmsg}
                                 </div>
                               </td>
                             </tr>
