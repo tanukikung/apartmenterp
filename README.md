@@ -1,210 +1,214 @@
 # Apartment ERP
 
-Full-featured apartment management system — room and tenant records, monthly billing, invoicing, payment matching, LINE messaging, maintenance tickets, and operational analytics.
+ระบบจัดการอพาร์ตเมนต์ครบวงจร — ห้อง, ผู้เช่า, บิลรายเดือน, ใบแจ้งหนี้, รับชำระ, LINE Chat, แจ้งซ่อม, analytics
 
-The web interface is admin-only. Residents communicate through LINE Official Account rather than a separate tenant portal.
+ระบบเป็น admin-only web interface ผู้เช่าสื่อสารผ่าน LINE Official Account
 
 ---
 
-## Quick Start
+## วิธีรัน Production (Docker — แนะนำ)
 
-### Option 1: Interactive Setup (Recommended for first-time setup)
+> ✅ migrate + seed ทำอัตโนมัติเมื่อ start ครั้งแรก — ไม่ต้องรันคำสั่งเพิ่ม
+
+### 1. ติดตั้ง Docker Desktop
+
+โหลดจาก [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop) → ติดตั้ง → restart
+
+### 2. สร้างไฟล์ `.env`
 
 ```bash
-node setup.mjs
+# Linux / Mac
+cp .env.example .env
+
+# Windows
+copy .env.example .env
 ```
 
-The wizard configures your `.env`, runs migrations, and seeds the database.
+แก้ไขค่าในไฟล์ `.env`:
 
-### Option 2: Docker (Production-ready)
+```env
+APP_HOST=localhost          # VPS: ใส่ IP เช่น 103.21.45.67
+DB_PASSWORD=ตั้งรหัสเอง
+REDIS_PASSWORD=ตั้งรหัสเอง
+NEXTAUTH_SECRET=ตั้งรหัสเอง
+ONLYOFFICE_JWT_SECRET=ตั้งรหัสเอง
+```
+
+### 3. Build และรัน
+
+```bash
+docker compose up -d --build
+```
+
+รอ ~10-15 นาที (build ครั้งแรก) → ครั้งต่อไป ~1 นาที
+
+### 4. เปิดใช้งาน
+
+| | URL |
+|---|---|
+| ERP System | `http://localhost:3001` |
+| OnlyOffice | `http://localhost:8080` |
+
+**Default credentials** (เปลี่ยนทันทีหลัง login):
+
+| Role | Username | Password |
+|------|----------|----------|
+| Admin | `owner` | `Owner@12345` |
+| Staff | `staff` | `Staff@12345` |
+
+---
+
+## คำสั่งที่ใช้บ่อย
+
+```bash
+docker compose up -d          # เปิดระบบ
+docker compose down           # ปิดระบบ
+docker compose ps             # เช็ค status
+docker compose logs -f app    # ดู log แบบ real-time
+docker compose restart app    # restart เฉพาะ app
+```
+
+---
+
+## Deploy บน VPS
+
+### ตัวเลือก A — Coolify (แนะนำ มี UI)
+
+```bash
+# รันบน VPS ครั้งเดียว
+curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
+```
+
+เปิด `http://YOUR_VPS_IP:8000` → เชื่อม GitHub repo → กด Deploy → ได้ HTTPS อัตโนมัติ
+
+### ตัวเลือก B — Manual Docker
+
+```bash
+# บน VPS
+curl -fsSL https://get.docker.com | sh
+git clone <your-repo-url> apartment-erp && cd apartment-erp
+cp .env.example .env          # แก้ APP_HOST=YOUR_VPS_IP
+docker compose up -d --build
+```
+
+---
+
+## LINE Webhook
+
+ต้องมี HTTPS domain ก่อน (Coolify ทำให้อัตโนมัติ) จึงจะใช้ LINE ได้
+
+```
+Webhook URL: https://yourdomain.com/api/line/webhook
+```
+
+เพิ่มค่าใน `.env`:
+
+```env
+LINE_CHANNEL_ID=
+LINE_CHANNEL_SECRET=
+LINE_ACCESS_TOKEN=
+LINE_CHANNEL_ACCESS_TOKEN=
+```
+
+---
+
+## วิธีรัน Development (Local)
 
 ```bash
 cd apps/erp
-cp .env.example .env          # fill in DATABASE_URL, NEXTAUTH_SECRET, and LINE credentials
-docker compose up -d
-docker compose exec app npx prisma migrate deploy
-docker compose exec app npx prisma db seed
-```
-
-App is available at `http://localhost:3000`.
-
-### Option 3: Manual (Local PostgreSQL)
-
-```bash
-cd apps/erp
-cp .env.example .env          # fill in DATABASE_URL and NEXTAUTH_SECRET at minimum
+cp .env.example .env          # แก้ DATABASE_URL ให้ตรงกับ local PostgreSQL
 npm install
 npx prisma migrate deploy
 npx prisma db seed
-npm run dev                   # starts on http://localhost:3001
+npm run dev                   # http://localhost:3001
 ```
+
+---
+
+## Billing Template
+
+ดาวน์โหลด template: `billing_template.xlsx` จากหน้า **Billing → Import**
+
+- กรอกข้อมูลมิเตอร์น้ำ/ไฟ + ค่าเช่าในแต่ละ sheet `ชั้น_1` ถึง `ชั้น_8`
+- Upload ในหน้า **Billing → Import → Monthly Data**
+- ระบบ validate และ preview ก่อน commit
 
 ---
 
 ## Make Commands
 
 ```
-make help          See all available commands
-make dev           Start development server (port 3001)
-make build         Build for production
-make test          Run test suite
-make test-watch    Run tests in watch mode
-make typecheck     TypeScript type check
+make help          ดู commands ทั้งหมด
+make dev           รัน dev server (port 3001)
+make build         build production
+make test          รัน tests
+make typecheck     TypeScript check
 make lint          ESLint
-make check         typecheck + lint + test (CI equivalent)
-make migrate       Run pending database migrations
-make seed          Seed database with initial data
-make studio        Open Prisma Studio
-make docker-up     Start all containers
-make docker-down   Stop all containers
-make docker-logs   Tail app container logs
-make backup        Dump compressed PostgreSQL backup
-make clean         Remove .next / build artifacts
-```
-
----
-
-## Default Credentials
-
-Populated by `npx prisma db seed`:
-
-| Role  | Username | Password      |
-|-------|----------|---------------|
-| Admin | owner    | Owner@12345   |
-| Staff | staff    | Staff@12345   |
-
-Change these immediately in any environment that is accessible from the internet.
-
----
-
-## Features
-
-- **Room management** — floors, room types, occupancy status
-- **Tenant and contract management** — move-in / move-out, contract terms
-- **Monthly billing workflow** — editable billing records, bulk import
-- **Invoice generation and delivery** — PDF invoices sent via LINE
-- **Payment matching** — bank statement CSV import with auto-matching
-- **Admin LINE chat inbox** — reply to tenant conversations from the web UI
-- **Maintenance ticket tracking** — create, assign, and resolve tickets
-- **Analytics** — revenue, occupancy, and collections dashboards
-- **Document templates** — generate contracts and notices from templates
-- **Audit logging** — actor-attributed log of all state-changing operations
-- **Background jobs** — monthly billing generation, overdue checks, reminder dispatch
-
----
-
-## Tech Stack
-
-| Layer          | Technology                                    |
-|----------------|-----------------------------------------------|
-| Frontend       | Next.js 14, React 18, TypeScript, Tailwind CSS |
-| API            | Next.js App Router API routes                 |
-| Database       | PostgreSQL 15+ with Prisma ORM                |
-| Messaging      | LINE Official Account API                     |
-| Background     | Custom outbox worker, Redis pub/sub           |
-| Infrastructure | Docker, Redis (optional)                      |
-
----
-
-## Project Structure
-
-```
-apartment_erp/
-├── apps/erp/
-│   ├── prisma/              # Schema, migrations, seed data
-│   ├── src/
-│   │   ├── app/             # Admin UI pages, login, API routes
-│   │   ├── components/      # Shared React components
-│   │   ├── infrastructure/  # Redis, S3, outbox adapters
-│   │   ├── lib/             # Auth, config, events, utilities
-│   │   └── modules/         # Domain services (billing, invoices, payments…)
-│   ├── tests/               # Unit, API, integration, security tests
-│   ├── docker-compose.yml
-│   ├── Dockerfile
-│   └── DEPLOYMENT.md        # Full VPS deployment guide
-├── docs/
-├── Makefile
-└── setup.mjs
+make migrate       รัน migrations
+make seed          seed ข้อมูลตั้งต้น
+make studio        เปิด Prisma Studio
+make docker-up     docker compose up -d
+make docker-down   docker compose down
+make docker-logs   tail app logs
+make backup        dump PostgreSQL backup
 ```
 
 ---
 
 ## Environment Variables
 
-Copy `apps/erp/.env.example` and fill in the values. Required variables:
+| Variable | จำเป็น | คำอธิบาย |
+|---|---|---|
+| `APP_HOST` | ✅ | IP หรือ domain ของ server (localhost สำหรับ laptop) |
+| `DB_PASSWORD` | ✅ | รหัส PostgreSQL |
+| `REDIS_PASSWORD` | ✅ | รหัส Redis |
+| `NEXTAUTH_SECRET` | ✅ | Secret สำหรับ session (random string) |
+| `ONLYOFFICE_JWT_SECRET` | ✅ | JWT secret สำหรับ OnlyOffice |
+| `LINE_CHANNEL_ID` | optional | LINE OA integration |
+| `LINE_CHANNEL_SECRET` | optional | LINE OA integration |
+| `LINE_ACCESS_TOKEN` | optional | LINE OA integration |
+| `CRON_SECRET` | optional | ป้องกัน cron job endpoints |
 
-| Variable          | Description                                        |
-|-------------------|----------------------------------------------------|
-| `DATABASE_URL`    | PostgreSQL connection string                       |
-| `NEXTAUTH_SECRET` | Random secret — generate with `openssl rand -hex 32` |
-
-Optional (features degrade gracefully without them):
-
-| Variable                 | Feature                             |
-|--------------------------|-------------------------------------|
-| `LINE_CHANNEL_ID`        | LINE messaging                      |
-| `LINE_CHANNEL_SECRET`    | LINE messaging                      |
-| `LINE_ACCESS_TOKEN`      | LINE messaging                      |
-| `REDIS_URL`              | Rate-limiting and outbox worker     |
-| `CRON_SECRET`            | Protected background-job endpoints  |
-| `APP_BASE_URL`           | Absolute URL generation             |
-
-See `apps/erp/.env.example` for the full list with descriptions.
+ดูตัวอย่างครบได้ที่ [.env.example](.env.example)
 
 ---
 
-## CI/CD
+## โครงสร้างโปรเจกต์
 
-### GitHub Actions Workflows
-
-| Workflow      | Trigger              | Steps                                  |
-|---------------|----------------------|----------------------------------------|
-| `ci.yml`      | Every PR             | typecheck → lint → test → build        |
-| `deploy.yml`  | Push to `main`       | SSH deploy to VPS, migrate, reload     |
-
-### Required Repository Secrets
-
-Add these under **Settings → Secrets and variables → Actions**:
-
-| Secret          | Description                                |
-|-----------------|--------------------------------------------|
-| `VPS_HOST`      | Server hostname or IP                      |
-| `VPS_USER`      | SSH username                               |
-| `VPS_SSH_KEY`   | Private SSH key (PEM format)               |
-| `VPS_PORT`      | SSH port (optional, default `22`)          |
-| `APP_URL`       | Public app URL, e.g. `https://yourdomain.com` |
-
----
-
-## Deployment
-
-Full instructions including Nginx reverse proxy, TLS, firewall, and backup scheduling are in [apps/erp/DEPLOYMENT.md](./apps/erp/DEPLOYMENT.md).
-
-### Quick VPS deploy
-
-```bash
-git clone <your-repo-url> apartment_erp && cd apartment_erp/apps/erp
-cp .env.example .env.production.local   # fill in production values
-docker compose up -d
-docker compose exec app npx prisma migrate deploy
+```
+apartment_erp/
+├── apps/erp/
+│   ├── prisma/              # Schema, migrations, seed
+│   ├── src/
+│   │   ├── app/             # Admin UI pages + API routes
+│   │   ├── components/      # Shared React components
+│   │   ├── infrastructure/  # Redis, S3, outbox adapters
+│   │   ├── lib/             # Auth, config, utilities
+│   │   └── modules/         # Domain services (billing, invoices, payments…)
+│   ├── tests/               # Unit, API, integration, security tests
+│   ├── Dockerfile           # Multi-stage production build
+│   ├── entrypoint.sh        # Auto-migrate + seed on first start
+│   └── public/
+│       └── billing_template.xlsx  # Excel template สำหรับ import บิล
+├── docs/                    # Architecture, schema, runbooks
+├── docker-compose.yml       # 4 services: postgres, redis, onlyoffice, app
+├── .env.example             # Template สำหรับ copy เป็น .env
+├── Makefile
+└── setup.mjs                # Interactive setup wizard
 ```
 
 ---
 
-## API Surface
+## Tech Stack
 
-| Endpoint                  | Purpose                              |
-|---------------------------|--------------------------------------|
-| `GET  /api/health`        | Environment and DB connectivity check |
-| `GET  /api/metrics`       | Memory, CPU, DB pool, uptime         |
-| `/api/rooms`              | Room CRUD and status                 |
-| `/api/tenants`            | Tenant management                    |
-| `/api/contracts`          | Contract management                  |
-| `/api/billing`            | Billing records and import           |
-| `/api/invoices`           | Invoice generation, delivery, PDF    |
-| `/api/payments`           | Payment import and matching          |
-| `/api/conversations`      | Admin LINE chat inbox                |
-| `/api/line/webhook`       | LINE webhook receiver                |
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS |
+| API | Next.js App Router API routes |
+| Database | PostgreSQL 15+ with Prisma ORM |
+| Messaging | LINE Official Account API |
+| Document Editor | OnlyOffice Document Server |
+| Infrastructure | Docker, Redis |
 
 ---
 
