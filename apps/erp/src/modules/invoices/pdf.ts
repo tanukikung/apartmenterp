@@ -33,6 +33,13 @@ export interface InvoicePdfOptions {
   notes?: string;
   /** ID of the DocumentTemplate that provided the notes. */
   templateId?: string;
+  /** Building profile pulled from Config table (building.*) */
+  building?: {
+    name?: string | null;
+    address?: string | null;
+    phone?: string | null;
+    taxId?: string | null;
+  };
 }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -145,9 +152,22 @@ export async function generateInvoicePdf(
 
   fillRect(0, HDR_BOT, W, HDR_H, NAVY);
 
-  // Left: property name
-  drawText('Apartment ERP', ML, HDR_BOT + 50, 18, true, WHITE);
-  drawText('ระบบจัดการอพาร์ตเมนต์', ML, HDR_BOT + 31, 9, false, LTNAVY);
+  // Left: property name (from building settings, fallback to generic)
+  const bldName    = opts?.building?.name    || 'อพาร์ตเมนต์';
+  const bldAddress = opts?.building?.address || '';
+  const bldPhone   = opts?.building?.phone   || '';
+  const bldTaxId   = opts?.building?.taxId   || '';
+
+  drawText(bldName, ML, HDR_BOT + 52, 17, true, WHITE);
+
+  // Sub-line: address / phone on same row, or fallback label
+  const bldSub = [bldAddress, bldPhone ? `โทร. ${bldPhone}` : ''].filter(Boolean).join('  |  ');
+  if (bldSub) {
+    drawText(bldSub, ML, HDR_BOT + 32, 7.5, false, LTNAVY);
+  }
+  if (bldTaxId) {
+    drawText(`เลขประจำตัวผู้เสียภาษี: ${bldTaxId}`, ML, HDR_BOT + 21, 7.5, false, LTNAVY);
+  }
 
   // Right: invoice title (right-aligned to MR)
   drawRight('ใบแจ้งหนี้', MR, HDR_BOT + 54, 24, true, AMBER);

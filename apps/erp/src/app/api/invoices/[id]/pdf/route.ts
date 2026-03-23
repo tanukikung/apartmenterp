@@ -25,13 +25,30 @@ export const GET = asyncHandler(
     logger.info({ type: 'pdf_render_start', invoiceId: id });
 
     const { invoiceService } = getServiceContainer();
-    const preview = await invoiceService.getInvoicePreview(id);
 
-    // DocumentTemplate runtime lookup — uses the active INVOICE template if one exists.
-    const template = await prisma.documentTemplate.findFirst({
-      where: { type: 'INVOICE' },
-      orderBy: { updatedAt: 'desc' },
-    });
+    // Fetch preview + building profile + document template in parallel
+    const [preview, buildingConfigs, template] = await Promise.all([
+      invoiceService.getInvoicePreview(id),
+      prisma.config.findMany({
+        where: { key: { in: ['building.name', 'building.address', 'building.phone', 'building.taxId'] } },
+      }),
+      prisma.documentTemplate.findFirst({
+        where: { type: 'INVOICE' },
+        orderBy: { updatedAt: 'desc' },
+      }),
+    ]);
+
+    const bldStr = (key: string) => {
+      const row = buildingConfigs.find(c => c.key === key);
+      return row ? String(row.value ?? '') : '';
+    };
+
+    const building = {
+      name:    bldStr('building.name')    || null,
+      address: bldStr('building.address') || null,
+      phone:   bldStr('building.phone')   || null,
+      taxId:   bldStr('building.taxId')   || null,
+    };
 
     if (template) {
       logger.info({
@@ -50,6 +67,7 @@ export const GET = asyncHandler(
       pdfBytes = await generateInvoicePdf(preview, {
         notes: template?.body ? documentTemplateHtmlToText(template.body) : undefined,
         templateId: template?.id ?? undefined,
+        building,
       });
     } catch (err) {
       logger.error({
