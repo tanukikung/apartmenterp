@@ -266,9 +266,91 @@ export async function generateInvoicePdf(
 
   // Bottom border of table body
   hline(curY, ML, MR, NAVY, 0.75);
-  curY -= 10;
+  curY -= 8;
 
-  // ── 4. TOTAL BOX ──────────────────────────────────────────────────────────
+  // ── 4. METER READING DETAILS ──────────────────────────────────────────────
+  const mr = preview.meterReadings;
+  if (mr?.water || mr?.electric) {
+    const MR_PAD   = 8;
+    const COL_MID  = (ML + MR) / 2 + 5; // split point ~302
+    const COL_L_R  = COL_MID - 10;       // right edge of left column values
+    const COL_R_L  = COL_MID + 6;        // left  edge of right column labels
+    const COL_R_R  = MR - 5;             // right edge of right column values
+
+    // Section header bar
+    const METER_ROWS = [
+      mr?.water    ? 6 : 0,  // water: 6 data rows
+      mr?.electric ? 6 : 0,  // electric: 6 data rows
+    ];
+    const METER_TITLE_H = 18;
+    const METER_ROW_H   = 15;
+    const hasBoth = mr?.water && mr?.electric;
+    const METER_DATA_H  = Math.max(
+      mr?.water    ? METER_ROWS[0] * METER_ROW_H : 0,
+      mr?.electric ? METER_ROWS[1] * METER_ROW_H : 0,
+    );
+    const METER_TOTAL_H = METER_TITLE_H + MR_PAD + METER_DATA_H + MR_PAD + 6;
+
+    // Background panel
+    fillRect(ML, curY - METER_TOTAL_H, MR - ML, METER_TOTAL_H, rgb(0.96, 0.97, 1.0));
+    hline(curY,                    ML, MR, BORDER, 0.4);
+    hline(curY - METER_TOTAL_H,    ML, MR, BORDER, 0.4);
+
+    // Title
+    fillRect(ML, curY - METER_TITLE_H, MR - ML, METER_TITLE_H, rgb(0.88, 0.91, 0.97));
+    drawText('รายละเอียดมิเตอร์ / Meter Reading Details',
+      ML + 8, curY - 13, 9, true, NAVY);
+
+    let dataY = curY - METER_TITLE_H - MR_PAD;
+
+    // Helper: draw one meter column
+    const drawMeterCol = (
+      label: string,
+      detail: import('./types').MeterReadingDetail,
+      labelX: number,
+      valueRightX: number,
+    ) => {
+      // Column title (e.g. "💧 มาตรน้ำ / Water")
+      drawText(label, labelX, dataY, 8.5, true, NAVY);
+
+      const mRows: [string, string][] = [
+        ['มิเตอร์ก่อน (หน่วย)', detail.prev != null ? fmtNum(detail.prev, 2) : 'ไม่ระบุ'],
+        ['มิเตอร์หลัง (หน่วย)', detail.curr != null ? fmtNum(detail.curr, 2) : 'ไม่ระบุ'],
+        ['จำนวนหน่วย',          fmtNum(detail.units, 2)],
+        ['อัตรา/หน่วย (บาท)',   fmtNum(detail.ratePerUnit, 4)],
+        ['ค่าบริการ (บาท)',      fmtNum(detail.serviceFee, 2)],
+        ['รวม (บาท)',            fmtNum(detail.total, 2)],
+      ];
+
+      let rowY = dataY - METER_ROW_H;
+      for (const [lbl, val] of mRows) {
+        const isTotal = lbl.startsWith('รวม');
+        drawText(lbl, labelX, rowY, isTotal ? 8.5 : 8, isTotal, isTotal ? NAVY : GRAY);
+        drawRight(val, valueRightX, rowY, isTotal ? 8.5 : 8, isTotal, isTotal ? NAVY : BLACK);
+        rowY -= METER_ROW_H;
+      }
+    };
+
+    if (hasBoth) {
+      // Vertical divider between columns
+      page.drawLine({
+        start: { x: COL_MID, y: curY - METER_TOTAL_H + 4 },
+        end:   { x: COL_MID, y: curY - METER_TITLE_H - 2 },
+        thickness: 0.4,
+        color: BORDER,
+      });
+      if (mr.water)    drawMeterCol('มาตรน้ำ / Water',    mr.water,    ML + 8, COL_L_R);
+      if (mr.electric) drawMeterCol('มาตรไฟ / Electric',  mr.electric, COL_R_L, COL_R_R);
+    } else if (mr.water) {
+      drawMeterCol('มาตรน้ำ / Water', mr.water, ML + 8, COL_R_R);
+    } else if (mr.electric) {
+      drawMeterCol('มาตรไฟ / Electric', mr.electric, ML + 8, COL_R_R);
+    }
+
+    curY -= METER_TOTAL_H + 10;
+  }
+
+  // ── 6. TOTAL BOX ──────────────────────────────────────────────────────────
   const TOT_W = 255;
   const TOT_H = 40;
   const TOT_X = MR - TOT_W;
@@ -281,7 +363,7 @@ export async function generateInvoicePdf(
 
   curY -= TOT_H + 22;
 
-  // ── 5. PAID WATERMARK ─────────────────────────────────────────────────────
+  // ── 7. PAID WATERMARK ─────────────────────────────────────────────────────
   if (preview.status === 'PAID') {
     // Rotated "PAID" stamp — draw as angled text block in lower-right area
     page.drawText('PAID', {
@@ -295,7 +377,7 @@ export async function generateInvoicePdf(
     });
   }
 
-  // ── 6. NOTES / TERMS (from DocumentTemplate) ──────────────────────────────
+  // ── 8. NOTES / TERMS (from DocumentTemplate) ──────────────────────────────
   if (opts?.notes) {
     hline(curY, ML, MR, BORDER);
     curY -= 14;
@@ -317,7 +399,7 @@ export async function generateInvoicePdf(
     }
   }
 
-  // ── 7. FOOTER BAR ─────────────────────────────────────────────────────────
+  // ── 9. FOOTER BAR ─────────────────────────────────────────────────────────
   fillRect(0, 0,  W, 30, NAVY);
   fillRect(0, 30, W, 3,  AMBER); // amber line above footer
 

@@ -127,6 +127,23 @@ export interface InvoicesListResponse {
   totalPages: number;
 }
 
+export interface MeterReadingDetail {
+  /** Meter reading before (null = flat-rate mode) */
+  prev: number | null;
+  /** Meter reading after */
+  curr: number | null;
+  /** Units consumed (curr - prev, or manual) */
+  units: number;
+  /** Charge per unit (บาท/หน่วย) */
+  ratePerUnit: number;
+  /** Usage charge (units × rate) */
+  usageCharge: number;
+  /** Fixed service fee */
+  serviceFee: number;
+  /** Grand total for this utility */
+  total: number;
+}
+
 export interface InvoicePreviewResponse {
   invoiceId: string;
   /** Formatted invoice number e.g. INV-202501-101 */
@@ -144,6 +161,11 @@ export interface InvoicePreviewResponse {
   issuedAt?: string | null;
   /** Invoice status for watermark */
   status?: string;
+  /** Meter reading details for water and electric */
+  meterReadings?: {
+    water?: MeterReadingDetail;
+    electric?: MeterReadingDetail;
+  };
 }
 
 // ============================================================================

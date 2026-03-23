@@ -320,6 +320,38 @@ export class InvoiceService {
     const tenantPhone = primaryTenant?.phone ?? null;
     const dueDateStr = invoice.dueDate.toISOString().split('T')[0];
     const invoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.roomNo}`;
+
+    // ── Meter reading details ─────────────────────────────────────────────
+    const meterReadings: NonNullable<import('./types').InvoicePreviewResponse['meterReadings']> = {};
+
+    if (rb && Number(rb.waterTotal) > 0) {
+      const wUnits = Number(rb.waterUnits);
+      const wUsage = Number(rb.waterUsageCharge);
+      meterReadings.water = {
+        prev:        rb.waterPrev != null ? Number(rb.waterPrev) : null,
+        curr:        rb.waterCurr != null ? Number(rb.waterCurr) : null,
+        units:       wUnits,
+        ratePerUnit: wUnits > 0 ? wUsage / wUnits : 0,
+        usageCharge: wUsage,
+        serviceFee:  Number(rb.waterServiceFee),
+        total:       Number(rb.waterTotal),
+      };
+    }
+
+    if (rb && Number(rb.electricTotal) > 0) {
+      const eUnits = Number(rb.electricUnits);
+      const eUsage = Number(rb.electricUsageCharge);
+      meterReadings.electric = {
+        prev:        rb.electricPrev != null ? Number(rb.electricPrev) : null,
+        curr:        rb.electricCurr != null ? Number(rb.electricCurr) : null,
+        units:       eUnits,
+        ratePerUnit: eUnits > 0 ? eUsage / eUnits : 0,
+        usageCharge: eUsage,
+        serviceFee:  Number(rb.electricServiceFee),
+        total:       Number(rb.electricTotal),
+      };
+    }
+
     return {
       invoiceId: invoice.id,
       invoiceNumber,
@@ -334,6 +366,7 @@ export class InvoiceService {
       dueDate: dueDateStr,
       issuedAt: invoice.issuedAt?.toISOString() ?? null,
       status: invoice.status,
+      meterReadings: Object.keys(meterReadings).length > 0 ? meterReadings : undefined,
     };
   }
 
