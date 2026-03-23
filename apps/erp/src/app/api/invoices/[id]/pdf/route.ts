@@ -27,10 +27,17 @@ export const GET = asyncHandler(
     const { invoiceService } = getServiceContainer();
 
     // Fetch preview + building profile + document template in parallel
-    const [preview, buildingConfigs, template] = await Promise.all([
+    const [preview, configs, template] = await Promise.all([
       invoiceService.getInvoicePreview(id),
       prisma.config.findMany({
-        where: { key: { in: ['building.name', 'building.address', 'building.phone', 'building.taxId'] } },
+        where: {
+          key: {
+            in: [
+              'building.name', 'building.address', 'building.phone', 'building.taxId',
+              'app.name',
+            ],
+          },
+        },
       }),
       prisma.documentTemplate.findFirst({
         where: { type: 'INVOICE' },
@@ -38,16 +45,17 @@ export const GET = asyncHandler(
       }),
     ]);
 
-    const bldStr = (key: string) => {
-      const row = buildingConfigs.find(c => c.key === key);
-      return row ? String(row.value ?? '') : '';
+    const cfgStr = (key: string) => {
+      const row = configs.find(c => c.key === key);
+      return row ? String(row.value ?? '').trim() : '';
     };
 
     const building = {
-      name:    bldStr('building.name')    || null,
-      address: bldStr('building.address') || null,
-      phone:   bldStr('building.phone')   || null,
-      taxId:   bldStr('building.taxId')   || null,
+      // building.name takes priority; fall back to app.name if not set
+      name:    cfgStr('building.name') || cfgStr('app.name') || null,
+      address: cfgStr('building.address') || null,
+      phone:   cfgStr('building.phone')   || null,
+      taxId:   cfgStr('building.taxId')   || null,
     };
 
     if (template) {
