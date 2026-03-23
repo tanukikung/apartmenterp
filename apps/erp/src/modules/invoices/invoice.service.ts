@@ -317,16 +317,23 @@ export class InvoiceService {
     }
     const primaryTenant = invoice.room?.tenants?.[0]?.tenant;
     const tenantName = primaryTenant ? `${primaryTenant.firstName ?? ''} ${primaryTenant.lastName ?? ''}`.trim() || null : null;
+    const tenantPhone = primaryTenant?.phone ?? null;
     const dueDateStr = invoice.dueDate.toISOString().split('T')[0];
+    const invoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.roomNo}`;
     return {
       invoiceId: invoice.id,
+      invoiceNumber,
       year: invoice.year,
       month: invoice.month,
       roomNo: invoice.roomNo,
+      floorNo: invoice.room?.floorNo ?? null,
       tenantName,
+      tenantPhone,
       items,
       totalAmount: Number(invoice.totalAmount),
       dueDate: dueDateStr,
+      issuedAt: invoice.issuedAt?.toISOString() ?? null,
+      status: invoice.status,
     };
   }
 

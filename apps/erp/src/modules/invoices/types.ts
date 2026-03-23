@@ -129,13 +129,21 @@ export interface InvoicesListResponse {
 
 export interface InvoicePreviewResponse {
   invoiceId: string;
+  /** Formatted invoice number e.g. INV-202501-101 */
+  invoiceNumber?: string;
   year: number;
   month: number;
   roomNo: string;
+  floorNo?: number | null;
   tenantName: string | null;
+  tenantPhone?: string | null;
   items: InvoiceItemSnapshot[];
   totalAmount: number;
   dueDate: string;
+  /** ISO string of when the invoice was issued */
+  issuedAt?: string | null;
+  /** Invoice status for watermark */
+  status?: string;
 }
 
 // ============================================================================
