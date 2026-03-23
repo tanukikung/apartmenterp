@@ -314,8 +314,8 @@ export async function generateInvoicePdf(
       drawText(label, labelX, dataY, 8.5, true, NAVY);
 
       const mRows: [string, string][] = [
-        ['มิเตอร์ก่อน (หน่วย)', detail.prev != null ? fmtNum(detail.prev, 2) : 'ไม่ระบุ'],
-        ['มิเตอร์หลัง (หน่วย)', detail.curr != null ? fmtNum(detail.curr, 2) : 'ไม่ระบุ'],
+        ['มิเตอร์ก่อน (หน่วย)', detail.prev != null ? fmtNum(detail.prev, 0) : 'ไม่ระบุ'],
+        ['มิเตอร์หลัง (หน่วย)', detail.curr != null ? fmtNum(detail.curr, 0) : 'ไม่ระบุ'],
         ['จำนวนหน่วย',          fmtNum(detail.units, 2)],
         ['อัตรา/หน่วย (บาท)',   fmtNum(detail.ratePerUnit, 4)],
         ['ค่าบริการ (บาท)',      fmtNum(detail.serviceFee, 2)],
