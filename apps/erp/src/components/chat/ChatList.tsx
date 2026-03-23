@@ -4,7 +4,7 @@ export type Conversation = {
   id: string;
   lastMessageAt: string;
   unreadCount: number;
-  lineUser?: { displayName?: string | null } | null;
+  lineUser?: { displayName?: string | null; pictureUrl?: string | null } | null;
   room?: { roomNumber: string } | null;
   tenant?: { fullName: string } | null;
   overdue?: boolean | null;
@@ -19,6 +19,26 @@ type Props = {
   onSelect: (id: string) => void;
   widthClass?: string;
 };
+
+function Avatar({ src, name }: { src?: string | null; name: string }) {
+  const [error, setError] = React.useState(false);
+  if (src && !error) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        onError={() => setError(true)}
+        className="h-10 w-10 shrink-0 rounded-full object-cover border border-pink-100"
+      />
+    );
+  }
+  const initials = name.slice(0, 2).toUpperCase();
+  return (
+    <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-pink-400 to-fuchsia-400 flex items-center justify-center text-white text-xs font-bold border border-pink-200">
+      {initials}
+    </div>
+  );
+}
 
 function ChatListImpl({ items, selectedId, onSelect, widthClass = 'w-80' }: Props) {
   const [filter, setFilter] = React.useState<Filter>('all');
@@ -70,7 +90,8 @@ function ChatListImpl({ items, selectedId, onSelect, widthClass = 'w-80' }: Prop
         </div>
         <div className="max-h-[70vh] space-y-2 overflow-auto">
           {filtered.map((conversation) => {
-            const name = conversation.tenant?.fullName || conversation.room?.roomNumber || conversation.lineUser?.displayName || '';
+            const name = conversation.tenant?.fullName || conversation.room?.roomNumber || conversation.lineUser?.displayName || 'Unknown';
+            const pictureUrl = conversation.lineUser?.pictureUrl;
             return (
               <button
                 key={conversation.id}
@@ -81,15 +102,22 @@ function ChatListImpl({ items, selectedId, onSelect, widthClass = 'w-80' }: Prop
                     : 'border-pink-100 bg-white/85 hover:bg-pink-50/40'
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="font-medium text-slate-900">{name}</div>
-                    <div className="mt-1 text-xs text-slate-500">{new Date(conversation.lastMessageAt).toLocaleString()}</div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    {conversation.overdue ? <span className="admin-badge admin-status-bad">Overdue</span> : null}
-                    {conversation.waitingPayment ? <span className="admin-badge admin-status-warn">Waiting</span> : null}
-                    {conversation.unreadCount > 0 ? <span className="admin-badge admin-status-good">{conversation.unreadCount}</span> : null}
+                <div className="flex items-center gap-3">
+                  <Avatar src={pictureUrl} name={name} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="truncate font-medium text-slate-900">{name}</div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        {conversation.overdue ? <span className="admin-badge admin-status-bad">Overdue</span> : null}
+                        {conversation.waitingPayment ? <span className="admin-badge admin-status-warn">Waiting</span> : null}
+                        {conversation.unreadCount > 0 ? (
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-pink-500 text-[10px] font-bold text-white">
+                            {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="mt-0.5 text-xs text-slate-500">{new Date(conversation.lastMessageAt).toLocaleString('th-TH')}</div>
                   </div>
                 </div>
               </button>

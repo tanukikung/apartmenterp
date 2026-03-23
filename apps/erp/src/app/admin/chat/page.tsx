@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChatList, type Conversation as ChatListItem } from '@/components/chat/ChatList';
 import { ChatTimeline } from '@/components/chat/ChatTimeline';
 import { ChatComposer } from '@/components/chat/ChatComposer';
@@ -11,7 +11,7 @@ type Conversation = {
   lineUserId: string;
   lastMessageAt: string;
   unreadCount: number;
-  lineUser?: { displayName?: string | null } | null;
+  lineUser?: { displayName?: string | null; pictureUrl?: string | null } | null;
   room?: { roomNumber: string } | null;
   tenant?: { fullName: string; phone?: string | null } | null;
   overdue?: boolean | null;
@@ -126,6 +126,37 @@ export default function ChatInboxPage() {
     void loadMessages();
   }, [selectedId]);
 
+  useEffect(() => {
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch('/api/conversations?page=1&pageSize=50').then((r) => r.json());
+        if (res.success) setConversations(res.data.data);
+      } catch { /* silent */ }
+    }, 5000);
+    return () => clearInterval(poll);
+  }, []);
+
+  const latestMessageIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/conversations/${selectedId}/messages?limit=30`).then((r) => r.json());
+        if (!res.success) return;
+        const items: Message[] = Array.isArray(res.data) ? res.data : (res.data?.items ?? []);
+        if (!items.length) return;
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id));
+          const newItems = items.filter((m) => !existingIds.has(m.id));
+          if (!newItems.length) return prev;
+          return [...prev, ...newItems];
+        });
+      } catch { /* silent */ }
+    }, 3000);
+    return () => clearInterval(poll);
+  }, [selectedId]);
+
   const loadLatestInvoice = useCallback(async (conversationId: string | null) => {
     if (!conversationId) { setLatestInvoice(null); return; }
     const res = await fetch(`/api/conversations/${conversationId}/invoices/latest`).then((r) => r.json());
@@ -203,7 +234,8 @@ export default function ChatInboxPage() {
 
   const listItems: ChatListItem[] = useMemo(() => conversations.map((conversation) => ({
     id: conversation.id, lastMessageAt: conversation.lastMessageAt, unreadCount: conversation.unreadCount,
-    lineUser: conversation.lineUser || null, room: conversation.room || null, tenant: conversation.tenant || null,
+    lineUser: conversation.lineUser ? { displayName: conversation.lineUser.displayName ?? null, pictureUrl: conversation.lineUser.pictureUrl ?? null } : null,
+    room: conversation.room || null, tenant: conversation.tenant || null,
     overdue: conversation.overdue ?? null, waitingPayment: conversation.waitingPayment ?? null,
   })), [conversations]);
 
@@ -374,6 +406,8 @@ export default function ChatInboxPage() {
           <div className="flex h-[75vh] flex-col p-4">
             <ChatTimeline
               messages={messages}
+              senderPictureUrl={current?.lineUser?.pictureUrl ?? null}
+              senderName={current?.lineUser?.displayName ?? current?.tenant?.fullName ?? undefined}
               onRetry={retryMessage}
               canSendViaLine={canSendViaLine}
               onSendFile={async (message) => {
