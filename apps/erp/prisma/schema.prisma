@@ -57,6 +57,7 @@ model Room {
   maintenanceTickets        MaintenanceTicket[]
   billings                  RoomBilling[]
   tenants                   RoomTenant[]
+  deliveryOrderItems        DeliveryOrderItem[]
   defaultAccount            BankAccount                @relation("RoomDefaultAccount", fields: [defaultAccountId], references: [id])
   defaultRule               BillingRule                @relation("RoomDefaultRule", fields: [defaultRuleCode], references: [code])
 
@@ -155,6 +156,7 @@ model Invoice {
   paymentMatches            PaymentMatch[]
   paymentTransactions       PaymentTransaction[]       @relation("InvoicePaymentTransactions")
   payments                  Payment[]                  @relation("InvoiceToPayment")
+  deliveryOrderItems        DeliveryOrderItem[]
 
   @@index([roomNo])
   @@index([year, month])
@@ -300,6 +302,7 @@ model Tenant {
   generatedDocuments        GeneratedDocument[]
   maintenanceTickets        MaintenanceTicket[]
   roomTenants               RoomTenant[]
+  deliveryOrderItems        DeliveryOrderItem[]
 
   @@index([phone])
   @@index([email])
@@ -611,6 +614,7 @@ model TenantRegistration {
   phone            String?
   claimedRoom      String?
   status           TenantRegistrationStatus @default(PENDING)
+  registrationStep RegistrationStep?
   rejectionReason  String?
   correctionNote   String?
   resolvedRoomNo   String?
@@ -801,6 +805,7 @@ model GeneratedDocument {
   template          DocumentTemplate        @relation(fields: [templateId], references: [id])
   templateVersion   DocumentTemplateVersion @relation(fields: [templateVersionId], references: [id])
   tenant            Tenant?                 @relation(fields: [tenantId], references: [id])
+  deliveryOrderItems DeliveryOrderItem[]
 
   @@index([templateId, generatedAt])
   @@index([templateVersionId])
@@ -825,6 +830,85 @@ model GeneratedDocumentFile {
   @@unique([generatedDocumentId, role])
   @@index([uploadedFileId])
   @@map("generated_document_files")
+}
+
+model DeliveryOrder {
+  id            String              @id @default(uuid())
+  channel       DeliveryChannel     @default(LINE)
+  documentType  DocumentTemplateType
+  description   String?
+  year          Int?
+  month         Int?
+  floorNumber   Int?
+  scopeRoomNos  String[]
+  status        DeliveryOrderStatus @default(DRAFT)
+  totalCount    Int                 @default(0)
+  sentCount     Int                 @default(0)
+  failedCount   Int                 @default(0)
+  createdBy     String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  items         DeliveryOrderItem[]
+
+  @@index([status])
+  @@index([year, month])
+  @@index([createdAt])
+  @@map("delivery_orders")
+}
+
+model DeliveryOrderItem {
+  id                  String                @id @default(uuid())
+  deliveryOrderId     String
+  roomNo              String
+  tenantId            String?
+  generatedDocumentId String?
+  invoiceId           String?
+  recipientRef        String?
+  status              DeliveryItemStatus    @default(PENDING)
+  sentAt              DateTime?
+  errorMessage        String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  deliveryOrder       DeliveryOrder         @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
+  room                Room                  @relation(fields: [roomNo], references: [roomNo], onDelete: Cascade)
+  tenant              Tenant?               @relation(fields: [tenantId], references: [id])
+  generatedDocument   GeneratedDocument?    @relation(fields: [generatedDocumentId], references: [id])
+  invoice             Invoice?              @relation(fields: [invoiceId], references: [id])
+
+  @@index([deliveryOrderId])
+  @@index([roomNo])
+  @@index([status])
+  @@map("delivery_order_items")
+}
+
+enum DeliveryChannel {
+  LINE
+  @@map("delivery_channel")
+}
+
+enum DeliveryOrderStatus {
+  DRAFT
+  SENDING
+  COMPLETED
+  PARTIAL
+  FAILED
+  @@map("delivery_order_status")
+}
+
+enum DeliveryItemStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+  @@map("delivery_item_status")
+}
+
+enum RegistrationStep {
+  AWAITING_ROOM
+  AWAITING_NAME
+  AWAITING_PHONE
+  COMPLETED
+  @@map("registration_step")
 }
 
 enum RoomStatus {

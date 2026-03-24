@@ -29,7 +29,6 @@ import {
   Layers,
   Cpu,
   ScrollText,
-  FileSignature,
   ChevronDown,
   Menu,
   X,
@@ -114,13 +113,12 @@ function getPageTitle(pathname: string | null): string {
 const nav: NavItem[] = [
   { type: 'link', href: '/admin/dashboard', label: 'แดชบอร์ด', icon: LayoutDashboard },
 
-  // ── ห้องพัก: ห้อง | ผู้เช่า | ลงทะเบียน | สัญญา ──
+  // ── ห้องพัก: ห้อง | ผู้เช่า | ลงทะเบียน ──
   {
     type: 'group', label: 'ห้องพัก', defaultOpen: true, items: [
       { type: 'link', href: '/admin/rooms', label: 'ห้อง', icon: DoorOpen },
       { type: 'link', href: '/admin/tenants', label: 'ผู้เช่า', icon: Users },
       { type: 'link', href: '/admin/tenant-registrations', label: 'ลงทะเบียน', icon: UserPlus },
-      { type: 'link', href: '/admin/contracts', label: 'สัญญาเช่า', icon: FileSignature },
     ],
   },
 

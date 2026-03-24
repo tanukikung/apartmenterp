@@ -148,16 +148,23 @@ export async function middleware(req: NextRequest) {
   }
 
   const start = Date.now();
+  // PDF/binary API routes must not receive X-Frame-Options: DENY or a strict CSP —
+  // both headers break Chrome's built-in PDF viewer (which renders inside an internal
+  // embedded context).  Detect these routes early so we can skip those two headers.
+  const isBinaryApiRoute = /^\/api\/invoices\/[^/]+\/pdf$/.test(url.pathname);
   const res = NextResponse.next();
   res.headers.set('x-request-id', requestId);
   res.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   res.headers.set('X-Content-Type-Options', 'nosniff');
-  res.headers.set('X-Frame-Options', 'DENY');
+  if (!isBinaryApiRoute) {
+    res.headers.set('X-Frame-Options', 'DENY');
+  }
   res.headers.set('Referrer-Policy', 'no-referrer');
   res.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   res.headers.set('X-XSS-Protection', '0');
-  // Only apply strict CSP to API routes; page routes need 'unsafe-inline' for Next.js hydration
-  if (url.pathname.startsWith('/api/')) {
+  // Only apply strict CSP to API routes; page routes need 'unsafe-inline' for Next.js hydration.
+  // Skip CSP for binary routes — CSP only applies to HTML documents, not PDFs.
+  if (url.pathname.startsWith('/api/') && !isBinaryApiRoute) {
     res.headers.set('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline'");
   }
   try {

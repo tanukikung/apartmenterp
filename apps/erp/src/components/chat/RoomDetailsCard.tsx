@@ -21,6 +21,17 @@ type Props = {
   onConfirmPayment?: () => void;
   canSendViaLine?: boolean;
   sendDisabledReason?: string | null;
+  documents?: Array<{
+    id: string;
+    title: string;
+    documentType: string;
+    year: number | null;
+    month: number | null;
+    hasPdf: boolean;
+    generatedAt: string;
+  }> | null;
+  documentsLoading?: boolean;
+  onSendDocument?: (documentId: string) => void;
 };
 
 function statusTone(status?: string | null): string {
@@ -53,6 +64,9 @@ export function RoomDetailsCard(props: Props) {
     onConfirmPayment,
     canSendViaLine,
     sendDisabledReason,
+    documents,
+    documentsLoading,
+    onSendDocument,
   } = props;
 
   return (
@@ -135,6 +149,44 @@ export function RoomDetailsCard(props: Props) {
             <button onClick={onUploadFile} className="admin-button">Upload file</button>
           ) : null}
           <button onClick={onConfirmPayment} className="admin-button">Confirm payment</button>
+        </div>
+      </div>
+
+      <div className="admin-card cute-surface">
+        <div className="admin-card-header">
+          <div className="admin-card-title">เอกสาร</div>
+        </div>
+        <div className="space-y-2 p-4 text-sm">
+          {documentsLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <svg className="h-5 w-5 animate-spin text-slate-400" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.878 3 8.291l2-2z" />
+              </svg>
+            </div>
+          ) : !documents || documents.length === 0 ? (
+            <div className="text-slate-500">ไม่มีเอกสาร</div>
+          ) : (
+            documents.map((doc) => (
+              <div key={doc.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium text-slate-900">{doc.title}</div>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
+                    <span className="inline-flex items-center rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">{doc.documentType}</span>
+                    <span>{new Date(doc.generatedAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onSendDocument?.(doc.id)}
+                  disabled={!canSendViaLine || !doc.hasPdf}
+                  title={!canSendViaLine ? (sendDisabledReason || undefined) : !doc.hasPdf ? 'ไม่มีไฟล์ PDF' : undefined}
+                  className="ml-2 shrink-0 admin-button admin-button-primary text-xs disabled:opacity-50"
+                >
+                  ส่ง LINE
+                </button>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

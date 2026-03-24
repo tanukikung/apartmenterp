@@ -11,7 +11,11 @@ import {
   AlertCircle,
   RefreshCw,
   Edit2,
+  Search,
 } from 'lucide-react';
+
+// Natural sort collator for room numbers (e.g. "101" < "201" < "1001")
+const naturalCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -210,6 +214,7 @@ export default function TenantRegistrationsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<Registration | null>(null);
   const [correctionTarget, setCorrectionTarget] = useState<Registration | null>(null);
+  const [roomSearch, setRoomSearch] = useState('');
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
 
@@ -314,8 +319,19 @@ export default function TenantRegistrationsPage() {
     REJECTED: registrations.filter((r) => r.status === 'REJECTED').length,
   };
 
-  const visible =
-    activeTab === 'ALL' ? registrations : registrations.filter((r) => r.status === activeTab);
+  // Count APPROVED registrations per claimed room for occupancy warnings
+  const approvedPerRoom = new Map<string, number>();
+  for (const r of registrations) {
+    if (r.status === 'APPROVED' && r.claimedRoom) {
+      approvedPerRoom.set(r.claimedRoom, (approvedPerRoom.get(r.claimedRoom) ?? 0) + 1);
+    }
+  }
+
+  const searchLower = roomSearch.trim().toLowerCase();
+  const visible = registrations
+    .filter((r) => activeTab === 'ALL' || r.status === activeTab)
+    .filter((r) => !searchLower || (r.claimedRoom ?? '').toLowerCase().includes(searchLower))
+    .sort((a, b) => naturalCollator.compare(a.claimedRoom ?? '', b.claimedRoom ?? ''));
 
   const TABS: { id: StatusTab; label: string }[] = [
     { id: 'ALL', label: 'All' },

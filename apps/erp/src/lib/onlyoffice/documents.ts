@@ -1,6 +1,6 @@
 import { prisma } from '@/lib';
 import { getStorage } from '@/infrastructure/storage';
-import { createOnlyOfficeDocumentKey, getOnlyOfficeAppBaseUrl, inferOnlyOfficeDocumentType } from './index';
+import { createOnlyOfficeDocumentKey, getOnlyOfficeCallbackBaseUrl, inferOnlyOfficeDocumentType } from './index';
 import { NotFoundError, ExternalServiceError } from '@/lib/utils/errors';
 import { buildFileAccessUrl } from '@/lib/files/access';
 
@@ -8,9 +8,15 @@ export function getOnlyOfficeTemplateStorageKey(templateId: string): string {
   return `onlyoffice/templates/${templateId}.html`;
 }
 
+/**
+ * Build the URL that ONLYOFFICE Document Server uses to fetch the file.
+ * Must use ONLYOFFICE_CALLBACK_BASE_URL (e.g. http://host.docker.internal:3001)
+ * rather than APP_BASE_URL (localhost) so Docker-hosted ONLYOFFICE can reach
+ * the file endpoint on the Windows/host machine.
+ */
 export function getOnlyOfficeFileUrl(storageKey: string): string {
   return buildFileAccessUrl(storageKey, {
-    absoluteBaseUrl: getOnlyOfficeAppBaseUrl(),
+    absoluteBaseUrl: getOnlyOfficeCallbackBaseUrl(),
     inline: true,
     signed: true,
     expiresInSeconds: 15 * 60,

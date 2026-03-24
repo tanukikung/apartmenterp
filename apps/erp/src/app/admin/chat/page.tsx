@@ -74,6 +74,16 @@ export default function ChatInboxPage() {
   const [msgTemplates, setMsgTemplates] = useState<{ id: string; label: string; text: string }[]>([]);
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const [lineConfigured, setLineConfigured] = useState<boolean | null>(null);
+  const [roomDocuments, setRoomDocuments] = useState<Array<{
+    id: string;
+    title: string;
+    documentType: string;
+    year: number | null;
+    month: number | null;
+    hasPdf: boolean;
+    generatedAt: string;
+  }> | null>(null);
+  const [roomDocsLoading, setRoomDocsLoading] = useState(false);
 
   useEffect(() => {
     async function loadTemplates() {
@@ -167,11 +177,40 @@ export default function ChatInboxPage() {
   useEffect(() => { void loadLatestInvoice(selectedId); }, [loadLatestInvoice, selectedId]);
   useEffect(() => { setActionNotice(null); }, [selectedId]);
 
+  const loadRoomDocuments = useCallback(async (roomNumber: string | null | undefined) => {
+    if (!roomNumber) { setRoomDocuments(null); return; }
+    setRoomDocsLoading(true);
+    try {
+      const res = await fetch(`/api/documents?roomId=${encodeURIComponent(roomNumber)}&pageSize=10`).then((r) => r.json());
+      if (res.success && Array.isArray(res.data?.documents)) {
+        setRoomDocuments(
+          (res.data.documents as Array<{ id: string; title: string; documentType: string; year: number | null; month: number | null; files?: Array<{ role: string }>; generatedAt: string }>).map((d) => ({
+            id: d.id,
+            title: d.title,
+            documentType: d.documentType,
+            year: d.year ?? null,
+            month: d.month ?? null,
+            hasPdf: Array.isArray(d.files) && d.files.some((f) => f.role === 'PDF'),
+            generatedAt: d.generatedAt,
+          }))
+        );
+      } else {
+        setRoomDocuments([]);
+      }
+    } catch {
+      setRoomDocuments([]);
+    } finally {
+      setRoomDocsLoading(false);
+    }
+  }, []);
+
   const current = useMemo(() => conversations.find((conversation) => conversation.id === selectedId) || null, [conversations, selectedId]);
 
   const setErrorNotice = useCallback((message: string) => { setActionNotice({ tone: 'error', message }); }, []);
   const setSuccessNotice = useCallback((message: string) => { setActionNotice({ tone: 'success', message }); }, []);
   const setInfoNotice = useCallback((message: string) => { setActionNotice({ tone: 'info', message }); }, []);
+
+  useEffect(() => { void loadRoomDocuments(current?.room?.roomNumber); }, [loadRoomDocuments, current?.room?.roomNumber]);
 
   const callActionApi = useCallback(async <T,>(url: string, init: RequestInit, fallbackError: string): Promise<ApiActionResult<T>> => {
     try {
@@ -181,6 +220,12 @@ export default function ChatInboxPage() {
       return { ok: true, data: (json.data ?? null) as T | null, message: extractApiMessage(json, '') };
     } catch { return { ok: false, data: null, message: fallbackError }; }
   }, []);
+
+  const sendDocument = useCallback(async (documentId: string) => {
+    const result = await callActionApi(`/api/documents/${documentId}/send`, { method: 'POST' }, 'ไม่สามารถส่งเอกสารได้');
+    if (!result.ok) { setErrorNotice(result.message); return; }
+    setSuccessNotice('เอกสารพร้อมส่งแล้ว');
+  }, [callActionApi, setErrorNotice, setSuccessNotice]);
 
   const loadOlder = useCallback(async () => {
     if (!selectedId || !oldestCursor || loadingMore) return;
@@ -456,6 +501,9 @@ export default function ChatInboxPage() {
             onConfirmPayment={() => void confirmPaymentQuick(null)}
             canSendViaLine={canSendViaLine}
             sendDisabledReason={sendDisabledReason}
+            documents={roomDocuments}
+            documentsLoading={roomDocsLoading}
+            onSendDocument={(id) => void sendDocument(id)}
           />
         </section>
       </div>
