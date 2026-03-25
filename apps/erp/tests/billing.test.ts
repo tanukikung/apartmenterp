@@ -25,23 +25,15 @@ vi.mock('@/lib/line/client', () => ({
 // BillingService now uses RoomBilling (flat rows, no separate item table).
 vi.mock('@/lib', async () => {
   const actual = await vi.importActual<any>('@/lib');
-  return {
-    ...actual,
-    prisma: {
-      room: { findFirst: vi.fn(), findUnique: vi.fn() },
-      billingPeriod: { findUnique: vi.fn(), create: vi.fn(), upsert: vi.fn() },
-      roomBilling: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
-      outboxEvent: { create: vi.fn() },
-      config: { findMany: vi.fn() },
-      $transaction: vi.fn(async (fn: any) =>
-        fn({
-          billingPeriod: { findUnique: vi.fn(), create: vi.fn(), upsert: vi.fn() },
-          roomBilling: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
-          outboxEvent: { create: vi.fn() },
-        })
-      ),
-    },
+  const mockPrisma = {
+    room: { findFirst: vi.fn(), findUnique: vi.fn() },
+    billingPeriod: { findUnique: vi.fn(), create: vi.fn(), upsert: vi.fn() },
+    roomBilling: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    outboxEvent: { create: vi.fn() },
+    config: { findMany: vi.fn() },
+    $transaction: vi.fn(async (fn: any) => fn(mockPrisma)),
   };
+  return { ...actual, prisma: mockPrisma };
 });
 
 describe('BillingService', () => {

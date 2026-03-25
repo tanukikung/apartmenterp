@@ -69,6 +69,21 @@ cookies.txt
 invoice_thai_test.pdf
 thai_test.pdf
 test-bank-statement.csv
+deploy.ipynb
+check-*.ps1
+find-*.ps1
+run-*.ps1
+start-dev.ps1
+test-*.ps1
+wait-*.ps1
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# E2E and stabilization tests (run locally only)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+**/billing-partial-success.test.ts
+**/env-secrets-not-in-git.test.ts
+**/backup-restore-drill.test.ts
+**/production-hardening.test.ts
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # AI tool analysis artifacts (generated files — ไม่ใช่ source code)
