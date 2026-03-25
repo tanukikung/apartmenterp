@@ -44,6 +44,7 @@ playwright-report/
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 apps/erp/.data/
 apps/erp/deploy/
+apps/erp/tmp/
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Temp / debug scripts (ลบแล้ว — gitignore เผื่อมีหลงเหลือ)
@@ -69,6 +70,7 @@ cookies.txt
 invoice_thai_test.pdf
 thai_test.pdf
 test-bank-statement.csv
+sample-invoice.pdf
 deploy.ipynb
 check-*.ps1
 find-*.ps1
@@ -99,6 +101,8 @@ make_billing_template.py
 # UI Design mockups (ไม่ใช่ source code)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 stitch_apartment_erp_admin_prd/
+screenshots/
+uat-screenshots/
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Claude Code (local dev tool — ไม่ต้อง push)
