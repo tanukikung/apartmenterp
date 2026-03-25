@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceContainer } from '@/lib/service-container';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { requireAuthSession } from '@/lib/auth/guards';
 
 // ============================================================================
 // GET /api/billing/[id] - Get billing record by ID
@@ -8,6 +9,7 @@ import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireAuthSession(req);
     const { id } = params;
 
     const { billingService } = getServiceContainer();

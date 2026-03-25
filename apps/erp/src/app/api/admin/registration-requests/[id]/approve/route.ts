@@ -40,7 +40,7 @@ export const POST = asyncHandler(async (req: NextRequest, context?: { params: { 
         displayName: registrationRequest.displayName,
         passwordHash: registrationRequest.passwordHash,
         role: 'STAFF',
-        forcePasswordChange: false,
+        forcePasswordChange: true,
       },
       select: {
         id: true,

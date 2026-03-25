@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { prisma } from '@/lib';
+import { requireAuthSession } from '@/lib/auth/guards';
 
 type DeliveryWithInvoice = {
   id: string;
@@ -29,6 +30,7 @@ type DeliveryWithInvoice = {
 
 // GET /api/deliveries?channel=LINE&status=PENDING&page=1&pageSize=20
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireAuthSession(req);
   const { searchParams } = new URL(req.url);
   const channel = searchParams.get('channel') || 'LINE';
   const status = searchParams.get('status');

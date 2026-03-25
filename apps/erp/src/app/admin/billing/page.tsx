@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import React from 'react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
   AlertTriangle,
   BarChart2,
@@ -22,7 +23,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-type CycleStatus = 'OPEN' | 'IMPORTED' | 'LOCKED' | 'INVOICED' | 'CLOSED';
+type CycleStatus = 'OPEN' | 'LOCKED' | 'CLOSED';
 
 interface BillingCycle {
   id: string;
@@ -31,6 +32,8 @@ interface BillingCycle {
   status: CycleStatus;
   building: { id: string; name: string } | null;
   totalRecords: number;
+  totalRooms: number;
+  missingRooms: number;
   totalAmount: number;
   invoiceCount: number;
   pendingInvoices: number;
@@ -39,7 +42,7 @@ interface BillingCycle {
   createdAt: string;
 }
 
-type InvoiceStatus = 'GENERATED' | 'SENT' | 'VIEWED' | 'PAID' | 'OVERDUE';
+type InvoiceStatus = 'GENERATED' | 'SENT' | 'VIEWED' | 'PAID' | 'OVERDUE' | 'CANCELLED';
 interface Invoice {
   id: string;
   invoiceNumber: string;
@@ -58,6 +61,8 @@ interface KpiData {
   openCycles: number;
   totalBilledThisMonth: number;
   totalRecords: number;
+  totalActiveRooms: number;
+  missingRooms: number;
   pendingInvoices: number;
 }
 
@@ -71,11 +76,9 @@ const THAI_MONTHS = [
 ];
 
 const STATUS_BADGE: Record<CycleStatus, { cls: string; label: string }> = {
-  OPEN:     { cls: 'bg-blue-100 text-blue-700 border-blue-200',           label: 'Open'     },
-  IMPORTED: { cls: 'bg-primary-container text-primary-container',        label: 'Imported' },
-  LOCKED:   { cls: 'bg-amber-100 text-amber-700 border-amber-200',       label: 'Locked'   },
-  INVOICED: { cls: 'bg-tertiary-container text-on-tertiary-container',   label: 'Invoiced' },
-  CLOSED:   { cls: 'bg-surface-container text-on-surface-variant',       label: 'Closed'   },
+  OPEN:   { cls: 'bg-blue-100 text-blue-700 border-blue-200',     label: 'Open'   },
+  LOCKED: { cls: 'bg-amber-100 text-amber-700 border-amber-200', label: 'Locked' },
+  CLOSED: { cls: 'bg-surface-container text-on-surface-variant', label: 'Closed' },
 };
 
 const INVOICE_STATUS_BADGE: Record<InvoiceStatus, { cls: string; label: string }> = {
@@ -87,12 +90,10 @@ const INVOICE_STATUS_BADGE: Record<InvoiceStatus, { cls: string; label: string }
 };
 
 const STATUS_FILTER_OPTIONS: { value: CycleStatus | 'ALL'; label: string }[] = [
-  { value: 'ALL',      label: 'ทุกสถานะ' },
-  { value: 'OPEN',     label: 'Open'     },
-  { value: 'IMPORTED', label: 'Imported' },
-  { value: 'LOCKED',   label: 'Locked'   },
-  { value: 'INVOICED', label: 'Invoiced' },
-  { value: 'CLOSED',   label: 'Closed'   },
+  { value: 'ALL',    label: 'ทุกสถานะ' },
+  { value: 'OPEN',   label: 'Open'   },
+  { value: 'LOCKED', label: 'Locked' },
+  { value: 'CLOSED', label: 'Closed' },
 ];
 
 const INVOICE_TABS: { value: InvoiceStatus | 'ALL'; label: string }[] = [
@@ -102,6 +103,7 @@ const INVOICE_TABS: { value: InvoiceStatus | 'ALL'; label: string }[] = [
   { value: 'VIEWED', label: 'เปิดแล้ว' },
   { value: 'PAID', label: 'ชำระแล้ว' },
   { value: 'OVERDUE', label: 'เกินกำหนด' },
+  { value: 'CANCELLED', label: 'ยกเลิก' },
 ];
 
 function getMonthOptions(): { value: string; label: string }[] {
@@ -136,13 +138,21 @@ function deriveKpis(cycles: BillingCycle[]): KpiData {
   const now = new Date();
   const thisMonth = now.getMonth() + 1;
   const thisYear = now.getFullYear();
-  const openCycles = cycles.filter((c) => c.status === 'OPEN' || c.status === 'IMPORTED').length;
+  const openCycles = cycles.filter((c) => c.status === 'OPEN').length;
+  const currentCycle = cycles.find((c) => c.year === thisYear && c.month === thisMonth);
   const totalBilledThisMonth = cycles
     .filter((c) => c.year === thisYear && c.month === thisMonth)
     .reduce((s, c) => s + (c.totalAmount ?? 0), 0);
   const totalRecords = cycles.reduce((s, c) => s + (c.totalRecords ?? 0), 0);
   const pendingInvoices = cycles.reduce((s, c) => s + (c.pendingInvoices ?? 0), 0);
-  return { openCycles, totalBilledThisMonth, totalRecords, pendingInvoices };
+  return {
+    openCycles,
+    totalBilledThisMonth,
+    totalRecords,
+    totalActiveRooms: currentCycle?.totalRooms ?? 0,
+    missingRooms: currentCycle?.missingRooms ?? 0,
+    pendingInvoices,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -227,6 +237,10 @@ export default function AdminBillingPage() {
   const [batchMsg,   setBatchMsg]   = useState<Record<string, string>>({});
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState<string | null>(null);
+  const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
+  const [sendTargetInvoiceId, setSendTargetInvoiceId] = useState<string | null>(null);
+  const [batchGenerateConfirmOpen, setBatchGenerateConfirmOpen] = useState(false);
+  const [batchGenerateTarget, setBatchGenerateTarget] = useState<{ periodId: string; needsLock: boolean } | null>(null);
 
   const monthOptions = getMonthOptions();
   const kpis = deriveKpis(cycles);
@@ -322,7 +336,11 @@ export default function AdminBillingPage() {
 
       set('done');
       msg(summary);
-      setSendSuccess(`${summary} — สำเร็จ`);
+      if (errors > 0) {
+        setSendError(`${summary} — มีข้อผิดพลาด`);
+      } else {
+        setSendSuccess(`${summary} — สำเร็จ`);
+      }
       void loadCycles();
       void loadInvoices();
     } catch (err) {
@@ -485,6 +503,14 @@ export default function AdminBillingPage() {
                 <KpiCard label="Total Billed This Month" value={`฿${formatBaht(kpis.totalBilledThisMonth)}`} icon={<BarChart2 className="h-5 w-5" />} iconBg="bg-tertiary-container" iconColor="text-on-tertiary-container" />
                 <KpiCard label="Total Records" value={kpis.totalRecords.toLocaleString()} sub="Billing records across all cycles" icon={<FileText className="h-5 w-5" />} iconBg="bg-surface-container" iconColor="text-on-surface-variant" />
                 <KpiCard label="Pending Invoices" value={kpis.pendingInvoices} sub="Not yet paid" icon={<ReceiptText className="h-5 w-5" />} iconBg="bg-amber-100" iconColor="text-amber-700" />
+                <KpiCard
+                  label="ห้องไม่มีข้อมูล (เดือนนี้)"
+                  value={kpis.missingRooms > 0 ? kpis.missingRooms : '—'}
+                  sub={kpis.missingRooms > 0 ? `จาก ${kpis.totalActiveRooms} ห้อง` : 'ครบทุกห้อง'}
+                  icon={<AlertTriangle className="h-5 w-5" />}
+                  iconBg={kpis.missingRooms > 0 ? 'bg-red-100' : 'bg-emerald-100'}
+                  iconColor={kpis.missingRooms > 0 ? 'text-red-600' : 'text-emerald-600'}
+                />
               </>
             )}
           </div>
@@ -554,7 +580,7 @@ export default function AdminBillingPage() {
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="border-b border-outline-variant">
-                      {['เดือน/ปี', 'สถานะ', 'รายการ', 'ยอดรวม', 'ใบแจ้งหนี้', 'วันครบกำหนด', 'จัดการ'].map((h) => (
+                      {['เดือน/ปี', 'สถานะ', 'รายการ', 'ความครอบคลุม', 'ยอดรวม', 'ใบแจ้งหนี้', 'วันครบกำหนด', 'จัดการ'].map((h) => (
                         <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
                           {h}
                         </th>
@@ -568,7 +594,7 @@ export default function AdminBillingPage() {
                       const busy = bs === 'locking' || bs === 'generating';
 
                       // What action is available?
-                      const needsLock   = cycle.status === 'OPEN' || cycle.status === 'IMPORTED';
+                      const needsLock   = cycle.status === 'OPEN';
                       const needsGen    = cycle.status === 'LOCKED';
                       const canBatch    = needsLock || needsGen;
 
@@ -579,10 +605,34 @@ export default function AdminBillingPage() {
                               {thaiMonthYear(cycle.year, cycle.month)}
                             </td>
                             <td className="px-4 py-3">
-                              <StatusBadge status={bs === 'done' ? 'INVOICED' : cycle.status} />
+                              <StatusBadge status={cycle.status} />
                             </td>
                             <td className="px-4 py-3 text-right text-on-surface-variant">
                               {(cycle.totalRecords ?? 0).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                {cycle.totalRooms > 0 ? (
+                                  <>
+                                    <div className="flex-1 h-1.5 rounded-full bg-outline-variant overflow-hidden max-w-[60px]">
+                                      <div
+                                        className={`h-full rounded-full ${(cycle.missingRooms ?? 0) > 0 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                                        style={{ width: `${Math.round(((cycle.totalRooms - (cycle.missingRooms ?? 0)) / cycle.totalRooms) * 100)}%` }}
+                                      />
+                                    </div>
+                                    <span className={`text-xs font-medium whitespace-nowrap ${(cycle.missingRooms ?? 0) > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                      {cycle.totalRooms - (cycle.missingRooms ?? 0)}/{cycle.totalRooms}
+                                    </span>
+                                    {(cycle.missingRooms ?? 0) > 0 && (
+                                      <span className="text-[10px] text-amber-600 whitespace-nowrap">
+                                        (−{cycle.missingRooms})
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-outline">—</span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-right font-semibold text-on-surface whitespace-nowrap">
                               ฿{formatBaht(cycle.totalAmount ?? 0)}
@@ -616,7 +666,7 @@ export default function AdminBillingPage() {
 
                                 {canBatch && bs !== 'done' && (
                                   <button
-                                    onClick={() => void handleBatchGenerate(cycle.id, needsLock)}
+                                    onClick={() => { setBatchGenerateTarget({ periodId: cycle.id, needsLock }); setBatchGenerateConfirmOpen(true); }}
                                     disabled={busy}
                                     title={needsLock ? 'Lock ทั้งหมด แล้ว Generate Invoices' : 'Generate Invoices ทั้งหมด'}
                                     className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
@@ -743,7 +793,7 @@ export default function AdminBillingPage() {
                           <div className="flex items-center gap-2">
                             {inv.status !== 'PAID' && (
                               <button
-                                onClick={() => void handleSendInvoice(inv.id)}
+                                onClick={() => { setSendTargetInvoiceId(inv.id); setSendConfirmOpen(true); }}
                                 className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
                               >
                                 <Send className="h-3 w-3" />
@@ -770,6 +820,31 @@ export default function AdminBillingPage() {
           )}
         </>
       )}
+      <ConfirmDialog
+        open={sendConfirmOpen}
+        title="ส่งใบแจ้งหนี้?"
+        description="ระบบจะส่งใบแจ้งหนี้ไปยัง LINE ของผู้เช่า — การดำเนินการนี้ไม่สามารถยกเลิกได้"
+        confirmLabel="ส่งเลย"
+        cancelLabel="ยกเลิก"
+        onConfirm={() => { setSendConfirmOpen(false); if (sendTargetInvoiceId) { void handleSendInvoice(sendTargetInvoiceId); } }}
+        onCancel={() => setSendConfirmOpen(false)}
+      />
+      <ConfirmDialog
+        open={batchGenerateConfirmOpen}
+        title={batchGenerateTarget?.needsLock ? 'Lock + Generate Invoices?' : 'Generate Invoices ทั้งหมด?'}
+        description={batchGenerateTarget?.needsLock
+          ? 'ระบบจะ Lock บิลที่ยังไม่ได้ Lock ทั้งหมด แล้วสร้างใบแจ้งหนี้ — การดำเนินการนี้ไม่สามารถยกเลิกได้'
+          : 'ระบบจะสร้างใบแจ้งหนี้สำหรับทุกห้องที่ยังไม่มีใบแจ้งหนี้ — การดำเนินการนี้ไม่สามารถยกเลิกได้'}
+        confirmLabel="ดำเนินการต่อ"
+        dangerous
+        onConfirm={() => {
+          setBatchGenerateConfirmOpen(false);
+          if (batchGenerateTarget) {
+            void handleBatchGenerate(batchGenerateTarget.periodId, batchGenerateTarget.needsLock);
+          }
+        }}
+        onCancel={() => { setBatchGenerateConfirmOpen(false); setBatchGenerateTarget(null); }}
+      />
     </main>
   );
 }

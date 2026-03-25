@@ -106,8 +106,12 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
           lastFetchedAt: new Date(),
         },
       });
-    } catch {
-      // non-blocking
+    } catch (profileError) {
+      logger.warn({
+        type: 'line_profile_fetch_failed',
+        userId,
+        error: profileError instanceof Error ? profileError.message : 'Unknown error',
+      });
     }
 
     let conversation = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
@@ -157,6 +161,15 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
     const incoming = extractIncomingMessage(event);
     if (!incoming) continue;
+
+    // Deduplicate: LINE can retry webhook delivery. Skip if we already processed this lineMessageId.
+    const existingMessage = await prisma.message.findUnique({
+      where: { lineMessageId: incoming.lineMessageId },
+    });
+    if (existingMessage) {
+      // Already processed this LINE event — acknowledge without reprocessing
+      continue;
+    }
 
     await prisma.message.create({
       data: {

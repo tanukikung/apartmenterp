@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/lib';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
-import { BadRequestError, NotFoundError } from '@/lib/utils/errors';
+import { BadRequestError, ConflictError, NotFoundError } from '@/lib/utils/errors';
 import { syncInvoicePaymentState } from './invoice-payment-state';
 
 export interface BankStatementEntry {
@@ -19,10 +19,11 @@ export interface MatchCandidate {
   invoiceId: string;
   confidence: MatchConfidence;
   criteria: {
-    type: 'invoice_number' | 'reference' | 'amount_room' | 'amount_resident';
+    type: 'invoice_number' | 'reference' | 'amount_room' | 'amount_resident' | 'amount_only';
     matchedField: string;
     expectedValue: string;
     actualValue: string;
+    warning?: string;
   };
 }
 
@@ -37,32 +38,34 @@ export class PaymentMatchingService {
 
     for (const entry of entries) {
       try {
-        // Create payment transaction
-        const transaction = await prisma.paymentTransaction.create({
-          data: {
-            id: uuidv4(),
-            amount: entry.amount,
-            transactionDate: entry.date,
-            description: entry.description,
-            reference: entry.reference,
-            sourceFile,
-            status: 'PENDING',
-          },
-        });
-
-        imported++;
-
-        // Attempt to match
-        const matchResult = await this.attemptMatch(transaction.id);
-        if (matchResult) {
-          matched++;
-        } else {
-          // No match found — move to NEED_REVIEW so admins can manually assign
-          await prisma.paymentTransaction.update({
-            where: { id: transaction.id },
-            data: { status: 'NEED_REVIEW' },
+        await prisma.$transaction(async (tx) => {
+          // Create payment transaction
+          const transaction = await tx.paymentTransaction.create({
+            data: {
+              id: uuidv4(),
+              amount: entry.amount,
+              transactionDate: entry.date,
+              description: entry.description,
+              reference: entry.reference,
+              sourceFile,
+              status: 'PENDING',
+            },
           });
-        }
+
+          imported++;
+
+          // Attempt to match using the same transaction connection
+          const matchResult = await this.attemptMatch(transaction.id, tx);
+          if (matchResult) {
+            matched++;
+          } else {
+            // No match found — move to NEED_REVIEW so admins can manually assign
+            await tx.paymentTransaction.update({
+              where: { id: transaction.id },
+              data: { status: 'NEED_REVIEW' },
+            });
+          }
+        }); // transaction auto-rolls back on any unhandled exception
       } catch (error) {
         logger.error({
           type: 'payment_import_entry_failed',
@@ -89,8 +92,9 @@ export class PaymentMatchingService {
     return { imported, matched };
   }
 
-  async attemptMatch(transactionId: string): Promise<MatchCandidate | null> {
-    const transaction = await prisma.paymentTransaction.findUnique({
+  async attemptMatch(transactionId: string, tx?: typeof prisma): Promise<MatchCandidate | null> {
+    const db = tx ?? prisma;
+    const transaction = await db.paymentTransaction.findUnique({
       where: { id: transactionId },
     });
 
@@ -99,7 +103,7 @@ export class PaymentMatchingService {
     }
 
     // Get unpaid invoices
-    const unpaidInvoices = await prisma.invoice.findMany({
+    const unpaidInvoices = await db.invoice.findMany({
       where: {
         status: { in: ['GENERATED', 'SENT', 'VIEWED'] },
         dueDate: {
@@ -170,7 +174,7 @@ export class PaymentMatchingService {
           : 'OVERPAY';
 
       // Update transaction with match
-      await prisma.paymentTransaction.update({
+      await db.paymentTransaction.update({
         where: { id: transaction.id },
         data: {
           invoiceId: bestMatch.invoiceId,
@@ -275,7 +279,7 @@ export class PaymentMatchingService {
     const primaryTenant = invoice.room.roomTenants[0]?.tenant;
     if (primaryTenant) {
       const tenantName = `${primaryTenant.firstName} ${primaryTenant.lastName}`.toLowerCase();
-      if (textFields.includes(primaryTenant.firstName.toLowerCase()) || 
+      if (textFields.includes(primaryTenant.firstName.toLowerCase()) ||
           textFields.includes(primaryTenant.lastName.toLowerCase())) {
         return {
           invoiceId: invoice.id,
@@ -290,15 +294,17 @@ export class PaymentMatchingService {
       }
     }
 
-    // No specific match criteria found, but amount matches
+    // Amount-only match with no supporting room/invoice/resident evidence: require human review
+    // Label honestly so reviewers know this is unverified
     return {
       invoiceId: invoice.id,
       confidence: 'LOW',
       criteria: {
-        type: 'amount_resident',
+        type: 'amount_only',
         matchedField: 'amount',
         expectedValue: invoiceTotal.toString(),
         actualValue: transaction.amount.toString(),
+        warning: 'No room number, invoice number, or resident name detected',
       },
     };
   }
@@ -335,12 +341,28 @@ export class PaymentMatchingService {
     invoiceId: string,
     confirmedBy: string
   ): Promise<void> {
+    // Pre-flight check: fetch full transaction state before entering the write transaction.
+    // The actual DB-level protection against concurrent confirmation is inside $transaction.
     const transaction = await prisma.paymentTransaction.findUnique({
       where: { id: transactionId },
     });
 
     if (!transaction) {
       throw new NotFoundError('PaymentTransaction', transactionId);
+    }
+
+    if (transaction.status === 'CONFIRMED') {
+      // Idempotent: already confirmed, no-op
+      return;
+    }
+
+    // Amount-only (LOW confidence) matches require explicit human review before confirmation.
+    // Reject if confidenceScore is set and below 0.75 (LOW confidence). Null means no auto-match.
+    if (transaction.confidenceScore !== null && Number(transaction.confidenceScore) < 0.75) {
+      throw new BadRequestError(
+        'Cannot confirm amount-only match automatically. ' +
+        'Ensure room number, invoice number, or resident name is visible in the transaction reference before confirming.'
+      );
     }
 
     const invoice = await prisma.invoice.findUnique({
@@ -365,6 +387,24 @@ export class PaymentMatchingService {
         : 'OVERPAY';
 
     await prisma.$transaction(async (tx) => {
+      // Belt-and-suspenders: re-check status inside transaction after acquiring the
+      // Prisma connection. Concurrent calls will serialize here due to Prisma's
+      // connection pooling and the unique index on (invoiceId) for CONFIRMED payments.
+      const current = await tx.paymentTransaction.findUnique({ where: { id: transactionId } });
+      if (!current || current.status === 'CONFIRMED') return;  // idempotent inside tx
+
+      // Belt-and-suspenders: ensure no other CONFIRMED transaction already owns this invoice.
+      // The application-level check precedes the DB-level unique-index protection (there is
+      // no DB-level unique index on invoiceId for CONFIRMED status — see schema.prisma).
+      const existingConfirmed = await tx.paymentTransaction.findFirst({
+        where: { invoiceId, status: 'CONFIRMED' },
+      });
+      if (existingConfirmed) {
+        throw new ConflictError(
+          `Invoice ${invoiceId} already has a confirmed payment transaction ${existingConfirmed.id}`
+        );
+      }
+
       // Update transaction
       await tx.paymentTransaction.update({
         where: { id: transactionId },
@@ -446,14 +486,29 @@ export class PaymentMatchingService {
       throw new NotFoundError('PaymentTransaction', transactionId);
     }
 
-    await prisma.paymentTransaction.update({
-      where: { id: transactionId },
-      data: {
-        status: 'REJECTED',
-        rejectedAt: new Date(),
-        rejectedBy,
-        rejectReason,
-      },
+    if (transaction.status === 'CONFIRMED') {
+      throw new BadRequestError('Cannot reject a confirmed transaction. Un-match it first.');
+    }
+
+    if (transaction.status === 'REJECTED') {
+      // Idempotent: already rejected, no-op
+      return;
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Re-check status inside transaction to guard against concurrent rejects.
+      const current = await tx.paymentTransaction.findUnique({ where: { id: transactionId } });
+      if (!current || current.status === 'CONFIRMED' || current.status === 'REJECTED') return; // idempotent
+
+      await tx.paymentTransaction.update({
+        where: { id: transactionId },
+        data: {
+          status: 'REJECTED',
+          rejectedAt: new Date(),
+          rejectedBy,
+          rejectReason,
+        },
+      });
     });
 
     await logAudit({

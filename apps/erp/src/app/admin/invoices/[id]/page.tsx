@@ -13,12 +13,14 @@ import {
   RefreshCw,
   XCircle,
 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { isLineConfigured } from '@/lib/line';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type InvoiceStatus = 'DRAFT' | 'GENERATED' | 'SENT' | 'VIEWED' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+type InvoiceStatus = 'GENERATED' | 'SENT' | 'VIEWED' | 'PAID' | 'OVERDUE' | 'CANCELLED';
 
 type BillingItem = {
   id: string;
@@ -115,7 +117,6 @@ function invoiceBadgeClass(status: InvoiceStatus): string {
     case 'SENT': return 'bg-blue-100 text-blue-700 border-blue-200';
     case 'VIEWED': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
     case 'OVERDUE': return 'bg-red-100 text-red-700 border-red-200';
-    case 'DRAFT': return 'bg-amber-100 text-amber-700 border-amber-200';
     case 'GENERATED': return 'bg-blue-100 text-blue-700 border-blue-200';
     case 'CANCELLED': return 'bg-slate-100 text-slate-500 border-slate-200';
     default: return 'bg-slate-100 text-slate-600 border-slate-200';
@@ -237,6 +238,7 @@ export default function InvoiceDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [sendMessage, setSendMessage] = useState<string | null>(null);
+  const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!invoiceId) return;
@@ -360,7 +362,7 @@ export default function InvoiceDetailPage() {
     }
   }
 
-  const canSend = inv.status === 'DRAFT' || inv.status === 'GENERATED' || inv.status === 'VIEWED';
+  const canSend = inv.status === 'GENERATED' || inv.status === 'VIEWED';
 
   return (
     <main className="space-y-6">
@@ -404,7 +406,7 @@ export default function InvoiceDetailPage() {
           </button>
           {canSend && (
             <button
-              onClick={() => void sendInvoice()}
+              onClick={() => { if (!isLineConfigured()) { setSendMessage('LINE ไม่ได้รับการตั้งค่า ไม่สามารถส่งได้'); return; } setSendConfirmOpen(true); }}
               disabled={sending}
               className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 shadow-sm transition-colors hover:bg-blue-100 disabled:opacity-60"
             >
@@ -553,6 +555,15 @@ export default function InvoiceDetailPage() {
           )}
         </div>
       </section>
+      <ConfirmDialog
+        open={sendConfirmOpen}
+        title="ส่งใบแจ้งหนี้ LINE?"
+        description="ระบบจะส่งใบแจ้งหนี้ไปยัง LINE ของผู้เช่า หากเชื่อมต่อไว้"
+        confirmLabel="ส่งเลย"
+        cancelLabel="ยกเลิก"
+        onConfirm={() => { setSendConfirmOpen(false); void sendInvoice(); }}
+        onCancel={() => setSendConfirmOpen(false)}
+      />
     </main>
   );
 }

@@ -3,12 +3,14 @@ import { getServiceContainer } from '@/lib/service-container';
 import { generateInvoiceSchema } from '@/modules/invoices/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
+import { requireRole } from '@/lib/auth/guards';
 
 // ============================================================================
 // POST /api/invoices/generate - Generate invoice from billing
 // ============================================================================
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN', 'STAFF']);
   const body = await req.json();
   const input = generateInvoiceSchema.parse(body);
   const { searchParams } = new URL(req.url);

@@ -82,38 +82,46 @@ export class BillingService {
       });
     }
 
-    // Business rule: Only one RoomBilling per room/period
-    const existing = await prisma.roomBilling.findUnique({
-      where: { billingPeriodId_roomNo: { billingPeriodId: period.id, roomNo: input.roomNo } },
-    });
-
-    if (existing) {
-      throw new ConflictError(
-        `Billing record for ${input.year}-${input.month} already exists for room ${input.roomNo}`
-      );
+    // Business rule: Only one RoomBilling per room/period.
+    // Wrap check-and-create in a transaction to close the TOCTOU race window.
+    // Two concurrent calls will both see the ConflictError inside the transaction,
+    // preventing duplicate key errors (500) from the DB unique constraint.
+    let roomBilling: Awaited<ReturnType<typeof prisma.roomBilling.create>>;
+    try {
+      roomBilling = await prisma.$transaction(async (tx) => {
+        const existing = await tx.roomBilling.findUnique({
+          where: { billingPeriodId_roomNo: { billingPeriodId: period.id, roomNo: input.roomNo } },
+        });
+        if (existing) {
+          throw new ConflictError(
+            `Billing record for ${input.year}-${input.month} already exists for room ${input.roomNo}`
+          );
+        }
+        return tx.roomBilling.create({
+          data: {
+            id: uuidv4(),
+            billingPeriodId: period.id,
+            roomNo: input.roomNo,
+            recvAccountId: room.defaultAccountId,
+            ruleCode: room.defaultRuleCode,
+            rentAmount: room.defaultRentAmount,
+            waterMode: 'NORMAL',
+            electricMode: 'NORMAL',
+            totalDue: Number(room.defaultRentAmount),
+            status: 'DRAFT',
+          },
+        });
+      });
+    } catch (err) {
+      // Prisma throws P2002 (unique constraint) if the application check missed
+      // a concurrent insert — convert to ConflictError so the API returns 409.
+      if (err instanceof Error && err.message.includes('P2002')) {
+        throw new ConflictError(
+          `Billing record for ${input.year}-${input.month} already exists for room ${input.roomNo}`
+        );
+      }
+      throw err;
     }
-
-    // Compute totalDue from rentAmount (water/electric are 0 when no meter data provided)
-    // Note: minimum charges are NOT applied for 0 units — a room without a water meter
-    // should not be charged the minimum water fee.
-    const rentNum = Number(room.defaultRentAmount);
-    const totalDue = rentNum;
-
-    // Create room billing using room defaults
-    const roomBilling = await prisma.roomBilling.create({
-      data: {
-        id: uuidv4(),
-        billingPeriodId: period.id,
-        roomNo: input.roomNo,
-        recvAccountId: room.defaultAccountId,
-        ruleCode: room.defaultRuleCode,
-        rentAmount: room.defaultRentAmount,
-        waterMode: 'NORMAL',
-        electricMode: 'NORMAL',
-        totalDue: totalDue,
-        status: 'DRAFT',
-      },
-    });
 
     await prisma.outboxEvent.create({
       data: {
@@ -579,6 +587,66 @@ export class BillingService {
     });
 
     return this.formatRoomBillingResponse(updated, period!);
+  }
+
+  /**
+   * Unlock a LOCKED RoomBilling record back to DRAFT for corrections.
+   * INVOICED records cannot be unlocked — they must be cancelled first.
+   * The status check and update are wrapped in a transaction to close the
+   * TOCTOU race window with concurrent cancelInvoice calls.
+   */
+  async unlockBillingRecord(
+    billingRecordId: string,
+    unlockedBy?: string
+  ): Promise<BillingRecordResponse> {
+    const updated = await prisma.$transaction(async (tx) => {
+      const record = await tx.roomBilling.findUnique({
+        where: { id: billingRecordId },
+        include: { billingPeriod: true },
+      });
+
+      if (!record) {
+        throw new NotFoundError('RoomBilling', billingRecordId);
+      }
+
+      if (record.status === 'DRAFT') {
+        throw new BadRequestError('Billing record is already unlocked');
+      }
+
+      if (record.status === 'INVOICED') {
+        // Check if the invoice has been cancelled — if so, allow unlock
+        const invoice = await tx.invoice.findUnique({ where: { roomBillingId: billingRecordId } });
+        if (!invoice || (invoice.status as string) !== 'CANCELLED') {
+          throw new BadRequestError('Cannot unlock an invoiced record. Cancel the invoice first.');
+        }
+        // If CANCELLED, fall through to allow unlock
+      }
+
+      if (record.status !== 'LOCKED') {
+        throw new BadRequestError(`Cannot unlock record with status: ${record.status}`);
+      }
+
+      return tx.roomBilling.update({
+        where: { id: billingRecordId },
+        data: { status: 'DRAFT' },
+      });
+    });
+
+    const record = await prisma.roomBilling.findUnique({
+      where: { id: billingRecordId },
+      include: { billingPeriod: true },
+    });
+
+    logger.info({
+      type: 'billing_record_unlocked',
+      billingRecordId,
+      roomNo: record!.roomNo,
+      year: record!.billingPeriod.year,
+      month: record!.billingPeriod.month,
+      unlockedBy,
+    });
+
+    return this.formatRoomBillingResponse(updated, record!.billingPeriod);
   }
 
   /**

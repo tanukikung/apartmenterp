@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function Page() {
-  redirect('/admin/reports');
+export default function ReportsCollectionsPage() {
+  redirect('/admin/reports?tab=collections');
 }

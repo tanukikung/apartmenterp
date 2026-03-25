@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Package,
 } from 'lucide-react';
+import { isLineConfigured } from '@/lib/line';
 
 type OrderStatus = 'DRAFT' | 'SENDING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
 type ItemStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED' | 'SKIPPED' | 'VIEWED';
@@ -139,7 +140,15 @@ export default function DeliveriesPage() {
     try {
       const res = await fetch(`/api/delivery-orders/${orderId}`);
       const json = await res.json();
-      if (json.success) setItemsMap((prev) => ({ ...prev, [orderId]: json.data.items ?? [] }));
+      if (json.success) {
+        const items = (json.data.items ?? []).map((item: Record<string, unknown>) => ({
+          ...item,
+          tenant: item.tenant ? {
+            fullName: `${(item.tenant as Record<string, string>).firstName ?? ''} ${(item.tenant as Record<string, string>).lastName ?? ''}`.trim(),
+          } : null,
+        }));
+        setItemsMap((prev) => ({ ...prev, [orderId]: items }));
+      }
     } finally {
       setItemsLoading(null);
     }
@@ -260,7 +269,7 @@ export default function DeliveriesPage() {
                     <OrderStatusBadge status={order.status} />
                     {(order.status === 'DRAFT') && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); void handleSend(order.id); }}
+                        onClick={(e) => { e.stopPropagation(); if (!isLineConfigured()) { toastError('LINE ไม่ได้รับการตั้งค่า ไม่สามารถส่งได้'); return; } void handleSend(order.id); }}
                         disabled={sending === order.id}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
                       >
@@ -305,7 +314,7 @@ export default function DeliveriesPage() {
                                 <td className="py-1.5">
                                   {item.status === 'FAILED' && (
                                     <button
-                                      onClick={() => void handleResendItem(order.id, item.id)}
+                                      onClick={() => { if (!isLineConfigured()) { toastError('LINE ไม่ได้รับการตั้งค่า ไม่สามารถส่งซ้ำได้'); return; } void handleResendItem(order.id, item.id); }}
                                       className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2 py-1 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
                                     >
                                       <RefreshCw className="h-3 w-3" />

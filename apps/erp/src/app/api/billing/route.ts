@@ -6,6 +6,7 @@ import {
 } from '@/modules/billing/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
+import { requireAuthSession, requireRole } from '@/lib/auth/guards';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,7 @@ export const dynamic = 'force-dynamic';
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireAuthSession(req);
   const url = new URL(req.url);
   
   const query = {
@@ -44,6 +46,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 // ============================================================================
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN', 'STAFF']);
   const body = await req.json();
 
   const input = createBillingRecordSchema.parse(body);

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { getAllJobEntries, type JobEntry } from '@/modules/jobs/job-store';
+import { getWorkerHeartbeat } from '@/infrastructure/redis';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,9 +19,12 @@ export interface JobsResponse {
 // ============================================================================
 
 export const GET = asyncHandler(async (): Promise<NextResponse> => {
+  const heartbeat = await getWorkerHeartbeat();
+  const workerAvailable = heartbeat !== null && (Date.now() - heartbeat) < 60_000;
+
   const response: JobsResponse = {
     jobs: getAllJobEntries(),
-    workerAvailable: true,
+    workerAvailable,
   };
 
   return NextResponse.json({

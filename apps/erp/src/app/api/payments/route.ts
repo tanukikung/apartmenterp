@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getVerifiedActor } from '@/lib/auth/guards';
+import { getVerifiedActor, requireAuthSession } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { createPaymentSchema, type CreatePaymentInput } from '@/modules/payments/types';
 import { getServiceContainer } from '@/lib/service-container';
@@ -10,6 +10,7 @@ import { PaymentStatus } from '@prisma/client';
 const VALID_PAYMENT_STATUSES: string[] = Object.values(PaymentStatus);
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireAuthSession(req);
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status');
   const pageSize = Math.min(parseInt(searchParams.get('pageSize') ?? '20'), 100);

@@ -15,12 +15,13 @@ import {
   Send,
 } from 'lucide-react';
 import { exportToCsv } from '@/lib/utils/export-csv';
+import { isLineConfigured } from '@/lib/line';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type InvoiceStatus = 'DRAFT' | 'GENERATED' | 'SENT' | 'VIEWED' | 'PAID' | 'OVERDUE';
+type InvoiceStatus = 'GENERATED' | 'SENT' | 'VIEWED' | 'PAID' | 'OVERDUE' | 'CANCELLED';
 type StatusFilter = 'ALL' | InvoiceStatus;
 
 interface InvoiceRow {
@@ -50,12 +51,12 @@ const THAI_MONTHS = [
 ];
 
 const STATUS_META: Record<InvoiceStatus, { label: string; cls: string }> = {
-  DRAFT:     { label: 'ร่าง',          cls: 'bg-surface-container text-on-surface-variant'    },
   GENERATED: { label: 'สร้างแล้ว',     cls: 'bg-blue-100 text-blue-700 border-blue-200'       },
   SENT:      { label: 'ส่งแล้ว',       cls: 'bg-primary-container text-primary-container'    },
   VIEWED:    { label: 'เปิดดูแล้ว',   cls: 'bg-tertiary-container text-on-tertiary-container' },
   PAID:      { label: 'ชำระแล้ว',     cls: 'bg-tertiary-container text-on-tertiary-container' },
   OVERDUE:   { label: 'เกินกำหนด',   cls: 'bg-error-container text-on-error-container'       },
+  CANCELLED: { label: 'ยกเลิก',        cls: 'bg-slate-100 text-slate-500 border-slate-200'    },
 };
 
 const STATUS_TABS: { value: StatusFilter; label: string }[] = [
@@ -164,6 +165,7 @@ export default function AdminInvoicesPage() {
   useEffect(() => { void load(1, statusFilter); }, [load, statusFilter]);
 
   async function sendInvoice(id: string) {
+    if (!isLineConfigured()) { setError('LINE ไม่ได้รับการตั้งค่า ไม่สามารถส่งได้'); return; }
     setSending(id);
     setError(null);
     setMessage(null);
@@ -432,7 +434,7 @@ export default function AdminInvoicesPage() {
                         {/* Actions */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
-                            {inv.status !== 'DRAFT' && (
+                            {inv.status !== 'CANCELLED' && (
                               <a
                                 href={`/api/invoices/${inv.id}/pdf`}
                                 target="_blank"

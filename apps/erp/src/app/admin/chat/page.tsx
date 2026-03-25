@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChatList, type Conversation as ChatListItem } from '@/components/chat/ChatList';
 import { ChatTimeline } from '@/components/chat/ChatTimeline';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { RoomDetailsCard } from '@/components/chat/RoomDetailsCard';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 type Conversation = {
   id: string;
@@ -84,6 +85,9 @@ export default function ChatInboxPage() {
     generatedAt: string;
   }> | null>(null);
   const [roomDocsLoading, setRoomDocsLoading] = useState(false);
+  const [paymentConfirmOpen, setPaymentConfirmOpen] = useState(false);
+  const [reminderConfirmOpen, setReminderConfirmOpen] = useState(false);
+  const [invoiceConfirmOpen, setInvoiceConfirmOpen] = useState(false);
 
   useEffect(() => {
     async function loadTemplates() {
@@ -136,6 +140,15 @@ export default function ChatInboxPage() {
     void loadMessages();
   }, [selectedId]);
 
+  // Mark conversation as read when selected
+  useEffect(() => {
+    if (!selectedId) return;
+    fetch(`/api/conversations?conversationId=${selectedId}`, { method: 'PATCH' }).catch(() => undefined);
+    setConversations((prev) =>
+      prev.map((c) => c.id === selectedId ? { ...c, unreadCount: 0 } : c)
+    );
+  }, [selectedId]);
+
   useEffect(() => {
     const poll = setInterval(async () => {
       try {
@@ -145,8 +158,6 @@ export default function ChatInboxPage() {
     }, 5000);
     return () => clearInterval(poll);
   }, []);
-
-  const latestMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -224,7 +235,7 @@ export default function ChatInboxPage() {
   const sendDocument = useCallback(async (documentId: string) => {
     const result = await callActionApi(`/api/documents/${documentId}/send`, { method: 'POST' }, 'ไม่สามารถส่งเอกสารได้');
     if (!result.ok) { setErrorNotice(result.message); return; }
-    setSuccessNotice('เอกสารพร้อมส่งแล้ว');
+    setSuccessNotice('เอกสารถูกส่งไปยัง LINE แล้ว (รอ delivery confirmation)');
   }, [callActionApi, setErrorNotice, setSuccessNotice]);
 
   const loadOlder = useCallback(async () => {
@@ -270,7 +281,7 @@ export default function ChatInboxPage() {
         setErrorNotice(result.message); return;
       }
       setMessages((prev) => prev.map((item) => item.id === message.id ? { ...item, localStatus: 'queued', metadata: { status: 'QUEUED' } } : item));
-      setSuccessNotice('ไฟล์พร้อมส่งแล้ว');
+      setSuccessNotice('ไฟล์ถูกส่งไปยัง LINE แล้ว (รอ delivery confirmation)');
     } catch {
       setMessages((prev) => prev.map((item) => item.id === message.id ? { ...item, localStatus: 'failed', metadata: { status: 'FAILED' } } : item));
       setErrorNotice('ไม่สามารถส่งไฟล์ได้');
@@ -318,7 +329,7 @@ export default function ChatInboxPage() {
       if (!sendRes.ok) throw new Error(sendRes.message);
 
       setMessages((prev) => prev.map((item) => item.id === tempId ? { ...item, content: JSON.stringify({ id: info.id, name: info.originalName, contentType: info.mimeType, previewUrl: info.url + '?inline=1' }), localStatus: 'queued', metadata: { status: 'QUEUED' } } : item));
-      setSuccessNotice('ไฟล์พร้อมส่งแล้ว');
+      setSuccessNotice('ไฟล์ถูกส่งไปยัง LINE แล้ว (รอ delivery confirmation)');
     } catch (error) {
       if (tempId) setMessages((prev) => prev.map((item) => item.id === tempId ? { ...item, localStatus: 'failed', metadata: { status: 'FAILED' } } : item));
       setErrorNotice(error instanceof Error ? error.message : 'ไม่สามารถส่งไฟล์ได้');
@@ -345,14 +356,14 @@ export default function ChatInboxPage() {
     const result = await callActionApi(`/api/invoices/${invoiceId}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sendToLine: true }) }, 'ไม่สามารถส่งใบแจ้งหนี้ได้');
     if (!result.ok) { setErrorNotice(result.message); return; }
     await loadLatestInvoice(selectedId);
-    setSuccessNotice('ใบแจ้งหนี้พร้อมส่งแล้ว');
+    setSuccessNotice('ใบแจ้งหนี้ถูกส่งไปยัง LINE แล้ว (รอ delivery confirmation)');
   }, [callActionApi, loadLatestInvoice, resolveLatestInvoiceId, selectedId, setErrorNotice, setInfoNotice, setSuccessNotice]);
 
   const sendReminderQuick = useCallback(async () => {
     if (!selectedId) return;
     const result = await callActionApi('/api/reminders/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversationId: selectedId, text: 'Payment reminder: please review your invoice.' }) }, 'ไม่สามารถส่งการเตือนได้');
     if (!result.ok) { setErrorNotice(result.message); return; }
-    setSuccessNotice('การเตือนพร้อมส่งแล้ว');
+    setSuccessNotice('การเตือนถูกส่งไปยัง LINE แล้ว (รอ delivery confirmation)');
   }, [callActionApi, selectedId, setErrorNotice, setSuccessNotice]);
 
   const sendReceiptQuick = useCallback(async (paidAt?: string | null): Promise<boolean> => {
@@ -363,7 +374,7 @@ export default function ChatInboxPage() {
     const pdfUrl = `${base}/api/invoices/${encodeURIComponent(invoiceId)}/pdf`;
     const result = await callActionApi(`/api/receipts/${invoiceId}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversationId: selectedId, downloadLink: pdfUrl, paidDate: normalizePaidAt(paidAt) || null }) }, 'ไม่สามารถส่งใบเสร็จได้');
     if (!result.ok) { setErrorNotice(result.message); return false; }
-    setSuccessNotice('ใบเสร็จพร้อมส่งแล้ว'); return true;
+    setSuccessNotice('ใบเสร็จถูกส่งไปยัง LINE แล้ว (รอ delivery confirmation)'); return true;
   }, [callActionApi, resolveLatestInvoiceId, selectedId, setErrorNotice, setInfoNotice, setSuccessNotice]);
 
   const confirmPaymentQuick = useCallback(async (paidAt?: string | null) => {
@@ -374,7 +385,7 @@ export default function ChatInboxPage() {
     if (!result.ok) { setErrorNotice(result.message); return; }
     await loadLatestInvoice(selectedId);
     const receiptQueued = await sendReceiptQuick(paidAt);
-    if (receiptQueued) { setSuccessNotice('ชำระเงินเรียบร้อยแล้วและใบเสร็จพร้อมส่งแล้ว'); return; }
+    if (receiptQueued) { setSuccessNotice('ชำระเงินเรียบร้อยแล้วและใบเสร็จถูกส่งไปยัง LINE แล้ว (รอ delivery confirmation)'); return; }
     setInfoNotice('ชำระเงินเรียบร้อยแล้ว แต่ไม่สามารถส่งใบเสร็จได้');
   }, [callActionApi, loadLatestInvoice, resolveLatestInvoiceId, selectedId, sendReceiptQuick, setErrorNotice, setInfoNotice, setSuccessNotice]);
 
@@ -463,10 +474,10 @@ export default function ChatInboxPage() {
                   const result = await callActionApi<{ messageId: string }>(`/api/conversations/${selectedId}/files/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileId: data.id }) }, 'ไม่สามารถส่งไฟล์ได้');
                   if (!result.ok) { setErrorNotice(result.message); return; }
                   setMessages((prev) => prev.map((item) => item.id === message.id ? { ...item, localStatus: 'queued', metadata: { status: 'QUEUED' } } : item));
-                  setSuccessNotice('ไฟล์พร้อมส่งแล้ว');
+                  setSuccessNotice('ไฟล์ถูกส่งไปยัง LINE แล้ว (รอ delivery confirmation)');
                 } catch { setErrorNotice('ไม่สามารถส่งไฟล์ได้'); }
               }}
-              onConfirmSlip={async (slip) => { try { await confirmPaymentQuick(slip.date ?? null); } catch { return; } }}
+              onConfirmSlip={async (slip) => { try { await confirmPaymentQuick(slip.date ?? null); } catch { setErrorNotice('ยืนยันการชำระเงินไม่สำเร็จ'); } }}
             />
             <ChatComposer
               disabled={!current || busy || !canSendViaLine}
@@ -495,10 +506,10 @@ export default function ChatInboxPage() {
             overdueDays={latestInvoice?.dueDate ? Math.max(0, Math.ceil((new Date().getTime() - new Date(latestInvoice.dueDate).getTime()) / (1000 * 60 * 60 * 24))) : null}
             lastPayment={null}
             invoiceStatus={latestInvoice?.status ?? null}
-            onSendInvoice={sendInvoiceQuick}
-            onSendReminder={sendReminderQuick}
-            onSendReceipt={() => void sendReceiptQuick(null)}
-            onConfirmPayment={() => void confirmPaymentQuick(null)}
+            onSendInvoice={() => { if (!canSendViaLine) { setErrorNotice(sendDisabledReason || 'LINE ไม่พร้อม'); return; } setInvoiceConfirmOpen(true); }}
+            onSendReminder={() => { if (!canSendViaLine) { setErrorNotice(sendDisabledReason || 'LINE ไม่พร้อม'); return; } setReminderConfirmOpen(true); }}
+            onSendReceipt={() => { if (!canSendViaLine) { setErrorNotice(sendDisabledReason || 'LINE ไม่พร้อม'); return; } void sendReceiptQuick(null); }}
+            onConfirmPayment={() => { if (!latestInvoice) { setInfoNotice('ไม่มีใบแจ้งหนี้ที่สามารถยืนยันการชำระเงินได้'); return; } setPaymentConfirmOpen(true); }}
             canSendViaLine={canSendViaLine}
             sendDisabledReason={sendDisabledReason}
             documents={roomDocuments}
@@ -507,6 +518,33 @@ export default function ChatInboxPage() {
           />
         </section>
       </div>
+      <ConfirmDialog
+        open={paymentConfirmOpen}
+        title="ยืนยันการชำระเงิน?"
+        description={`ยืนยันว่าห้อง ${current?.room?.roomNumber ?? '-'} ได้ชำระเงินแล้ว ระบบจะอัปเดตสถานะใบแจ้งหนี้และส่งใบเสร็จให้ผู้เช่า`}
+        confirmLabel="ยืนยันชำระเงิน"
+        cancelLabel="ยกเลิก"
+        onConfirm={() => { setPaymentConfirmOpen(false); void confirmPaymentQuick(null); }}
+        onCancel={() => setPaymentConfirmOpen(false)}
+      />
+      <ConfirmDialog
+        open={reminderConfirmOpen}
+        title="ส่ง Reminder ถึงผู้เช่า?"
+        description={`ส่ง LINE reminder ไปยังผู้เช่าห้อง ${current?.room?.roomNumber ?? '-'}`}
+        confirmLabel="ส่งเลย"
+        cancelLabel="ยกเลิก"
+        onConfirm={() => { setReminderConfirmOpen(false); void sendReminderQuick(); }}
+        onCancel={() => setReminderConfirmOpen(false)}
+      />
+      <ConfirmDialog
+        open={invoiceConfirmOpen}
+        title="ส่งใบแจ้งหนี้?"
+        description={`ส่งใบแจ้งหนี้ LINE ไปยังผู้เช่าห้อง ${current?.room?.roomNumber ?? '-'}`}
+        confirmLabel="ส่งเลย"
+        cancelLabel="ยกเลิก"
+        onConfirm={() => { setInvoiceConfirmOpen(false); void sendInvoiceQuick(); }}
+        onCancel={() => setInvoiceConfirmOpen(false)}
+      />
     </main>
   );
 }

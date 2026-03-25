@@ -131,22 +131,9 @@ export class InvoiceService {
   }
 
   async generateInvoiceFromBilling(roomBillingId: string): Promise<InvoiceResponse> {
-    const roomBilling = await prisma.roomBilling.findUnique({
-      where: { id: roomBillingId },
-      include: { billingPeriod: true },
-    });
-    if (!roomBilling) {
-      throw new NotFoundError('RoomBilling', roomBillingId);
-    }
-    if (roomBilling.status !== 'LOCKED') {
-      throw new BadRequestError('Can only generate invoice from LOCKED billing record');
-    }
-    const existing = await prisma.invoice.findUnique({
-      where: { roomBillingId },
-    });
-    if (existing) {
-      throw new BadRequestError('Invoice already exists for this billing record');
-    }
+    // All validation (existence, LOCKED status, duplicate-invoice check) is now
+    // inside generateInvoice's $transaction, which is the single authoritative
+    // source — no TOCTOU window remains.
     return this.generateInvoice({ billingRecordId: roomBillingId });
   }
 
@@ -717,6 +704,54 @@ export class InvoiceService {
       invoice.id,
       payload as unknown as Record<string, unknown>
     );
+
+    return this.formatInvoiceResponse(updated);
+  }
+
+  /**
+   * Cancel an invoice and revert the associated RoomBilling to LOCKED
+   * so it can be re-invoiced after corrections.
+   * Only GENERATED/overdue invoices can be cancelled; SENT/PAID cannot.
+   */
+  async cancelInvoice(id: string, cancelledBy: string): Promise<InvoiceResponse> {
+    const invoice = await prisma.invoice.findUnique({ where: { id } });
+    if (!invoice) {
+      throw new NotFoundError('Invoice', id);
+    }
+
+    if (invoice.status === 'CANCELLED') {
+      throw new BadRequestError('Invoice is already cancelled');
+    }
+    if (invoice.status === 'SENT' || invoice.status === 'PAID') {
+      throw new BadRequestError(`Cannot cancel an invoice with status ${invoice.status}`);
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // Cancel the invoice
+      const cancelled = await tx.invoice.update({
+        where: { id },
+        data: { status: 'CANCELLED' },
+      });
+
+      // Revert RoomBilling to LOCKED so it can be re-invoiced
+      await tx.roomBilling.update({
+        where: { id: invoice.roomBillingId },
+        data: { status: 'LOCKED' },
+      });
+
+      return cancelled;
+    });
+
+    await logAudit({
+      actorId: cancelledBy,
+      actorRole: 'ADMIN',
+      action: 'INVOICE_CANCELLED',
+      entityType: 'INVOICE',
+      entityId: id,
+      metadata: { roomBillingId: invoice.roomBillingId },
+    });
+
+    logger.info({ type: 'invoice_cancelled', invoiceId: id, cancelledBy });
 
     return this.formatInvoiceResponse(updated);
   }

@@ -229,6 +229,7 @@ model Payment {
   @@index([status])
   @@index([paidAt])
   @@index([amount])
+  @@unique([matchedInvoiceId])
   @@map("payments")
 }
 
@@ -236,6 +237,7 @@ model PaymentTransaction {
   id              String                   @id @default(uuid())
   amount          Decimal                  @db.Decimal(12, 2)
   transactionDate DateTime
+  roomNo          String
   description     String?
   reference       String?
   sourceFile      String
@@ -256,6 +258,7 @@ model PaymentTransaction {
   bankAccount     BankAccount?             @relation("TransactionBankAccount", fields: [bankAccountId], references: [id])
   invoice         Invoice?                 @relation("InvoicePaymentTransactions", fields: [invoiceId], references: [id])
 
+  @@unique([transactionDate, amount, roomNo], name: "PaymentTransaction_dedup")
   @@index([status])
   @@index([transactionDate])
   @@index([amount])
@@ -964,6 +967,7 @@ enum InvoiceStatus {
   VIEWED
   PAID
   OVERDUE
+  CANCELLED
 }
 
 enum PaymentStatus {

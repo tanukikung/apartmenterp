@@ -12,6 +12,7 @@ import {
   Send,
   TrendingUp,
 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 type OverdueInvoice = {
   id: string;
@@ -85,6 +86,7 @@ export default function AdminOverduePage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [working, setWorking] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [range, setRange] = useState<OverdueRange>('all');
 
@@ -135,7 +137,7 @@ export default function AdminOverduePage() {
         body: JSON.stringify({ channel: 'LINE' }),
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'Failed to send reminder');
-      setMessage('Reminder sent via LINE');
+      setMessage('Reminder queued for LINE delivery');
     } catch (err) { setError(err instanceof Error ? err.message : 'Failed to send reminder'); }
     finally { setWorking(null); }
   }
@@ -166,7 +168,7 @@ export default function AdminOverduePage() {
           <p className="mt-1 text-sm text-on-surface-variant">ติดตามและดำเนินการกับใบแจ้งหนี้ที่เกินกำหนด</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => void sendAllReminders()} disabled={working === 'all' || filtered.length === 0}
+          <button onClick={() => setConfirmOpen(true)} disabled={working === 'all' || filtered.length === 0}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60">
             <MessageCircle className="h-4 w-4" />
             {working === 'all' ? 'กำลังส่ง...' : `ส่งแจ้งเตือนทั้งหมด (${filtered.length})`}
@@ -185,6 +187,15 @@ export default function AdminOverduePage() {
 
       {message && <div className="flex items-center gap-3 rounded-xl border border-tertiary-container bg-tertiary-container/20 px-4 py-3 text-sm text-on-tertiary-container"><CheckCircle2 className="h-4 w-4 shrink-0" />{message}</div>}
       {error && <div className="flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</div>}
+      <ConfirmDialog
+        open={confirmOpen}
+        title={`ส่ง Reminder ถึง ${filtered.length} รายการ?`}
+        description="ระบบจะส่ง LINE reminder ไปยังทุกห้องที่ค้างชำระที่เชื่อม LINE ไว้ หากเคยส่งไปแล้วใน 24 ชม. จะถูกข้าม"
+        confirmLabel="ส่งเลย"
+        cancelLabel="ยกเลิก"
+        onConfirm={() => { setConfirmOpen(false); void sendAllReminders(); }}
+        onCancel={() => setConfirmOpen(false)}
+      />
 
       {/* KPI row */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

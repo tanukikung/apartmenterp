@@ -32,6 +32,10 @@ export const PATCH = asyncHandler(async (req: NextRequest, context?: { params: {
     throw new BadRequestError('You cannot deactivate your own account');
   }
 
+  if (existing.id === session.sub && body.role && body.role !== existing.role) {
+    throw new BadRequestError('You cannot change your own role');
+  }
+
   const nextEmail = body.email === '' ? null : body.email?.trim().toLowerCase();
   if (nextEmail || body.displayName || body.role || typeof body.isActive === 'boolean') {
     const duplicate = nextEmail

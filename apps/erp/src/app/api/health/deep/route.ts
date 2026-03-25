@@ -1,9 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { redisPing, getWorkerHeartbeat } from '@/infrastructure/redis';
+import { requireRole } from '@/lib/auth/guards';
 
-export const GET = asyncHandler(async (): Promise<NextResponse> => {
+export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  // Operator-only: deep health exposes sensitive internal state
+  requireRole(req, ['ADMIN']);
   let database: 'connected' | 'error' = 'connected';
   let dbLatencyMs: number | null = null;
   try {

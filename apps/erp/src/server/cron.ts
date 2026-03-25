@@ -6,12 +6,16 @@ import { ReminderService } from '@/modules/reminders/reminder.service';
 
 let initialized = false;
 
+// Vercel serverless functions do not support node-cron (ephemeral execution context).
+// When deployed on Vercel, use vercel.json cron jobs instead. The cron.ts worker process
+// (server/worker.ts) is only started in self-hosted environments where node-cron works.
+const isVercelServerless = Boolean(process.env.VERCEL);
+
 export function startCronIfEnabled(): void {
   if (initialized) return;
-  if (process.env.NODE_ENV === 'test') {
-    return;
-  }
+  if (process.env.NODE_ENV === 'test') return;
   if (process.env.CRON_ENABLED === 'false') return;
+  if (isVercelServerless) return;  // node-cron incompatible with Vercel serverless
   initialized = true;
 
   cron.schedule('0 3 1 * *', async () => {
@@ -27,14 +31,24 @@ export function startCronIfEnabled(): void {
         select: { id: true },
       });
       const svc = getServiceContainer().invoiceService;
-      for (const r of locked) {
-        try {
-          await svc.generateInvoiceFromBilling(r.id);
-        } catch (e) {
-          logger.warn({ type: 'cron_generate_invoice_skip', id: r.id, error: e instanceof Error ? e.message : String(e) });
+      const results = await Promise.allSettled(
+        locked.map((r) => svc.generateInvoiceFromBilling(r.id))
+      );
+      const failures: Array<{ id: string; error: string }> = [];
+      for (let i = 0; i < locked.length; i++) {
+        if (results[i].status === 'rejected') {
+          const reason = results[i].reason instanceof Error ? results[i].reason.message : String(results[i].reason);
+          failures.push({ id: locked[i].id, error: reason });
+          logger.warn({ type: 'cron_generate_invoice_skip', id: locked[i].id, error: reason });
         }
       }
-      logger.info({ type: 'cron_generate_invoices_done', count: locked.length });
+      logger.info({
+        type: 'cron_generate_invoices_done',
+        total: locked.length,
+        succeeded: locked.length - failures.length,
+        failed: failures.length,
+        failures,
+      });
     } catch (e) {
       logger.error({ type: 'cron_generate_invoices_error', error: e instanceof Error ? e.message : String(e) });
     }

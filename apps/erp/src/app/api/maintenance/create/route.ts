@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { getServiceContainer } from '@/lib/service-container';
+import { requireAuthSession } from '@/lib/auth/guards';
 
 const createSchema = z.object({
   roomId: z.string().min(1),
@@ -20,6 +21,7 @@ const createSchema = z.object({
 });
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireAuthSession(req);
   const body = await req.json().catch(() => ({}));
   const input = createSchema.parse(body);
 
