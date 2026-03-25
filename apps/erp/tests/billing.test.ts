@@ -2,6 +2,25 @@ import { describe, it, expect, vi } from 'vitest';
 import { getServiceContainer } from '@/lib/service-container';
 import { prisma } from '@/lib';
 
+vi.mock('@/lib/line/client', () => ({
+  getLineClient: vi.fn(),
+  getLineConfig: vi.fn(() => ({ channelId: '', channelSecret: '', accessToken: '' })),
+  sendLineMessage: vi.fn().mockResolvedValue({}),
+  sendLineImageMessage: vi.fn().mockResolvedValue({}),
+  sendLineFileMessage: vi.fn().mockResolvedValue({}),
+  sendFlexMessage: vi.fn().mockResolvedValue({}),
+  sendInvoiceMessage: vi.fn().mockResolvedValue({}),
+  sendReminderMessage: vi.fn().mockResolvedValue({}),
+  sendOverdueNotice: vi.fn().mockResolvedValue({}),
+  sendWelcomeMessage: vi.fn().mockResolvedValue({}),
+  sendTemplateMessage: vi.fn().mockResolvedValue({}),
+  sendReplyMessage: vi.fn().mockResolvedValue({}),
+  getLineUserProfile: vi.fn().mockResolvedValue({}),
+  verifyLineSignature: vi.fn().mockReturnValue(true),
+  parseWebhookEvent: vi.fn(),
+  isLineConfigured: vi.fn().mockReturnValue(false),
+}));
+
 // New schema: BillingRecord/BillingItemType/BillingItem removed.
 // BillingService now uses RoomBilling (flat rows, no separate item table).
 vi.mock('@/lib', async () => {
