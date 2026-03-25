@@ -15,7 +15,6 @@ import {
   Send,
 } from 'lucide-react';
 import { exportToCsv } from '@/lib/utils/export-csv';
-import { isLineConfigured } from '@/lib/line';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -165,7 +164,7 @@ export default function AdminInvoicesPage() {
   useEffect(() => { void load(1, statusFilter); }, [load, statusFilter]);
 
   async function sendInvoice(id: string) {
-    if (!isLineConfigured()) { setError('LINE ไม่ได้รับการตั้งค่า ไม่สามารถส่งได้'); return; }
+    // LINE configuration check is done server-side; proceed and let API return error if not configured
     setSending(id);
     setError(null);
     setMessage(null);
