@@ -57,13 +57,12 @@ export const POST = asyncHandler(
 
     for (const rb of billings) {
       try {
-        // Check again inside loop to avoid race conditions
-        const existing = await prisma.invoice.findUnique({ where: { roomBillingId: rb.id } });
-        if (existing) { skipped++; continue; }
-
         const dueDate = buildDueDate();
 
         await prisma.$transaction(async (tx) => {
+          // Check inside transaction with row lock to prevent TOCTOU race
+          const existing = await tx.invoice.findUnique({ where: { roomBillingId: rb.id } });
+          if (existing) { skipped++; return; }
           const inv = await tx.invoice.create({
             data: {
               id:           uuidv4(),

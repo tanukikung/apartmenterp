@@ -23,7 +23,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.624.0",
+    "@aws-sdk/client-s3": "^3.1016.0",
+    "@aws-sdk/lib-storage": "^3.1016.0",
     "@fontsource/noto-sans-thai": "^5.2.8",
     "@fontsource/sarabun": "^5.2.8",
     "@line/bot-sdk": "^9.0.0",
@@ -50,6 +51,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "decimal.js": "^10.4.3",
+    "docx": "^9.6.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.577.0",
     "motion": "^12.38.0",
@@ -92,5 +94,15 @@
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
-  }
+  },
+  "description": "ระบบบริหารจัดการคอนโดและอพาร์ตเมนต์ (Apartment Management System)",
+  "main": "create-admin.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
 }

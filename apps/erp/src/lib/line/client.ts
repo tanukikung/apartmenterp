@@ -117,7 +117,8 @@ async function withRetry<T>(
       
       // Don't retry on certain errors
       if (lastError.message.includes('Invalid token') ||
-          lastError.message.includes('Signature validation failed')) {
+          lastError.message.includes('Signature validation failed') ||
+          lastError.message.includes('Quota exceeded')) {
         throw lastError;
       }
 
@@ -438,8 +439,37 @@ export async function sendReplyMessage(
 }
 
 /**
- * Send image message
+ * Send file message (PDF, DOCX, etc.)
  */
+export async function sendLineFileMessage(
+  userId: string,
+  fileUrl: string,
+  fileName: string,
+  options: LineMessageOptions = {}
+): Promise<MessageAPIResponseBase> {
+  return withRetry(
+    async () => {
+      const client = getLineClient();
+      const result = await client.pushMessage(userId, {
+        type: 'file',
+        originalContentUrl: fileUrl,
+        fileName,
+      } as never);
+
+      logger.info({
+        type: 'line_file_sent',
+        userId,
+        fileName,
+        fileUrl,
+      });
+
+      return result;
+    },
+    options
+  );
+}
+
+// Send image message
 export async function sendLineImageMessage(
   userId: string,
   imageUrl: string,

@@ -3,38 +3,34 @@ import * as XLSX from 'xlsx';
 import { parseBillingWorkbook, parseAllFloorRows } from '@/modules/billing/import-parser';
 
 /**
- * Build a workbook buffer with a single FLOOR_1 sheet matching the real
- * apartment_excel_template.xlsx structure:
- *   row 0  — title
- *   row 1  — instructions
- *   row 2  — English headers
- *   row 3  — Thai translation labels
- *   row 4+ — data rows
+ * Build a workbook buffer with a single ชั้น_1 sheet matching the real
+ * billing_template.xlsx structure (parseBillingWorkbook expects ชั้น_\d+ sheet names):
+ *   index 0 — title (skipped by parser)
+ *   index 1 — English column headers  ← header row
+ *   index 2 — Thai translation labels (skipped by parser)
+ *   index 3+ — actual data rows
  */
 function floorWorkbookBuffer(dataRows: Array<Record<string, unknown>>): Uint8Array {
+  // Must match actual billing_template.xlsx column names exactly
   const headers = [
-    'room', 'recv_account_override_id', 'recv_account_id', 'recv_account_name',
-    'recv_bank_name', 'recv_bank_account_no', 'recv_promptpay',
-    'rule_override_code', 'rule_code', 'rent_amount',
-    'water_mode', 'water_prev', 'water_curr', 'water_units_manual',
-    'water_units', 'water_usage_charge', 'water_service_fee_manual',
-    'water_service_fee', 'water_total',
-    'electric_mode', 'electric_prev', 'electric_curr', 'electric_units_manual',
-    'electric_units', 'electric_usage_charge', 'electric_service_fee_manual',
-    'electric_service_fee', 'electric_total',
-    'furniture_fee', 'other_fee', 'total_due', 'note', 'check_notes', 'room_status',
+    'room', 'recv_account_override_id', 'account_id', 'rule_override_code', 'rule_code',
+    'rent_amount', 'room_status',
+    'water_mode', 'water_prev', 'water_curr', 'water_units', 'water_units_manual',
+    'water_charge', 'water_fee', 'water_fee_manual',
+    'electric_mode', 'electric_prev', 'electric_curr', 'electric_units', 'electric_units_manual',
+    'electric_charge', 'electric_fee', 'electric_fee_manual',
+    'furniture_fee', 'other_fee', 'total_due', 'note', 'check_notes',
   ];
 
   const ws = XLSX.utils.aoa_to_sheet([
-    ['FLOOR_1 — title row'],                         // row 0
-    ['Instructions row'],                             // row 1
-    headers,                                          // row 2 — EN headers
-    headers.map(() => 'Thai label'),                  // row 3 — TH labels
-    ...dataRows.map((row) => headers.map((h) => row[h] ?? null)), // row 4+
+    ['ข้อมูลบิล ชั้น 1'],       // index 0 — title (skipped by parser)
+    headers,                     // index 1 — EN headers (header row)
+    headers.map(() => 'Thai'),   // index 2 — TH labels (skipped)
+    ...dataRows.map((row) => headers.map((h) => row[h] ?? null)), // index 3+
   ]);
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'FLOOR_1');
+  XLSX.utils.book_append_sheet(wb, ws, 'ชั้น_1');
   return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 }
 
@@ -43,23 +39,21 @@ describe('parseBillingWorkbook', () => {
     const buffer = floorWorkbookBuffer([
       {
         room: '3201',
+        account_id: 'ACC_F2',
         rule_code: 'STANDARD',
-        recv_account_id: 'ACC_F2',
         rent_amount: 2900,
         water_mode: 'NORMAL',
         water_prev: 2725,
         water_curr: 2734,
         water_units: 9,
-        water_usage_charge: 180,
-        water_service_fee: 20,
-        water_total: 200,
+        water_charge: 180,
+        water_fee: 20,
         electric_mode: 'NORMAL',
         electric_prev: 1756,
         electric_curr: 1820,
         electric_units: 64,
-        electric_usage_charge: 596,
-        electric_service_fee: 20,
-        electric_total: 616,
+        electric_charge: 596,
+        electric_fee: 20,
         furniture_fee: 300,
         other_fee: 0,
         total_due: 4016,
@@ -80,9 +74,11 @@ describe('parseBillingWorkbook', () => {
     expect(row.waterPrev).toBe(2725);
     expect(row.waterCurr).toBe(2734);
     expect(row.waterUnits).toBe(9);
+    // waterTotal = water_charge + water_fee = 180 + 20 = 200
     expect(row.waterTotal).toBe(200);
     expect(row.electricMode).toBe('NORMAL');
     expect(row.electricUnits).toBe(64);
+    // electricTotal = electric_charge + electric_fee = 596 + 20 = 616
     expect(row.electricTotal).toBe(616);
     expect(row.furnitureFee).toBe(300);
     expect(row.totalDue).toBe(4016);
@@ -93,17 +89,19 @@ describe('parseBillingWorkbook', () => {
     const buffer = floorWorkbookBuffer([
       {
         room: '798/1',
+        account_id: 'ACC_F1',
         rule_code: 'STANDARD',
-        recv_account_id: 'ACC_F1',
         rent_amount: 15500,
         water_mode: 'MANUAL',
         water_units_manual: 12,
-        water_service_fee: 20,
-        water_total: 260,
+        water_charge: 240,
+        water_fee: 20,
+        water_fee_manual: 20,
         electric_mode: 'MANUAL',
         electric_units_manual: 80,
-        electric_service_fee: 20,
-        electric_total: 765,
+        electric_charge: 745,
+        electric_fee: 20,
+        electric_fee_manual: 20,
         total_due: 16525,
         room_status: 'ACTIVE',
       },
@@ -124,9 +122,9 @@ describe('parseBillingWorkbook', () => {
       {
         room: '3201',
         recv_account_override_id: 'ACC_F3',
-        recv_account_id: 'ACC_F3',
+        account_id: 'ACC_DEFAULT',
         rule_override_code: 'PREMIUM',
-        rule_code: 'PREMIUM',
+        rule_code: 'DEFAULT',
         rent_amount: 3500,
         water_mode: 'NORMAL',
         electric_mode: 'NORMAL',
@@ -142,7 +140,7 @@ describe('parseBillingWorkbook', () => {
 
   it('skips blank rows', () => {
     const buffer = floorWorkbookBuffer([
-      { room: '3201', rule_code: 'STANDARD', recv_account_id: 'ACC_F2', rent_amount: 2900, water_mode: 'NORMAL', electric_mode: 'NORMAL', total_due: 2900, room_status: 'ACTIVE' },
+      { room: '3201', account_id: 'ACC_F2', rule_code: 'STANDARD', rent_amount: 2900, water_mode: 'NORMAL', electric_mode: 'NORMAL', total_due: 2900, room_status: 'ACTIVE' },
       { room: null },   // blank — should be skipped
       { room: '' },     // blank
     ]);
@@ -157,34 +155,35 @@ describe('parseBillingWorkbook', () => {
     // Add a CONFIG sheet (should be ignored)
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ key: 'value' }]), 'CONFIG');
 
-    // Add a proper FLOOR_1 sheet
+    // Add a proper ชั้น_1 sheet
+    const headers = ['room', 'account_id', 'rule_code', 'rent_amount', 'water_mode', 'electric_mode', 'total_due', 'room_status'];
     const ws = XLSX.utils.aoa_to_sheet([
-      ['title'],
-      ['instructions'],
-      ['room','recv_account_id','rule_code','rent_amount','water_mode','electric_mode','total_due','room_status'],
-      ['Thai'],
-      ['3201','ACC_F2','STANDARD',2900,'NORMAL','NORMAL',2900,'ACTIVE'],
+      ['ข้อมูลบิล ชั้น 1'],  // index 0 — title (skipped)
+      headers,                  // index 1 — headers (header row)
+      headers.map(() => 'Thai'), // index 2 — TH labels (skipped)
+      ['3201', 'ACC_F2', 'STANDARD', 2900, 'NORMAL', 'NORMAL', 2900, 'ACTIVE'], // index 3+ — data
     ]);
-    XLSX.utils.book_append_sheet(wb, ws, 'FLOOR_1');
+    XLSX.utils.book_append_sheet(wb, ws, 'ชั้น_1');
 
     const buffer: Uint8Array = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
     const result = parseBillingWorkbook(buffer);
 
     expect(result.floors).toHaveLength(1);
-    expect(result.floors[0].sheetName).toBe('FLOOR_1');
+    expect(result.floors[0].sheetName).toBe('ชั้น_1');
     expect(result.totalRows).toBe(1);
   });
 
-  it('parses multiple FLOOR sheets and aggregates via parseAllFloorRows', () => {
+  it('parses multiple ชั้น sheets and aggregates via parseAllFloorRows', () => {
     const wb = XLSX.utils.book_new();
+    const headers = ['room', 'account_id', 'rule_code', 'rent_amount', 'water_mode', 'electric_mode', 'total_due', 'room_status'];
 
-    for (const [sheetName, roomNo] of [['FLOOR_2', '3201'], ['FLOOR_3', '3301']]) {
+    for (const [sheetName, roomNo] of [['ชั้น_2', '3201'], ['ชั้น_3', '3301']]) {
       const ws = XLSX.utils.aoa_to_sheet([
-        ['title'], ['instructions'],
-        ['room','recv_account_id','rule_code','rent_amount','water_mode','electric_mode','total_due','room_status'],
-        ['Thai'],
-        [roomNo, 'ACC_F2', 'STANDARD', 2900, 'NORMAL', 'NORMAL', 2900, 'ACTIVE'],
-        [roomNo + 'b', 'ACC_F2', 'STANDARD', 2900, 'NORMAL', 'NORMAL', 2900, 'ACTIVE'],
+        ['ข้อมูลบิล ชั้น 1'],  // index 0
+        headers,                  // index 1
+        headers.map(() => 'Thai'), // index 2
+        [roomNo, 'ACC_F2', 'STANDARD', 2900, 'NORMAL', 'NORMAL', 2900, 'ACTIVE'], // index 3
+        [roomNo + 'b', 'ACC_F2', 'STANDARD', 2900, 'NORMAL', 'NORMAL', 2900, 'ACTIVE'], // index 4
       ]);
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
     }
@@ -193,6 +192,6 @@ describe('parseBillingWorkbook', () => {
     const rows = parseAllFloorRows(buffer);
 
     expect(rows).toHaveLength(4);
-    expect(rows.map((r) => r.floorSheetName).sort()).toEqual(['FLOOR_2', 'FLOOR_2', 'FLOOR_3', 'FLOOR_3'].sort());
+    expect(rows.map((r) => r.floorSheetName).sort()).toEqual(['ชั้น_2', 'ชั้น_2', 'ชั้น_3', 'ชั้น_3'].sort());
   });
 });

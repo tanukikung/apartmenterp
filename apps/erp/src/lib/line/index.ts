@@ -11,6 +11,7 @@ export {
   sendTemplateMessage,
   sendReplyMessage,
   sendLineImageMessage,
+  sendLineFileMessage,
   getLineUserProfile,
   verifyLineSignature,
   parseWebhookEvent,

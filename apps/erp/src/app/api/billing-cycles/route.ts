@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
 import { requireAuthSession } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
+import type { BillingPeriodStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,10 +24,19 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const sortBy = (url.searchParams.get('sortBy') ?? 'createdAt') as 'year' | 'month' | 'createdAt';
   const sortOrder = (url.searchParams.get('sortOrder') ?? 'desc') as 'asc' | 'desc';
 
+  // Validate status against BillingPeriodStatus enum so Prisma never receives an invalid value
+  const VALID_BILLING_PERIOD_STATUSES = ['OPEN', 'LOCKED', 'CLOSED'] as const;
+  if (status && !VALID_BILLING_PERIOD_STATUSES.includes(status as typeof VALID_BILLING_PERIOD_STATUSES[number])) {
+    return NextResponse.json(
+      { success: false, error: { code: 'INVALID_STATUS', message: `Invalid status '${status}'. Must be one of: ${VALID_BILLING_PERIOD_STATUSES.join(', ')}` } },
+      { status: 400 }
+    );
+  }
+
   const where = {
     ...(year !== undefined ? { year } : {}),
     ...(month !== undefined ? { month } : {}),
-    ...(status ? { status: status as never } : {}),
+    ...(status ? { status: status as BillingPeriodStatus } : {}),
   };
 
   const orderBy =
@@ -90,8 +100,18 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
       importBatchId: period.importBatches[0]?.id ?? null,
       createdAt: period.createdAt,
       updatedAt: period.updatedAt,
+      // populated by the count query below
+      totalRooms: 0,
+      missingRooms: 0,
     };
   });
+
+  // Count total ACTIVE rooms to compute missingRooms
+  const totalActiveRooms = await prisma.room.count({ where: { roomStatus: 'ACTIVE' } });
+  for (const period of data) {
+    (period as { totalRooms: number; missingRooms: number }).totalRooms = totalActiveRooms;
+    (period as { totalRooms: number; missingRooms: number }).missingRooms = totalActiveRooms - period.totalRecords;
+  }
 
   return NextResponse.json({
     success: true,

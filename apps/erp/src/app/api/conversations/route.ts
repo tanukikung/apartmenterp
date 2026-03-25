@@ -66,13 +66,13 @@ const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResp
 
     if (conv.roomNo && invoiceMap.has(conv.roomNo)) {
       const latestInvoice = invoiceMap.get(conv.roomNo);
-      overdue = latestInvoice.status === 'OVERDUE' || 
-        (latestInvoice.status === 'GENERATED' && 
-         latestInvoice.dueDate && 
+      overdue = latestInvoice.status === 'OVERDUE' ||
+        (latestInvoice.status === 'GENERATED' &&
+         latestInvoice.dueDate &&
          new Date(latestInvoice.dueDate) < new Date());
       waitingPayment = latestInvoice.status === 'GENERATED' || latestInvoice.status === 'SENT';
     }
-    
+
     return {
       ...conv,
       overdue,
@@ -93,3 +93,23 @@ const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResp
 });
 
 export const GET = withTiming(getConversations);
+
+const markRead = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  const { searchParams } = new URL(req.url);
+  const conversationId = searchParams.get('conversationId');
+
+  if (!conversationId) {
+    return NextResponse.json(
+      { success: false, error: { message: 'conversationId required' } } as ApiResponse<never>
+    );
+  }
+
+  await prisma.conversation.update({
+    where: { id: conversationId },
+    data: { unreadCount: 0 },
+  });
+
+  return NextResponse.json({ success: true, data: { conversationId, unreadCount: 0 } } as ApiResponse<{ conversationId: string; unreadCount: number }>);
+});
+
+export const PATCH = markRead;

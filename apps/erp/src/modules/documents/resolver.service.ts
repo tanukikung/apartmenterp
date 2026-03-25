@@ -82,6 +82,24 @@ export interface DocumentRenderContext {
     invoiceId: string | null;
     invoiceNumber: string | null;
     invoiceStatus: InvoiceStatus | null;
+    // Meter readings
+    waterUnits: number;
+    waterUsageCharge: number;
+    waterServiceFee: number;
+    waterTotal: number;
+    electricUnits: number;
+    electricUsageCharge: number;
+    electricServiceFee: number;
+    electricTotal: number;
+    // Fee breakdown
+    rentAmount: number;
+    furnitureFee: number;
+    otherFee: number;
+    // Raw meter values
+    waterPrev: number | null;
+    waterCurr: number | null;
+    electricPrev: number | null;
+    electricCurr: number | null;
   } | null;
   billingItems: DocumentRenderBillingItem[];
   payment: {
@@ -375,6 +393,24 @@ function buildRoomContext(room: SelectedRoom, billingRecord: SelectedRoom['billi
             ? invoiceNumber(latestInvoiceRecord.id, billingRecord.billingPeriod.year, billingRecord.billingPeriod.month, room.roomNo)
             : null,
           invoiceStatus: latestInvoiceRecord?.status ?? null,
+          // Meter readings
+          waterUnits: toNumber(billingRecord.waterUnits),
+          waterUsageCharge: toNumber(billingRecord.waterUsageCharge),
+          waterServiceFee: toNumber(billingRecord.waterServiceFee),
+          waterTotal: toNumber(billingRecord.waterTotal),
+          electricUnits: toNumber(billingRecord.electricUnits),
+          electricUsageCharge: toNumber(billingRecord.electricUsageCharge),
+          electricServiceFee: toNumber(billingRecord.electricServiceFee),
+          electricTotal: toNumber(billingRecord.electricTotal),
+          // Fee breakdown
+          rentAmount: toNumber(billingRecord.rentAmount),
+          furnitureFee: toNumber(billingRecord.furnitureFee),
+          otherFee: toNumber(billingRecord.otherFee),
+          // Raw meter values
+          waterPrev: billingRecord.waterPrev ? toNumber(billingRecord.waterPrev) : null,
+          waterCurr: billingRecord.waterCurr ? toNumber(billingRecord.waterCurr) : null,
+          electricPrev: billingRecord.electricPrev ? toNumber(billingRecord.electricPrev) : null,
+          electricCurr: billingRecord.electricCurr ? toNumber(billingRecord.electricCurr) : null,
         }
       : null,
     billingItems,

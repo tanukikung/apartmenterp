@@ -7,6 +7,8 @@
  */
 
 import { prisma } from '@/lib';
+import { logAudit } from '@/modules/audit';
+import { logger } from '@/lib/utils/logger';
 
 export type JobResult = {
   count: number;
@@ -103,8 +105,33 @@ export async function runLateFee(): Promise<JobResult> {
 export async function runDbCleanup(): Promise<JobResult> {
   const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
+  await logAudit({
+    actorId: 'system',
+    actorRole: 'SYSTEM',
+    action: 'DB_CLEANUP_STARTED',
+    entityType: 'AUDIT_LOG',
+    entityId: 'cleanup',
+    metadata: { cutoff: cutoff.toISOString(), retentionDays: 90 },
+  });
+
   const result = await prisma.auditLog.deleteMany({
     where: { createdAt: { lt: cutoff } },
+  });
+
+  logger.info({
+    type: 'db_cleanup_completed',
+    deletedCount: result.count,
+    cutoff: cutoff.toISOString(),
+    retentionDays: 90,
+  });
+
+  await logAudit({
+    actorId: 'system',
+    actorRole: 'SYSTEM',
+    action: 'DB_CLEANUP_COMPLETED',
+    entityType: 'AUDIT_LOG',
+    entityId: 'cleanup',
+    metadata: { deletedCount: result.count, cutoff: cutoff.toISOString(), retentionDays: 90 },
   });
 
   return {

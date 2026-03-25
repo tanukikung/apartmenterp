@@ -93,7 +93,7 @@ function ChatTimelineImpl({ messages, senderPictureUrl, senderName, onRetry, onS
     // Invoice card
     if (message.type === 'INVOICE') {
       const data = JSON.parse(message.content) as { invoiceId: string; amount: number; dueDate?: string; status?: string };
-      return <InvoiceCard invoiceId={data.invoiceId} amount={data.amount} dueDate={data.dueDate ?? null} status={data.status ?? null} />;
+      return <InvoiceCard invoiceId={data.invoiceId} amount={data.amount} dueDate={data.dueDate ?? null} status={data.status ?? null} lineConfigured={canSendViaLine ?? false} />;
     }
 
     // Receipt card

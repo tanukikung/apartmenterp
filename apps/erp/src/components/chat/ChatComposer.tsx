@@ -21,6 +21,7 @@ export function ChatComposer({
 }: Props) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   async function send() {
@@ -30,6 +31,7 @@ export function ChatComposer({
       const sent = await onSendText(text);
       if (sent) {
         setText('');
+        setSelectedTemplateId('');
       }
     } finally {
       setBusy(false);
@@ -55,21 +57,22 @@ export function ChatComposer({
           className="admin-textarea flex-1"
           placeholder="Type something friendly"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => { setText(e.target.value); setSelectedTemplateId(''); }}
           disabled={disabled || busy}
         />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <select
           className="admin-select max-w-[180px]"
-          value=""
+          value={selectedTemplateId}
           onChange={(e) => {
+            setSelectedTemplateId(e.target.value);
             const template = templates.find((item) => item.id === e.target.value);
             if (template) setText(template.text);
           }}
           disabled={disabled || busy || templates.length === 0}
         >
-          <option value="" disabled>Templates</option>
+          <option value="">Templates</option>
           {templates.map((template) => (
             <option key={template.id} value={template.id}>{template.label}</option>
           ))}

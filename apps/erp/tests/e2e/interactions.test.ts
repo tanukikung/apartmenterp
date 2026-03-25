@@ -305,7 +305,7 @@ test.describe('Interactive Walkthrough - Button Clicks & Forms', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 
-    const docLinks = page.locator('a[href*="/admin/documents/"]').filter({ not: { hasText: 'Generate' } });
+    const docLinks = page.locator('a[href*="/admin/documents/"]').filter({ hasNotText: 'Generate' });
     const count = await docLinks.count();
 
     if (count > 0) {

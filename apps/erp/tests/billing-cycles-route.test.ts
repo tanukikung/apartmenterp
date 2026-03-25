@@ -17,12 +17,16 @@ import { signSessionToken } from '@/lib/auth/session';
 // ── Prisma mock ───────────────────────────────────────────────────────────────
 const mockCount = vi.fn();
 const mockFindMany = vi.fn();
+const mockRoomCount = vi.fn();
 
 vi.mock('@/lib/db/client', () => ({
   prisma: {
     billingPeriod: {
       count: mockCount,
       findMany: mockFindMany,
+    },
+    room: {
+      count: mockRoomCount,
     },
   },
 }));
@@ -90,6 +94,7 @@ function makePeriod(overrides: Record<string, unknown> = {}) {
 describe('GET /api/billing-cycles', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRoomCount.mockResolvedValue(0);
   });
 
   it('returns 401 when no auth session', async () => {
@@ -211,5 +216,72 @@ describe('GET /api/billing-cycles', () => {
     expect(body.data.page).toBe(2);
     expect(body.data.pageSize).toBe(20);
     expect(body.data.totalPages).toBe(3);
+  });
+
+  it('returns 400 for status=IMPORTED (not a BillingPeriodStatus value)', async () => {
+    const cookie = adminCookie();
+    const { GET } = await import('@/app/api/billing-cycles/route');
+    const req = makeRequest({
+      cookie,
+      url: 'http://localhost/api/billing-cycles?status=IMPORTED',
+    });
+    const res = await GET(req as never);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('INVALID_STATUS');
+  });
+
+  it('returns 400 for status=INVOICED (not a BillingPeriodStatus value)', async () => {
+    const cookie = adminCookie();
+    const { GET } = await import('@/app/api/billing-cycles/route');
+    const req = makeRequest({
+      cookie,
+      url: 'http://localhost/api/billing-cycles?status=INVOICED',
+    });
+    const res = await GET(req as never);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('INVALID_STATUS');
+  });
+
+  it('returns 200 for status=OPEN', async () => {
+    mockCount.mockResolvedValue(0);
+    mockFindMany.mockResolvedValue([]);
+    const cookie = adminCookie();
+    const { GET } = await import('@/app/api/billing-cycles/route');
+    const req = makeRequest({
+      cookie,
+      url: 'http://localhost/api/billing-cycles?status=OPEN',
+    });
+    const res = await GET(req as never);
+    expect(res.status).toBe(200);
+  });
+
+  it('returns 200 for status=LOCKED', async () => {
+    mockCount.mockResolvedValue(0);
+    mockFindMany.mockResolvedValue([]);
+    const cookie = adminCookie();
+    const { GET } = await import('@/app/api/billing-cycles/route');
+    const req = makeRequest({
+      cookie,
+      url: 'http://localhost/api/billing-cycles?status=LOCKED',
+    });
+    const res = await GET(req as never);
+    expect(res.status).toBe(200);
+  });
+
+  it('returns 200 for status=CLOSED', async () => {
+    mockCount.mockResolvedValue(0);
+    mockFindMany.mockResolvedValue([]);
+    const cookie = adminCookie();
+    const { GET } = await import('@/app/api/billing-cycles/route');
+    const req = makeRequest({
+      cookie,
+      url: 'http://localhost/api/billing-cycles?status=CLOSED',
+    });
+    const res = await GET(req as never);
+    expect(res.status).toBe(200);
   });
 });

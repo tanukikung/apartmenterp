@@ -20,16 +20,22 @@ export const POST = asyncHandler(
       return NextResponse.json({ success: false, error: 'Billing period not found' }, { status: 404 });
     }
 
-    // Lock all DRAFT records in one query
-    const result = await prisma.roomBilling.updateMany({
-      where: { billingPeriodId: periodId, status: 'DRAFT' },
-      data:  { status: 'LOCKED' },
-    });
+    // Atomic: lock records + update period status together
+    const result = await prisma.$transaction(async (tx) => {
+      const r = await tx.roomBilling.updateMany({
+        where: { billingPeriodId: periodId, status: 'DRAFT' },
+        data:  { status: 'LOCKED' },
+      });
 
-    // Also update period status to LOCKED if not already
-    await prisma.billingPeriod.update({
-      where: { id: periodId },
-      data:  { status: 'LOCKED' },
+      // Only promote period to LOCKED if at least one record was locked
+      if (r.count > 0) {
+        await tx.billingPeriod.update({
+          where: { id: periodId },
+          data:  { status: 'LOCKED' },
+        });
+      }
+
+      return r;
     });
 
     logger.info({

@@ -2,7 +2,17 @@
  * In-memory job status store.
  *
  * Persists for the lifetime of the server process.
- * In production with Redis, swap this out for Redis-backed storage.
+ *
+ * LIMITATION: This store is single-instance only.
+ * In a multi-instance deployment (e.g., Vercel with multiple warm instances,
+ * or multiple Node processes behind a load balancer) each instance maintains its
+ * own independent Map. Job status will be inconsistent across instances.
+ *
+ * For multi-instance deployments, replace this with a Redis-backed store:
+ * - Store job entries in Redis hashes (one key per job id)
+ * - Use Redis EXPIRE for TTL on heartbeat keys
+ * - The /api/admin/jobs route should also be updated to read from Redis
+ *
  * The shape matches what the /api/admin/jobs route exposes to the UI.
  */
 

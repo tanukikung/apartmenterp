@@ -1,4 +1,4 @@
-import { getEventBus, logger, sendLineImageMessage, sendLineMessage, prisma } from '@/lib';
+import { getEventBus, logger, sendLineImageMessage, sendLineMessage, sendLineFileMessage, prisma } from '@/lib';
 import type { Prisma } from '@prisma/client';
 
 let registered = false;
@@ -18,7 +18,7 @@ async function handleFileSend(payload: LineSendFileRequested): Promise<void> {
     if (contentType.startsWith('image/')) {
       await sendLineImageMessage(lineUserId, fileUrl);
     } else if (contentType === 'application/pdf') {
-      await sendLineMessage(lineUserId, `Document: ${name || 'PDF'}\n${fileUrl}`);
+      await sendLineFileMessage(lineUserId, fileUrl, name || 'document.pdf');
     } else {
       await sendLineMessage(lineUserId, `File: ${name || 'Attachment'}\n${fileUrl}`);
     }
@@ -95,12 +95,22 @@ export function registerFileSendWorker(options?: { allowInTest?: boolean }): voi
         throw new Error('No LINE recipient resolved for invoice delivery');
       }
 
-      const parts: string[] = ['Invoice available'];
+      // Build absolute URL for LINE file message (must be publicly accessible)
+      const baseUrl = (process.env.APP_BASE_URL || '').replace(/\/+$/, '');
+      const absolutePdfUrl = payload.pdfUrl.startsWith('http')
+        ? payload.pdfUrl
+        : `${baseUrl}${payload.pdfUrl}`;
+
+      const fileName = `invoice-${payload.roomNumber || 'unknown'}-${payload.dueDate ? new Date(payload.dueDate).toLocaleDateString('th-TH') : 'document'}.pdf`;
+
+      // Send PDF as LINE file attachment
+      await sendLineFileMessage(targetLineUserId, absolutePdfUrl, fileName);
+
+      // Also send a brief text summary
+      const parts: string[] = ['Invoice sent'];
       if (payload.roomNumber) parts.push(`Room ${payload.roomNumber}`);
       if (payload.totalAmount != null) parts.push(`Amount ${payload.totalAmount}`);
       if (payload.dueDate) parts.push(`Due ${new Date(payload.dueDate).toLocaleDateString()}`);
-      parts.push(payload.pdfUrl);
-
       await sendLineMessage(targetLineUserId, parts.join(' | '));
 
       if (payload.deliveryId) {
@@ -182,6 +192,97 @@ export function registerFileSendWorker(options?: { allowInTest?: boolean }): voi
       logger.info({ type: 'manual_reminder_sent', conversationId: payload.conversationId });
     } catch (err) {
       logger.error({ type: 'manual_reminder_failed', error: err instanceof Error ? err.message : String(err) });
+      throw err;
+    }
+  });
+
+  bus.subscribe('DeliveryOrderItemSendRequested', async (evt: unknown) => {
+    const payload = (evt as {
+      payload?: {
+        itemId: string;
+        orderId: string;
+        lineUserId: string;
+        documentTitle: string;
+        roomNo: string;
+        pdfUrl: string;
+      };
+    })?.payload;
+    if (!payload) return;
+
+    const { itemId, orderId, lineUserId, documentTitle, roomNo, pdfUrl } = payload;
+
+    const recalculateOrderStatus = async (currentOrderId: string) => {
+      const items = await prisma.deliveryOrderItem.findMany({
+        where: { deliveryOrderId: currentOrderId },
+        select: { status: true },
+      });
+
+      const sentCount = items.filter(i => i.status === 'SENT').length;
+      const failedCount = items.filter(i => i.status === 'FAILED').length;
+      const skippedCount = items.filter(i => i.status === 'SKIPPED').length;
+      const pendingCount = items.filter(i => i.status === 'PENDING').length;
+
+      let aggregateStatus: 'COMPLETED' | 'PARTIAL' | 'FAILED' | 'SENDING' = 'SENDING';
+      if (pendingCount === 0) {
+        if (sentCount === 0 && failedCount > 0) {
+          aggregateStatus = 'FAILED';
+        } else if (sentCount === items.length) {
+          aggregateStatus = 'COMPLETED';
+        } else if (sentCount > 0 || skippedCount > 0) {
+          aggregateStatus = 'PARTIAL';
+        } else {
+          aggregateStatus = 'COMPLETED';
+        }
+      }
+
+      await prisma.deliveryOrder.update({
+        where: { id: currentOrderId },
+        data: { sentCount, failedCount, status: aggregateStatus },
+      });
+    };
+
+    try {
+      const baseUrl = (process.env.APP_BASE_URL || '').replace(/\/+$/, '');
+      const absolutePdfUrl = pdfUrl.startsWith('http') ? pdfUrl : `${baseUrl}${pdfUrl}`;
+      const fileName = `${documentTitle}-${roomNo}.pdf`;
+
+      // Provider truth: LINE API returns 200 = accepted by LINE for delivery.
+      // No LINE webhook for delivery receipts is currently registered, so this is
+      // the best available guarantee. True E2E proof requires LINE Messaging API webhook.
+      await sendLineFileMessage(lineUserId, absolutePdfUrl, fileName);
+
+      const item = await prisma.deliveryOrderItem.update({
+        where: { id: itemId },
+        data: { status: 'SENT', sentAt: new Date(), errorMessage: null },
+      });
+
+      if (item.generatedDocumentId) {
+        await prisma.generatedDocument.update({
+          where: { id: item.generatedDocumentId },
+          data: { status: 'SENT' },
+        }).catch(() => undefined);
+      }
+
+      await recalculateOrderStatus(orderId);
+
+      logger.info({ type: 'delivery_order_item_sent', itemId, orderId, lineUserId });
+    } catch (err) {
+      await prisma.deliveryOrderItem.update({
+        where: { id: itemId },
+        data: {
+          status: 'FAILED',
+          errorMessage: err instanceof Error ? err.message : String(err),
+        },
+      }).catch(() => undefined);
+
+      await recalculateOrderStatus(orderId);
+
+      logger.error({
+        type: 'delivery_order_item_send_failed',
+        itemId,
+        orderId,
+        error: err instanceof Error ? err.message : String(err),
+      });
       throw err;
     }
   });

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/client';
 
 describe('Outbox retry/backoff', () => {
   const events: Array<{ id: string; eventType: string; aggregateType: string; aggregateId: string; payload: Record<string, unknown>; createdAt: Date; processedAt: Date | null; retryCount: number; lastError: string | null }> = [];
+  let p: any;
 
   beforeEach(() => {
     events.length = 0;
@@ -28,7 +29,7 @@ describe('Outbox retry/backoff', () => {
     });
 
     // Mock prisma for outbox operations
-    const p: any = prisma as any;
+    p = prisma as any;
     p.outboxEvent = p.outboxEvent || {};
     p.outboxEvent.findMany = vi.fn(async ({ where }: any) => {
       return events.filter(e => e.processedAt === null && e.retryCount < (where?.retryCount?.lt ?? 3));
@@ -67,11 +68,29 @@ describe('Outbox retry/backoff', () => {
         metadata: { correlationId: '00000000-0000-0000-0000-000000000000', timestamp: new Date(), version: 1 },
       } as any);
 
-    const processor = new OutboxProcessor(bus, prisma as any, { maxRetries: 3, batchSize: 10, pollInterval: 9999, enabled: false });
+    const maxRetries = 3;
+    // Mock $transaction to run the callback synchronously with a tx proxy
+    const mockTx = {
+      $queryRaw: vi.fn(async () => {
+        return events
+          .filter(e => e.processedAt === null && e.retryCount < maxRetries)
+          .slice(0, 10)
+          .map(e => ({ id: e.id }));
+      }),
+      outboxEvent: {
+        findMany: p.outboxEvent.findMany,
+        update: p.outboxEvent.update,
+        count: p.outboxEvent.count,
+      },
+    };
+    p.$transaction = vi.fn(async (callback: (tx: typeof mockTx) => Promise<unknown>) => {
+      return callback(mockTx as any);
+    }) as any;
+    const processor = new OutboxProcessor(bus, p, { maxRetries, batchSize: 10, pollInterval: 9999, enabled: false });
     await processor.process();
     expect(publishSpy).toHaveBeenCalledTimes(1);
     // Ensure prisma update called to increment retry
-    expect((prisma as any).outboxEvent.update).toHaveBeenCalled();
+    expect(p.outboxEvent.update).toHaveBeenCalled();
     expect(events[0].retryCount).toBe(1);
     expect(events[0].processedAt).toBeNull();
     expect(events[0].lastError).toMatch(/temporary failure/);

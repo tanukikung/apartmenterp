@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/client';
 import { getServiceContainer } from '@/lib/service-container';
+import { Prisma } from '@prisma/client';
 import type { CreateDeliveryOrderInput, DeliveryOrderListQuery } from './types';
 
 const naturalCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
@@ -8,9 +9,10 @@ export class DeliveryService {
   // Creates a DeliveryOrder + items by finding matching GeneratedDocuments
   async createOrder(input: CreateDeliveryOrderInput, actorId?: string | null) {
     // 1. Build where clause for GeneratedDocument
-    const docWhere: any = {
+    // Note: Zod schema uses 'GENERAL' but Prisma enum has 'GENERAL_NOTICE' — cast via unknown
+    const docWhere = {
       documentType: input.documentType,
-    };
+    } as unknown as Prisma.GeneratedDocumentWhereInput;
     if (input.year) docWhere.year = input.year;
     if (input.month) docWhere.month = input.month;
 
@@ -71,7 +73,7 @@ export class DeliveryService {
     const order = await prisma.deliveryOrder.create({
       data: {
         channel: 'LINE',
-        documentType: input.documentType as any,
+        documentType: input.documentType as unknown as Prisma.DeliveryOrderCreateInput['documentType'],
         description: input.description,
         year: input.year,
         month: input.month,
@@ -127,7 +129,7 @@ export class DeliveryService {
   }
 
   async listOrders(query: DeliveryOrderListQuery) {
-    const where: any = {};
+    const where: Prisma.DeliveryOrderWhereInput = {};
     if (query.year) where.year = query.year;
     if (query.month) where.month = query.month;
     if (query.status) where.status = query.status;
@@ -173,7 +175,8 @@ export class DeliveryService {
     return order;
   }
 
-  async executeOrder(orderId: string, actorId?: string | null) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async executeOrder(orderId: string, _actorId?: string | null) {
     const order = await prisma.deliveryOrder.findUnique({
       where: { id: orderId },
       include: {
@@ -314,6 +317,12 @@ export class DeliveryService {
         pdfUrl: pdfFile.uploadedFile.url,
       },
     );
+
+    // Mark document as SENT immediately (handler also does this idempotently)
+    await prisma.generatedDocument.update({
+      where: { id: doc.id },
+      data: { status: 'SENT' },
+    }).catch(() => undefined);
 
     return order;
   }

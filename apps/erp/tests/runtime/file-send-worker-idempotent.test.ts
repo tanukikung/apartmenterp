@@ -1,5 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+vi.mock('@/lib/line/client', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    sendLineImageMessage: vi.fn(),
+    sendLineMessage: vi.fn(),
+    sendLineFileMessage: vi.fn(),
+  };
+});
+
 describe('file-send worker registration', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -8,13 +18,14 @@ describe('file-send worker registration', () => {
 
   it('is idempotent (subscribes only once) when called twice', async () => {
     const subscribe = vi.fn();
-    vi.doMock('@/lib', async () => {
-      const actual = await vi.importActual<any>('@/lib');
+    vi.doMock('@/lib', async (importOriginal) => {
+      const actual = await importOriginal<any>();
       return {
         ...actual,
         getEventBus: () => ({ subscribe }),
         sendLineImageMessage: vi.fn(),
         sendLineMessage: vi.fn(),
+        sendLineFileMessage: vi.fn(),
       };
     });
 

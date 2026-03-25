@@ -322,7 +322,7 @@ export async function generateInvoicePdf(
     drawText('รายละเอียดมิเตอร์ / Meter Reading Details',
       ML + 8, curY - 13, 9, true, NAVY);
 
-    let dataY = curY - METER_TITLE_H - MR_PAD;
+    const dataY = curY - METER_TITLE_H - MR_PAD;
 
     // Helper: draw one meter column
     const drawMeterCol = (

@@ -3,6 +3,44 @@ import { prisma } from '@/lib/db/client';
 import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
 import { getServiceContainer } from '@/lib/service-container';
 
+vi.mock('@/lib/line/client', () => ({
+  getLineClient: vi.fn(),
+  getLineConfig: vi.fn(() => ({ channelId: '', channelSecret: '', accessToken: '' })),
+  sendLineMessage: vi.fn().mockResolvedValue({}),
+  sendLineImageMessage: vi.fn().mockResolvedValue({}),
+  sendLineFileMessage: vi.fn().mockResolvedValue({}),
+  sendFlexMessage: vi.fn().mockResolvedValue({}),
+  sendInvoiceMessage: vi.fn().mockResolvedValue({}),
+  sendReminderMessage: vi.fn().mockResolvedValue({}),
+  sendOverdueNotice: vi.fn().mockResolvedValue({}),
+  sendWelcomeMessage: vi.fn().mockResolvedValue({}),
+  sendTemplateMessage: vi.fn().mockResolvedValue({}),
+  sendReplyMessage: vi.fn().mockResolvedValue({}),
+  getLineUserProfile: vi.fn().mockResolvedValue({}),
+  verifyLineSignature: vi.fn().mockReturnValue(true),
+  parseWebhookEvent: vi.fn(),
+  isLineConfigured: vi.fn().mockReturnValue(false),
+}));
+
+vi.mock('@/lib/line', () => ({
+  getLineClient: vi.fn(),
+  getLineConfig: vi.fn(() => ({ channelId: '', channelSecret: '', accessToken: '' })),
+  sendLineMessage: vi.fn().mockResolvedValue({}),
+  sendLineImageMessage: vi.fn().mockResolvedValue({}),
+  sendLineFileMessage: vi.fn().mockResolvedValue({}),
+  sendFlexMessage: vi.fn().mockResolvedValue({}),
+  sendInvoiceMessage: vi.fn().mockResolvedValue({}),
+  sendReminderMessage: vi.fn().mockResolvedValue({}),
+  sendOverdueNotice: vi.fn().mockResolvedValue({}),
+  sendWelcomeMessage: vi.fn().mockResolvedValue({}),
+  sendTemplateMessage: vi.fn().mockResolvedValue({}),
+  sendReplyMessage: vi.fn().mockResolvedValue({}),
+  getLineUserProfile: vi.fn().mockResolvedValue({}),
+  verifyLineSignature: vi.fn().mockReturnValue(true),
+  parseWebhookEvent: vi.fn(),
+  isLineConfigured: vi.fn().mockReturnValue(false),
+}));
+
 vi.mock('@/lib/db/client', () => {
   const prismaMock = {
     roomBilling:      { findUnique: vi.fn(), update: vi.fn() },

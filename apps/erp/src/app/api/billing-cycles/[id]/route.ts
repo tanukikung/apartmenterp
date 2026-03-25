@@ -45,6 +45,10 @@ export const GET = asyncHandler(
     const invoicesIssued = invoices.length;
     const paymentsReceived = invoices.filter((invoice) => invoice.status === 'PAID').length;
 
+    const totalActiveRooms = await prisma.room.count({ where: { roomStatus: 'ACTIVE' } });
+    const totalRooms = totalActiveRooms;
+    const missingRooms = totalActiveRooms - totalRecords;
+
     const data = {
       id: period.id,
       year: period.year,
@@ -52,6 +56,8 @@ export const GET = asyncHandler(
       status: period.status,
       importBatchId: period.importBatches[0]?.id ?? null,
       totalRecords,
+      totalRooms,
+      missingRooms,
       totalAmount,
       invoicesIssued,
       paymentsReceived,

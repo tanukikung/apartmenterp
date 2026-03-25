@@ -222,8 +222,8 @@ function parseDataRow(
   return roomBillingRowSchema.parse({
     roomNo:                   String(row['room'] ?? '').trim(),
     floorSheetName:           sheetName,
-    recvAccountOverrideId:    toStr(row['account_id']),
-    ruleOverrideCode:         toStr(row['rule_code']),
+    recvAccountOverrideId:    toStr(row['recv_account_override_id'] ?? row['account_id']),
+    ruleOverrideCode:         toStr(row['rule_override_code'] ?? row['rule_code']),
     rentAmount:               toNum(row['rent_amount']),
     waterMode:                toMeterMode(row['water_mode']),
     waterPrev:                toNumOrNull(row['water_prev']),

@@ -40,8 +40,8 @@ export const GET = asyncHandler(
         },
       }),
       prisma.documentTemplate.findFirst({
-        where: { type: 'INVOICE' },
-        orderBy: { updatedAt: 'desc' },
+        where: { type: 'INVOICE', status: 'ACTIVE', activeVersionId: { not: null } },
+        include: { activeVersion: true },
       }),
     ]);
 
@@ -74,13 +74,13 @@ export const GET = asyncHandler(
     try {
       pdfBytes = await generateInvoicePdf(preview, {
         notes: (() => {
-          if (!template?.body) return undefined;
+          if (!template?.activeVersion?.body && !template?.body) return undefined;
           const THAI_MONTHS = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
           const periodLabel = `${THAI_MONTHS[preview.month] ?? ''} ${preview.year + 543}`;
           const dt = new Date(preview.dueDate);
           const dueDateLabel = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()+543}`;
           const totalFormatted = `฿${preview.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
-          const substituted = substituteInvoiceTemplateFields(template.body, {
+          const substituted = substituteInvoiceTemplateFields(template.activeVersion?.body ?? template.body, {
             roomNo: preview.roomNo,
             floorNo: preview.floorNo,
             tenantName: preview.tenantName,

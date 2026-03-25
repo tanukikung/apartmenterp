@@ -4,8 +4,7 @@ import { z } from 'zod';
 // Invoice Types
 // ============================================================================
 
-// New schema: no DRAFT or CANCELLED statuses
-export const invoiceStatusSchema = z.enum(['GENERATED', 'SENT', 'VIEWED', 'PAID', 'OVERDUE']);
+export const invoiceStatusSchema = z.enum(['GENERATED', 'SENT', 'VIEWED', 'PAID', 'OVERDUE', 'CANCELLED']);
 export type InvoiceStatus = z.infer<typeof invoiceStatusSchema>;
 
 // ============================================================================

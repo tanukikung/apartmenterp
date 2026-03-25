@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 import { DocumentSourceScope, DocumentTemplateType, GeneratedDocumentStatus, GeneratedDocumentFileRole, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/client';
-import { NotFoundError, ValidationError } from '@/lib/utils/errors';
+import { BadRequestError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit';
 import { canConvertWithOnlyOffice, convertOnlyOfficeDocument, createOnlyOfficeConversionKey } from '@/lib/onlyoffice/conversion';
 import { getDocumentTemplateService } from './template.service';
@@ -275,9 +275,16 @@ export class DocumentGenerationService {
     title: string,
     html: string,
     actorId?: string | null,
+    year?: number | null,
+    month?: number | null,
+    roomNo?: string | null,
   ) {
+    const keyPrefix = (year && month && roomNo)
+      ? `documents/${year}/${String(month).padStart(2, '0')}/${roomNo}`
+      : `generated-documents/${generatedDocumentId}`;
+
     const sourceFile = await storeDocumentFile({
-      keyPrefix: `generated-documents/${generatedDocumentId}`,
+      keyPrefix,
       filename: `${title}.html`,
       content: Buffer.from(html, 'utf8'),
       mimeType: 'text/html; charset=utf-8',
@@ -292,7 +299,7 @@ export class DocumentGenerationService {
     );
 
     const pdfFile = await storeDocumentFile({
-      keyPrefix: `generated-documents/${generatedDocumentId}`,
+      keyPrefix,
       filename: `${title}.pdf`,
       content: pdfBuffer,
       mimeType: 'application/pdf',
@@ -498,7 +505,15 @@ export class DocumentGenerationService {
         });
 
         const title = document.title.replace(/[^\w.\-]/g, '_');
-        const persisted = await this.persistGeneratedFiles(document.id, title, rendered.html, actorId);
+        const persisted = await this.persistGeneratedFiles(
+          document.id,
+          title,
+          rendered.html,
+          actorId,
+          document.year,
+          document.month,
+          document.roomNo,
+        );
         const primaryPdf = persisted.files.find((file) => file.role === GeneratedDocumentFileRole.PDF);
         if (input.includeZipBundle && primaryPdf) {
           bundle.file(`${title}.${mimeExtFromRole(primaryPdf.role)}`, persisted.pdfBuffer);
@@ -707,6 +722,10 @@ export class DocumentGenerationService {
 
     if (!existing) {
       throw new NotFoundError('GeneratedDocument', documentId);
+    }
+
+    if (existing.status === 'SENT') {
+      throw new BadRequestError('Cannot regenerate a document that has already been sent. Create a new document instead.');
     }
 
     const input: DocumentGenerateInput = {

@@ -759,6 +759,12 @@
     color: hsl(199 89% 28%);
   }
 
+  .auth-alert-warning {
+    border: 1px solid hsl(38 92% 50% / 0.25);
+    background: hsl(38 92% 50% / 0.07);
+    color: hsl(38 92% 30%);
+  }
+
   .auth-links {
     margin-top: 1rem;
     display: flex;

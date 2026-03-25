@@ -13,7 +13,7 @@
  *
  * BillingCycle (billing_cycles table)
  *   Monthly operational container per building.
- *   Lifecycle: OPEN → IMPORTED → LOCKED → INVOICED → CLOSED
+ *   Lifecycle: OPEN → LOCKED → CLOSED
  *   Owns: BillingRecord[], BillingImportBatch[], GeneratedDocument[] (via cycle)
  *   Route: /admin/billing (list), /admin/billing/[id] (cycle detail)
  *
@@ -25,7 +25,7 @@
  *
  * Invoice (invoices table)
  *   Financial delivery/lifecycle entity, 1:1 with a BillingRecord.
- *   Lifecycle: DRAFT → GENERATED → SENT → VIEWED → PAID | OVERDUE
+ *   Lifecycle: GENERATED → SENT → VIEWED → PAID | OVERDUE | CANCELLED
  *   Contains: InvoiceVersion[] (mutation audit), InvoiceDelivery[] (channel records)
  *   Route: /admin/invoices (cross-cycle monitoring), /admin/billing/[id] (cycle actions)
  *   ⚠️  NOT the same as GeneratedDocument — see below.
@@ -120,12 +120,17 @@
 // Exported constants — usable in tests to assert domain boundaries
 // ---------------------------------------------------------------------------
 
-/** Canonical BillingCycleStatus values. Any UI status filter must match these. */
-export const BILLING_CYCLE_STATUSES = [
+/**
+ * Canonical BillingPeriodStatus values — must stay in sync with
+ * the BillingPeriodStatus Prisma enum (schema.prisma).
+ * Current enum: OPEN | LOCKED | CLOSED
+ * @deprecated This constant existed before BillingPeriodStatus was split from
+ * the old unified BillingCycleStatus. The Prisma enum is the authoritative source;
+ * use it directly rather than this array.
+ */
+export const BILLING_CYCLE_STATUSES: readonly ['OPEN', 'LOCKED', 'CLOSED'] = [
   'OPEN',
-  'IMPORTED',
   'LOCKED',
-  'INVOICED',
   'CLOSED',
 ] as const;
 
