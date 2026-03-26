@@ -57,8 +57,17 @@ services:
   # First boot downloads fonts and sets up internal services (~60–120 s).
   # Disable this service if you don't need in-browser Excel/Word editing:
   #   docker compose up -d postgres redis migrate app
+  #
+  # CORS note: the custom build includes an nginx config that adds
+  # Access-Control-Allow-Origin: * headers so the OnlyOffice SDK (loaded from
+  # localhost:3001 in the browser) can embed the editor without CORS blocks.
+  # To rebuild after changing docker/onlyoffice-nginx/ds-docservice.conf:
+  #   docker build -t onlyoffice-cors -f docker/onlyoffice-nginx/Dockerfile docker/
   onlyoffice:
-    image: onlyoffice/documentserver:latest
+    build:
+      context: ../../docker
+      dockerfile: onlyoffice-nginx/Dockerfile
+    image: onlyoffice-cors
     restart: unless-stopped
     environment:
       # JWT must match ONLYOFFICE_JWT_SECRET in the app service below
