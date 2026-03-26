@@ -174,7 +174,7 @@ function ResetSystemModal({
       await onReset(resetMode === 'backup');
       setSuccess(true);
       setTimeout(() => {
-        window.location.href = '/admin/setup';
+        window.location.href = '/login';
       }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');

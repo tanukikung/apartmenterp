@@ -474,6 +474,7 @@ async function main() {
     { key: 'app.currency', value: 'THB', description: 'Default currency' },
     { key: 'billing.dueDay', value: 25, description: 'Default payment due day of month' },
     { key: 'billing.reminderDaysBefore', value: 5, description: 'Days before due date to send reminder' },
+    { key: 'system.initialized', value: true, description: 'System initialization flag' },
   ];
 
   for (const cfg of configs) {

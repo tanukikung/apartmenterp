@@ -135,10 +135,7 @@ export async function middleware(req: NextRequest) {
       }
 
       if (url.pathname.startsWith('/admin')) {
-        // Allow /admin/setup without authentication (setup wizard)
-        if (url.pathname === '/admin/setup') {
-          // Let them through - setup page handles initialization check
-        } else if (!isAdmin) {
+        if (!isAdmin) {
           const redirect = NextResponse.redirect(new URL('/login', req.url));
           redirect.headers.set('x-request-id', requestId);
           return redirect;
