@@ -94,6 +94,18 @@ const EXPLICIT_POLICIES: ApiRoutePolicy[] = [
     guardApplied: 'public',
   },
   {
+    pattern: '/api/admin/setup/complete',
+    methods: ['POST'],
+    accessClass: 'public',
+    guardApplied: 'public',
+  },
+  {
+    pattern: '/api/admin/setup/status',
+    methods: ['GET'],
+    accessClass: 'public',
+    guardApplied: 'public',
+  },
+  {
     pattern: '/api/admin/setup/reset',
     methods: ['POST'],
     accessClass: 'operator',
@@ -249,6 +261,14 @@ export function isCsrfExemptApiRoute(pathname: string, method: string): boolean 
       pathname === '/api/auth/forgot-password' ||
       pathname === '/api/auth/reset-password' ||
       pathname === '/api/auth/reset-limit') &&
+    normalizedMethod === 'POST'
+  ) {
+    return true;
+  }
+
+  // Setup wizard POST endpoints - human-controlled through UI wizard
+  if (
+    (pathname.startsWith('/api/admin/setup/')) &&
     normalizedMethod === 'POST'
   ) {
     return true;
