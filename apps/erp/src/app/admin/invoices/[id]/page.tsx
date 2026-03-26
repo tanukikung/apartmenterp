@@ -14,7 +14,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { isLineConfigured } from '@/lib/line';
+import { isLineConfigured } from '@/lib/line/is-configured';
 
 // ---------------------------------------------------------------------------
 // Types

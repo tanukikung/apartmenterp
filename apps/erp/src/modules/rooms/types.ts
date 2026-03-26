@@ -66,7 +66,7 @@ export const listRoomsQuerySchema = z.object({
   floorNo: z.coerce.number().int().optional(),
   roomStatus: roomStatusSchema.optional(),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  pageSize: z.coerce.number().int().min(1).max(300).default(20),
   search: z.string().optional(),
   sortBy: z.enum(['roomNo', 'floorNo', 'roomStatus', 'createdAt']).default('roomNo'),
   sortOrder: z.enum(['asc', 'desc']).default('asc'),

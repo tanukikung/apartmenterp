@@ -78,7 +78,7 @@ export default function AdminRoomsPage() {
   const roomsQueryParams = useMemo(() => {
     const params = new URLSearchParams({
       page: '1',
-      pageSize: '100',
+      pageSize: '300',
       ...(search.trim() ? { search: search.trim() } : {}),
       ...(statusFilter ? { roomStatus: statusFilter } : {}),
     });
@@ -112,6 +112,16 @@ export default function AdminRoomsPage() {
     }
   }, [roomsData]);
 
+  // Auto-open edit drawer when ?edit=<roomNo> is in the URL
+  useEffect(() => {
+    if (!roomsData?.data) return;
+    const editRoomNo = new URLSearchParams(window.location.search).get('edit');
+    if (editRoomNo) {
+      const room = roomsData.data.find((r) => r.roomNo === editRoomNo);
+      if (room) setSelectedRoom(room);
+    }
+  }, [roomsData]);
+
   useEffect(() => {
     if (selectedRoom) {
       setEditForm({
@@ -135,8 +145,13 @@ export default function AdminRoomsPage() {
 
   const filteredRooms = useMemo(() => {
     if (!data?.data) return [];
-    if (floorFilter === null) return data.data;
-    return data.data.filter(r => r.floorNo === floorFilter);
+    const rooms = floorFilter === null ? data.data : data.data.filter(r => r.floorNo === floorFilter);
+    return [...rooms].sort((a, b) => {
+      if (a.floorNo !== b.floorNo) return a.floorNo - b.floorNo;
+      const numA = parseInt(a.roomNo.replace(/.*\//, ''), 10);
+      const numB = parseInt(b.roomNo.replace(/.*\//, ''), 10);
+      return numA - numB;
+    });
   }, [data, floorFilter]);
 
   const uniqueFloors = useMemo(() => {
@@ -325,7 +340,7 @@ export default function AdminRoomsPage() {
       </section>
 
       {/* ── Floor Filter Pills ── */}
-      {uniqueFloors.length > 1 && (
+      {floors.length > 0 && (
         <div className="flex flex-wrap gap-2">
           <button
             className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${floorFilter === null ? 'bg-primary text-white shadow-md' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
@@ -333,13 +348,13 @@ export default function AdminRoomsPage() {
           >
             ทุกชั้น
           </button>
-          {uniqueFloors.map(f => (
+          {floors.map(f => (
             <button
-              key={f}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${floorFilter === f ? 'bg-primary text-white shadow-md' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
-              onClick={() => setFloorFilter(f)}
+              key={f.floorNo}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${floorFilter === f.floorNo ? 'bg-primary text-white shadow-md' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
+              onClick={() => setFloorFilter(f.floorNo)}
             >
-              ชั้น {f}
+              ชั้น {f.floorNo}
             </button>
           ))}
         </div>

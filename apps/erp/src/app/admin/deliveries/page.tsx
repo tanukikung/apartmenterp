@@ -16,7 +16,7 @@ import {
   ChevronRight,
   Package,
 } from 'lucide-react';
-import { isLineConfigured } from '@/lib/line';
+import { isLineConfigured } from '@/lib/line/is-configured';
 
 type OrderStatus = 'DRAFT' | 'SENDING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
 type ItemStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED' | 'SKIPPED' | 'VIEWED';
