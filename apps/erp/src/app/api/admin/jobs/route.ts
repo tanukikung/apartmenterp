@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { getAllJobEntries, type JobEntry } from '@/modules/jobs/job-store';
 import { getWorkerHeartbeat } from '@/infrastructure/redis';
+import { requireRole } from '@/lib/auth/guards';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,8 @@ export interface JobsResponse {
 // GET /api/admin/jobs
 // ============================================================================
 
-export const GET = asyncHandler(async (): Promise<NextResponse> => {
+export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN', 'STAFF']);
   const heartbeat = await getWorkerHeartbeat();
   const workerAvailable = heartbeat !== null && (Date.now() - heartbeat) < 60_000;
 
