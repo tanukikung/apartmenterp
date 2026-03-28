@@ -3,6 +3,7 @@ import { getServiceContainer } from '@/lib/service-container';
 import { renewContractSchema } from '@/modules/contracts/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
+import { requireRole } from '@/lib/auth/guards';
 
 // ============================================================================
 // POST /api/contracts/[id]/renew - Renew a contract
@@ -10,6 +11,7 @@ import { logger } from '@/lib/utils/logger';
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN']);
     const { id } = params;
     const body = await req.json();
 

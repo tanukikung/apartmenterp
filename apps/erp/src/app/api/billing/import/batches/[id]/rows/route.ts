@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuthSession } from '@/lib/auth/guards';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { getBillingImportBatchDetail } from '@/modules/billing/import-batch.service';
 
@@ -10,7 +10,7 @@ export const GET = asyncHandler(
     req: NextRequest,
     { params }: { params: { id: string } },
   ): Promise<NextResponse> => {
-    requireAuthSession(req);
+    requireRole(req, ['ADMIN', 'STAFF']);
 
     const result = await getBillingImportBatchDetail(params.id);
 

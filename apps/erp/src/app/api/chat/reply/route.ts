@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { getVerifiedActor } from '@/lib/auth/guards';
+import { getVerifiedActor, requireRole } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse, NotFoundError, ExternalServiceError } from '@/lib/utils/errors';
 import { prisma, sendLineMessage, logger } from '@/lib';
 import { logAudit } from '@/modules/audit';
@@ -14,6 +14,7 @@ const schema = z.object({
 });
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN', 'STAFF']);
   const body = await req.json().catch(() => ({}));
   const input = schema.parse(body);
   const actor = getVerifiedActor(req);

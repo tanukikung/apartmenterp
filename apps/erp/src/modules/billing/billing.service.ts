@@ -489,10 +489,11 @@ export class BillingService {
         const msg = err instanceof Error ? err.message : String(err);
         errors.push({ roomNo, error: msg });
         rowsErrored++;
+        // Propagate batch update failures — batch stuck in PROCESSING is worse than failing the row
         await prisma.importBatch.update({
           where: { id: batchId },
           data: { rowsSkipped, rowsErrored },
-        }).catch((err) => logger.error({ type: 'billing_import_batch_update_failed', batchId, error: err instanceof Error ? err.message : String(err) }));
+        });
         logger.error({ type: 'billing_import_row_error', roomNo, error: msg });
       }
     }

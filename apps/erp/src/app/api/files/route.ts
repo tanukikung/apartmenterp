@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { getStorage } from '@/infrastructure/storage';
 import { logger } from '@/lib/utils/logger';
@@ -20,6 +21,7 @@ function guessContentType(name: string, fallback: string = 'application/octet-st
 }
 
 export const POST = asyncHandler(async (request: NextRequest): Promise<NextResponse> => {
+  requireRole(request, ['ADMIN']);
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
 

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth/guards';
 import { getServiceContainer } from '@/lib/service-container';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 
 export const GET = asyncHandler(
-  async (_req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+  async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN', 'STAFF']);
     const { id } = params;
     const { invoiceService } = getServiceContainer();
     const preview = await invoiceService.getInvoicePreview(id);

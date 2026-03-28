@@ -6,6 +6,7 @@ import {
 } from '@/modules/contracts/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
+import { requireRole } from '@/lib/auth/guards';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 // ============================================================================
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN']);
   const body = await req.json();
 
   const input = createContractSchema.parse(body);

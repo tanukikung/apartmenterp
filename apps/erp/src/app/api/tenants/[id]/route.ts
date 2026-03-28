@@ -11,6 +11,7 @@ import { logger } from '@/lib/utils/logger';
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN', 'STAFF']);
     const { id } = params;
 
     const { tenantService } = getServiceContainer();
@@ -29,6 +30,7 @@ export const GET = asyncHandler(
 
 export const PATCH = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN']);
     const { id } = params;
     const body = await req.json();
 

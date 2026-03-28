@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, AppError } from '@/lib/utils/errors';
 import { logger } from '@/lib';
 import { isLineConfigured } from '@/lib/line';
@@ -13,6 +14,7 @@ const schema = z.object({
 });
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN', 'STAFF']);
   const body = await req.json().catch(() => ({}));
   const input = schema.parse(body);
   if (!isLineConfigured()) {

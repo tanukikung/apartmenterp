@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceContainer } from '@/lib/service-container';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
-import { requireAuthSession } from '@/lib/auth/guards';
+import { requireRole } from '@/lib/auth/guards';
 
 // ============================================================================
 // GET /api/invoices/[id] — Get invoice by ID (admin/staff only)
@@ -13,7 +13,7 @@ import { requireAuthSession } from '@/lib/auth/guards';
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    requireAuthSession(req);
+    const session = requireRole(req, ['ADMIN', 'STAFF']);
 
     const { id } = params;
     const { invoiceService } = getServiceContainer();

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { prisma } from '@/lib';
 import { withTiming } from '@/lib/performance/timingMiddleware';
@@ -6,6 +7,7 @@ import { withTiming } from '@/lib/performance/timingMiddleware';
 export const dynamic = 'force-dynamic';
 
 const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN', 'STAFF']);
   const url = new URL(req.url);
   const page = parseInt(url.searchParams.get('page') || '1', 10);
   const pageSize = parseInt(url.searchParams.get('pageSize') || '20', 10);
@@ -95,6 +97,7 @@ const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResp
 export const GET = withTiming(getConversations);
 
 const markRead = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN', 'STAFF']);
   const { searchParams } = new URL(req.url);
   const conversationId = searchParams.get('conversationId');
 

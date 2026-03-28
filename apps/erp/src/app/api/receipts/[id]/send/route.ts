@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getVerifiedActor } from '@/lib/auth/guards';
+import { getVerifiedActor, requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, AppError, BadRequestError, NotFoundError } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { getOutboxProcessor } from '@/lib/outbox';
@@ -45,6 +45,7 @@ function normalizeReceiptDownloadLink(receiptId: string, requestedLink?: string)
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN', 'STAFF']);
     const { id } = params;
     const body = await req.json().catch(() => ({}));
     const input = schema.parse(body);

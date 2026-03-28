@@ -3,6 +3,7 @@ import { getServiceContainer } from '@/lib/service-container';
 import { removeTenantSchema } from '@/modules/tenants/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
+import { requireRole } from '@/lib/auth/guards';
 
 // ============================================================================
 // DELETE /api/rooms/[id]/tenants/[tenantId] - Remove tenant from room
@@ -13,6 +14,7 @@ export const DELETE = asyncHandler(
     req: NextRequest,
     { params }: { params: { id: string; tenantId: string } }
   ): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN']);
     const { id: roomId, tenantId } = params;
     const body = await req.json().catch(() => ({}));
 

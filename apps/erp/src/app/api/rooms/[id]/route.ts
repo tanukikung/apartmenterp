@@ -6,6 +6,7 @@ import {
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { prisma } from '@/lib';
+import { requireRole } from '@/lib/auth/guards';
 
 // ============================================================================
 // GET /api/rooms/[id] - Get room by ID
@@ -13,6 +14,7 @@ import { prisma } from '@/lib';
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN', 'STAFF']);
     const { id } = params;
 
     const { roomService } = getServiceContainer();
@@ -62,6 +64,7 @@ export const GET = asyncHandler(
 
 export const PATCH = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN']);
     const { id } = params;
     const body = await req.json();
 
@@ -90,6 +93,7 @@ export const PATCH = asyncHandler(
 
 export const DELETE = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN']);
     const { id } = params;
 
     const { roomService } = getServiceContainer();

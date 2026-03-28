@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse, NotFoundError } from '@/lib/utils/errors';
 import { prisma } from '@/lib';
 import { withTiming } from '@/lib/performance/timingMiddleware';
@@ -11,6 +12,7 @@ const getConversation = asyncHandler(
     _req: NextRequest,
     { params }: { params: { id: string } },
   ): Promise<NextResponse> => {
+    requireRole(_req, ['ADMIN', 'STAFF']);
     const conversation = await prisma.conversation.findUnique({
       where: { id: params.id },
       include: {

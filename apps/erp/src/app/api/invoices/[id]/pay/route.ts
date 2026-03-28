@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getVerifiedActor } from '@/lib/auth/guards';
+import { requireRole } from '@/lib/auth/guards';
 import { payInvoiceSchema } from '@/modules/invoices/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
@@ -11,7 +11,7 @@ import { getServiceContainer } from '@/lib/service-container';
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    const actor = getVerifiedActor(req);
+    const session = requireRole(req, ['ADMIN', 'STAFF']);
     const { id } = params;
     const body = await req.json().catch(() => ({}));
     const input = payInvoiceSchema.parse(body);
@@ -23,14 +23,14 @@ export const POST = asyncHandler(
         paidAt: input.paidAt,
         referenceNumber: input.paymentId,
       },
-      actor.actorId,
+      session.sub,
     );
 
     logger.info({
       type: 'invoice_paid_api',
       invoiceId: id,
       paymentId: result.payment.id,
-      actorId: actor.actorId,
+      actorId: session.sub,
     });
 
     return NextResponse.json({

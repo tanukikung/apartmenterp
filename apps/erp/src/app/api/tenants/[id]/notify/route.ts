@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getVerifiedActor } from '@/lib/auth/guards';
+import { getVerifiedActor, requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, ConflictError, NotFoundError } from '@/lib/utils/errors';
 import { getOutboxProcessor } from '@/lib/outbox';
 import { logAudit } from '@/modules/audit';
@@ -16,6 +16,7 @@ export const POST = asyncHandler(
     req: NextRequest,
     { params }: { params: { id: string } },
   ): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN', 'STAFF']);
     const body = await req.json().catch(() => ({}));
     const input = schema.parse(body);
     const actor = getVerifiedActor(req);

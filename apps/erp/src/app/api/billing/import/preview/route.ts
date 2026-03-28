@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createBillingImportPreviewBatch } from '@/modules/billing/import-batch.service';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
+import { requireRole } from '@/lib/auth/guards';
 import { getStorage } from '@/infrastructure/storage';
 import { prisma } from '@/lib';
 import { v4 as uuidv4 } from 'uuid';
@@ -17,6 +18,8 @@ function guessWorkbookMimeType(name: string, fallback: string): string {
 }
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN', 'STAFF']);
+
   const form = await req.formData();
   const file = form.get('file');
   if (!(file instanceof File)) {

@@ -10,7 +10,7 @@ const confirmMatchSchema = z.object({
 });
 
 export const POST = asyncHandler(async (request: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(request, ['ADMIN', 'STAFF']);
+  const session = requireRole(request, ['ADMIN']);
   const body = await request.json();
 
   const validation = confirmMatchSchema.safeParse(body);

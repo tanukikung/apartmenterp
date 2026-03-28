@@ -3,6 +3,7 @@ import { getServiceContainer } from '@/lib/service-container';
 import { changeRoomStatusSchema } from '@/modules/rooms/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
+import { requireRole } from '@/lib/auth/guards';
 
 // ============================================================================
 // PATCH /api/rooms/[id]/status - Change room status
@@ -10,6 +11,7 @@ import { logger } from '@/lib/utils/logger';
 
 export const PATCH = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN']);
     const { id } = params;
     const body = await req.json();
 

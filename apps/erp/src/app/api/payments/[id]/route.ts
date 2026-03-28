@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, type ApiResponse, NotFoundError } from '@/lib/utils/errors';
+import { requireRole } from '@/lib/auth/guards';
 import { prisma } from '@/lib';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,7 @@ export const GET = asyncHandler(
     _req: NextRequest,
     { params }: { params: { id: string } },
   ): Promise<NextResponse> => {
+    requireRole(_req, ['ADMIN', 'STAFF']);
     const { id } = params;
 
     // ── Try PaymentTransaction first (the model used by the review queue) ──

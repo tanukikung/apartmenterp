@@ -3,6 +3,7 @@ import { getServiceContainer } from '@/lib/service-container';
 import { assignTenantSchema } from '@/modules/tenants/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
+import { requireRole } from '@/lib/auth/guards';
 
 // ============================================================================
 // POST /api/rooms/[id]/tenants - Assign tenant to room
@@ -10,6 +11,7 @@ import { logger } from '@/lib/utils/logger';
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN', 'STAFF']);
     const { id: roomId } = params;
     const body = await req.json();
 
@@ -39,6 +41,7 @@ export const POST = asyncHandler(
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN', 'STAFF']);
     const { id: roomId } = params;
 
     const { tenantService } = getServiceContainer();

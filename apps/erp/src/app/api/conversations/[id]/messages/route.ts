@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { getVerifiedActor } from '@/lib/auth/guards';
+import { getVerifiedActor, requireRole } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse, NotFoundError, ExternalServiceError } from '@/lib/utils/errors';
 import { prisma, sendLineMessage } from '@/lib';
 import { logAudit } from '@/modules/audit';
@@ -12,6 +12,7 @@ import { toConversationMessageDto } from '@/modules/messaging/message-dto';
 export const dynamic = 'force-dynamic';
 
 const getMessages = asyncHandler(async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN', 'STAFF']);
   const { id } = params;
   const url = new URL(req.url);
   const limitParam = url.searchParams.get('limit');
@@ -70,6 +71,7 @@ const sendMessageSchema = z.object({
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN', 'STAFF']);
     const { id } = params;
     const body = await req.json().catch(() => ({}));
     const input = sendMessageSchema.parse(body);

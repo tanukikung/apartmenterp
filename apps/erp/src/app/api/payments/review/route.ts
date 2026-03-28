@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler } from '@/lib/utils/errors';
+import { requireRole } from '@/lib/auth/guards';
 import { getServiceContainer } from '@/lib/service-container';
 import { z } from 'zod';
 
@@ -9,6 +10,7 @@ const reviewListSchema = z.object({
 });
 
 export const GET = asyncHandler(async (request: NextRequest): Promise<NextResponse> => {
+  requireRole(request, ['ADMIN', 'STAFF']);
   const searchParams = request.nextUrl.searchParams;
   
   const limit = parseInt(searchParams.get('limit') || '50');

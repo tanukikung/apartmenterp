@@ -12,7 +12,7 @@ import { sendInvoiceSchema } from '@/modules/invoices/types';
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    const session = requireRole(req, ['ADMIN', 'STAFF']);
+    const session = requireRole(req, ['ADMIN']);
     const actorId = session.sub;
     const actorRole = session.role;
 

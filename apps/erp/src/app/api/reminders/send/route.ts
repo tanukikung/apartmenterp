@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getVerifiedActor } from '@/lib/auth/guards';
+import { getVerifiedActor, requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, AppError, BadRequestError, NotFoundError } from '@/lib/utils/errors';
 import { getOutboxProcessor } from '@/lib/outbox';
 import type { Json } from '@/types/prisma-json';
@@ -23,6 +23,7 @@ const schema = z.object({
 });
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN']);
   const body = await req.json().catch(() => ({}));
   const input = schema.parse(body);
   const actor = getVerifiedActor(req);

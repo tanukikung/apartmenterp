@@ -3,6 +3,7 @@ import { getServiceContainer } from '@/lib/service-container';
 import { linkLineAccountSchema } from '@/modules/tenants/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
+import { requireRole } from '@/lib/auth/guards';
 
 // ============================================================================
 // POST /api/tenants/[id]/line - Link LINE account to tenant
@@ -10,6 +11,7 @@ import { logger } from '@/lib/utils/logger';
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    requireRole(req, ['ADMIN', 'STAFF']);
     const { id } = params;
     const body = await req.json();
 
