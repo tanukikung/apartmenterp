@@ -3,7 +3,9 @@ import { getLoginRateLimiter, getApiRateLimiter } from '@/lib/utils/rate-limit';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const secret = req.headers.get('x-test-secret');
-  if (secret !== 'dev-reset') {
+  const allowedSecret = process.env.RATE_LIMIT_RESET_SECRET;
+  // Require the env var to be set; reject in production if missing
+  if (!allowedSecret || secret !== allowedSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

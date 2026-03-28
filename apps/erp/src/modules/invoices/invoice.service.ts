@@ -290,10 +290,12 @@ export class InvoiceService {
         items.push({ typeCode: 'RENT', typeName: 'ค่าเช่า', description: null, quantity: 1, unitPrice: Number(rb.rentAmount), total: Number(rb.rentAmount) });
       }
       if (Number(rb.waterTotal) > 0) {
-        items.push({ typeCode: 'WATER', typeName: 'ค่าน้ำ', description: null, quantity: Number(rb.waterUnits), unitPrice: Number(rb.waterUsageCharge) / Math.max(Number(rb.waterUnits), 1), total: Number(rb.waterTotal) });
+        const wUnits = Number(rb.waterUnits);
+        items.push({ typeCode: 'WATER', typeName: 'ค่าน้ำ', description: null, quantity: wUnits, unitPrice: wUnits > 0 ? Number(rb.waterUsageCharge) / wUnits : 0, total: Number(rb.waterTotal) });
       }
       if (Number(rb.electricTotal) > 0) {
-        items.push({ typeCode: 'ELECTRIC', typeName: 'ค่าไฟ', description: null, quantity: Number(rb.electricUnits), unitPrice: Number(rb.electricUsageCharge) / Math.max(Number(rb.electricUnits), 1), total: Number(rb.electricTotal) });
+        const eUnits = Number(rb.electricUnits);
+        items.push({ typeCode: 'ELECTRIC', typeName: 'ค่าไฟ', description: null, quantity: eUnits, unitPrice: eUnits > 0 ? Number(rb.electricUsageCharge) / eUnits : 0, total: Number(rb.electricTotal) });
       }
       if (Number(rb.furnitureFee) > 0) {
         items.push({ typeCode: 'FURNITURE', typeName: 'ค่าเฟอร์นิเจอร์', description: null, quantity: 1, unitPrice: Number(rb.furnitureFee), total: Number(rb.furnitureFee) });
@@ -489,8 +491,8 @@ export class InvoiceService {
           orderBy: { updatedAt: 'desc' },
           select: { id: true, body: true },
         });
-      } catch {
-        // Non-blocking
+      } catch (err) {
+        logger.warn({ type: 'invoice_doc_template_lookup_failed', invoiceId: id, error: err instanceof Error ? err.message : String(err) });
       }
 
       const documentTemplateId = docTemplate?.id ?? null;
@@ -540,8 +542,8 @@ export class InvoiceService {
           templateBody = msgTemplate.body;
           resolvedTemplateId = msgTemplate.id;
         }
-      } catch {
-        // Non-blocking
+      } catch (err) {
+        logger.warn({ type: 'invoice_msg_template_lookup_failed', invoiceId: id, error: err instanceof Error ? err.message : String(err) });
       }
 
       await tx.outboxEvent.create({
@@ -739,6 +741,12 @@ export class InvoiceService {
         data: { status: 'LOCKED' },
       });
 
+      // Cancel associated pending deliveries so they can't be resent
+      await tx.invoiceDelivery.updateMany({
+        where: { invoiceId: id, status: { in: ['PENDING', 'SENT'] } },
+        data: { status: 'CANCELLED' as const },
+      });
+
       return cancelled;
     });
 
@@ -868,7 +876,7 @@ export class InvoiceService {
     const tenantName = primaryTenant
       ? `${primaryTenant.firstName ?? ''} ${primaryTenant.lastName ?? ''}`.trim() || null
       : null;
-    const invoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.roomNo}-V1`;
+    const invoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.roomNo}`;
 
     return {
       id: invoice.id,
@@ -889,6 +897,7 @@ export class InvoiceService {
       room: room
         ? {
             roomNo: room.roomNo,
+            roomNumber: room.roomNo,
           }
         : undefined,
       tenant: primaryTenant?.id

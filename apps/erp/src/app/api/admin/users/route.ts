@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/client';
 import { hashPassword } from '@/lib/auth/password';
 import { getRequestIp, requireRole } from '@/lib/auth/guards';
-import { asyncHandler, ApiResponse, ConflictError } from '@/lib/utils/errors';
+import { asyncHandler, ApiResponse, ConflictError, ForbiddenError } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit/audit.service';
 
 const createUserSchema = z.object({
@@ -115,6 +115,16 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   const body = createUserSchema.parse(await req.json());
   const username = body.username.trim().toLowerCase();
   const email = body.email?.trim().toLowerCase() || null;
+
+  // Prevent non-bootstrap admins from creating new ADMIN users.
+  // Once the system has more than 1 admin, no further ADMIN accounts can be created
+  // (this is a deliberate design choice — ADMIN role should be rare and deliberate).
+  if (body.role === 'ADMIN') {
+    const adminCount = await prisma.adminUser.count({ where: { role: 'ADMIN' } });
+    if (adminCount > 0) {
+      throw new ForbiddenError('Cannot create additional ADMIN users. Contact the existing admin.');
+    }
+  }
 
   const duplicate = await prisma.adminUser.findFirst({
     where: {

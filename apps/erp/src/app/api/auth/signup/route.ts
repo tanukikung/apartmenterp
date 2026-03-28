@@ -19,7 +19,7 @@ const signUpSchema = z.object({
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-  const { allowed, remaining, resetAt } = signupLimiter.check(`signup:${ip}`, 10, 60 * 60 * 1000);
+  const { allowed, remaining, resetAt } = await signupLimiter.check(`signup:${ip}`, 10, 60 * 60 * 1000);
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: { message: `Too many signup attempts. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
@@ -83,16 +83,27 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     } as ApiResponse<{ requestId: string; status: typeof request.status }>);
   }
 
-  const user = await prisma.adminUser.create({
-    data: {
-      username,
-      email,
-      displayName: body.displayName.trim(),
-      passwordHash: hashPassword(body.password),
-      role: firstUser ? 'ADMIN' : 'STAFF',
-      forcePasswordChange: false,
-    },
-  });
+  // Use try/catch for P2002 to handle the race condition where two concurrent
+  // first-signup requests both pass the existingUsers check. The unique constraint
+  // on username ensures only one ADMIN can be created.
+  let user;
+  try {
+    user = await prisma.adminUser.create({
+      data: {
+        username,
+        email,
+        displayName: body.displayName.trim(),
+        passwordHash: hashPassword(body.password),
+        role: 'ADMIN',
+        forcePasswordChange: false,
+      },
+    });
+  } catch (error: unknown) {
+    if ((error as { code?: string }).code === 'P2002') {
+      throw new ConflictError('Initial admin already created');
+    }
+    throw error;
+  }
 
   const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 12;
   const res = NextResponse.json({

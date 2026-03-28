@@ -37,11 +37,17 @@ export function requireOperator(req: NextRequest): AuthSessionPayload {
 }
 
 export function getRequestIp(req: NextRequest): string | null {
-  const forwardedFor = req.headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    return forwardedFor.split(',')[0]?.trim() || null;
+  // Only trust x-forwarded-for when the direct connection is from a known proxy.
+  const trustedProxies = (process.env.TRUSTED_PROXY_IPS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const directIp = (req as unknown as { ip?: string }).ip;
+  if (directIp && trustedProxies.includes(directIp)) {
+    const forwardedFor = req.headers.get('x-forwarded-for');
+    if (forwardedFor) return forwardedFor.split(',')[0]?.trim() || null;
   }
-  return null;
+  return directIp || null;
 }
 
 export interface VerifiedActor {

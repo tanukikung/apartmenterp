@@ -7,9 +7,18 @@ import { isCsrfExemptApiRoute } from '@/lib/auth/api-policy';
 
 
 function getIp(req: NextRequest): string {
-  const xff = req.headers.get('x-forwarded-for');
-  if (xff) return xff.split(',')[0].trim();
-  return (req as unknown as { ip?: string }).ip || '0.0.0.0';
+  // Only trust x-forwarded-for when the direct connection is from a known proxy.
+  // This prevents attackers from spoofing the x-forwarded-for header to mask their real IP.
+  const trustedProxies = (process.env.TRUSTED_PROXY_IPS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const directIp = (req as unknown as { ip?: string }).ip;
+  if (directIp && trustedProxies.includes(directIp)) {
+    const xff = req.headers.get('x-forwarded-for');
+    if (xff) return xff.split(',')[0].trim();
+  }
+  return directIp || '0.0.0.0';
 }
 
 function sameOrigin(req: NextRequest): boolean {
@@ -169,17 +178,22 @@ export async function middleware(req: NextRequest) {
   if (url.pathname.startsWith('/api/') && !isEmbeddableRoute) {
     res.headers.set('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline'");
   }
-  try {
-    console.log(JSON.stringify({
-      type: 'api_request',
-      method: req.method,
-      path: url.pathname,
-      statusCode: res.status,
-      duration: `${Date.now() - start}ms`,
-      requestId,
-      ip,
-    }));
-  } catch {}
+  // Only log in development — avoid performance overhead on every production request
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      console.log(JSON.stringify({
+        type: 'api_request',
+        method: req.method,
+        path: url.pathname,
+        statusCode: res.status,
+        duration: `${Date.now() - start}ms`,
+        requestId,
+        ip,
+      }));
+    } catch (err) {
+      // ignore
+    }
+  }
   return res;
 }
 

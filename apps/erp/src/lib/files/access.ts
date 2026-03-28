@@ -3,30 +3,19 @@ import { NextRequest } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth/session';
 import { ForbiddenError, UnauthorizedError } from '@/lib/utils/errors';
 
-const DEVELOPMENT_FILE_ACCESS_SECRET = 'development-file-access-secret';
-
+// IMPORTANT: Each environment must configure its own FILE_ACCESS_SECRET.
+// No fallback chain — if not set, deny all access.
 function resolveFileAccessSecret(): string | null {
-  const configured =
-    process.env.FILE_ACCESS_SECRET ||
-    process.env.AUTH_SECRET ||
-    process.env.NEXTAUTH_SECRET ||
-    process.env.ADMIN_TOKEN;
-
-  if (configured?.trim()) {
-    return configured.trim();
-  }
-
-  if (process.env.NODE_ENV === 'production') {
-    return null;
-  }
-
-  return DEVELOPMENT_FILE_ACCESS_SECRET;
+  const secret = process.env.FILE_ACCESS_SECRET;
+  if (secret?.trim()) return secret.trim();
+  if (process.env.NODE_ENV === 'production') return null;
+  return null;
 }
 
 function getFileAccessSecret(): string {
-  const secret = resolveFileAccessSecret();
-  if (!secret) {
-    throw new Error('FILE_ACCESS_SECRET must be configured in production');
+  const secret = process.env.FILE_ACCESS_SECRET;
+  if (!secret?.trim()) {
+    throw new Error('FILE_ACCESS_SECRET must be configured');
   }
   return secret;
 }
@@ -64,11 +53,12 @@ export function verifySignedFileAccess(input: {
     return false;
   }
 
-  const secret = resolveFileAccessSecret();
-  if (!secret) {
+  // Reject if FILE_ACCESS_SECRET is not configured — deny unsigned access
+  if (!process.env.FILE_ACCESS_SECRET?.trim()) {
     return false;
   }
 
+  const secret = resolveFileAccessSecret()!;
   const expected = crypto
     .createHmac('sha256', secret)
     .update(`${input.storageKey}:${input.inline ? '1' : '0'}:${input.expiresAt}`)

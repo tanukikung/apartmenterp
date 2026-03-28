@@ -58,7 +58,9 @@ export function getSessionFromRequest(req: NextRequest): AuthSessionPayload | nu
 }
 
 export function setAuthCookies(res: NextResponse, payload: AuthSessionPayload): void {
-  const secure = process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === 'true' : process.env.NODE_ENV === 'production';
+  // SECURITY: COOKIE_SECURE must be explicitly set to 'true' when serving over HTTPS.
+  // Never auto-enable based on NODE_ENV alone, as that can cause silent auth failures.
+  const secure = process.env.COOKIE_SECURE === 'true';
   const token = signSessionToken(payload);
 
   res.cookies.set(AUTH_COOKIE_NAME, token, {
@@ -79,7 +81,8 @@ export function setAuthCookies(res: NextResponse, payload: AuthSessionPayload): 
 }
 
 export function clearAuthCookies(res: NextResponse): void {
-  const secure = process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === 'true' : process.env.NODE_ENV === 'production';
+  // Same secure flag as setAuthCookies — must match to allow clearing the cookie
+  const secure = process.env.COOKIE_SECURE === 'true';
   res.cookies.set(AUTH_COOKIE_NAME, '', { httpOnly: true, sameSite: 'lax', secure, path: '/', expires: new Date(0) });
   res.cookies.set(ROLE_COOKIE_NAME, '', { httpOnly: true, sameSite: 'lax', secure, path: '/', expires: new Date(0) });
 }

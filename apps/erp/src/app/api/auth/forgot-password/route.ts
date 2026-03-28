@@ -14,7 +14,7 @@ const forgotSchema = z.object({
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const limiter = getForgotPasswordRateLimiter();
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-  const { allowed, remaining, resetAt } = limiter.check(`forgot:${ip}`, 3, 60 * 60 * 1000);
+  const { allowed, remaining, resetAt } = await limiter.check(`forgot:${ip}`, 3, 60 * 60 * 1000);
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: { message: `Too many password reset attempts. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },

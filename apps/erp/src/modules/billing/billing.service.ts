@@ -36,6 +36,17 @@ function normaliseMeterMode(mode: string): 'NORMAL' | 'MANUAL' {
   return mode === 'MANUAL' ? 'MANUAL' : 'NORMAL';
 }
 
+/**
+ * Map new fee modes ('FLAT', 'PER_UNIT', 'MANUAL') to old ServiceFeeMode enum.
+ */
+type OldFeeMode = 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE';
+function mapFeeMode(m: string): OldFeeMode {
+  if (m === 'FLAT') return 'FLAT_ROOM';
+  if (m === 'PER_UNIT') return 'PER_UNIT';
+  if (m === 'MANUAL') return 'MANUAL_FEE';
+  return 'NONE';
+}
+
 // ============================================================================
 // Billing Service — redesigned for BillingPeriod/RoomBilling schema
 // ============================================================================
@@ -481,7 +492,7 @@ export class BillingService {
         await prisma.importBatch.update({
           where: { id: batchId },
           data: { rowsSkipped, rowsErrored },
-        }).catch(() => {/* batch might already be updated */});
+        }).catch((err) => logger.error({ type: 'billing_import_batch_update_failed', batchId, error: err instanceof Error ? err.message : String(err) }));
         logger.error({ type: 'billing_import_row_error', roomNo, error: msg });
       }
     }
@@ -678,14 +689,25 @@ export class BillingService {
 
     const records = await prisma.roomBilling.findMany({
       where,
-      include: { billingPeriod: true },
+      include: {
+        billingPeriod: true,
+        room: {
+          include: {
+            tenants: {
+              where: { moveOutDate: null },
+              include: { tenant: true },
+              take: 1,
+            },
+          },
+        },
+      },
       orderBy: { [prismaOrderField]: sortOrder },
       skip: (page - 1) * pageSize,
       take: pageSize,
     });
 
     return {
-      data: records.map((r) => this.formatRoomBillingResponse(r, r.billingPeriod)),
+      data: records.map((r) => this.formatRoomBillingResponse(r, r.billingPeriod, r.room)),
       total,
       page,
       pageSize,
@@ -699,14 +721,25 @@ export class BillingService {
   async getBillingRecord(id: string): Promise<BillingRecordResponse> {
     const record = await prisma.roomBilling.findUnique({
       where: { id },
-      include: { billingPeriod: true },
+      include: {
+        billingPeriod: true,
+        room: {
+          include: {
+            tenants: {
+              where: { moveOutDate: null },
+              include: { tenant: true },
+              take: 1,
+            },
+          },
+        },
+      },
     });
 
     if (!record) {
       throw new NotFoundError('RoomBilling', id);
     }
 
-    return this.formatRoomBillingResponse(record, record.billingPeriod);
+    return this.formatRoomBillingResponse(record, record.billingPeriod, record.room);
   }
 
   /**
@@ -718,6 +751,12 @@ export class BillingService {
       roomNo: string;
       billingPeriodId: string;
       rentAmount: unknown;
+      waterUnits?: unknown;
+      waterTotal?: unknown;
+      electricUnits?: unknown;
+      electricTotal?: unknown;
+      furnitureFee?: unknown;
+      otherFee?: unknown;
       totalDue: unknown;
       status: string;
       createdAt: Date;
@@ -727,11 +766,50 @@ export class BillingService {
       year: number;
       month: number;
       dueDay: number;
-    }
+    },
+    room?: {
+      roomNo: string;
+      tenants?: Array<{
+        tenant: { firstName: string; lastName: string | null } | null;
+      }>;
+    } | null
   ): BillingRecordResponse {
+    // Build tenant name from room relation
+    const currentTenant = room?.tenants?.[0]?.tenant;
+    const tenantName = currentTenant
+      ? [currentTenant.firstName, currentTenant.lastName].filter(Boolean).join(' ')
+      : null;
+
+    // Synthesize billing line items from flat columns
+    const items: import('./types').BillingItemResponse[] = [];
+    const rentAmount = Number(record.rentAmount ?? 0);
+    const waterUnits = Number(record.waterUnits ?? 0);
+    const waterTotal = Number(record.waterTotal ?? 0);
+    const electricUnits = Number(record.electricUnits ?? 0);
+    const electricTotal = Number(record.electricTotal ?? 0);
+    const furnitureFee = Number(record.furnitureFee ?? 0);
+    const otherFee = Number(record.otherFee ?? 0);
+
+    if (rentAmount > 0) {
+      items.push({ id: 'rent', description: 'ค่าเช่า', quantity: 1, unitPrice: rentAmount, amount: rentAmount });
+    }
+    if (waterTotal > 0) {
+      items.push({ id: 'water', description: 'ค่าน้ำ', quantity: waterUnits, unitPrice: waterUnits > 0 ? Math.round((waterTotal / waterUnits) * 100) / 100 : waterTotal, amount: waterTotal });
+    }
+    if (electricTotal > 0) {
+      items.push({ id: 'electric', description: 'ค่าไฟ', quantity: electricUnits, unitPrice: electricUnits > 0 ? Math.round((electricTotal / electricUnits) * 100) / 100 : electricTotal, amount: electricTotal });
+    }
+    if (furnitureFee > 0) {
+      items.push({ id: 'furniture', description: 'ค่าเฟอร์นิเจอร์', quantity: 1, unitPrice: furnitureFee, amount: furnitureFee });
+    }
+    if (otherFee > 0) {
+      items.push({ id: 'other', description: 'ค่าอื่นๆ', quantity: 1, unitPrice: otherFee, amount: otherFee });
+    }
+
     return {
       id: record.id,
       roomNo: record.roomNo,
+      roomNumber: record.roomNo,
       billingPeriodId: record.billingPeriodId,
       year: period.year,
       month: period.month,
@@ -742,6 +820,9 @@ export class BillingService {
       lockedBy: null,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
+      tenantName,
+      room: { roomNumber: record.roomNo },
+      items,
     };
   }
 
@@ -811,14 +892,6 @@ export class BillingService {
       const electricUnitPrice = rule.electricRate > 0 ? rule.electricRate : rule.electricS1Rate;
 
       // Map new fee modes to the old ServiceFeeMode enum values
-      type OldFeeMode = 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE';
-      const mapFeeMode = (m: string): OldFeeMode => {
-        if (m === 'FLAT') return 'FLAT_ROOM';
-        if (m === 'PER_UNIT') return 'PER_UNIT';
-        if (m === 'MANUAL') return 'MANUAL_FEE';
-        return 'NONE';
-      };
-
       await prisma.billingRule.upsert({
         where: { code: rule.code },
         create: {
@@ -884,6 +957,17 @@ export class BillingService {
     // Build a Map for O(1) rule lookup
     const rulesMap = new Map(rules.map((r) => [r.code, r]));
 
+    // Prefetch all rooms and existing billings to avoid N+1 queries
+    const allRoomNos = Array.from(new Set(allRows.map((r) => r.roomNo)));
+    const [dbRooms, existingBillings] = await Promise.all([
+      prisma.room.findMany({ where: { roomNo: { in: allRoomNos } } }),
+      prisma.roomBilling.findMany({
+        where: { billingPeriodId: period!.id, roomNo: { in: allRoomNos } },
+      }),
+    ]);
+    const roomsMap = new Map(dbRooms.map((r) => [r.roomNo, r]));
+    const billingsMap = new Map(existingBillings.map((b) => [b.roomNo, b]));
+
     let imported = 0;
     let skipped = 0;
     let errors = 0;
@@ -893,8 +977,8 @@ export class BillingService {
     for (const row of allRows) {
       const { roomNo } = row;
       try {
-        // Verify room exists in DB (no ROOM_MASTER in new template)
-        const dbRoom = await prisma.room.findUnique({ where: { roomNo } });
+        // Verify room exists in DB using prefetched map
+        const dbRoom = roomsMap.get(roomNo);
         if (!dbRoom) {
           logger.warn({ type: 'billing_import_room_missing', roomNo });
           skipped++;
@@ -916,23 +1000,16 @@ export class BillingService {
         }
 
         // Adapt new RuleRow to BillingRuleData shape expected by the calculator
-        type OldFeeMode2 = 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE';
-        const mapFeeMode2 = (m: string): OldFeeMode2 => {
-          if (m === 'FLAT') return 'FLAT_ROOM';
-          if (m === 'PER_UNIT') return 'PER_UNIT';
-          if (m === 'MANUAL') return 'MANUAL_FEE';
-          return 'NONE';
-        };
         const billingRuleData = {
           waterEnabled:           ruleData.waterMode !== 'DISABLED',
           waterUnitPrice:         ruleData.waterRate > 0 ? ruleData.waterRate : ruleData.waterS1Rate,
           waterMinCharge:         ruleData.waterMinCharge,
-          waterServiceFeeMode:    mapFeeMode2(ruleData.waterFeeMode),
+          waterServiceFeeMode:    mapFeeMode(ruleData.waterFeeMode),
           waterServiceFeeAmount:  ruleData.waterFeeAmount > 0 ? ruleData.waterFeeAmount : ruleData.waterFeePerUnit,
           electricEnabled:        ruleData.electricMode !== 'DISABLED',
           electricUnitPrice:      ruleData.electricRate > 0 ? ruleData.electricRate : ruleData.electricS1Rate,
           electricMinCharge:      ruleData.electricMinCharge,
-          electricServiceFeeMode: mapFeeMode2(ruleData.electricFeeMode),
+          electricServiceFeeMode: mapFeeMode(ruleData.electricFeeMode),
           electricServiceFeeAmount: ruleData.electricFeeAmount > 0 ? ruleData.electricFeeAmount : ruleData.electricFeePerUnit,
         };
 
@@ -983,10 +1060,8 @@ export class BillingService {
           config.defaultAccountId ??
           '';
 
-        // Upsert RoomBilling — create if not exists, update if DRAFT
-        const existing = await prisma.roomBilling.findUnique({
-          where: { billingPeriodId_roomNo: { billingPeriodId: period!.id, roomNo } },
-        });
+        // Upsert RoomBilling — create if not exists, update if DRAFT (using prefetched map)
+        const existing = billingsMap.get(roomNo);
 
         if (existing && existing.status !== 'DRAFT') {
           skipped++;

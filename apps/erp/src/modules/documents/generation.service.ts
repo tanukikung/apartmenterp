@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { DocumentSourceScope, DocumentTemplateType, GeneratedDocumentStatus, GeneratedDocumentFileRole, Prisma } from '@prisma/client';
+import { DocumentSourceScope, DocumentTemplateType, GeneratedDocumentStatus, GeneratedDocumentFileRole, DocumentTemplateVersionStatus, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/client';
 import { BadRequestError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit';
@@ -132,6 +132,14 @@ export class DocumentGenerationService {
     });
     if (!version || version.templateId !== templateId) {
       throw new NotFoundError('DocumentTemplateVersion', resolvedVersionId);
+    }
+
+    // Only ACTIVE (published) template versions may be used for generation.
+    // DRAFT versions are still being edited and must not be used to produce customer documents.
+    if (version.status !== DocumentTemplateVersionStatus.ACTIVE) {
+      throw new ValidationError(
+        `Template version v${version.version} is ${version.status}. Only ACTIVE (published) versions can be used to generate documents. Please activate this version first.`,
+      );
     }
 
     return {
@@ -440,6 +448,8 @@ export class DocumentGenerationService {
     let successCount = 0;
     let skippedCount = 0;
     let failedCount = 0;
+    let bundleFileCount = 0;
+    const MAX_ZIP_BUNDLE_SIZE = 500; // Prevent memory exhaustion for large batches
 
     for (const target of resolvedTargets) {
       const targetPreview = previewByRoomId.get(target.roomId);
@@ -516,7 +526,10 @@ export class DocumentGenerationService {
         );
         const primaryPdf = persisted.files.find((file) => file.role === GeneratedDocumentFileRole.PDF);
         if (input.includeZipBundle && primaryPdf) {
-          bundle.file(`${title}.${mimeExtFromRole(primaryPdf.role)}`, persisted.pdfBuffer);
+          if (bundleFileCount < MAX_ZIP_BUNDLE_SIZE) {
+            bundle.file(`${title}.${mimeExtFromRole(primaryPdf.role)}`, persisted.pdfBuffer);
+            bundleFileCount++;
+          }
         }
 
         await prisma.documentGenerationTarget.update({
@@ -727,6 +740,7 @@ export class DocumentGenerationService {
     if (existing.status === 'SENT') {
       throw new BadRequestError('Cannot regenerate a document that has already been sent. Create a new document instead.');
     }
+    // Allow regenerating FAILED documents so they can be retried
 
     const input: DocumentGenerateInput = {
       templateId: existing.templateId,

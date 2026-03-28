@@ -3,6 +3,15 @@ import { DocumentFieldValueType } from '@prisma/client';
 import type { DocumentRenderContext } from './resolver.service';
 import type { DocumentTemplateFieldResponse } from './types';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function normalizeCollectionKey(key: string): string {
   if (key === 'billing_items') return 'billingItems';
   return key;
@@ -63,7 +72,8 @@ function replaceFallbackPlaceholders(html: string, context: DocumentRenderContex
   let result = html;
 
   for (const [key, value] of Object.entries(flatMap)) {
-    result = result.replace(new RegExp(`\\{\\{\\s*${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\}\\}`, 'g'), value);
+    // Escape HTML in substituted values to prevent XSS from malicious template content
+    result = result.replace(new RegExp(`\\{\\{\\s*${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\}\\}`, 'g'), escapeHtml(value));
   }
 
   return result;
@@ -121,13 +131,15 @@ function renderRepeatBlocks(html: string, context: DocumentRenderContext): strin
         });
         let renderedItemHtml = item$.root().html() ?? '';
         for (const [entryKey, entryValue] of Object.entries(item as Record<string, unknown>)) {
+          // Escape HTML in substituted values to prevent XSS
+          const safeValue = escapeHtml(coerceScalarValue(entryValue));
           renderedItemHtml = renderedItemHtml.replace(
             new RegExp(`\\{\\{\\s*${repeatKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.${entryKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\}\\}`, 'g'),
-            coerceScalarValue(entryValue),
+            safeValue,
           );
           renderedItemHtml = renderedItemHtml.replace(
             new RegExp(`\\{\\{\\s*${entryKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\}\\}`, 'g'),
-            coerceScalarValue(entryValue),
+            safeValue,
           );
         }
         return renderedItemHtml;

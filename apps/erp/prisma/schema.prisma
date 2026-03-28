@@ -48,6 +48,7 @@ model Room {
   hasFurniture              Boolean                    @default(false)
   defaultFurnitureAmount    Decimal                    @default(0) @db.Decimal(10, 2)
   roomStatus                RoomStatus                 @default(ACTIVE)
+  maxResidents              Int                        @default(2)
   lineUserId                String?
   contracts                 Contract[]
   conversations             Conversation[]
@@ -160,6 +161,7 @@ model Invoice {
 
   @@index([roomNo])
   @@index([year, month])
+  @@index([roomNo, year, month])
   @@index([status])
   @@index([dueDate])
   @@map("invoices")
@@ -237,7 +239,7 @@ model PaymentTransaction {
   id              String                   @id @default(uuid())
   amount          Decimal                  @db.Decimal(12, 2)
   transactionDate DateTime
-  roomNo          String
+  roomNo          String?
   description     String?
   reference       String?
   sourceFile      String
@@ -526,6 +528,7 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([userId])
   @@index([createdAt])
+  @@index([action, createdAt])
   @@map("audit_logs")
 }
 
@@ -1155,6 +1158,7 @@ enum InvoiceDeliveryStatus {
   SENT
   FAILED
   VIEWED
+  CANCELLED
 }
 
 enum MessageTemplateType {

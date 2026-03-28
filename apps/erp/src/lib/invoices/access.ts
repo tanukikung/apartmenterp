@@ -5,31 +5,21 @@ import { ForbiddenError, UnauthorizedError } from '@/lib/utils/errors';
 
 type InvoiceAccessAction = 'pdf' | 'view';
 
-const DEVELOPMENT_INVOICE_ACCESS_SECRET = 'development-invoice-access-secret';
-
+// IMPORTANT: Each environment must configure its own INVOICE_ACCESS_SECRET.
+// No fallback chain — if not set in production, deny all access.
 function resolveInvoiceAccessSecret(): string | null {
-  const configured =
-    process.env.INVOICE_ACCESS_SECRET ||
-    process.env.FILE_ACCESS_SECRET ||
-    process.env.AUTH_SECRET ||
-    process.env.NEXTAUTH_SECRET ||
-    process.env.ADMIN_TOKEN;
-
-  if (configured?.trim()) {
-    return configured.trim();
-  }
-
-  if (process.env.NODE_ENV === 'production') {
-    return null;
-  }
-
-  return DEVELOPMENT_INVOICE_ACCESS_SECRET;
+  const secret = process.env.INVOICE_ACCESS_SECRET;
+  if (secret?.trim()) return secret.trim();
+  if (process.env.NODE_ENV === 'production') return null;
+  // In dev/test, return null so verifySignedInvoiceAccess short-circuits
+  // (tokens are only created when getInvoiceAccessSecret() is called, which throws in production)
+  return null;
 }
 
 function getInvoiceAccessSecret(): string {
-  const secret = resolveInvoiceAccessSecret();
-  if (!secret) {
-    throw new Error('INVOICE_ACCESS_SECRET must be configured in production');
+  const secret = process.env.INVOICE_ACCESS_SECRET;
+  if (!secret?.trim()) {
+    throw new Error('INVOICE_ACCESS_SECRET must be configured');
   }
   return secret;
 }
@@ -39,6 +29,7 @@ function encodeInvoiceId(invoiceId: string): string {
 }
 
 function signInvoicePayload(payload: string): string {
+  // Only called when signed=true, which requires INVOICE_ACCESS_SECRET to be set
   return crypto.createHmac('sha256', getInvoiceAccessSecret()).update(payload).digest('base64url');
 }
 
@@ -60,11 +51,12 @@ export function verifySignedInvoiceAccess(input: {
     return false;
   }
 
-  const secret = resolveInvoiceAccessSecret();
-  if (!secret) {
+  // Reject if INVOICE_ACCESS_SECRET is not configured — deny unsigned access
+  if (!process.env.INVOICE_ACCESS_SECRET?.trim()) {
     return false;
   }
 
+  const secret = resolveInvoiceAccessSecret()!;
   const expected = crypto
     .createHmac('sha256', secret)
     .update(`${input.invoiceId}:${input.action}:${input.expiresAt}`)

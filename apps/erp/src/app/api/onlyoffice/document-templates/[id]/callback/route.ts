@@ -9,6 +9,7 @@ type OnlyOfficeCallbackBody = {
   status?: number;
   url?: string;
   token?: string;
+  version?: string;
 };
 
 export const POST = asyncHandler(async (
@@ -18,6 +19,13 @@ export const POST = asyncHandler(async (
   const payload = (await req.json()) as OnlyOfficeCallbackBody;
 
   if (!verifyOnlyOfficeCallbackToken(req.headers.get('authorization'), payload.token)) {
+    return NextResponse.json({ error: 1 });
+  }
+
+  // OnlyOffice Document Server v7.0+ sends a version field.
+  // Reject callbacks without a recognized version to prevent stale/legacy callbacks.
+  const version = payload.version;
+  if (!version) {
     return NextResponse.json({ error: 1 });
   }
 

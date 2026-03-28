@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
@@ -11,9 +12,14 @@ export interface BankStatementEntry {
   amount: number;
   description?: string;
   reference?: string;
+  roomNo?: string;
 }
 
 export type MatchConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
+
+// Days before/after transaction date to search for matching invoices
+const INVOICE_SEARCH_DAYS_BEFORE = 30;
+const INVOICE_SEARCH_DAYS_AFTER = 45;
 
 export interface MatchCandidate {
   invoiceId: string;
@@ -49,13 +55,16 @@ export class PaymentMatchingService {
               reference: entry.reference,
               sourceFile,
               status: 'PENDING',
+              // Normalize empty/undefined roomNo to null so the dedup unique constraint
+              // treats multiple missing-roomNo entries as non-duplicates (SQL NULL != NULL).
+              roomNo: entry.roomNo || null,
             },
           });
 
           imported++;
 
           // Attempt to match using the same transaction connection
-          const matchResult = await this.attemptMatch(transaction.id, tx);
+          const matchResult = await this.attemptMatch(transaction.id, tx as Prisma.TransactionClient);
           if (matchResult) {
             matched++;
           } else {
@@ -92,7 +101,7 @@ export class PaymentMatchingService {
     return { imported, matched };
   }
 
-  async attemptMatch(transactionId: string, tx?: typeof prisma): Promise<MatchCandidate | null> {
+  async attemptMatch(transactionId: string, tx?: Prisma.TransactionClient): Promise<MatchCandidate | null> {
     const db = tx ?? prisma;
     const transaction = await db.paymentTransaction.findUnique({
       where: { id: transactionId },
@@ -102,13 +111,13 @@ export class PaymentMatchingService {
       throw new NotFoundError('PaymentTransaction', transactionId);
     }
 
-    // Get unpaid invoices
+    // Get unpaid invoices within the search window
     const unpaidInvoices = await db.invoice.findMany({
       where: {
         status: { in: ['GENERATED', 'SENT', 'VIEWED'] },
         dueDate: {
-          gte: new Date(transaction.transactionDate.getTime() - 30 * 24 * 60 * 60 * 1000), // 30 days before tx
-          lte: new Date(transaction.transactionDate.getTime() + 45 * 24 * 60 * 60 * 1000), // 45 days after tx (early-pay window)
+          gte: new Date(transaction.transactionDate.getTime() - INVOICE_SEARCH_DAYS_BEFORE * 24 * 60 * 60 * 1000),
+          lte: new Date(transaction.transactionDate.getTime() + INVOICE_SEARCH_DAYS_AFTER * 24 * 60 * 60 * 1000),
         },
       },
       include: {
@@ -341,8 +350,8 @@ export class PaymentMatchingService {
     invoiceId: string,
     confirmedBy: string
   ): Promise<void> {
-    // Pre-flight check: fetch full transaction state before entering the write transaction.
-    // The actual DB-level protection against concurrent confirmation is inside $transaction.
+    // Pre-flight: fetch full transaction state for early-exit and error messaging.
+    // All authoritative validation and writes happen inside the $transaction.
     const transaction = await prisma.paymentTransaction.findUnique({
       where: { id: transactionId },
     });
@@ -357,7 +366,6 @@ export class PaymentMatchingService {
     }
 
     // Amount-only (LOW confidence) matches require explicit human review before confirmation.
-    // Reject if confidenceScore is set and below 0.75 (LOW confidence). Null means no auto-match.
     if (transaction.confidenceScore !== null && Number(transaction.confidenceScore) < 0.75) {
       throw new BadRequestError(
         'Cannot confirm amount-only match automatically. ' +
@@ -365,33 +373,33 @@ export class PaymentMatchingService {
       );
     }
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
-    });
-
-    if (!invoice) {
-      throw new NotFoundError('Invoice', invoiceId);
-    }
-    if (invoice.status === 'PAID') {
-      throw new BadRequestError('Invoice is already paid');
-    }
-
+    // Amount calculations from pre-flight read (safe since transaction.amount doesn't change)
     const txAmount = Number(transaction.amount);
-    const invoiceTotal = Number(invoice.totalAmount);
-    const confirmedMatchedAmount = Math.min(txAmount, invoiceTotal);
-    const confirmedMatchType =
-      Math.abs(txAmount - invoiceTotal) < 0.01
-        ? 'FULL'
-        : txAmount < invoiceTotal
-        ? 'PARTIAL'
-        : 'OVERPAY';
 
     await prisma.$transaction(async (tx) => {
-      // Belt-and-suspenders: re-check status inside transaction after acquiring the
-      // Prisma connection. Concurrent calls will serialize here due to Prisma's
-      // connection pooling and the unique index on (invoiceId) for CONFIRMED payments.
-      const current = await tx.paymentTransaction.findUnique({ where: { id: transactionId } });
-      if (!current || current.status === 'CONFIRMED') return;  // idempotent inside tx
+      // All authoritative checks inside the transaction
+      const [current, invoice] = await Promise.all([
+        tx.paymentTransaction.findUnique({ where: { id: transactionId } }),
+        tx.invoice.findUnique({ where: { id: invoiceId } }),
+      ]);
+
+      if (!current || current.status === 'CONFIRMED') return; // idempotent inside tx
+
+      if (!invoice) {
+        throw new NotFoundError('Invoice', invoiceId);
+      }
+      if (invoice.status === 'PAID') {
+        throw new BadRequestError('Invoice is already paid');
+      }
+
+      const invoiceTotal = Number(invoice.totalAmount);
+      const confirmedMatchedAmount = Math.min(txAmount, invoiceTotal);
+      const confirmedMatchType =
+        Math.abs(txAmount - invoiceTotal) < 0.01
+          ? 'FULL'
+          : txAmount < invoiceTotal
+          ? 'PARTIAL'
+          : 'OVERPAY';
 
       // Belt-and-suspenders: ensure no other CONFIRMED transaction already owns this invoice.
       // The application-level check precedes the DB-level unique-index protection (there is

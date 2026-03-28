@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/lib';
 import { logAudit } from '@/modules/audit';
+import { BadRequestError } from '@/lib/utils/errors';
 
 type MaintenancePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 type MaintenanceStatus = 'OPEN' | 'IN_PROGRESS' | 'WAITING_PARTS' | 'DONE' | 'CLOSED';
@@ -65,6 +66,19 @@ export class MaintenanceService {
     auditActor: MaintenanceAuditActor
   ) {
     const ticket = await prisma.$transaction(async (tx) => {
+      // Validate tenant belongs to this room before accepting the ticket.
+      // This prevents anonymous users from spoofing tickets for arbitrary rooms.
+      const assignment = await tx.roomTenant.findFirst({
+        where: {
+          roomNo: input.roomId,
+          tenantId: input.tenantId,
+          moveOutDate: null,
+        },
+      });
+      if (!assignment) {
+        throw new BadRequestError('Tenant is not assigned to this room');
+      }
+
       const mtx = this.asMaintenance(tx);
       const created = await mtx.maintenanceTicket.create({
         data: {
@@ -79,6 +93,20 @@ export class MaintenanceService {
 
       if (input.attachments && input.attachments.length > 0) {
         for (const a of input.attachments) {
+          // Validate URL format and protocol before storing
+          if (!a.fileUrl || typeof a.fileUrl !== 'string') {
+            throw new BadRequestError('Attachment fileUrl must be a non-empty string');
+          }
+          let url: URL;
+          try {
+            url = new URL(a.fileUrl);
+          } catch {
+            throw new BadRequestError(`Invalid attachment URL: ${a.fileUrl}`);
+          }
+          if (url.protocol !== 'https:') {
+            throw new BadRequestError(`Attachment URL must use HTTPS: ${a.fileUrl}`);
+          }
+
           await mtx.maintenanceAttachment.create({
             data: {
               id: uuidv4(),

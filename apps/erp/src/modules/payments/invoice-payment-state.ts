@@ -29,15 +29,16 @@ export async function syncInvoicePaymentState(
   tx: Prisma.TransactionClient,
   input: SyncInvoicePaymentStateInput,
 ): Promise<SyncInvoicePaymentStateResult> {
-  const invoice = await tx.invoice.findUnique({
-    where: { id: input.invoiceId },
-    select: {
-      id: true,
-      status: true,
-      totalAmount: true,
-      paidAt: true,
-    },
-  });
+  // Lock the row to prevent concurrent payments from causing TOCTOU race conditions.
+  // This ensures only one payment can transition the invoice to PAID at a time.
+  // Using raw query because Prisma.TransactionClient type doesn't expose `for: 'update'`.
+  // $queryRaw returns an array — destructure to get the single row.
+  const [invoice] = await (tx as any).$queryRaw`
+    SELECT id, status, "totalAmount", "paidAt"
+    FROM invoices
+    WHERE id = ${input.invoiceId}
+    FOR UPDATE
+  `;
 
   if (!invoice) {
     throw new NotFoundError('Invoice', input.invoiceId);
@@ -54,7 +55,9 @@ export async function syncInvoicePaymentState(
 
   const totalPaid = Number(totals._sum.amount ?? 0);
   const invoiceTotal = Number(invoice.totalAmount);
-  const settled = totalPaid + 0.00001 >= invoiceTotal;
+  // Use epsilon comparison scaled to invoiceTotal to handle floating-point rounding
+  const EPSILON = Math.max(0.01, invoiceTotal * 0.0001); // 0.01 minimum, or 0.01% of total
+  const settled = Math.abs(totalPaid - invoiceTotal) <= EPSILON;
   const transitionedToPaid = settled && invoice.status !== 'PAID';
 
   let updatedInvoice: InvoicePaymentSnapshot = invoice;

@@ -16,7 +16,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
   // TEST_MODE: 5 attempts per 1 minute instead of 15 minutes
   const windowMs = process.env.RATE_LIMIT_TEST === 'true' ? 60 * 1000 : 15 * 60 * 1000;
-  const { allowed, remaining, resetAt } = limiter.check(`login:${ip}`, 5, windowMs);
+  const { allowed, remaining, resetAt } = await limiter.check(`login:${ip}`, 5, windowMs);
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: { message: `Too many login attempts. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
