@@ -42,9 +42,9 @@ playwright-report/
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # App runtime data (uploads, backups — not source code)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-apps/erp/.data/
-apps/erp/deploy/
-apps/erp/tmp/
+.data/
+deploy/
+tmp/
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Temp / debug scripts (ลบแล้ว — gitignore เผื่อมีหลงเหลือ)

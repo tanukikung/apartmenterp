@@ -1,0 +1,194 @@
+import React from 'react';
+
+type Props = {
+  roomNumber?: string | null;
+  floorLabel?: string | null;
+  tenantName?: string | null;
+  phone?: string | null;
+  lineLinked?: boolean;
+  contractStatus?: string | null;
+  moveInDate?: string | null;
+  endDate?: string | null;
+  currentAmount?: number | null;
+  dueDate?: string | null;
+  overdueDays?: number | null;
+  lastPayment?: string | null;
+  invoiceStatus?: string | null;
+  onSendInvoice?: () => void;
+  onSendReminder?: () => void;
+  onSendReceipt?: () => void;
+  onUploadFile?: () => void;
+  onConfirmPayment?: () => void;
+  canSendViaLine?: boolean;
+  sendDisabledReason?: string | null;
+  documents?: Array<{
+    id: string;
+    title: string;
+    documentType: string;
+    year: number | null;
+    month: number | null;
+    hasPdf: boolean;
+    generatedAt: string;
+  }> | null;
+  documentsLoading?: boolean;
+  onSendDocument?: (documentId: string) => void;
+};
+
+function statusTone(status?: string | null): string {
+  if (!status) return '';
+  if (status === 'PAID') return 'admin-status-good';
+  if (status === 'OVERDUE') return 'admin-status-bad';
+  if (status === 'SENT' || status === 'GENERATED' || status === 'VIEWED') return 'admin-status-warn';
+  return '';
+}
+
+export function RoomDetailsCard(props: Props) {
+  const {
+    roomNumber,
+    floorLabel,
+    tenantName,
+    phone,
+    lineLinked,
+    contractStatus,
+    moveInDate,
+    endDate,
+    currentAmount,
+    dueDate,
+    overdueDays,
+    lastPayment,
+    invoiceStatus,
+    onSendInvoice,
+    onSendReminder,
+    onSendReceipt,
+    onUploadFile,
+    onConfirmPayment,
+    canSendViaLine,
+    sendDisabledReason,
+    documents,
+    documentsLoading,
+    onSendDocument,
+  } = props;
+
+  return (
+    <div className="space-y-4">
+      <div className="admin-card cute-surface">
+        <div className="admin-card-header">
+          <div className="admin-card-title">รายละเอียดห้อง</div>
+          {lineLinked !== undefined ? (
+            <span className={`admin-badge ${lineLinked ? 'admin-status-good' : ''}`}>
+              {lineLinked ? 'เชื่อมต่อ LINE แล้ว' : 'ยังไม่ได้เชื่อมต่อ LINE'}
+            </span>
+          ) : null}
+        </div>
+        <div className="space-y-3 p-4 text-sm text-slate-600">
+          <div>ห้อง: <span className="font-medium text-slate-900">{roomNumber || '-'}</span></div>
+          <div>ชั้น: <span className="font-medium text-slate-900">{floorLabel || '-'}</span></div>
+          <div>ผู้เช่า: <span className="font-medium text-slate-900">{tenantName || '-'}</span></div>
+          <div>โทร: <span className="font-medium text-slate-900">{phone || '-'}</span></div>
+          <div>สัญญา: <span className="font-medium text-slate-900">{contractStatus || '-'}</span></div>
+          <div className="text-xs text-slate-500">
+            {moveInDate ? `เข้าอยู่: ${new Date(moveInDate).toLocaleDateString('th-TH')}` : null}
+            {moveInDate && endDate ? ' · ' : null}
+            {endDate ? `สิ้นสุด: ${new Date(endDate).toLocaleDateString('th-TH')}` : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="admin-card cute-surface">
+        <div className="admin-card-header">
+          <div className="admin-card-title">ใบแจ้งหนี้ล่าสุด</div>
+          {invoiceStatus ? <span className={`admin-badge ${statusTone(invoiceStatus)}`}>{invoiceStatus}</span> : null}
+        </div>
+        <div className="space-y-3 p-4 text-sm text-slate-600">
+          {currentAmount != null ? (
+            <>
+              <div className="flex items-center justify-between rounded-2xl bg-line-green-light/30 px-3 py-2">
+                <span>รวม</span>
+                <span className="font-medium text-slate-900">{currentAmount.toLocaleString()}</span>
+              </div>
+              {dueDate ? (
+                <div className="flex items-center justify-between rounded-2xl bg-sky-50/70 px-3 py-2">
+                  <span>วันครบกำหนด</span>
+                  <span className="font-medium text-slate-900">{new Date(dueDate).toLocaleDateString('th-TH')}</span>
+                </div>
+              ) : null}
+              {overdueDays != null && overdueDays > 0 ? (
+                <div className="flex items-center justify-between rounded-2xl bg-amber-50/80 px-3 py-2">
+                  <span>ค้างชำระ</span>
+                  <span className="font-medium text-red-600">{overdueDays} วัน</span>
+                </div>
+              ) : null}
+              {lastPayment ? (
+                <div className="flex items-center justify-between rounded-2xl bg-emerald-50/80 px-3 py-2">
+                  <span>ชำระล่าสุด</span>
+                  <span className="font-medium text-slate-900">{new Date(lastPayment).toLocaleDateString('th-TH')}</span>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="text-slate-500">ไม่มีใบแจ้งหนี้</div>
+          )}
+        </div>
+      </div>
+
+      <div className="admin-card cute-surface">
+        <div className="admin-card-header">
+          <div className="admin-card-title">การดำเนินการด่วน</div>
+        </div>
+        <div className="flex flex-wrap gap-2 p-4">
+          <button onClick={onSendInvoice} disabled={canSendViaLine === false} title={canSendViaLine === false ? sendDisabledReason || undefined : undefined} className="admin-button admin-button-primary disabled:opacity-50">
+            ส่งใบแจ้งหนี้
+          </button>
+          <button onClick={onSendReminder} disabled={canSendViaLine === false} title={canSendViaLine === false ? sendDisabledReason || undefined : undefined} className="admin-button disabled:opacity-50">
+            ส่งเตือน
+          </button>
+          <button onClick={onSendReceipt} disabled={canSendViaLine === false} title={canSendViaLine === false ? sendDisabledReason || undefined : undefined} className="admin-button disabled:opacity-50">
+            ส่งใบเสร็จ
+          </button>
+          {onUploadFile ? (
+            <button onClick={onUploadFile} className="admin-button">อัปโหลดไฟล์</button>
+          ) : null}
+          <button onClick={onConfirmPayment} className="admin-button">ยืนยันชำระ</button>
+        </div>
+      </div>
+
+      <div className="admin-card cute-surface">
+        <div className="admin-card-header">
+          <div className="admin-card-title">เอกสาร</div>
+        </div>
+        <div className="space-y-2 p-4 text-sm">
+          {documentsLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <svg className="h-5 w-5 animate-spin text-slate-400" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.878 3 8.291l2-2z" />
+              </svg>
+            </div>
+          ) : !documents || documents.length === 0 ? (
+            <div className="text-slate-500">ไม่มีเอกสาร</div>
+          ) : (
+            documents.map((doc) => (
+              <div key={doc.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium text-slate-900">{doc.title}</div>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
+                    <span className="inline-flex items-center rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">{doc.documentType}</span>
+                    <span>{new Date(doc.generatedAt).toLocaleDateString('th-TH')}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onSendDocument?.(doc.id)}
+                  disabled={!canSendViaLine || !doc.hasPdf}
+                  title={!canSendViaLine ? (sendDisabledReason || undefined) : !doc.hasPdf ? 'ไม่มีไฟล์ PDF' : undefined}
+                  className="ml-2 shrink-0 admin-button admin-button-primary text-xs disabled:opacity-50"
+                >
+                  ส่ง LINE
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

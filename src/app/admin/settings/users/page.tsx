@@ -1,0 +1,456 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { ArrowLeft, Key, Shield, UserPlus, Users } from 'lucide-react';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type AdminUser = {
+  id: string;
+  username: string;
+  displayName: string;
+  email?: string | null;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+  pendingReset?: {
+    id: string;
+    createdAt: string;
+    expiresAt: string;
+  } | null;
+  isActive: boolean;
+};
+
+type CreateForm = {
+  username: string;
+  displayName: string;
+  email: string;
+  password: string;
+  role: string;
+};
+
+const EMPTY_FORM: CreateForm = {
+  username: '',
+  displayName: '',
+  email: '',
+  password: '',
+  role: 'STAFF',
+};
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('th-TH', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function roleBadgeClass(role: string): string {
+  if (role === 'ADMIN' || role === 'OWNER') {
+    return 'inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold text-violet-700';
+  }
+  return 'inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600';
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
+export default function AdminUsersSettingsPage() {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [apiUnavailable, setApiUnavailable] = useState(false);
+
+  // Create form state
+  const [form, setForm] = useState<CreateForm>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // Load users
+  // ---------------------------------------------------------------------------
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setApiUnavailable(false);
+    try {
+      const res = await fetch('/api/admin/users?page=1&pageSize=50', {
+        cache: 'no-store',
+      });
+      if (res.status === 404) {
+        setApiUnavailable(true);
+        setUsers([]);
+        return;
+      }
+      const json = (await res.json()) as {
+        success: boolean;
+        data?: { users?: AdminUser[] } | AdminUser[];
+        error?: { message?: string };
+      };
+      if (!json.success) {
+        throw new Error(json.error?.message ?? 'ไม่สามารถโหลดผู้ใช้');
+      }
+      const payload = json.data;
+      if (Array.isArray(payload)) {
+        setUsers(payload);
+      } else if (payload && Array.isArray((payload as { users?: AdminUser[] }).users)) {
+        setUsers((payload as { users: AdminUser[] }).users);
+      } else {
+        setUsers([]);
+      }
+    } catch (err) {
+      if (err instanceof TypeError) {
+        // Network error — treat as unavailable
+        setApiUnavailable(true);
+        setUsers([]);
+      } else {
+        setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดผู้ใช้');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // ---------------------------------------------------------------------------
+  // Create user
+  // ---------------------------------------------------------------------------
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    setSuccessMessage(null);
+
+    if (!form.username.trim()) {
+      setFormError('กรุณากรอกชื่อผู้ใช้');
+      return;
+    }
+    if (!form.displayName.trim()) {
+      setFormError('กรุณากรอกชื่อที่แสดง');
+      return;
+    }
+    if (form.password.length < 8) {
+      setFormError('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: form.username.trim(),
+          displayName: form.displayName.trim(),
+          email: form.email.trim(),
+          password: form.password,
+          role: form.role,
+        }),
+      });
+      const json = (await res.json()) as {
+        success: boolean;
+        error?: { message?: string };
+      };
+      if (!json.success) {
+        throw new Error(json.error?.message ?? 'ไม่สามารถสร้างผู้ใช้');
+      }
+      setSuccessMessage(`สร้างผู้ใช้ "${form.username.trim()}" สำเร็จแล้ว`);
+      setForm(EMPTY_FORM);
+      await load();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'ไม่สามารถสร้างผู้ใช้');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function field(key: keyof CreateForm, value: string) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+
+  return (
+    <main className="space-y-6">
+      {/* Header */}
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/settings"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm hover:bg-surface-container"
+          >
+            <ArrowLeft className="h-4 w-4 text-on-primary" />
+          </Link>
+          <div>
+            <h1 className="text-xl font-semibold text-on-primary">ผู้ใช้แอดมิน</h1>
+            <p className="text-sm text-on-primary/80">
+              สร้างและจัดการบัญชีแอดมินและพนักงาน
+            </p>
+          </div>
+        </div>
+        <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container mt-4" disabled={loading}>
+          {loading ? 'กำลังโหลด...' : 'รีเฟรช'}
+        </button>
+      </section>
+
+      {/* Global alerts */}
+      {successMessage && (
+        <div className="auth-alert auth-alert-success">{successMessage}</div>
+      )}
+      {error && <div className="auth-alert auth-alert-error">{error}</div>}
+
+      {/* API unavailable notice */}
+      {apiUnavailable && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+          <Shield className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            API จัดการผู้ใช้ไม่พร้อมใช้งาน คุณสามารถจัดการผู้ใช้ได้โดยตรงผ่านฐานข้อมูลหรือ CLI
+            endpoint{' '}
+            <code className="rounded bg-amber-100 px-1 font-mono text-xs">
+              /api/admin/users
+            </code>{' '}
+            คืนค่า 404 — กรุณาสร้าง route นี้หรือใช้สคริปต์ seed เพื่อจัดการบัญชีแอดมิน
+          </span>
+        </div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Users table */}
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden lg:col-span-2">
+          <div className="border-b border-outline-variant px-5 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-on-surface-variant" />
+                <div className="text-sm font-semibold text-on-surface">ผู้ใช้แอดมินทั้งหมด</div>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{users.length} ผู้ใช้</span>
+            </div>
+          </div>
+
+          <div className="overflow-auto">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="bg-surface-container">
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ชื่อผู้ใช้</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ชื่อที่แสดง</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">บทบาท</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รีเซ็ตรหัสผ่าน</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">อัปเดต</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สร้าง</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  // Loading skeleton rows
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i}>
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-28 animate-pulse rounded bg-surface-container-lowest" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-20 animate-pulse rounded bg-surface-container-lowest" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-14 animate-pulse rounded bg-surface-container-lowest" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-lowest" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-lowest" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-lowest" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-lowest" />
+                      </td>
+                    </tr>
+                  ))
+                ) : users.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-10 text-center text-on-surface-variant">
+                      {apiUnavailable
+                        ? 'ไม่สามารถดึงข้อมูลผู้ใช้ — API ไม่พร้อมใช้งาน'
+                        : 'ไม่พบผู้ใช้แอดมิน'}
+                    </td>
+                  </tr>
+                ) : (
+                  users.map((user) => (
+                    <tr key={user.id} className="border-b border-outline-variant/10 hover:bg-surface-container-lowest transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
+                            {user.username.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="font-medium text-on-surface">{user.username}</div>
+                            {user.email ? (
+                              <div className="text-xs text-on-surface-variant">{user.email}</div>
+                            ) : null}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">{user.displayName}</td>
+                      <td className="px-4 py-3">
+                        <span className={roleBadgeClass(user.role)}>
+                          <Shield className="h-3 w-3" />
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {user.isActive ? (
+                          <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                            ใช้งาน
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-500">
+                            ไม่ใช้งาน
+                          </span>
+                      )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">
+                        {user.pendingReset ? 'รอดำเนินการ' : 'ไม่มี'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">
+                        {formatDate(user.updatedAt)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-on-surface-variant">
+                        {formatDate(user.createdAt)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Create user form */}
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 h-fit">
+          <div className="border-b border-outline-variant px-5 py-4">
+            <div className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4 text-on-surface-variant" />
+              <div className="text-sm font-semibold text-on-surface">สร้างผู้ใช้</div>
+            </div>
+          </div>
+
+          <form onSubmit={(e) => void handleCreate(e)} className="flex flex-col gap-4 p-4">
+            {formError && (
+              <div className="auth-alert auth-alert-error">{formError}</div>
+            )}
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+                ชื่อผู้ใช้ <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                placeholder="เช่น manager01"
+                value={form.username}
+                onChange={(e) => field('username', e.target.value)}
+                autoComplete="off"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+                ชื่อที่แสดง <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                placeholder="เช่น ผู้จัดการอาคาร"
+                value={form.displayName}
+                onChange={(e) => field('displayName', e.target.value)}
+                autoComplete="name"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+                อีเมล <span className="text-on-surface-variant font-normal">(ไม่บังคับ)</span>
+              </label>
+              <input
+                type="email"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                placeholder="เช่น manager@example.com"
+                value={form.email}
+                onChange={(e) => field('email', e.target.value)}
+                autoComplete="email"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+                รหัสผ่าน <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Key className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+                <input
+                  type="password"
+                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 pl-9 text-sm text-on-surface"
+                  placeholder="อย่างน้อย 8 ตัวอักษร"
+                  value={form.password}
+                  onChange={(e) => field('password', e.target.value)}
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+                บทบาท <span className="text-red-500">*</span>
+              </label>
+              <select
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                value={form.role}
+                onChange={(e) => field('role', e.target.value)}
+              >
+                <option value="ADMIN">ADMIN</option>
+                <option value="STAFF">STAFF</option>
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              className="mt-1 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
+              disabled={saving || apiUnavailable}
+            >
+              <UserPlus className="h-4 w-4" />
+              {saving ? 'กำลังสร้าง...' : 'สร้างผู้ใช้'}
+            </button>
+
+            {apiUnavailable && (
+              <p className="text-center text-xs text-on-surface-variant">
+                ปิดใช้งาน — API ไม่พร้อมใช้งาน
+              </p>
+            )}
+          </form>
+        </section>
+      </div>
+    </main>
+  );
+}

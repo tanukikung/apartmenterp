@@ -2,12 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Apartment ERP",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js", "run", "dev"],
-      "cwd": "D:/apartment_erp/apps/erp",
-      "port": 3001,
-      "autoPort": false
+      "name": "erp",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "-p", "3001"],
+      "port": 3001
     }
   ]
 }

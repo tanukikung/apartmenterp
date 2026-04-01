@@ -11,7 +11,7 @@ Operate this repository like a layered engineering organization. Optimize for ar
 - `release_judge` is the release gate and is never the author of the change under review.
 
 ## Repo Rules
-- Default working scope is `apps/erp`. Touch root docs, docker, or workspace files only when the task requires it.
+- All source code lives at the project root (`src/`, `prisma/`, `tests/`). No monorepo nesting.
 - Preserve architecture boundaries: UI -> route/API -> domain service -> infrastructure. Do not hide business logic in pages, route handlers, or random helpers.
 - Debug from evidence first: reproduce the path, inspect the real code path, identify the failing invariant, then patch.
 - Never self-approve. The agent that writes the fix cannot be the only reviewer or release gate.

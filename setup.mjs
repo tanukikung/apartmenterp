@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Apartment ERP — Interactive Setup Wizard
- * Run from the monorepo root: node setup.mjs
+ * Run from the project root: node setup.mjs
  */
 
 import readline from 'readline';
@@ -38,8 +38,7 @@ const dim   = (s) => `${C.dim}${s}${C.reset}`;
 // ─── Paths ────────────────────────────────────────────────────────────────────
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT      = __dirname;
-const ERP_DIR   = path.join(ROOT, 'apps', 'erp');
-const ENV_PATH  = path.join(ERP_DIR, '.env');
+const ENV_PATH  = path.join(ROOT, '.env');
 
 // ─── Spinner ──────────────────────────────────────────────────────────────────
 function spinner(msg) {
@@ -149,10 +148,6 @@ function run(cmd, opts = {}) {
   return spawnSync(cmd, { shell: true, stdio: 'inherit', ...opts });
 }
 
-function runCapture(cmd, opts = {}) {
-  return spawnSync(cmd, { shell: true, encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'], ...opts });
-}
-
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 async function main() {
   printBanner();
@@ -170,8 +165,8 @@ async function main() {
   let config = {
     databaseUrl:          'postgresql://postgres:password@localhost:5432/apartment_erp',
     nextauthSecret:       randomBytes(32).toString('hex'),
-    nextauthUrl:          'http://localhost:3000',
-    appBaseUrl:           'http://localhost:3000',
+    nextauthUrl:          'http://localhost:3001',
+    appBaseUrl:           'http://localhost:3001',
     lineChannelId:        '',
     lineChannelSecret:    '',
     lineAccessToken:      '',
@@ -185,18 +180,14 @@ async function main() {
     const useExisting = await confirm(rl, 'Use existing .env file?', true);
     if (useExisting) {
       console.log(`  ${blue('ℹ️')}   Keeping existing .env — skipping environment step.`);
-      // Parse existing DATABASE_URL for connectivity check
       try {
         const raw = readFileSync(ENV_PATH, 'utf8');
         const match = raw.match(/^DATABASE_URL="?([^"\n]+)"?/m);
         if (match) config.databaseUrl = match[1];
       } catch { /* ignore */ }
-      goto_step2: {
-        // skip to step 2
-        await runInstallAndMigrate(rl, config);
-        rl.close();
-        return;
-      }
+      await runInstallAndMigrate(rl, config);
+      rl.close();
+      return;
     }
   }
 
@@ -251,7 +242,7 @@ async function runInstallAndMigrate(rl, config) {
   // ── STEP 2: Install Dependencies ─────────────────────────────────────────
   printStep(2, 'Install Dependencies');
 
-  const spin2 = spinner('Running npm install from workspace root …');
+  const spin2 = spinner('Running npm install …');
   const r2 = run('npm install', { cwd: ROOT, stdio: 'pipe' });
   if (r2.status !== 0) {
     spin2.stop('npm install failed', false);
@@ -266,7 +257,7 @@ async function runInstallAndMigrate(rl, config) {
   // prisma generate
   {
     const spin = spinner('Running prisma generate …');
-    const r = run('npx prisma generate', { cwd: ERP_DIR, stdio: 'pipe' });
+    const r = run('npx prisma generate', { cwd: ROOT, stdio: 'pipe' });
     if (r.status !== 0) {
       spin.stop('prisma generate failed', false);
       console.log(`  ${yellow('⚠️')}  Check your DATABASE_URL and try again.`);
@@ -278,7 +269,7 @@ async function runInstallAndMigrate(rl, config) {
   // prisma migrate deploy
   {
     const spin = spinner('Running prisma migrate deploy …');
-    const r = run('npx prisma migrate deploy', { cwd: ERP_DIR });
+    const r = run('npx prisma migrate deploy', { cwd: ROOT });
     if (r.status !== 0) {
       spin.stop('prisma migrate deploy failed', false);
       console.log(`  ${yellow('⚠️')}  Migrations may have partially applied. Check the output above.`);
@@ -296,7 +287,7 @@ async function runInstallAndMigrate(rl, config) {
   );
   if (doSeed) {
     const spin = spinner('Seeding database …');
-    const r = run('npx prisma db seed', { cwd: ERP_DIR });
+    const r = run('npx prisma db seed', { cwd: ROOT });
     if (r.status !== 0) {
       spin.stop('Seed failed (data may already exist — that is OK)', false);
     } else {
@@ -308,11 +299,11 @@ async function runInstallAndMigrate(rl, config) {
   // ── STEP 4: Done ───────────────────────────────────────────────────────────
   printStep(4, 'Done!');
 
-  const url = config.appBaseUrl || 'http://localhost:3000';
+  const url = config.appBaseUrl || 'http://localhost:3001';
 
   console.log(`  ${green('✅')}  ${bold('Setup complete!')} Your Apartment ERP is ready to run.\n`);
   console.log(`  ${blue('ℹ️')}   ${bold('Start the dev server:')}`);
-  console.log(`         ${cyan('cd apps/erp && npm run dev')}\n`);
+  console.log(`         ${cyan('npm run dev')}\n`);
   console.log(`  ${blue('ℹ️')}   ${bold('Open the admin panel:')}`);
   console.log(`         ${cyan(`${url}/admin`)}\n`);
 

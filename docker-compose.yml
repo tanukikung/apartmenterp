@@ -1,114 +1,113 @@
-version: '3.8'
-
-# ╔══════════════════════════════════════════════════════════════╗
-# ║           Apartment ERP — Full Stack Docker Compose          ║
-# ║  Services: PostgreSQL · Redis · OnlyOffice · ERP App         ║
-# ║  Usage: copy .env.example → .env, then: docker compose up -d ║
-# ╚══════════════════════════════════════════════════════════════╝
+##############################################################################
+# Apartment ERP — Docker Compose
+#
+# Full stack (PostgreSQL + Redis + App):
+#   cp .env.example .env.production   # fill in secrets
+#   docker compose up -d
+#
+##############################################################################
+version: '3.9'
 
 services:
-
-  # ── PostgreSQL ────────────────────────────────────────────────
+  # ─── PostgreSQL ───────────────────────────────────────────────────────────
   postgres:
-    image: postgres:15-alpine
-    container_name: erp_postgres
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: apartment_erp
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?Please set DB_PASSWORD in .env}
+      POSTGRES_USER:     ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB:       ${POSTGRES_DB:-apartment_erp}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d apartment_erp"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-apartment_erp}"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-    networks:
-      - erp_network
+      retries: 10
+      start_period: 10s
 
-  # ── Redis ─────────────────────────────────────────────────────
+  # ─── Redis (optional — app degrades gracefully without it) ───────────────
   redis:
     image: redis:7-alpine
-    container_name: erp_redis
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?Please set REDIS_PASSWORD in .env}", "--appendonly", "yes"]
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep -q PONG"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - erp_network
-
-  # ── OnlyOffice Document Server ────────────────────────────────
-  onlyoffice:
-    image: onlyoffice/documentserver:latest
-    container_name: erp_onlyoffice
-    restart: unless-stopped
-    environment:
-      JWT_ENABLED: "true"
-      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:?Please set ONLYOFFICE_JWT_SECRET in .env}
-      JWT_HEADER: Authorization
-      JWT_IN_BODY: "true"
-    volumes:
-      - onlyoffice_data:/var/www/onlyoffice/Data
-      - onlyoffice_logs:/var/log/onlyoffice
-      - onlyoffice_cache:/var/lib/onlyoffice
-      - onlyoffice_db:/var/lib/postgresql
     ports:
-      - "${ONLYOFFICE_PORT:-8080}:80"
-    networks:
-      - erp_network
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
-  # ── ERP Application ───────────────────────────────────────────
-  app:
+  # ─── One-shot migration + seed service ───────────────────────────────────
+  migrate:
     build:
-      context: ./apps/erp
+      context: .
       dockerfile: Dockerfile
-    image: apartment-erp:latest
-    container_name: erp_app
-    restart: unless-stopped
+    command: >
+      sh -c "
+        echo '⏳ Running Prisma migrations…' &&
+        npx prisma migrate deploy &&
+        echo '✅ Migrations applied.' &&
+        if [ \"$$SEED_DB\" = 'true' ]; then
+          echo '🌱 Seeding database…' &&
+          npx prisma db seed &&
+          echo '✅ Seed complete.';
+        fi
+      "
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/apartment_erp}
+      SEED_DB:      ${SEED_DB:-false}
+    env_file:
+      - path: .env.production
+        required: false
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
+    restart: "no"
+
+  # ─── Next.js application ─────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
     environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@postgres:5432/apartment_erp
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Please set NEXTAUTH_SECRET in .env}
-      NEXTAUTH_URL: http://${APP_HOST:-localhost}:${APP_PORT:-3001}
-      APP_BASE_URL: http://${APP_HOST:-localhost}:${APP_PORT:-3001}
-      CRON_SECRET: ${CRON_SECRET:-default-cron-secret}
-      # OnlyOffice: browser reaches via APP_HOST:ONLYOFFICE_PORT
-      # OnlyOffice calls back to app via internal Docker network
-      ONLYOFFICE_DOCUMENT_SERVER_URL: http://${APP_HOST:-localhost}:${ONLYOFFICE_PORT:-8080}
-      ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET}
-      ONLYOFFICE_CALLBACK_BASE_URL: http://app:3000
-      ONLYOFFICE_ENABLED: "true"
-      # LINE Integration (optional — leave empty to disable)
-      LINE_CHANNEL_ID: ${LINE_CHANNEL_ID:-}
-      LINE_CHANNEL_SECRET: ${LINE_CHANNEL_SECRET:-}
-      LINE_ACCESS_TOKEN: ${LINE_ACCESS_TOKEN:-}
-      LINE_CHANNEL_ACCESS_TOKEN: ${LINE_CHANNEL_ACCESS_TOKEN:-}
-      LINE_USER_ID: ${LINE_USER_ID:-}
+      NODE_ENV:                      production
+      DATABASE_URL:                  ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/apartment_erp}
+      NEXTAUTH_SECRET:               ${NEXTAUTH_SECRET:-change-me-in-production}
+      NEXTAUTH_URL:                  ${NEXTAUTH_URL:-http://localhost:3000}
+      APP_BASE_URL:                  ${APP_BASE_URL:-http://localhost:3000}
+      LINE_CHANNEL_ID:               ${LINE_CHANNEL_ID:-}
+      LINE_CHANNEL_SECRET:           ${LINE_CHANNEL_SECRET:-}
+      LINE_ACCESS_TOKEN:             ${LINE_ACCESS_TOKEN:-}
+      LINE_CHANNEL_ACCESS_TOKEN:     ${LINE_CHANNEL_ACCESS_TOKEN:-}
+      CRON_SECRET:                   ${CRON_SECRET:-}
+      CRON_ENABLED:                  ${CRON_ENABLED:-true}
+      REDIS_URL:                     ${REDIS_URL:-redis://redis:6379}
+      LOG_DIR:                       /logs
+    env_file:
+      - path: .env.production
+        required: false
     ports:
-      - "${APP_PORT:-3001}:3000"
-    networks:
-      - erp_network
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - logs:/logs
+      - uploads:/app/.data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
-  postgres_data:   { name: erp_postgres_data }
-  redis_data:      { name: erp_redis_data }
-  onlyoffice_data: { name: erp_onlyoffice_data }
-  onlyoffice_logs: { name: erp_onlyoffice_logs }
-  onlyoffice_cache:{ name: erp_onlyoffice_cache }
-  onlyoffice_db:   { name: erp_onlyoffice_db }
-
-networks:
-  erp_network:
-    name: erp_network
+  pgdata:            {}
+  logs:              {}
+  uploads:           {}
