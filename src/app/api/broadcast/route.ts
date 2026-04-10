@@ -82,7 +82,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     const cached = idempotencyCache.get(idempotencyKey);
     if (cached && Date.now() - cached.createdAt < IDEMPOTENCY_TTL_MS) {
       const existing = await prisma.broadcast.findUnique({ where: { id: cached.broadcastId } });
-      if (existing && existing.status !== 'PENDING' && existing.status !== 'FAILED') {
+      if (existing) {
         const response = NextResponse.json(
           { success: true, data: existing } as ApiResponse<unknown>,
           { status: 200 }
@@ -90,6 +90,16 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         response.headers.set('X-Idempotent-Replay', 'true');
         return response;
       }
+    }
+    // Also check DB directly for idempotency key (covers all statuses including FAILED)
+    const existingByKey = await prisma.broadcast.findUnique({ where: { idempotencyKey } });
+    if (existingByKey) {
+      const response = NextResponse.json(
+        { success: true, data: existingByKey } as ApiResponse<unknown>,
+        { status: 200 }
+      );
+      response.headers.set('X-Idempotent-Replay', 'true');
+      return response;
     }
   }
 
