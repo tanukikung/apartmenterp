@@ -16,6 +16,7 @@ interface RouteParams {
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest, { params }: RouteParams): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN', 'STAFF']);
   const moveOutService = createMoveOutService();
   const moveOut = await moveOutService.getMoveOutById(params.id);
 
@@ -48,4 +49,25 @@ export const PATCH = asyncHandler(async (req: NextRequest, { params }: RoutePara
     data: moveOut,
     message: 'Move-out updated successfully',
   } as ApiResponse<typeof moveOut>);
+});
+
+// ============================================================================
+// DELETE /api/moveouts/[id] - Delete move-out
+// ============================================================================
+
+export const DELETE = asyncHandler(async (req: NextRequest, { params }: RouteParams): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN']);
+
+  const moveOutService = createMoveOutService();
+  await moveOutService.deleteMoveOut(params.id);
+
+  logger.info({
+    type: 'moveout_deleted_api',
+    moveOutId: params.id,
+  });
+
+  return NextResponse.json({
+    success: true,
+    message: 'Move-out deleted successfully',
+  } as ApiResponse<null>);
 });

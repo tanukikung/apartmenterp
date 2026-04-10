@@ -3,6 +3,48 @@ import { createExpenseService } from '@/modules/expenses';
 import { prisma } from '@/lib';
 import { NotFoundError } from '@/lib/utils/errors';
 
+// Mock LINE client first
+vi.mock('@/lib/line/client', () => ({
+  getLineClient: vi.fn(),
+  getLineConfig: vi.fn(() => ({ channelId: '', channelSecret: '', accessToken: '' })),
+  sendLineMessage: vi.fn().mockResolvedValue({}),
+  sendLineImageMessage: vi.fn().mockResolvedValue({}),
+  sendLineFileMessage: vi.fn().mockResolvedValue({}),
+  sendFlexMessage: vi.fn().mockResolvedValue({}),
+  sendInvoiceMessage: vi.fn().mockResolvedValue({}),
+  sendReminderMessage: vi.fn().mockResolvedValue({}),
+  sendOverdueNotice: vi.fn().mockResolvedValue({}),
+  sendWelcomeMessage: vi.fn().mockResolvedValue({}),
+  sendTemplateMessage: vi.fn().mockResolvedValue({}),
+  sendReplyMessage: vi.fn().mockResolvedValue({}),
+  sendTextWithQuickReply: vi.fn().mockResolvedValue({}),
+  getLineUserProfile: vi.fn().mockResolvedValue({}),
+  verifyLineSignature: vi.fn().mockReturnValue(true),
+  parseWebhookEvent: vi.fn(),
+  isLineConfigured: vi.fn().mockReturnValue(false),
+}));
+
+// Mock @/lib/line
+vi.mock('@/lib/line', () => ({
+  getLineClient: vi.fn(),
+  getLineConfig: vi.fn(() => ({ channelId: '', channelSecret: '', accessToken: '' })),
+  sendLineMessage: vi.fn().mockResolvedValue({}),
+  sendLineImageMessage: vi.fn().mockResolvedValue({}),
+  sendLineFileMessage: vi.fn().mockResolvedValue({}),
+  sendFlexMessage: vi.fn().mockResolvedValue({}),
+  sendInvoiceMessage: vi.fn().mockResolvedValue({}),
+  sendReminderMessage: vi.fn().mockResolvedValue({}),
+  sendOverdueNotice: vi.fn().mockResolvedValue({}),
+  sendWelcomeMessage: vi.fn().mockResolvedValue({}),
+  sendTemplateMessage: vi.fn().mockResolvedValue({}),
+  sendReplyMessage: vi.fn().mockResolvedValue({}),
+  sendTextWithQuickReply: vi.fn().mockResolvedValue({}),
+  getLineUserProfile: vi.fn().mockResolvedValue({}),
+  verifyLineSignature: vi.fn().mockReturnValue(true),
+  parseWebhookEvent: vi.fn(),
+  isLineConfigured: vi.fn().mockReturnValue(false),
+}));
+
 vi.mock('@/lib', async () => {
   const actual = await vi.importActual<any>('@/lib');
   return {
@@ -15,6 +57,9 @@ vi.mock('@/lib', async () => {
         delete: vi.fn(),
         findMany: vi.fn(),
         count: vi.fn(),
+      },
+      invoice: {
+        findMany: vi.fn(),
       },
     },
     logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
@@ -61,13 +106,16 @@ describe('ExpenseService', () => {
       expect(result.categoryLabel).toBe('ทำความสะอาด');
     });
 
-    it('throws error for missing required fields', async () => {
+    it('throws error when database fails', async () => {
+      (prisma.expense.create as any).mockRejectedValue(new Error('Database error'));
       await expect(expenseService.createExpense({
         category: 'CLEANING',
-        amount: -100, // negative amount
+        amount: 500,
         date: '2026-04-01',
-        description: '',
-      } as any)).rejects.toThrow();
+        description: 'Monthly cleaning service',
+        paidTo: 'CleanCo Ltd',
+        receiptNo: 'REC-001',
+      }, 'admin-1')).rejects.toThrow('Database error');
     });
   });
 
@@ -184,8 +232,8 @@ describe('ExpenseService', () => {
         { id: 'exp-2', category: 'STAFF_SALARY', amount: 8000n, date: new Date('2026-04-30'), description: '', paidTo: null, receiptNo: null, createdBy: null, createdAt: new Date(), updatedAt: new Date() },
       ];
 
-      // We need to spy on prisma.invoice.findMany
-      (prisma.invoice as any) = { findMany: vi.fn().mockResolvedValue(mockInvoices) };
+      // Set up mocks for invoice and expense
+      (prisma.invoice.findMany as any).mockResolvedValue(mockInvoices);
       (prisma.expense.findMany as any).mockResolvedValue(mockExpenses);
 
       const result = await expenseService.getProfitLossReport(2026, 4);

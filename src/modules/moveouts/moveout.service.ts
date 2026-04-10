@@ -561,6 +561,34 @@ export class MoveOutService {
   }
 
   /**
+   * Delete move-out (hard delete)
+   */
+  async deleteMoveOut(id: string): Promise<void> {
+    logger.info({ type: 'moveout_delete', id });
+
+    const moveOut = await prisma.moveOut.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+
+    if (!moveOut) {
+      throw new NotFoundError('MoveOut', id);
+    }
+
+    // Delete associated items first
+    await prisma.moveOutItem.deleteMany({
+      where: { moveOutId: id },
+    });
+
+    // Delete the move-out record
+    await prisma.moveOut.delete({
+      where: { id },
+    });
+
+    logger.info({ type: 'moveout_deleted', id });
+  }
+
+  /**
    * Cancel move-out
    */
   async cancelMoveOut(id: string, reason?: string): Promise<MoveOutResponse> {

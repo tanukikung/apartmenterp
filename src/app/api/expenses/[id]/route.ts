@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic';
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
+  requireRole(req, ['ADMIN', 'STAFF']);
   const { id } = await params;
   const expenseService = createExpenseService();
   const expense = await expenseService.getExpenseById(id);

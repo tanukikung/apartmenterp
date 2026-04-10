@@ -187,11 +187,11 @@ describe('LINE Maintenance Request', () => {
       await startMaintenanceRequest('U123');
       await handleMaintenanceRequestMessage('U123', 'เดิมๆ');
 
-      const result = await handleMaintenanceRequestMessage('U123', 'อัปเดตรายละเอียตใหม่');
+      const result = await handleMaintenanceRequestMessage('U123', 'อัปเดตรายละเอียดใหม่');
 
       expect(result).not.toBeNull();
-      expect(result!.replyText).toContain('อัปเดตรายละเอียต');
-      expect(getMaintenanceRequestState('U123')!.state.description).toBe('อัปเดตรายละเอียตใหม่');
+      expect(result!.replyText).toContain('อัปเดตรายละเอียด');
+      expect(getMaintenanceRequestState('U123')!.state.description).toBe('อัปเดตรายละเอียดใหม่');
     });
 
     it('finalizes ticket creation when user sends completion signal', async () => {
