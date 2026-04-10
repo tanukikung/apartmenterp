@@ -220,7 +220,7 @@ export class BillingService {
           year: input.year,
           month: input.month,
           createdBy,
-        } as unknown as Json,
+        } as any,
         retryCount: 0,
       },
     });
@@ -237,7 +237,7 @@ export class BillingService {
       EventTypes.BILLING_RECORD_CREATED,
       'RoomBilling',
       roomBilling.id,
-      payload as unknown as Record<string, unknown>,
+      payload as any,
       { userId: createdBy }
     );
 
@@ -358,7 +358,7 @@ export class BillingService {
                 year,
                 month,
                 importedBy,
-              } as unknown as Json,
+              } as any,
               retryCount: 0,
             },
           });
@@ -496,7 +496,7 @@ export class BillingService {
                 roomNo,
                 billingPeriodId,
                 importedBy,
-              } as unknown as Json,
+              } as any,
               retryCount: 0,
             },
           });
@@ -601,7 +601,7 @@ export class BillingService {
             aggregateType: 'RoomBilling',
             aggregateId: locked.id,
             eventType: EventTypes.BILLING_LOCKED,
-            payload: lockedPayload as unknown as Json,
+            payload: lockedPayload as any,
             retryCount: 0,
           },
           {
@@ -609,7 +609,7 @@ export class BillingService {
             aggregateType: 'RoomBilling',
             aggregateId: locked.id,
             eventType: EventTypes.INVOICE_GENERATION_REQUESTED,
-            payload: invoicePayload as unknown as Json,
+            payload: invoicePayload as any,
             retryCount: 0,
           },
         ],

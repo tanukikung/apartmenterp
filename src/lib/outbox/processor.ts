@@ -223,7 +223,7 @@ export class OutboxProcessor {
               event.eventType,
               event.aggregateType,
               event.aggregateId,
-              payload
+              payload as any
             );
 
             // Mark as processed
@@ -314,7 +314,7 @@ export class OutboxProcessor {
             aggregateType: event.aggregateType,
             aggregateId: event.aggregateId,
             eventType: event.eventType,
-            payload: event.payload,
+            payload: event.payload as any,
             retryCount: 0,
           },
         })

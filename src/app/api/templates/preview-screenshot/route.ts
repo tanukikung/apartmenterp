@@ -18,11 +18,23 @@ import { asyncHandler } from '@/lib/utils/errors';
 import { htmlToScreenshot } from '@/lib/puppeteer';
 import { getDocumentTemplateService } from '@/modules/documents/template.service';
 import { templatePreviewRequestSchema } from '@/modules/documents/types';
+import { z } from 'zod';
+
+const previewSchema = z.object({
+  html: z.string().optional(),
+  templateId: z.string().optional(),
+  roomId: z.string().optional(),
+  billingCycleId: z.string().optional(),
+  year: z.number().optional(),
+  month: z.number().optional(),
+  width: z.number().default(794),
+  height: z.number().default(1123),
+});
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   requireRole(req, ['ADMIN', 'STAFF']);
 
-  const body = await req.json().catch(() => ({}));
+  const input = previewSchema.parse(await req.json());
   const {
     html: rawHtml,
     templateId,
@@ -32,16 +44,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     month,
     width = 794,
     height = 1123,
-  } = body as {
-    html?: string;
-    templateId?: string;
-    roomId?: string;
-    billingCycleId?: string;
-    year?: number;
-    month?: number;
-    width?: number;
-    height?: number;
-  };
+  } = input;
 
   // ── Mode 1: Resolve real data from DB ────────────────────────────────────
   if (templateId) {

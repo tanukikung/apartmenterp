@@ -18,7 +18,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
-  if (!id) throw new NotFoundError('Broadcast', id);
+  if (!id) throw new NotFoundError('Broadcast', id ?? '');
 
   const broadcast = await prisma.broadcast.findUnique({ where: { id } });
   if (!broadcast) throw new NotFoundError('Broadcast', id);
@@ -32,7 +32,7 @@ export const PATCH = asyncHandler(async (req: NextRequest): Promise<NextResponse
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
-  if (!id) throw new NotFoundError('Broadcast', id);
+  if (!id) throw new NotFoundError('Broadcast', id ?? '');
 
   const body = await req.json().catch(() => ({}));
   const input = updateSchema.parse(body);

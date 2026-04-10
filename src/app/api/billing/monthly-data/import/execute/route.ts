@@ -11,7 +11,7 @@ const bodySchema = z.object({
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const session = requireRole(req, ['ADMIN', 'STAFF']);
 
-  const body = await req.json().catch(() => ({})) as unknown;
+  const body = await req.json().catch(() => ({}));
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
     throw new ValidationError('batchId is required and must be a valid UUID');

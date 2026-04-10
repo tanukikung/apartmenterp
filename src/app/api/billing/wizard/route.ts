@@ -4,8 +4,17 @@ import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { getServiceContainer } from '@/lib/service-container';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
+
+// ─── Schema ─────────────────────────────────────────────────────────────────────
+
+const wizardActionSchema = z.object({
+  action: z.enum(['create-period', 'lock-and-generate', 'send-all']),
+  dueDay: z.number().int().min(1).max(31).optional(),
+  periodId: z.string().uuid().optional(),
+});
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -155,14 +164,14 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   requireRole(req);
 
   const body = await req.json();
-  const { action } = body as { action: string };
+  const input = wizardActionSchema.parse(body);
 
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
   // ── Action: create-period ───────────────────────────────────────────────────
-  if (action === 'create-period') {
+  if (input.action === 'create-period') {
     const existing = await prisma.billingPeriod.findFirst({ where: { year, month } });
     if (existing) {
       return NextResponse.json({ success: true, data: { periodId: existing.id } });
@@ -173,15 +182,15 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         year,
         month,
         status: 'OPEN',
-        dueDay: body.dueDay ?? 25,
+        dueDay: input.dueDay ?? 25,
       },
     });
     return NextResponse.json({ success: true, data: { periodId: period.id } });
   }
 
   // ── Action: lock-and-generate ──────────────────────────────────────────────
-  if (action === 'lock-and-generate') {
-    const periodId = body.periodId as string;
+  if (input.action === 'lock-and-generate') {
+    const periodId = input.periodId;
     const { invoiceService } = getServiceContainer();
 
     // 1. Lock all DRAFT records
@@ -222,8 +231,8 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   }
 
   // ── Action: send-all ───────────────────────────────────────────────────────
-  if (action === 'send-all') {
-    const periodId = body.periodId as string;
+  if (input.action === 'send-all') {
+    const periodId = input.periodId;
     const { invoiceService } = getServiceContainer();
 
     // Get all GENERATED invoices for this period
@@ -253,7 +262,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   }
 
   return NextResponse.json(
-    { success: false, error: { code: 'INVALID_ACTION', message: `Unknown action: ${action}` } },
+    { success: false, error: { code: 'INVALID_ACTION', message: `Unknown action: ${input.action}` } },
     { status: 400 }
   );
 });

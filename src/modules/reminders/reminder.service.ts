@@ -143,7 +143,7 @@ export class ReminderService {
                 messageTh: config.messageTh,
                 messageEn: config.messageEn,
                 dueDate: inv.dueDate.toISOString().split('T')[0],
-              } as unknown as Json,
+              } as any,
               retryCount: 0,
             },
           });
@@ -219,7 +219,7 @@ export class ReminderService {
             aggregateType: 'Invoice',
             aggregateId: inv.id,
             eventType: EventTypes.INVOICE_REMINDER_DUE_SOON,
-            payload: { invoiceId: inv.id, dueDate: inv.dueDate.toISOString().split('T')[0] } as unknown as Json,
+            payload: { invoiceId: inv.id, dueDate: inv.dueDate.toISOString().split('T')[0] } as any,
             retryCount: 0,
           },
         });
@@ -237,7 +237,7 @@ export class ReminderService {
             aggregateType: 'Invoice',
             aggregateId: inv.id,
             eventType: EventTypes.INVOICE_REMINDER_DUE_TODAY,
-            payload: { invoiceId: inv.id, dueDate: inv.dueDate.toISOString().split('T')[0] } as unknown as Json,
+            payload: { invoiceId: inv.id, dueDate: inv.dueDate.toISOString().split('T')[0] } as any,
             retryCount: 0,
           },
         });
@@ -255,7 +255,7 @@ export class ReminderService {
             aggregateType: 'Invoice',
             aggregateId: inv.id,
             eventType: EventTypes.INVOICE_REMINDER_OVERDUE,
-            payload: { invoiceId: inv.id, dueDate: inv.dueDate.toISOString().split('T')[0], daysOverdue: DEFAULT_OVERDUE_DAYS } as unknown as Json,
+            payload: { invoiceId: inv.id, dueDate: inv.dueDate.toISOString().split('T')[0], daysOverdue: DEFAULT_OVERDUE_DAYS } as any,
             retryCount: 0,
           },
         });

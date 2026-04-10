@@ -66,8 +66,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   const session = requireRole(req, ['ADMIN']);
   const actorId = session.sub;
 
-  const body = await req.json().catch(() => ({}));
-  const input = createSchema.parse(body);
+  const input = createSchema.parse(await req.json());
 
   const existing = await prisma.reminderConfig.findUnique({
     where: { periodDays: input.periodDays },
@@ -107,7 +106,7 @@ export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const session = requireRole(req, ['ADMIN']);
   const actorId = session.sub;
 
-  const body = await req.json().catch(() => ({}));
+  const body = await req.json();
   const { id, ...rest } = z.object({ id: z.string().uuid() }).merge(updateSchema).parse(body);
 
   const existing = await prisma.reminderConfig.findUnique({ where: { id } });
@@ -138,8 +137,7 @@ export const DELETE = asyncHandler(async (req: NextRequest): Promise<NextRespons
   const session = requireRole(req, ['ADMIN']);
   const actorId = session.sub;
 
-  const body = await req.json().catch(() => ({}));
-  const { id } = z.object({ id: z.string().uuid() }).parse(body);
+  const { id } = z.object({ id: z.string().uuid() }).parse(await req.json());
   if (!id) throw new NotFoundError('ReminderConfig', id);
 
   const existing = await prisma.reminderConfig.findUnique({ where: { id } });

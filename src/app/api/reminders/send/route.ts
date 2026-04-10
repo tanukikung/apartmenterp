@@ -72,7 +72,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       conversationId: input.conversationId,
       text: resolvedBody,
       templateId: resolvedTemplateId,
-    } as unknown as Json
+    } as any
   );
 
   await logAudit({

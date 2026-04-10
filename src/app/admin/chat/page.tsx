@@ -27,7 +27,7 @@ type Message = {
   content: string;
   sentAt: string;
   metadata?: Record<string, unknown> | null;
-  localStatus?: 'sending' | 'queued' | 'sent' | 'failed';
+  localStatus?: 'sending' | 'queued' | 'sent' | 'failed' | 'delivered' | 'read';
 };
 
 type ActionNotice = { tone: 'success' | 'error' | 'info'; message: string };

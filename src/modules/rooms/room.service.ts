@@ -75,7 +75,7 @@ export class RoomService {
             defaultAccountId: created.defaultAccountId,
             defaultRuleCode: created.defaultRuleCode,
             createdBy,
-          } as unknown as Json,
+          } as any,
           retryCount: 0,
         },
       });
@@ -95,7 +95,7 @@ export class RoomService {
       EventTypes.ROOM_CREATED,
       'Room',
       room.roomNo,
-      payload as unknown as Record<string, unknown>,
+      payload as any,
       { userId: createdBy }
     );
 
@@ -245,7 +245,7 @@ export class RoomService {
               roomNo: updated.roomNo,
               changes,
               updatedBy,
-            } as unknown as Json,
+            } as any,
             retryCount: 0,
           },
         });
@@ -265,7 +265,7 @@ export class RoomService {
         EventTypes.ROOM_UPDATED,
         'Room',
         room.roomNo,
-        payload as unknown as Record<string, unknown>,
+        payload as any,
         { userId: updatedBy }
       );
     }
@@ -332,7 +332,7 @@ export class RoomService {
             newStatus: input.roomStatus,
             reason: input.reason,
             changedBy,
-          } as unknown as Json,
+          } as any,
           retryCount: 0,
         },
       });
@@ -352,7 +352,7 @@ export class RoomService {
       EventTypes.ROOM_STATUS_CHANGED,
       'Room',
       room.roomNo,
-      payload as unknown as Record<string, unknown>,
+      payload as any,
       { userId: changedBy }
     );
 

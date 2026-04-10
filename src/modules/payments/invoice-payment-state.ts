@@ -89,7 +89,7 @@ export async function syncInvoicePaymentState(
           paidAt: (totals._max.paidAt ?? input.paidAt).toISOString(),
           amount: input.paymentAmount,
           totalPaid,
-        } as unknown as Json,
+        } as any,
         retryCount: 0,
       },
     });

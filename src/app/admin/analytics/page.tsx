@@ -215,7 +215,7 @@ export default function AnalyticsPage() {
                   tickFormatter={(v: number) => v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)}
                 />
                 <Tooltip
-                  formatter={(v: number) => [money(v), 'รายรับ']}
+                  formatter={(v: unknown) => [money(Number(v) || 0), 'รายรับ']}
                   contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
                 />
                 <Bar dataKey="รายรับ" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={40} />
@@ -239,7 +239,7 @@ export default function AnalyticsPage() {
                     {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                   </Pie>
                   <Tooltip
-                    formatter={(v: number) => [`${v} ห้อง`]}
+                    formatter={(v: unknown) => [`${String(v)} ห้อง`]}
                     contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
                   />
                 </PieChart>

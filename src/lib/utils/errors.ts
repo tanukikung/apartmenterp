@@ -312,44 +312,13 @@ export function safeJSONParse<T>(json: string, fallback: T): T {
   }
 }
 
-export function asyncHandler<Params extends Record<string, string> = Record<string, string>>(
-  handler: (req: NextRequest, context?: { params: Params }) => Promise<NextResponse> | NextResponse
-): (req: NextRequest, context?: { params: Params }) => Promise<NextResponse>;
-export function asyncHandler<Params extends Record<string, string> = Record<string, string>>(
-  handler: (req: NextRequest, context: { params: Promise<Params> }) => Promise<NextResponse> | NextResponse
-): (req: NextRequest, context: { params: Promise<Params> }) => Promise<NextResponse>;
-export function asyncHandler<Params extends Record<string, string> = Record<string, string>>(
-  handler: (
-    req: {
-      params: Params;
-      body: unknown;
-      query: Record<string, unknown>;
-    },
-    res: { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } }
-  ) => Promise<void>
-): (
-  req: {
-    params: Params;
-    body: unknown;
-    query: Record<string, unknown>;
-  },
-  res: { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } }
-) => Promise<void>;
-export function asyncHandler<Params extends Record<string, string> = Record<string, string>>(
-  handler:
-    | ((
-        req: NextRequest,
-        context?: { params: Params }
-      ) => Promise<NextResponse> | NextResponse)
-    | ((
-        req: {
-          params: Params;
-          body: unknown;
-          query: Record<string, unknown>;
-        },
-        res: { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } }
-      ) => Promise<void>)
-) {
+// Unified signature accepting both optional non-Promise and optional Promise params
+export function asyncHandler<
+  Params extends Record<string, string> = Record<string, string>,
+>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  handler: any,
+): any {
   return async (...args: unknown[]): Promise<NextResponse | void> => {
     try {
       const [req, resOrContext] = args as [unknown, unknown?];
@@ -418,7 +387,8 @@ export function asyncHandler<Params extends Record<string, string> = Record<stri
         return await (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(r, resOrContext as { params: Params } | undefined);
       }
 
-      await (handler as (req: { params: Params; body: unknown; query: Record<string, unknown> }, res: { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } }) => Promise<void>)(req as { params: Params; body: unknown; query: Record<string, unknown> }, resOrContext as { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await (handler as any)(req, resOrContext);
     } catch (error) {
       const [, resOrContext] = args as [unknown, unknown?];
 

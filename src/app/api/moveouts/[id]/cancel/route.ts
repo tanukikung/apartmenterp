@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createMoveOutService } from '@/modules/moveouts';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
@@ -10,14 +11,18 @@ interface RouteParams {
   params: { id: string };
 }
 
+const cancelSchema = z.object({
+  reason: z.string().optional(),
+});
+
 // ============================================================================
 // POST /api/moveouts/[id]/cancel - Cancel move-out
 // ============================================================================
 
 export const POST = asyncHandler(async (req: NextRequest, { params }: RouteParams): Promise<NextResponse> => {
   requireRole(req, ['ADMIN', 'STAFF']);
-  const body = await req.json().catch(() => ({}));
-  const reason = body.reason as string | undefined;
+  const body = cancelSchema.parse(await req.json());
+  const reason = body.reason;
 
   const moveOutService = createMoveOutService();
   const moveOut = await moveOutService.cancelMoveOut(params.id, reason);

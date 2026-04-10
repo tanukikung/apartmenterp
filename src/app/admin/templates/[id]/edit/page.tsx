@@ -441,13 +441,13 @@ export default function TemplateEditPage() {
                               <div className="font-semibold text-[var(--on-surface)]">v{version.version}</div>
                               <div className="text-xs text-[var(--on-surface-variant)]">{version.fileType.toUpperCase()} · {version.status}</div>
                             </div>
-                            {template.activeVersionId === version.id ? (
+                            {template?.activeVersionId === version.id ? (
                               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">ใช้งาน</span>
                             ) : null}
                           </div>
                         </button>
                         <div className="mt-3 flex gap-2">
-                          {template.activeVersionId !== version.id ? (
+                          {template?.activeVersionId !== version.id ? (
                             <button
                               type="button"
                               onClick={() => void activateVersion(version.id)}

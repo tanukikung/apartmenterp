@@ -7,7 +7,7 @@ import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 // Types
 // ---------------------------------------------------------------------------
 
-export type SortDirection = 'asc' | 'desc' | null;
+export type SortDirection = 'asc' | 'desc' | undefined;
 
 export interface ColumnDef<T> {
   key: string;
@@ -75,19 +75,19 @@ function cn(...classes: (string | undefined | false)[]) {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function SortIcon({ direction }: { direction: SortDirection }) {
+function SortIcon({ direction }: { direction: SortDirection | undefined }) {
   if (!direction) return <ChevronsUpDown className="h-3.5 w-3.5 text-on-surface-variant/40" />;
   if (direction === 'asc') return <ChevronUp className="h-3.5 w-3.5 text-primary" />;
   return <ChevronDown className="h-3.5 w-3.5 text-primary" />;
 }
 
-interface ThProps {
-  column: ColumnDef<unknown>;
+interface ThProps<T> {
+  column: ColumnDef<T>;
   sorted?: SortDirection;
   onSort?: () => void;
 }
 
-function Th({ column, sorted, onSort }: ThProps) {
+function Th<T>({ column, sorted, onSort }: ThProps<T>) {
   const alignClass = {
     left: 'text-left',
     right: 'text-right',
@@ -145,7 +145,7 @@ export function ModernTable<T extends object>({
   className = '',
 }: ModernTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<SortDirection>(null);
+  const [sortDir, setSortDir] = useState<SortDirection>(undefined);
 
   // Helper to get row ID
   function getRowId(row: T): string {
@@ -161,7 +161,7 @@ export function ModernTable<T extends object>({
       setSortDir('desc');
     } else if (sortDir === 'desc') {
       setSortKey(null);
-      setSortDir(null);
+      setSortDir(undefined);
     } else {
       setSortDir('asc');
     }
@@ -227,7 +227,7 @@ export function ModernTable<T extends object>({
                 <Th
                   key={col.key}
                   column={col}
-                  sorted={sortKey === col.key ? sortDir : null}
+                  sorted={sortKey === col.key ? sortDir : undefined}
                   onSort={col.sortable ? () => handleSort(col.key) : undefined}
                 />
               ))}

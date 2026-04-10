@@ -69,5 +69,5 @@ export const DELETE = asyncHandler(async (req: NextRequest, { params }: RoutePar
   return NextResponse.json({
     success: true,
     message: 'Move-out deleted successfully',
-  } as ApiResponse<null>);
+  } as unknown as ApiResponse<null>);
 });

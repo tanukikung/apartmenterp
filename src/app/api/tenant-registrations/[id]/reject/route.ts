@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/client';
 import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, NotFoundError, BadRequestError } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit/audit.service';
+
+const rejectSchema = z.object({
+  reason: z.string().max(250).optional(),
+});
 
 type Params = { params: { id: string } };
 
@@ -13,7 +18,7 @@ export const POST = asyncHandler(async (req: NextRequest, context?: Params): Pro
   const id = context?.params.id;
   if (!id) throw new NotFoundError('TenantRegistration');
 
-  const body = (await req.json()) as { reason?: string };
+  const body = rejectSchema.parse(await req.json());
 
   const reg = await prisma.tenantRegistration.findUnique({ where: { id } });
   if (!reg) throw new NotFoundError('TenantRegistration', id);

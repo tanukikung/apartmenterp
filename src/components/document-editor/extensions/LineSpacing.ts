@@ -64,19 +64,22 @@ export const LineSpacing = Extension.create({
     return {
       setLineHeight:
         (value: string) =>
-        ({ commands }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ({ commands }: any) => {
           return commands.updateAttributes('paragraph', { lineHeight: value });
         },
 
       unsetLineHeight:
         () =>
-        ({ commands }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ({ commands }: any) => {
           return commands.updateAttributes('paragraph', { lineHeight: null });
         },
 
       setParagraphSpacing:
         (value: string) =>
-        ({ commands }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ({ commands }: any) => {
           return commands.updateAttributes('paragraph', { paragraphSpacing: value });
         },
     };

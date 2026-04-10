@@ -18,6 +18,8 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     ...(month && { month: parseInt(month, 10) }),
     page: 1,
     pageSize: 100,
+    sortBy: 'createdAt' as const,
+    sortOrder: 'desc' as const,
   };
 
   const { billingService } = getServiceContainer();

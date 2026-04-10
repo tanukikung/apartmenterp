@@ -217,7 +217,7 @@ export class DeliveryService {
           documentTitle: item.generatedDocument.title,
           roomNo: item.roomNo,
           pdfUrl: pdfFile.uploadedFile.url,
-        },
+        } as any,
       );
     }
 
@@ -256,7 +256,7 @@ export class DeliveryService {
         documentTitle: item.generatedDocument!.title,
         roomNo: item.roomNo,
         pdfUrl: pdfFile.uploadedFile.url,
-      },
+      } as any,
     );
   }
 
@@ -339,7 +339,7 @@ export class DeliveryService {
         documentTitle: doc.title,
         roomNo: doc.roomNo,
         pdfUrl: pdfFile.uploadedFile.url,
-      },
+      } as any,
     );
 
     // Note: GeneratedDocument.status is NOT updated here optimistically.

@@ -29,8 +29,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     ? { actorId: session.sub, actorRole: session.role }
     : { actorId: 'anonymous', actorRole: 'ANONYMOUS' };
 
-  const body = await req.json().catch(() => ({}));
-  const input = createSchema.parse(body);
+  const input = createSchema.parse(await req.json());
 
   const { maintenanceService: service } = getServiceContainer();
   const ticket = await service.createTicket(

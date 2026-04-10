@@ -81,7 +81,7 @@ export const POST = asyncHandler(
         roomNumber: input.roomNumber,
         amount: input.amount,
         paidDate: input.paidDate,
-      } as unknown as Json
+      } as any
     );
 
     await logAudit({

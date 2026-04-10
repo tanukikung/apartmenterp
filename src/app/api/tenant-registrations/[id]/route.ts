@@ -3,8 +3,17 @@ import { prisma } from '@/lib/db/client';
 import { requireAuthSession } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, NotFoundError, BadRequestError } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit/audit.service';
+import { z } from 'zod';
 
 type Params = { params: { id: string } };
+
+const updateRegistrationSchema = z.object({
+  phone: z.string().optional(),
+  claimedRoom: z.string().optional(),
+  lineDisplayName: z.string().optional(),
+  correctionNote: z.string().optional(),
+  requestCorrection: z.boolean().optional(),
+});
 
 // ── PATCH /api/tenant-registrations/[id]  ─────────────────────────────────────
 // Request-correction flow: admin sets status=CORRECTION_REQUESTED with a note,
@@ -15,13 +24,7 @@ export const PATCH = asyncHandler(async (req: NextRequest, context?: Params): Pr
   const id = context?.params.id;
   if (!id) throw new NotFoundError('TenantRegistration');
 
-  const body = (await req.json()) as {
-    phone?: string;
-    claimedRoom?: string;
-    lineDisplayName?: string;
-    correctionNote?: string;
-    requestCorrection?: boolean;
-  };
+  const body = updateRegistrationSchema.parse(await req.json());
 
   const existing = await prisma.tenantRegistration.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError('TenantRegistration', id);

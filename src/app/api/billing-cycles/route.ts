@@ -50,7 +50,8 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     prisma.billingPeriod.count({ where }),
     prisma.billingPeriod.findMany({
       where,
-      orderBy: orderBy as Parameters<typeof prisma.billingPeriod.findMany>[0]['orderBy'],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      orderBy: orderBy as any,
       skip: (page - 1) * pageSize,
       take: pageSize,
       include: {

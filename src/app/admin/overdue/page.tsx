@@ -117,6 +117,7 @@ export default function AdminOverduePage() {
     if (range !== 'all') {
       rows = rows.filter((inv) => {
         const d = daysSince(inv.dueDate);
+        if (d === null) return true;
         if (range === '1-30') return d >= 1 && d <= 30;
         if (range === '31-60') return d >= 31 && d <= 60;
         if (range === '60+') return d > 60;
@@ -321,8 +322,8 @@ export default function AdminOverduePage() {
                         </td>
                         <td className="px-4 py-3 text-[var(--on-surface-variant)]"><ClientOnly fallback="-">{new Date(inv.dueDate).toLocaleDateString('th-TH')}</ClientOnly></td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${daysOverdueBadge(days)}`}>
-                            <Clock className={`h-3 w-3 ${daysOverdueText(days)}`} />
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${daysOverdueBadge(days ?? 0)}`}>
+                            <Clock className={`h-3 w-3 ${daysOverdueText(days ?? 0)}`} />
                             {days}d
                           </span>
                         </td>

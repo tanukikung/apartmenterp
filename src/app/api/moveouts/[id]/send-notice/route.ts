@@ -90,7 +90,7 @@ If you have any questions, please contact us.`;
       moveOutId: moveOut.id,
       tenantId: moveOut.contract.primaryTenant.id,
       roomNo: moveOut.contract.roomNo,
-    } as unknown as Json,
+    } as any,
   );
 
   // Update lineNoticeSentAt timestamp

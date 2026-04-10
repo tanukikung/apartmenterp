@@ -164,7 +164,7 @@ export class BankStatementParser {
       return null;
     }
 
-    let date: Date;
+    let date!: Date;
     
     // Parse date
     if (dateValue instanceof Date) {

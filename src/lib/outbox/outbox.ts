@@ -38,7 +38,7 @@ export class Outbox {
         aggregateType,
         aggregateId,
         eventType,
-        payload,
+        payload: payload as any,
         retryCount: 0,
       },
     });
@@ -58,6 +58,7 @@ export class Outbox {
     }>
   ): Promise<OutboxEvent[]> {
     const createdEvents = await this.prisma.$transaction(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       events.map((event) =>
         this.prisma.outboxEvent.create({
           data: {
@@ -65,11 +66,11 @@ export class Outbox {
             aggregateType: event.aggregateType,
             aggregateId: event.aggregateId,
             eventType: event.eventType,
-            payload: event.payload,
+            payload: event.payload as any,
             retryCount: 0,
           },
         })
-      )
+      ) as any
     );
 
     return createdEvents as unknown as OutboxEvent[];

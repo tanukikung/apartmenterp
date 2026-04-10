@@ -98,7 +98,7 @@ type ConfigurableReminderPayload = {
 
 bus.subscribe('ConfigurableReminder', async (evt) => {
   try {
-    const payload = evt.payload as ConfigurableReminderPayload;
+    const payload = evt.payload as unknown as ConfigurableReminderPayload;
     const invoice = await prisma.invoice.findUnique({
       where: { id: payload.invoiceId },
       include: {
@@ -183,7 +183,7 @@ async function sendContractExpiryReminder(contractId: string) {
 
 bus.subscribe(EventTypes.CONTRACT_EXPIRING_SOON, async (evt) => {
   try {
-    const payload = evt.payload as ContractExpiringSoonPayload;
+    const payload = evt.payload as unknown as ContractExpiringSoonPayload;
     await sendContractExpiryReminder(payload.contractId);
   } catch (err) {
     logger.error({ type: 'contract_expiry_reminder_error', error: (err as Error).message });

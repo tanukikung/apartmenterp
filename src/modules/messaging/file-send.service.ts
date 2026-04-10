@@ -55,7 +55,7 @@ export async function queueConversationFileSend(input: QueueConversationFileSend
         metadata: {
           status: 'QUEUED',
           kind: 'file',
-        } as unknown as Json,
+        } as any,
         sentAt: now,
       },
     });
@@ -78,7 +78,7 @@ export async function queueConversationFileSend(input: QueueConversationFileSend
           fileUrl,
           contentType,
           name,
-        } as unknown as Json,
+        } as any,
       },
     });
 

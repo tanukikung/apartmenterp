@@ -134,7 +134,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
           text: messageBody,
           templateId: resolvedTemplateId,
           metadata: { invoiceId: invoice.id, roomNo: invoice.roomNo },
-        } as unknown as Json,
+        } as any,
       );
       results.sent++;
     } catch {

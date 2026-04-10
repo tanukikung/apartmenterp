@@ -151,7 +151,7 @@ export class ContractService {
             rentAmount: Number(created.monthlyRent),
             depositAmount: Number(created.deposit || 0),
             createdBy,
-          } as unknown as Json,
+          } as any,
           retryCount: 0,
         },
       });
@@ -175,7 +175,7 @@ export class ContractService {
       EventTypes.CONTRACT_CREATED,
       'Contract',
       contract.id,
-      payload as unknown as Record<string, unknown>,
+      payload as any,
       { userId: createdBy }
     );
 
@@ -405,7 +405,7 @@ export class ContractService {
             newRentAmount: input.newRentAmount,
             newDepositAmount: input.newDepositAmount,
             renewedBy,
-          } as unknown as Json,
+          } as any,
           retryCount: 0,
         },
       });
@@ -429,7 +429,7 @@ export class ContractService {
       EventTypes.CONTRACT_RENEWED,
       'Contract',
       newContract.id,
-      payload as unknown as Record<string, unknown>,
+      payload as any,
       { userId: renewedBy }
     );
 
@@ -489,7 +489,7 @@ export class ContractService {
             terminationDate: input.terminationDate,
             terminationReason: input.terminationReason,
             terminatedBy,
-          } as unknown as Json,
+          } as any,
           retryCount: 0,
         },
       });
@@ -511,7 +511,7 @@ export class ContractService {
       EventTypes.CONTRACT_TERMINATED,
       'Contract',
       updated.id,
-      payload as unknown as Record<string, unknown>,
+      payload as any,
       { userId: terminatedBy }
     );
 
@@ -556,7 +556,7 @@ export class ContractService {
         EventTypes.CONTRACT_EXPIRING_SOON,
         'Contract',
         contract.id,
-        payload as unknown as Record<string, unknown>
+        payload as any
       );
     }
 

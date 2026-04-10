@@ -80,7 +80,7 @@ export class TenantService {
             email: created.email || undefined,
             lineUserId: created.lineUserId || undefined,
             createdBy,
-          } as unknown as Json,
+          } as any,
           retryCount: 0,
         },
       });
@@ -113,7 +113,7 @@ export class TenantService {
       EventTypes.TENANT_CREATED,
       'Tenant',
       tenant.id,
-      payload as unknown as Record<string, unknown>,
+      payload as any,
       { userId: createdBy }
     );
 
@@ -310,7 +310,7 @@ export class TenantService {
         EventTypes.TENANT_UPDATED,
         'Tenant',
         tenant.id,
-        payload as unknown as Record<string, unknown>,
+        payload as any,
         { userId: updatedBy }
       );
     }
@@ -414,7 +414,7 @@ export class TenantService {
             role: input.role,
             moveInDate: input.moveInDate,
             assignedBy,
-          } as unknown as Json,
+          } as any,
           retryCount: 0,
         },
       });
@@ -435,7 +435,7 @@ export class TenantService {
       EventTypes.TENANT_ASSIGNED_TO_ROOM,
       'Tenant',
       tenant.id,
-      payload as unknown as Record<string, unknown>,
+      payload as any,
       { userId: assignedBy }
     );
 
@@ -504,7 +504,7 @@ export class TenantService {
             role: roomTenant.role,
             moveOutDate: input.moveOutDate,
             removedBy,
-          } as unknown as Json,
+          } as any,
           retryCount: 0,
         },
       });
@@ -524,7 +524,7 @@ export class TenantService {
       EventTypes.TENANT_REMOVED_FROM_ROOM,
       'Tenant',
       tenantId,
-      payload as unknown as Record<string, unknown>,
+      payload as any,
       { userId: removedBy }
     );
   }
@@ -583,7 +583,7 @@ export class TenantService {
       EventTypes.TENANT_LINE_LINKED,
       'Tenant',
       tenantId,
-      payload as unknown as Record<string, unknown>,
+      payload as any,
       { userId: linkedBy }
     );
 

@@ -17,8 +17,7 @@ export const POST = asyncHandler(
     { params }: { params: { id: string } },
   ): Promise<NextResponse> => {
     requireRole(req, ['ADMIN', 'STAFF']);
-    const body = await req.json().catch(() => ({}));
-    const input = schema.parse(body);
+    const input = schema.parse(await req.json());
     const actor = getVerifiedActor(req);
 
     const tenant = await prisma.tenant.findUnique({
@@ -98,7 +97,7 @@ export const POST = asyncHandler(
         text,
         templateId,
         reminderType: input.type,
-      } as unknown as Json,
+      } as any,
     );
 
     await logAudit({

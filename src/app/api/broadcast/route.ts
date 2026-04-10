@@ -72,9 +72,10 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   const actorId = session.sub;
   const actorName = session.displayName;
 
+  const body = await req.json().catch(() => ({}));
   const idempotencyKey =
     req.headers.get('Idempotency-Key') ||
-    (await req.json().catch(() => ({}))).idempotencyKey;
+    body.idempotencyKey;
 
   // Check in-memory cache first (fallback when DB field not yet migrated)
   if (idempotencyKey) {
@@ -92,7 +93,6 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     }
   }
 
-  const body = await req.json().catch(() => ({}));
   const input = createSchema.parse(body);
 
   // Resolve target rooms (floor filter or explicit room list)
