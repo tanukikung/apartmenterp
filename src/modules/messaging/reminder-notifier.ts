@@ -86,6 +86,69 @@ bus.subscribe(EventTypes.INVOICE_REMINDER_OVERDUE, async (evt) => {
   }
 });
 
+// Configurable reminder — uses per-config message templates instead of hard-coded ones
+type ConfigurableReminderPayload = {
+  invoiceId: string;
+  configId: string;
+  periodDays: number;
+  messageTh: string;
+  messageEn: string;
+  dueDate: string;
+};
+
+bus.subscribe('ConfigurableReminder', async (evt) => {
+  try {
+    const payload = evt.payload as ConfigurableReminderPayload;
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: payload.invoiceId },
+      include: {
+        room: {
+          include: {
+            tenants: {
+              where: { role: 'PRIMARY', moveOutDate: null },
+              include: { tenant: true },
+            },
+          },
+        },
+      },
+    });
+    if (!invoice || !invoice.room) return;
+    const tenant = invoice.room.tenants?.[0]?.tenant;
+    const lineUserId = tenant?.lineUserId;
+    if (!lineUserId) {
+      logger.warn({ type: 'config_reminder_skipped_no_line', invoiceId: payload.invoiceId });
+      return;
+    }
+
+    const dueDate = new Date(invoice.dueDate).toLocaleDateString('th-TH', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    });
+    const amount = `฿${Number(invoice.totalAmount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+
+    // Replace template variables
+    const daysOverdue = Math.ceil(
+      (Date.now() - new Date(invoice.dueDate).getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const text = payload.messageTh
+      .replace(/\{\{roomNo\}\}/g, invoice.roomNo)
+      .replace(/\{\{amount\}\}/g, amount)
+      .replace(/\{\{dueDate\}\}/g, dueDate)
+      .replace(/\{\{daysOverdue\}\}/g, String(Math.max(0, daysOverdue)));
+
+    await sendLineMessage(lineUserId, text);
+
+    logger.info({
+      type: 'config_reminder_sent',
+      invoiceId: payload.invoiceId,
+      configId: payload.configId,
+      periodDays: payload.periodDays,
+      lineUserId,
+    });
+  } catch (err) {
+    logger.error({ type: 'config_reminder_error', error: (err as Error).message });
+  }
+});
+
 type ContractExpiringSoonPayload = {
   contractId: string;
   roomNo: string;

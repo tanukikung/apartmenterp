@@ -113,10 +113,10 @@ export default function AdminFloorsPage() {
 
   return (
     <main className="space-y-6">
-      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
+      <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
         <div>
-          <h1 className="text-xl font-semibold text-on-primary">ชั้น</h1>
-          <p className="text-sm text-on-primary/80">ภาพรวมชั้นของอาคารและการจัดการห้อง</p>
+          <h1 className="text-xl font-semibold text-[var(--on-primary)]">ชั้น</h1>
+          <p className="text-sm text-[var(--on-primary)]/80">ภาพรวมชั้นของอาคารและการจัดการห้อง</p>
         </div>
       </section>
 
@@ -126,35 +126,35 @@ export default function AdminFloorsPage() {
 
       {/* Stats row */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">จำนวนชั้นทั้งหมด</div>
-              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : totals.floors}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">จำนวนชั้นทั้งหมด</div>
+              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : totals.floors}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 shadow-sm">
-              <Building2 className="h-5 w-5 text-primary" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--primary)]/20 bg-primary/10 shadow-sm">
+              <Building2 className="h-5 w-5 text-[var(--primary)]" />
             </div>
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">จำนวนห้องทั้งหมด</div>
-              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : totals.rooms}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">จำนวนห้องทั้งหมด</div>
+              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : totals.rooms}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-outline-variant bg-surface-container shadow-sm">
-              <DoorOpen className="h-5 w-5 text-on-surface-variant" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container)] shadow-sm">
+              <DoorOpen className="h-5 w-5 text-[var(--on-surface-variant)]" />
             </div>
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้องใช้งาน</div>
-              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : totals.active}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้องใช้งาน</div>
+              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : totals.active}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm">
               <Users className="h-5 w-5 text-emerald-600" />
@@ -162,11 +162,11 @@ export default function AdminFloorsPage() {
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้องไม่ใช้งาน</div>
-              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : totals.inactive}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้องไม่ใช้งาน</div>
+              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : totals.inactive}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 shadow-sm">
               <AlertTriangle className="h-5 w-5 text-sky-500" />

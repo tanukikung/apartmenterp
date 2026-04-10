@@ -8,6 +8,7 @@
 
 import { prisma } from '@/lib';
 import { logAudit } from '@/modules/audit';
+import { runLateFeeJob } from './late-fee.job';
 
 const DEFAULT_DUE_DAY = 25;
 import { logger } from '@/lib/utils/logger';
@@ -88,17 +89,12 @@ export async function runInvoiceSend(): Promise<JobResult> {
 }
 
 // ── 4. Late-fee check ───────────────────────────────────────────────────────
-// Reports the current number of overdue invoices.
-// Extend this function to create fee records or add notes when a late-fee
-// billing model is introduced.
+// Applies late fees based on BillingRule penaltyPerDay, updates Invoice lateFeeAmount.
 export async function runLateFee(): Promise<JobResult> {
-  const count = await prisma.invoice.count({
-    where: { status: 'OVERDUE' },
-  });
-
+  const result = await runLateFeeJob();
   return {
-    count,
-    message: `${count} overdue invoice(s) reviewed for late-fee eligibility`,
+    count: result.updated,
+    message: `${result.updated} invoice(s) updated, total fees ${result.totalFees.toFixed(2)}, skipped ${result.skipped}`,
   };
 }
 
@@ -142,14 +138,99 @@ export async function runDbCleanup(): Promise<JobResult> {
   };
 }
 
+// ── 6. Contract expiry check ─────────────────────────────────────────────────
+// Checks for contracts expiring in 30/60/90 days and notifies staff via LINE
+// and creates in-app notifications for admins.
+export async function runContractExpiryCheck(): Promise<JobResult> {
+  const now = new Date();
+  const { sendLineMessage } = await import('@/lib');
+
+  const expiryThresholds = [30, 60, 90];
+  let totalNotified = 0;
+
+  for (const daysAhead of expiryThresholds) {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + daysAhead);
+    const prevDays = daysAhead === 30 ? 0 : daysAhead === 60 ? 31 : 61;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + prevDays + 1);
+
+    const expiringContracts = await prisma.contract.findMany({
+      where: {
+        status: 'ACTIVE',
+        endDate: { gte: startDate, lte: futureDate },
+      },
+      include: { room: true, primaryTenant: true },
+    });
+
+    for (const contract of expiringContracts) {
+      const daysUntilExpiry = Math.ceil(
+        (contract.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      const urgencyLabel = daysUntilExpiry <= 30 ? 'ด่วน' : daysUntilExpiry <= 60 ? 'แจ้งเตือน' : 'แจ้งล่วงหน้า';
+      const message = `[${urgencyLabel}] สัญญาเช่าห้อง ${contract.roomNo} จะหมดอายุในอีก ${daysUntilExpiry} วัน (${contract.endDate.toLocaleDateString('th-TH')}) ผู้เช่า: ${contract.primaryTenant.firstName} ${contract.primaryTenant.lastName}`;
+
+      const admins = await prisma.adminUser.findMany({ where: { isActive: true } });
+
+      for (const admin of admins) {
+        const existing = await prisma.notification.findFirst({
+          where: {
+            type: 'NOTICE',
+            roomNo: contract.roomNo,
+            content: message,
+            createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+          },
+        });
+
+        if (!existing) {
+          const notification = await prisma.notification.create({
+            data: {
+              type: 'NOTICE',
+              roomNo: contract.roomNo,
+              tenantId: contract.primaryTenantId,
+              scheduledAt: now,
+              status: 'PENDING',
+              content: message,
+            },
+          });
+
+          const tenant = contract.primaryTenant;
+          if (tenant.lineUserId) {
+            try {
+              await sendLineMessage(
+                tenant.lineUserId,
+                `📢 แจ้งเตือน: สัญญาเช่าห้อง ${contract.roomNo} จะหมดอายุในอีก ${daysUntilExpiry} วัน\n\nกรุณาติดต่อเจ้าหน้าที่เพื่อต่ออายุสัญญา`
+              );
+              await prisma.notification.update({
+                where: { id: notification.id },
+                data: { status: 'SENT', sentAt: new Date() },
+              });
+            } catch {
+              // LINE not configured — skip silently
+            }
+          }
+        }
+      }
+      totalNotified++;
+    }
+  }
+
+  return {
+    count: totalNotified,
+    message: `${totalNotified} contract(s) notified for expiry`,
+  };
+}
+
 // ── Registry ────────────────────────────────────────────────────────────────
 
 export const JOB_RUNNERS: Record<string, () => Promise<JobResult>> = {
-  'overdue-flag':     runOverdueFlag,
-  'billing-generate': runBillingGenerate,
-  'invoice-send':     runInvoiceSend,
-  'late-fee':         runLateFee,
-  'db-cleanup':       runDbCleanup,
+  'overdue-flag':      runOverdueFlag,
+  'billing-generate':  runBillingGenerate,
+  'invoice-send':      runInvoiceSend,
+  'late-fee':          runLateFee,
+  'db-cleanup':        runDbCleanup,
+  'contract-expiry':   runContractExpiryCheck,
 };
 
 export const VALID_JOB_IDS = Object.keys(JOB_RUNNERS);

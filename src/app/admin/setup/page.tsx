@@ -191,20 +191,20 @@ export default function SetupPage() {
     return (
       <div className="flex min-h-[80vh] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-on-surface-variant">กำลังโหลด...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
+          <p className="text-sm text-[var(--on-surface-variant)]">กำลังโหลด...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-surface-container-lowest py-6 px-4">
+    <main className="min-h-screen bg-[var(--surface-container-lowest)] py-6 px-4">
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Header */}
         <div className="text-center space-y-1">
-          <h1 className="text-2xl font-bold text-on-surface">ตั้งค่าระบบ Apartment ERP</h1>
-          <p className="text-sm text-on-surface-variant">
+          <h1 className="text-2xl font-bold text-[var(--on-surface)]">ตั้งค่าระบบ Apartment ERP</h1>
+          <p className="text-sm text-[var(--on-surface-variant)]">
             กำหนดค่าเริ่มต้นสำหรับระบบจัดการอาคารของคุณ
           </p>
         </div>
@@ -223,7 +223,7 @@ export default function SetupPage() {
         )}
 
         {/* Step Content */}
-        <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-6 shadow-sm">
+        <div className="rounded-2xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)] p-6 shadow-sm">
           {state.currentStep === 1 && (
             <AdminAccountStep
               data={state.admin}
@@ -269,7 +269,7 @@ export default function SetupPage() {
             <button
               onClick={prevStep}
               disabled={state.currentStep === 1}
-              className="flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2.5 text-sm font-medium text-on-surface hover:bg-surface-container transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2.5 text-sm font-medium text-[var(--on-surface)] hover:bg-[var(--surface-container)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ArrowLeft className="h-4 w-4" />
               กลับ
@@ -277,7 +277,7 @@ export default function SetupPage() {
 
             <button
               onClick={handleNext}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-on-primary hover:bg-primary/90 transition-colors"
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-[var(--on-primary)] hover:bg-primary/90 transition-colors"
             >
               ต่อไป
               <ArrowRight className="h-4 w-4" />
@@ -291,7 +291,7 @@ export default function SetupPage() {
             <button
               onClick={prevStep}
               disabled={submitting}
-              className="flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2.5 text-sm font-medium text-on-surface hover:bg-surface-container transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2.5 text-sm font-medium text-[var(--on-surface)] hover:bg-[var(--surface-container)] transition-colors disabled:opacity-50"
             >
               <ArrowLeft className="h-4 w-4" />
               กลับ

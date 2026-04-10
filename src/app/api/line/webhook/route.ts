@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
-import { verifyLineSignature, sendReplyMessage } from '@/lib/line/client';
+import { verifyLineSignature, sendReplyMessage, getLineClient, sendLineMessage, sendFlexMessage } from '@/lib/line/client';
 import { prisma, logger, UnauthorizedError } from '@/lib';
 import { v4 as uuidv4 } from 'uuid';
 import type { WebhookEvent } from '@line/bot-sdk';
 import type { Prisma } from '@prisma/client';
 import type { MessageType } from '@prisma/client';
+import { getLatestUnpaidInvoiceForLineUser } from '@/modules/invoices/balance-inquiry';
+import { buildInvoiceFlex } from '@/modules/messaging/lineTemplates';
+import {
+  startMaintenanceRequest,
+  handleMaintenanceRequestMessage,
+  handleMaintenanceRequestImage,
+  getMaintenanceRequestState,
+} from '@/modules/line-maintenance';
 
 type RawWebhookPayload = { events?: WebhookEvent[] };
 
@@ -117,16 +125,22 @@ async function handlePostback(data: string, replyToken: string, conversationId: 
 
   } else if (action === 'view_invoice') {
     const invoiceId = params.get('invoiceId');
-    const baseUrl = process.env.APP_BASE_URL || '';
-    if (invoiceId) {
-      const invoiceUrl = `${baseUrl}/api/invoices/${invoiceId}/pdf`;
-      await sendReplyMessage(
-        replyToken,
-        `🔗 ดูใบแจ้งหนี้: ${invoiceUrl}`
-      );
-    } else {
+    if (!invoiceId) {
       await sendReplyMessage(replyToken, '❌ ไม่พบใบแจ้งหนี้ กรุณาติดต่อเจ้าหน้าที่');
+      return;
     }
+    const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+    if (!invoice) {
+      await sendReplyMessage(replyToken, '❌ ไม่พบใบแจ้งหนี้ กรุณาติดต่อเจ้าหน้าที่');
+      return;
+    }
+    const baseUrl = process.env.APP_BASE_URL || '';
+    const pdfUrl = `${baseUrl}/api/invoices/${encodeURIComponent(invoiceId)}/pdf`;
+    await sendReplyMessage(
+      replyToken,
+      `🔗 ดูใบแจ้งหนี้: ${pdfUrl}`
+    );
+    logger.info({ type: 'postback_view_invoice', invoiceId, conversationId });
 
   } else if (action === 'send_receipt') {
     const invoiceId = params.get('invoiceId');
@@ -151,6 +165,92 @@ async function handlePostback(data: string, replyToken: string, conversationId: 
     // Unknown action — acknowledge silently
     logger.warn({ type: 'postback_unknown_action', data });
   }
+}
+
+// ─── Balance Inquiry Handler ─────────────────────────────────────────────────
+
+const INQUIRY_TRIGGERS = ['ยอดค้าง', 'ดูยอด', 'ยอดค้างชำระ', 'ใบแจ้งหนี้', 'ดูใบแจ้งหนี้'];
+
+async function handleBalanceInquiry(
+  userId: string,
+  replyToken: string,
+  conversationId: string
+): Promise<void> {
+  const result = await getLatestUnpaidInvoiceForLineUser(userId);
+
+  if (result.notLinked) {
+    await sendReplyMessage(
+      replyToken,
+      '❌ บัญชี LINE นี้ยังไม่ได้ลงทะเบียนกับห้องพัก กรุณาติดต่อเจ้าหน้าที่เพื่อลงทะเบียนค่ะ'
+    );
+    return;
+  }
+
+  if (!result.hasOutstanding) {
+    await sendReplyMessage(
+      replyToken,
+      `✅ ห้อง ${result.roomNo} — ไม่มียอดค้างชำระ ณ ขณะนี้ค่ะ\n\nขอบคุณที่ใช้บริการค่ะ 😊`
+    );
+    return;
+  }
+
+  const amount = `฿${result.totalAmount!.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+  const statusLabel: Record<string, string> = {
+    GENERATED: 'รอดำเนินการ',
+    SENT: 'รอชำระ',
+    VIEWED: 'รอชำระ',
+    OVERDUE: 'เกินกำหนด',
+  };
+
+  const statusText = statusLabel[result.status!] ?? result.status ?? '';
+  const replyText = [
+    `📊 สรุปยอดค้าง — ห้อง ${result.roomNo}`,
+    ``,
+    `🔖 เลขที่ใบแจ้งหนี้: ${result.invoiceNumber}`,
+    `📅 ครบกำหนดชำระ: ${result.dueDate}`,
+    `💰 ยอดค้าง: ${amount}`,
+    `📌 สถานะ: ${statusText}`,
+    ``,
+    `📋 ระยะเวลา: ${result.periodLabel}`,
+  ].join('\n');
+
+  // Send summary text first, then follow up with quick reply payment button
+  await sendReplyMessage(replyToken, replyText);
+
+  if (result.pdfUrl) {
+    const quickReplies = [
+      {
+        type: 'action' as const,
+        action: 'uri' as const,
+        label: 'ชำระเงิน',
+        uri: result.pdfUrl,
+      },
+      {
+        type: 'action' as const,
+        action: 'message' as const,
+        label: 'ดูใบแจ้งหนี้',
+        text: 'ดูใบแจ้งหนี้',
+      },
+    ];
+
+    const invoiceData = {
+      roomNumber: result.roomNo!,
+      amount,
+      dueDate: result.dueDate!,
+      invoiceNumber: result.invoiceNumber!,
+      paymentLink: result.pdfUrl,
+    };
+    const flexContents = { type: 'carousel' as const, contents: [buildInvoiceFlex(invoiceData)] };
+    await sendFlexMessage(
+      userId,
+      `📊 ยอดค้าง ${result.invoiceNumber} — ห้อง ${result.roomNo}`,
+      flexContents,
+      {},
+      quickReplies
+    );
+  }
+
+  logger.info({ type: 'balance_inquiry_sent', userId, invoiceId: result.invoiceId, conversationId });
 }
 
 // ─── Main Webhook Handler ─────────────────────────────────────────────────────
@@ -240,6 +340,51 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     if (incoming.type === 'POSTBACK' && incoming.replyToken) {
       await handlePostback(incoming.content, incoming.replyToken, conversation.id);
       continue;
+    }
+
+    // ── Balance / invoice inquiry via text ───────────────────────────────────
+    if (incoming.type === 'TEXT' && incoming.replyToken) {
+      const text = (incoming.content || '').trim();
+      if (INQUIRY_TRIGGERS.some((t) => text === t || text.includes(t))) {
+        await handleBalanceInquiry(userId, incoming.replyToken, conversation.id);
+        continue;
+      }
+    }
+
+    // ── LINE Maintenance Request handling ──────────────────────────────────
+    // Check if user has an in-progress maintenance request
+    const hasMaintenanceRequest = getMaintenanceRequestState(userId) !== undefined;
+
+    if (incoming.type === 'TEXT' && incoming.replyToken) {
+      const text = (incoming.content || '').trim();
+
+      // Start maintenance request when user says "แจ้งซ่อม"
+      if (text === 'แจ้งซ่อม') {
+        const { replyText } = await startMaintenanceRequest(userId);
+        await sendReplyMessage(incoming.replyToken, replyText);
+        continue;
+      }
+
+      // Handle in-progress maintenance conversation
+      if (hasMaintenanceRequest) {
+        const result = await handleMaintenanceRequestMessage(userId, text);
+        if (result) {
+          await sendReplyMessage(incoming.replyToken, result.replyText);
+          continue;
+        }
+      }
+    }
+
+    // Handle image messages during a maintenance request flow
+    if (incoming.type === 'IMAGE' && incoming.replyToken) {
+      if (hasMaintenanceRequest) {
+        const imageMessageId = incoming.lineMessageId;
+        const result = await handleMaintenanceRequestImage(userId, imageMessageId);
+        if (result) {
+          await sendReplyMessage(incoming.replyToken, result.replyText);
+          continue;
+        }
+      }
     }
 
     // Deduplicate by lineMessageId

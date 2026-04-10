@@ -189,22 +189,22 @@ export default function AdminUsersSettingsPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
+      <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
         <div className="flex items-center gap-3">
           <Link
             href="/admin/settings"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm hover:bg-surface-container"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] shadow-sm hover:bg-[var(--surface-container)]"
           >
-            <ArrowLeft className="h-4 w-4 text-on-primary" />
+            <ArrowLeft className="h-4 w-4 text-[var(--on-primary)]" />
           </Link>
           <div>
-            <h1 className="text-xl font-semibold text-on-primary">ผู้ใช้แอดมิน</h1>
-            <p className="text-sm text-on-primary/80">
+            <h1 className="text-xl font-semibold text-[var(--on-primary)]">ผู้ใช้แอดมิน</h1>
+            <p className="text-sm text-[var(--on-primary)]/80">
               สร้างและจัดการบัญชีแอดมินและพนักงาน
             </p>
           </div>
         </div>
-        <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container mt-4" disabled={loading}>
+        <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] mt-4" disabled={loading}>
           {loading ? 'กำลังโหลด...' : 'รีเฟรช'}
         </button>
       </section>
@@ -232,28 +232,28 @@ export default function AdminUsersSettingsPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Users table */}
-        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden lg:col-span-2">
-          <div className="border-b border-outline-variant px-5 py-4">
+        <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden lg:col-span-2">
+          <div className="border-b border-[var(--outline-variant)] px-5 py-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-on-surface-variant" />
-                <div className="text-sm font-semibold text-on-surface">ผู้ใช้แอดมินทั้งหมด</div>
+                <Users className="h-4 w-4 text-[var(--on-surface-variant)]" />
+                <div className="text-sm font-semibold text-[var(--on-surface)]">ผู้ใช้แอดมินทั้งหมด</div>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{users.length} ผู้ใช้</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface)]">{users.length} ผู้ใช้</span>
             </div>
           </div>
 
           <div className="overflow-auto">
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="bg-surface-container">
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ชื่อผู้ใช้</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ชื่อที่แสดง</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">บทบาท</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รีเซ็ตรหัสผ่าน</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">อัปเดต</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สร้าง</th>
+                <tr className="bg-[var(--surface-container)]">
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ชื่อผู้ใช้</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ชื่อที่แสดง</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">บทบาท</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">สถานะ</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">รีเซ็ตรหัสผ่าน</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">อัปเดต</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">สร้าง</th>
                 </tr>
               </thead>
               <tbody>
@@ -262,31 +262,31 @@ export default function AdminUsersSettingsPage() {
                   Array.from({ length: 4 }).map((_, i) => (
                     <tr key={i}>
                       <td className="px-4 py-3">
-                        <div className="h-4 w-28 animate-pulse rounded bg-surface-container-lowest" />
+                        <div className="h-4 w-28 animate-pulse rounded bg-[var(--surface-container-lowest)]" />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="h-4 w-20 animate-pulse rounded bg-surface-container-lowest" />
+                        <div className="h-4 w-20 animate-pulse rounded bg-[var(--surface-container-lowest)]" />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="h-4 w-14 animate-pulse rounded bg-surface-container-lowest" />
+                        <div className="h-4 w-14 animate-pulse rounded bg-[var(--surface-container-lowest)]" />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-lowest" />
+                        <div className="h-4 w-24 animate-pulse rounded bg-[var(--surface-container-lowest)]" />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-lowest" />
+                        <div className="h-4 w-24 animate-pulse rounded bg-[var(--surface-container-lowest)]" />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-lowest" />
+                        <div className="h-4 w-24 animate-pulse rounded bg-[var(--surface-container-lowest)]" />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="h-4 w-24 animate-pulse rounded bg-surface-container-lowest" />
+                        <div className="h-4 w-24 animate-pulse rounded bg-[var(--surface-container-lowest)]" />
                       </td>
                     </tr>
                   ))
                 ) : users.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-on-surface-variant">
+                    <td colSpan={7} className="py-10 text-center text-[var(--on-surface-variant)]">
                       {apiUnavailable
                         ? 'ไม่สามารถดึงข้อมูลผู้ใช้ — API ไม่พร้อมใช้งาน'
                         : 'ไม่พบผู้ใช้แอดมิน'}
@@ -294,21 +294,21 @@ export default function AdminUsersSettingsPage() {
                   </tr>
                 ) : (
                   users.map((user) => (
-                    <tr key={user.id} className="border-b border-outline-variant/10 hover:bg-surface-container-lowest transition-colors">
+                    <tr key={user.id} className="border-b border-[var(--outline-variant)]/10 hover:bg-[var(--surface-container-lowest)] transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
                             {user.username.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <div className="font-medium text-on-surface">{user.username}</div>
+                            <div className="font-medium text-[var(--on-surface)]">{user.username}</div>
                             {user.email ? (
-                              <div className="text-xs text-on-surface-variant">{user.email}</div>
+                              <div className="text-xs text-[var(--on-surface-variant)]">{user.email}</div>
                             ) : null}
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-on-surface-variant">{user.displayName}</td>
+                      <td className="px-4 py-3 text-sm text-[var(--on-surface-variant)]">{user.displayName}</td>
                       <td className="px-4 py-3">
                         <span className={roleBadgeClass(user.role)}>
                           <Shield className="h-3 w-3" />
@@ -326,13 +326,13 @@ export default function AdminUsersSettingsPage() {
                           </span>
                       )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-on-surface-variant">
+                      <td className="px-4 py-3 text-sm text-[var(--on-surface-variant)]">
                         {user.pendingReset ? 'รอดำเนินการ' : 'ไม่มี'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-on-surface-variant">
+                      <td className="px-4 py-3 text-sm text-[var(--on-surface-variant)]">
                         {formatDate(user.updatedAt)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-on-surface-variant">
+                      <td className="px-4 py-3 text-sm text-[var(--on-surface-variant)]">
                         {formatDate(user.createdAt)}
                       </td>
                     </tr>
@@ -344,11 +344,11 @@ export default function AdminUsersSettingsPage() {
         </section>
 
         {/* Create user form */}
-        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 h-fit">
-          <div className="border-b border-outline-variant px-5 py-4">
+        <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 h-fit">
+          <div className="border-b border-[var(--outline-variant)] px-5 py-4">
             <div className="flex items-center gap-2">
-              <UserPlus className="h-4 w-4 text-on-surface-variant" />
-              <div className="text-sm font-semibold text-on-surface">สร้างผู้ใช้</div>
+              <UserPlus className="h-4 w-4 text-[var(--on-surface-variant)]" />
+              <div className="text-sm font-semibold text-[var(--on-surface)]">สร้างผู้ใช้</div>
             </div>
           </div>
 
@@ -358,12 +358,12 @@ export default function AdminUsersSettingsPage() {
             )}
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+              <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">
                 ชื่อผู้ใช้ <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
                 placeholder="เช่น manager01"
                 value={form.username}
                 onChange={(e) => field('username', e.target.value)}
@@ -373,12 +373,12 @@ export default function AdminUsersSettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+              <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">
                 ชื่อที่แสดง <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
                 placeholder="เช่น ผู้จัดการอาคาร"
                 value={form.displayName}
                 onChange={(e) => field('displayName', e.target.value)}
@@ -388,12 +388,12 @@ export default function AdminUsersSettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-on-surface">
-                อีเมล <span className="text-on-surface-variant font-normal">(ไม่บังคับ)</span>
+              <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">
+                อีเมล <span className="text-[var(--on-surface-variant)] font-normal">(ไม่บังคับ)</span>
               </label>
               <input
                 type="email"
-                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
                 placeholder="เช่น manager@example.com"
                 value={form.email}
                 onChange={(e) => field('email', e.target.value)}
@@ -402,14 +402,14 @@ export default function AdminUsersSettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+              <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">
                 รหัสผ่าน <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Key className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+                <Key className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--on-surface-variant)]" />
                 <input
                   type="password"
-                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 pl-9 text-sm text-on-surface"
+                  className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 pl-9 text-sm text-[var(--on-surface)]"
                   placeholder="อย่างน้อย 8 ตัวอักษร"
                   value={form.password}
                   onChange={(e) => field('password', e.target.value)}
@@ -421,11 +421,11 @@ export default function AdminUsersSettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+              <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">
                 บทบาท <span className="text-red-500">*</span>
               </label>
               <select
-                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
                 value={form.role}
                 onChange={(e) => field('role', e.target.value)}
               >
@@ -436,7 +436,7 @@ export default function AdminUsersSettingsPage() {
 
             <button
               type="submit"
-              className="mt-1 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
+              className="mt-1 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90"
               disabled={saving || apiUnavailable}
             >
               <UserPlus className="h-4 w-4" />
@@ -444,7 +444,7 @@ export default function AdminUsersSettingsPage() {
             </button>
 
             {apiUnavailable && (
-              <p className="text-center text-xs text-on-surface-variant">
+              <p className="text-center text-xs text-[var(--on-surface-variant)]">
                 ปิดใช้งาน — API ไม่พร้อมใช้งาน
               </p>
             )}

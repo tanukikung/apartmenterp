@@ -234,12 +234,12 @@ export default function AdminUsersClient() {
   if (loading) {
     return (
       <main className="space-y-6">
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
           <div className="relative flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-base font-semibold text-on-primary">การเข้าถึงของเจ้าของและพนักงาน</h1>
-              <p className="text-xs text-on-primary/80 mt-0.5">กำลังโหลดข้อมูลการควบคุมการเข้าถึง...</p>
+              <h1 className="text-base font-semibold text-[var(--on-primary)]">การเข้าถึงของเจ้าของและพนักงาน</h1>
+              <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">กำลังโหลดข้อมูลการควบคุมการเข้าถึง...</p>
             </div>
           </div>
         </div>
@@ -249,19 +249,19 @@ export default function AdminUsersClient() {
 
   return (
     <main className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-base font-semibold text-on-primary">การเข้าถึงของเจ้าของและพนักงาน</h1>
-            <p className="text-xs text-on-primary/80 mt-0.5">อนุมัติการลงทะเบียนของพนักงาน สร้างบัญชีโดยตรง และจัดการสถานะข้อมูลรับรอง</p>
+            <h1 className="text-base font-semibold text-[var(--on-primary)]">การเข้าถึงของเจ้าของและพนักงาน</h1>
+            <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">อนุมัติการลงทะเบียนของพนักงาน สร้างบัญชีโดยตรง และจัดการสถานะข้อมูลรับรอง</p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{stats.active} ใช้งาน</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{stats.owners} เจ้าของ</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{stats.pendingRequests} รอดำเนินการ</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{stats.pendingResets} รีเซ็ต</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{stats.forcedPasswordChange} ต้องเปลี่ยนรหัส</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface)]">{stats.active} ใช้งาน</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface)]">{stats.owners} เจ้าของ</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface)]">{stats.pendingRequests} รอดำเนินการ</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface)]">{stats.pendingResets} รีเซ็ต</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface)]">{stats.forcedPasswordChange} ต้องเปลี่ยนรหัส</span>
           </div>
         </div>
       </div>
@@ -270,48 +270,48 @@ export default function AdminUsersClient() {
       {error ? <div className="rounded-lg border border-red-500/30 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
       {resetLink ? (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <div className="text-sm font-semibold text-on-surface">ออกลิงก์รีเซ็ตสำหรับ {resetLink.username}</div>
-              <div className="text-sm text-on-surface-variant">หมดอายุ <ClientOnly fallback="-">{new Date(resetLink.expiresAt).toLocaleString('th-TH')}</ClientOnly></div>
+              <div className="text-sm font-semibold text-[var(--on-surface)]">ออกลิงก์รีเซ็ตสำหรับ {resetLink.username}</div>
+              <div className="text-sm text-[var(--on-surface-variant)]">หมดอายุ <ClientOnly fallback="-">{new Date(resetLink.expiresAt).toLocaleString('th-TH')}</ClientOnly></div>
             </div>
             <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-500 text-white px-4 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-emerald-600" onClick={() => navigator.clipboard.writeText(resetLink.url)}>
               คัดลอกลิงก์รีเซ็ต
             </button>
           </div>
-          <div className="mt-3 rounded-3xl border border-primary-container bg-primary-container/60 px-4 py-3 text-sm text-on-surface">{resetLink.url}</div>
+          <div className="mt-3 rounded-3xl border border-primary-container bg-[var(--primary-container)]/60 px-4 py-3 text-sm text-[var(--on-surface)]">{resetLink.url}</div>
         </div>
       ) : null}
 
       {pendingRequests.length > 0 ? (
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary shadow-lg">
-          <div className="border-b border-outline-variant/50 px-6 py-4">
-            <h2 className="text-base font-semibold text-on-primary">การลงทะเบียนพนักงานที่รอดำเนินการ</h2>
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] shadow-lg">
+          <div className="border-b border-[var(--outline-variant)]/50 px-6 py-4">
+            <h2 className="text-base font-semibold text-[var(--on-primary)]">การลงทะเบียนพนักงานที่รอดำเนินการ</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="border-b border-outline-variant">
-                  <th className="px-4 py-3 text-left font-medium text-on-surface">ผู้สมัคร</th>
-                  <th className="px-4 py-3 text-left font-medium text-on-surface">ขอเมื่อ</th>
-                  <th className="px-4 py-3 text-left font-medium text-on-surface">การตัดสินใจ</th>
+                <tr className="border-b border-[var(--outline-variant)]">
+                  <th className="px-4 py-3 text-left font-medium text-[var(--on-surface)]">ผู้สมัคร</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--on-surface)]">ขอเมื่อ</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--on-surface)]">การตัดสินใจ</th>
                 </tr>
               </thead>
               <tbody>
                 {pendingRequests.map((request) => (
-                  <tr key={request.id} className="border-b border-outline-variant/50">
+                  <tr key={request.id} className="border-b border-[var(--outline-variant)]/50">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-on-surface">{request.displayName}</div>
-                      <div className="text-xs text-on-surface-variant">{request.username}{request.email ? ` | ${request.email}` : ''}</div>
+                      <div className="font-medium text-[var(--on-surface)]">{request.displayName}</div>
+                      <div className="text-xs text-[var(--on-surface-variant)]">{request.username}{request.email ? ` | ${request.email}` : ''}</div>
                     </td>
-                    <td className="px-4 py-3 text-on-surface-variant"><ClientOnly fallback="-">{new Date(request.createdAt).toLocaleString('th-TH')}</ClientOnly></td>
+                    <td className="px-4 py-3 text-[var(--on-surface-variant)]"><ClientOnly fallback="-">{new Date(request.createdAt).toLocaleString('th-TH')}</ClientOnly></td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
                         <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-500 text-white px-4 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-emerald-600" onClick={() => void approveRequest(request)} disabled={working === `approve:${request.id}`}>
                           {working === `approve:${request.id}` ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
                         </button>
-                        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={() => void rejectRequest(request)} disabled={working === `reject:${request.id}`}>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]" onClick={() => void rejectRequest(request)} disabled={working === `reject:${request.id}`}>
                           {working === `reject:${request.id}` ? 'กำลังปฏิเสธ...' : 'ปฏิเสธ'}
                         </button>
                       </div>
@@ -325,35 +325,35 @@ export default function AdminUsersClient() {
       ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary shadow-lg">
-          <div className="border-b border-outline-variant/50 px-6 py-4">
-            <h2 className="text-base font-semibold text-on-primary">สร้างบัญชีโดยเจ้าของ</h2>
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] shadow-lg">
+          <div className="border-b border-[var(--outline-variant)]/50 px-6 py-4">
+            <h2 className="text-base font-semibold text-[var(--on-primary)]">สร้างบัญชีโดยเจ้าของ</h2>
           </div>
           <form className="grid gap-4 p-4" onSubmit={createUser}>
             <div>
-              <label className="mb-2 block text-sm font-medium text-on-surface">ชื่อที่แสดง</label>
-              <input className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface" value={createForm.displayName} onChange={(e) => setCreateForm((prev) => ({ ...prev, displayName: e.target.value }))} placeholder="พนักงานปฏิบัติการ" />
+              <label className="mb-2 block text-sm font-medium text-[var(--on-surface)]">ชื่อที่แสดง</label>
+              <input className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]" value={createForm.displayName} onChange={(e) => setCreateForm((prev) => ({ ...prev, displayName: e.target.value }))} placeholder="พนักงานปฏิบัติการ" />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-on-surface">ชื่อผู้ใช้</label>
-              <input className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface" value={createForm.username} onChange={(e) => setCreateForm((prev) => ({ ...prev, username: e.target.value }))} placeholder="ops.staff" />
+              <label className="mb-2 block text-sm font-medium text-[var(--on-surface)]">ชื่อผู้ใช้</label>
+              <input className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]" value={createForm.username} onChange={(e) => setCreateForm((prev) => ({ ...prev, username: e.target.value }))} placeholder="ops.staff" />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-on-surface">อีเมล</label>
-              <input className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface" value={createForm.email} onChange={(e) => setCreateForm((prev) => ({ ...prev, email: e.target.value }))} placeholder="staff@example.com" />
+              <label className="mb-2 block text-sm font-medium text-[var(--on-surface)]">อีเมล</label>
+              <input className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]" value={createForm.email} onChange={(e) => setCreateForm((prev) => ({ ...prev, email: e.target.value }))} placeholder="staff@example.com" />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-on-surface">บทบาท</label>
-              <select className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface" value={createForm.role} onChange={(e) => setCreateForm((prev) => ({ ...prev, role: e.target.value as 'ADMIN' | 'STAFF' }))}>
+              <label className="mb-2 block text-sm font-medium text-[var(--on-surface)]">บทบาท</label>
+              <select className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]" value={createForm.role} onChange={(e) => setCreateForm((prev) => ({ ...prev, role: e.target.value as 'ADMIN' | 'STAFF' }))}>
                 <option value="STAFF">พนักงาน</option>
                 <option value="ADMIN">เจ้าของ</option>
               </select>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-on-surface">รหัสผ่านชั่วคราว</label>
-              <input className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface" type="password" value={createForm.password} onChange={(e) => setCreateForm((prev) => ({ ...prev, password: e.target.value }))} placeholder="อย่างน้อย 8 ตัวอักษร" />
+              <label className="mb-2 block text-sm font-medium text-[var(--on-surface)]">รหัสผ่านชั่วคราว</label>
+              <input className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]" type="password" value={createForm.password} onChange={(e) => setCreateForm((prev) => ({ ...prev, password: e.target.value }))} placeholder="อย่างน้อย 8 ตัวอักษร" />
             </div>
-            <div className="rounded-3xl border border-primary-container bg-primary-container px-4 py-3 text-sm text-on-surface">
+            <div className="rounded-3xl border border-primary-container bg-[var(--primary-container)] px-4 py-3 text-sm text-[var(--on-surface)]">
               บัญชีที่สร้างใหม่จะถูกบังคับให้เปลี่ยนรหัสผ่านชั่วคราวนี้เมื่อเข้าสู่ระบบครั้งแรก
             </div>
             <button className="inline-flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-500 text-white px-4 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-emerald-600" disabled={working === 'create-user'}>
@@ -362,48 +362,48 @@ export default function AdminUsersClient() {
           </form>
         </div>
 
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary shadow-lg">
-          <div className="border-b border-outline-variant/50 px-6 py-4">
-            <h2 className="text-base font-semibold text-on-primary">บัญชีที่อนุมัติแล้ว</h2>
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] shadow-lg">
+          <div className="border-b border-[var(--outline-variant)]/50 px-6 py-4">
+            <h2 className="text-base font-semibold text-[var(--on-primary)]">บัญชีที่อนุมัติแล้ว</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="border-b border-outline-variant">
-                  <th className="px-4 py-3 text-left font-medium text-on-surface">ผู้ใช้</th>
-                  <th className="px-4 py-3 text-left font-medium text-on-surface">บทบาท</th>
-                  <th className="px-4 py-3 text-left font-medium text-on-surface">สถานะ</th>
-                  <th className="px-4 py-3 text-left font-medium text-on-surface">สถานะรหัสผ่าน</th>
-                  <th className="px-4 py-3 text-left font-medium text-on-surface">รีเซ็ต</th>
-                  <th className="px-4 py-3 text-left font-medium text-on-surface">การดำเนินการ</th>
+                <tr className="border-b border-[var(--outline-variant)]">
+                  <th className="px-4 py-3 text-left font-medium text-[var(--on-surface)]">ผู้ใช้</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--on-surface)]">บทบาท</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--on-surface)]">สถานะ</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--on-surface)]">สถานะรหัสผ่าน</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--on-surface)]">รีเซ็ต</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--on-surface)]">การดำเนินการ</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((user) => (
-                  <tr key={user.id} className="border-b border-outline-variant/50">
+                  <tr key={user.id} className="border-b border-[var(--outline-variant)]/50">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-on-surface">{user.displayName}</div>
-                      <div className="text-xs text-on-surface-variant">{user.username}{user.email ? ` | ${user.email}` : ''}</div>
+                      <div className="font-medium text-[var(--on-surface)]">{user.displayName}</div>
+                      <div className="text-xs text-[var(--on-surface-variant)]">{user.username}{user.email ? ` | ${user.email}` : ''}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <select className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface" value={user.role} onChange={(e) => void patchUser(user, { role: e.target.value })} disabled={working === user.id}>
+                      <select className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]" value={user.role} onChange={(e) => void patchUser(user, { role: e.target.value })} disabled={working === user.id}>
                         <option value="ADMIN">เจ้าของ</option>
                         <option value="STAFF">พนักงาน</option>
                       </select>
                     </td>
                     <td className="px-4 py-3">
-                      <button type="button" className={`inline-flex items-center gap-2 rounded-lg border ${user.isActive ? 'border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container' : 'border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container'}`} onClick={() => void patchUser(user, { isActive: !user.isActive })} disabled={working === user.id}>
+                      <button type="button" className={`inline-flex items-center gap-2 rounded-lg border ${user.isActive ? 'border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]' : 'border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]'}`} onClick={() => void patchUser(user, { isActive: !user.isActive })} disabled={working === user.id}>
                         {user.isActive ? 'ใช้งาน' : 'ไม่ใช้งาน'}
                       </button>
                     </td>
                     <td className="px-4 py-3">
-                      <div className={`inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface ${user.forcePasswordChange ? 'bg-amber-100 text-amber-700' : ''}`}>
+                      <div className={`inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface)] ${user.forcePasswordChange ? 'bg-amber-100 text-amber-700' : ''}`}>
                         {user.forcePasswordChange ? 'รหัสผ่านชั่วคราว' : 'เป็นปัจจุบัน'}
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       {user.pendingReset ? (
-                        <div className="text-xs text-on-surface-variant">รอดำเนินการถึง <ClientOnly fallback="-">{new Date(user.pendingReset.expiresAt).toLocaleString('th-TH')}</ClientOnly></div>
+                        <div className="text-xs text-[var(--on-surface-variant)]">รอดำเนินการถึง <ClientOnly fallback="-">{new Date(user.pendingReset.expiresAt).toLocaleString('th-TH')}</ClientOnly></div>
                       ) : (
                         <div className="text-xs text-outline-variant">ไม่มีลิงก์รีเซ็ตที่ใช้งานอยู่</div>
                       )}
@@ -412,7 +412,7 @@ export default function AdminUsersClient() {
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+                          className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
                           onClick={() => {
                             const nextName = window.prompt('อัปเดตชื่อที่แสดง', user.displayName);
                             if (nextName && nextName !== user.displayName) {
@@ -425,7 +425,7 @@ export default function AdminUsersClient() {
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+                          className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
                           onClick={() => {
                             const nextPassword = window.prompt('ตั้งรหัสผ่านชั่วคราวใหม่ (อย่างน้อย 8 ตัวอักษร)');
                             if (nextPassword && nextPassword.length >= 8) {
@@ -440,7 +440,7 @@ export default function AdminUsersClient() {
                           {working === `reset:${user.id}` ? 'กำลังออกลิงก์...' : 'ออกลิงก์รีเซ็ต'}
                         </button>
                         {user.pendingReset ? (
-                          <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={() => void revokeReset(user)} disabled={working === `revoke:${user.id}`}>
+                          <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]" onClick={() => void revokeReset(user)} disabled={working === `revoke:${user.id}`}>
                             {working === `revoke:${user.id}` ? 'กำลังเพิกถอน...' : 'เพิกถอนรีเซ็ต'}
                           </button>
                         ) : null}

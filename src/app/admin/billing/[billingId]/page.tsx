@@ -225,11 +225,11 @@ function StatCard({
   iconColor: string;
 }) {
   return (
-    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+    <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</div>
-          <div className="text-xl font-semibold text-on-surface mt-0.5">{value}</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">{label}</div>
+          <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{value}</div>
         </div>
         <div
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border shadow-sm ${iconBg} ${iconColor}`}
@@ -305,14 +305,14 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
   return (
     <div className="overflow-auto">
       <table className="w-full text-sm text-left">
-        <thead className="bg-surface-container">
+        <thead className="bg-[var(--surface-container)]">
           <tr>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant" />
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ผู้เช่า</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รายการ</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ยอดรวม</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
+            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]" />
+            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้อง</th>
+            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ผู้เช่า</th>
+            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">รายการ</th>
+            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ยอดรวม</th>
+            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">สถานะ</th>
           </tr>
         </thead>
         <tbody>
@@ -518,7 +518,7 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
           <button
             onClick={() => void sendAllUnsent()}
             disabled={sendingAll}
-            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-primary text-[var(--on-primary)] hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors"
           >
             <Send className="h-4 w-4" />
             {sendingAll ? 'Sending...' : 'Send All Unsent'}
@@ -534,16 +534,16 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
       ) : (
         <div className="overflow-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-surface-container">
+            <thead className="bg-[var(--surface-container)]">
               <tr>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รหัสใบแจ้งหนี้</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ผู้เช่า</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">จำนวน</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">วันครบกำหนด</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ส่งเมื่อ</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">การดำเนินการ</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">รหัสใบแจ้งหนี้</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้อง</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ผู้เช่า</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">จำนวน</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">วันครบกำหนด</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">สถานะ</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ส่งเมื่อ</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">การดำเนินการ</th>
               </tr>
             </thead>
             <tbody>
@@ -552,7 +552,7 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
                   <td>
                     <Link
                       href={`/admin/invoices/${inv.id}`}
-                      className="font-mono text-xs text-primary hover:underline" title={inv.id}
+                      className="font-mono text-xs text-[var(--primary)] hover:underline" title={inv.id}
                     >
                       {inv.id.slice(0, 8)}…
                     </Link>
@@ -689,12 +689,12 @@ function BatchTab({ batchId }: { batchId: string }) {
       ) : (
         <div className="overflow-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-surface-container">
+            <thead className="bg-[var(--surface-container)]">
               <tr>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">#</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">การตรวจสอบ</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ข้อผิดพลาด</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">#</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้อง</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">การตรวจสอบ</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ข้อผิดพลาด</th>
               </tr>
             </thead>
             <tbody>
@@ -794,7 +794,7 @@ export default function BillingCycleDetailPage() {
   if (loading) {
     return (
       <main className="space-y-6">
-        <div className="py-16 text-center text-sm text-on-surface-variant">กำลังโหลดรอบบิล...</div>
+        <div className="py-16 text-center text-sm text-[var(--on-surface-variant)]">กำลังโหลดรอบบิล...</div>
       </main>
     );
   }
@@ -803,22 +803,22 @@ export default function BillingCycleDetailPage() {
   if (notFound || (!loading && !cycle)) {
     return (
       <main className="space-y-6">
-        <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-          <Link href="/admin/billing" className="hover:text-primary transition-colors">
+        <nav className="flex items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
+          <Link href="/admin/billing" className="hover:text-[var(--primary)] transition-colors">
             Billing
           </Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <span className="font-medium text-on-surface">ไม่พบ</span>
+          <span className="font-medium text-[var(--on-surface)]">ไม่พบ</span>
         </nav>
-        <div className="flex flex-col items-center gap-4 rounded-3xl border border-outline-variant/10 bg-surface-container-lowest py-20 text-center">
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)] py-20 text-center">
           <AlertTriangle className="h-12 w-12 text-tertiary" />
           <div>
-            <h2 className="text-lg font-semibold text-on-surface">ไม่พบรอบบิล</h2>
+            <h2 className="text-lg font-semibold text-[var(--on-surface)]">ไม่พบรอบบิล</h2>
             <p className="mt-1 text-sm text-slate-500">
               ไม่พบรอบบิลหรือใบแจ้งหนี้ที่มี ID <code className="font-mono text-xs">{billingId}</code>
             </p>
           </div>
-          <Link href="/admin/billing" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors mt-2">
+          <Link href="/admin/billing" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-primary text-[var(--on-primary)] hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors mt-2">
             <ArrowLeft className="h-4 w-4" />
             Back to Billing
           </Link>
@@ -837,26 +837,26 @@ export default function BillingCycleDetailPage() {
   return (
     <main className="space-y-6">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-        <Link href="/admin/billing" className="hover:text-primary transition-colors">
+      <nav className="flex items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
+        <Link href="/admin/billing" className="hover:text-[var(--primary)] transition-colors">
           Billing
         </Link>
         <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-        <span className="font-medium text-on-surface">{cycleLabel}</span>
+        <span className="font-medium text-[var(--on-surface)]">{cycleLabel}</span>
       </nav>
 
       {/* Page header */}
-      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
+      <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
         <div className="flex items-center gap-4">
           <Link
             href="/admin/billing"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-colors hover:border-primary/30 hover:bg-surface-container"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] shadow-sm transition-colors hover:border-[var(--primary)]/30 hover:bg-[var(--surface-container)]"
           >
-            <ArrowLeft className="h-4 w-4 text-on-primary" />
+            <ArrowLeft className="h-4 w-4 text-[var(--on-primary)]" />
           </Link>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold text-on-primary">{cycleLabel}</h1>
+              <h1 className="text-xl font-semibold text-[var(--on-primary)]">{cycleLabel}</h1>
               {cycle?.status && (
                 <span
                   className={`inline-flex items-center rounded-full border px-3 py-0.5 text-xs font-semibold ${cycleBadgeClass(cycle.status as CycleStatus)}`}
@@ -865,10 +865,10 @@ export default function BillingCycleDetailPage() {
                 </span>
               )}
             </div>
-            <p className="text-sm text-on-primary/80">
+            <p className="text-sm text-[var(--on-primary)]/80">
               {building}
               {batchId && (
-                <span className="ml-2 font-mono text-xs text-on-primary/60">
+                <span className="ml-2 font-mono text-xs text-[var(--on-primary)]/60">
                   Batch: {batchId.slice(0, 8)}…
                 </span>
               )}
@@ -878,7 +878,7 @@ export default function BillingCycleDetailPage() {
         <div className="flex items-center gap-2 mt-4">
           <button
             onClick={() => void load()}
-            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
           >
             <RefreshCw className="h-4 w-4" />
             Refresh
@@ -1014,9 +1014,9 @@ export default function BillingCycleDetailPage() {
       </section>
 
       {/* Tabs + content */}
-      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
         {/* Tab bar */}
-        <div className="flex border-b border-outline-variant px-4">
+        <div className="flex border-b border-[var(--outline-variant)] px-4">
           <TabButton active={activeTab === 'records'} onClick={() => setActiveTab('records')}>
             <Hash className="h-4 w-4" />
             รายการ

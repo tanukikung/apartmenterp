@@ -1,0 +1,1385 @@
+'use client';
+
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useToast } from '@/components/providers/ToastProvider';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import {
+  Search,
+  Plus,
+  X,
+  ChevronRight,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  RefreshCw,
+  Send,
+  ArrowLeft,
+  Trash2,
+  Calculator,
+  Eye,
+} from 'lucide-react';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type MoveOutStatus = 'PENDING' | 'INSPECTION_DONE' | 'DEPOSIT_CALCULATED' | 'CONFIRMED' | 'REFUNDED' | 'CANCELLED';
+
+interface MoveOutItemRecord {
+  id: string;
+  moveOutId: string;
+  category: string;
+  item: string;
+  condition: 'GOOD' | 'FAIR' | 'DAMAGED' | 'MISSING';
+  cost: number;
+  notes: string | null;
+}
+
+interface MoveOutRecord {
+  id: string;
+  contractId: string;
+  moveOutDate: string;
+  depositAmount: number;
+  totalDeduction: number;
+  finalRefund: number;
+  status: MoveOutStatus;
+  notes: string | null;
+  lineNoticeSentAt: string | null;
+  confirmedAt: string | null;
+  confirmedBy: string | null;
+  refundAt: string | null;
+  refundBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  contract?: {
+    id: string;
+    roomNo: string;
+    monthlyRent: number;
+    deposit: number | null;
+    status: string;
+    primaryTenant?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      fullName: string;
+      phone: string;
+      lineUserId: string | null;
+    };
+  };
+  items: MoveOutItemRecord[];
+}
+
+interface MoveOutListResponse {
+  data: MoveOutRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+interface ContractOption {
+  id: string;
+  roomNo: string;
+  tenantName: string;
+  deposit: number;
+  status: string;
+}
+
+type PanelMode = 'none' | 'new' | 'detail';
+
+const EMPTY_NEW_FORM = {
+  contractId: '',
+  moveOutDate: '',
+  notes: '',
+};
+
+const EMPTY_DEDUCTION_FORM = {
+  cleaningFee: '0',
+  damageRepairCost: '0',
+  otherDeductions: '0',
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmtDate(d: string | Date | null | undefined): string {
+  if (!d) return '—';
+  const date = typeof d === 'string' ? new Date(d) : d;
+  return date.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function fmtMoney(n: number): string {
+  return n.toLocaleString('th-TH', { minimumFractionDigits: 0 }) + ' ฿';
+}
+
+function resolveStatusVariant(status: MoveOutStatus): 'pending' | 'inspection' | 'calculated' | 'confirmed' | 'refunded' | 'cancelled' {
+  const map: Record<MoveOutStatus, 'pending' | 'inspection' | 'calculated' | 'confirmed' | 'refunded' | 'cancelled'> = {
+    PENDING: 'pending',
+    INSPECTION_DONE: 'inspection',
+    DEPOSIT_CALCULATED: 'calculated',
+    CONFIRMED: 'confirmed',
+    REFUNDED: 'refunded',
+    CANCELLED: 'cancelled',
+  };
+  return map[status];
+}
+
+// ─── Status Badge ─────────────────────────────────────────────────────────────
+
+function StatusBadge({ status }: { status: MoveOutStatus }) {
+  const cfg = {
+    pending: { label: 'รอดำเนินการ', cls: 'bg-gray-100 text-gray-700 border-gray-200', Icon: Clock },
+    inspection: { label: 'ตรวจสอบแล้ว', cls: 'bg-blue-100 text-blue-700 border-blue-200', Icon: Eye },
+    calculated: { label: 'คำนวณแล้ว', cls: 'bg-amber-100 text-amber-700 border-amber-200', Icon: Calculator },
+    confirmed: { label: 'ยืนยันแล้ว', cls: 'bg-indigo-100 text-indigo-700 border-indigo-200', Icon: CheckCircle2 },
+    refunded: { label: 'คืนเงินแล้ว', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200', Icon: CheckCircle2 },
+    cancelled: { label: 'ยกเลิก', cls: 'bg-red-100 text-red-700 border-red-200', Icon: XCircle },
+  }[resolveStatusVariant(status)];
+
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold border ${cfg.cls}`}>
+      <cfg.Icon size={10} />
+      {cfg.label}
+    </span>
+  );
+}
+
+// ─── KPI Card ─────────────────────────────────────────────────────────────────
+
+function KpiCard({
+  label,
+  value,
+  sub,
+  color,
+  icon: Icon,
+}: {
+  label: string;
+  value: number | string;
+  sub?: string;
+  color: string;
+  icon: React.ElementType;
+}) {
+  return (
+    <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 flex items-center gap-4 py-4 px-5">
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${color}`}>
+        <Icon size={20} className="text-white" strokeWidth={2} />
+      </div>
+      <div className="min-w-0">
+        <div className="text-[11px] font-medium uppercase tracking-wider text-[var(--on-surface-variant)]">{label}</div>
+        <div className="text-2xl font-bold text-[var(--on-surface)] leading-tight">{value}</div>
+        {sub && <div className="text-[11px] text-[var(--on-surface-variant)] mt-0.5">{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function AdminMoveOutsPage() {
+  const { toast } = useToast();
+
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description?: string;
+    dangerous?: boolean;
+    onConfirm: () => void;
+  }>({ open: false, title: '', onConfirm: () => {} });
+
+  // Data state
+  const [moveOuts, setMoveOuts] = useState<MoveOutRecord[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filter / search state
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [page, setPage] = useState(1);
+
+  // Panel state
+  const [panelMode, setPanelMode] = useState<PanelMode>('none');
+  const [selectedMoveOut, setSelectedMoveOut] = useState<MoveOutRecord | null>(null);
+
+  // Form state — new move-out
+  const [newForm, setNewForm] = useState({ ...EMPTY_NEW_FORM });
+  const [newSaving, setNewSaving] = useState(false);
+  const [newError, setNewError] = useState<string | null>(null);
+
+  // Form state — deduction calculation
+  const [deductionForm, setDeductionForm] = useState({ ...EMPTY_DEDUCTION_FORM });
+  const [calculating, setCalculating] = useState(false);
+  const [calcError, setCalcError] = useState<string | null>(null);
+
+  // Form state — inspection item
+  const [newItemForm, setNewItemForm] = useState({
+    category: 'wall',
+    item: '',
+    condition: 'GOOD' as 'GOOD' | 'FAIR' | 'DAMAGED' | 'MISSING',
+    cost: '0',
+    notes: '',
+  });
+  const [itemSaving, setItemSaving] = useState(false);
+
+  // Contract options for new move-out form
+  const [contracts, setContracts] = useState<ContractOption[]>([]);
+  const [contractsLoading, setContractsLoading] = useState(false);
+
+  // ── Load move-outs ──────────────────────────────────────────────────────────
+
+  const loadMoveOuts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: '50',
+      });
+      if (filterStatus) {
+        params.set('status', filterStatus);
+      }
+      const res = await fetch(`/api/moveouts?${params}`);
+      if (!res.ok) throw new Error(`ไม่สำเร็จ: รหัส ${res.status}`);
+      const json: { success: boolean; data: MoveOutListResponse } = await res.json();
+      if (!json.success) throw new Error('API ส่งคืนข้อผิดพลาด');
+      setMoveOuts(json.data.data);
+      setTotal(json.data.total);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'ไม่สามารถโหลดข้อมูลการย้ายออก');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, filterStatus]);
+
+  useEffect(() => {
+    void loadMoveOuts();
+  }, [loadMoveOuts]);
+
+  // ── Load contracts for "New" form ───────────────────────────────────────────
+
+  const loadContracts = useCallback(async () => {
+    setContractsLoading(true);
+    try {
+      const res = await fetch('/api/contracts?status=ACTIVE&pageSize=300');
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.success) {
+        const contractsData = json.data.data.map((c: { id: string; roomNo: string; depositAmount: number; status: string; primaryTenant?: { fullName: string } }) => ({
+          id: c.id,
+          roomNo: c.roomNo,
+          tenantName: c.primaryTenant?.fullName || 'ไม่ระบุ',
+          deposit: c.depositAmount,
+          status: c.status,
+        }));
+        setContracts(contractsData);
+      }
+    } catch {
+      // non-critical
+    } finally {
+      setContractsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (panelMode === 'new') void loadContracts();
+  }, [panelMode, loadContracts]);
+
+  // ── Derived / computed ──────────────────────────────────────────────────────
+
+  const filteredMoveOuts = useMemo(() => {
+    let list = moveOuts;
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(
+        (m) =>
+          m.contract?.roomNo.toLowerCase().includes(q) ||
+          m.contract?.primaryTenant?.fullName.toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  }, [moveOuts, search]);
+
+  const kpis = useMemo(() => {
+    const all = moveOuts;
+    const pending = all.filter((m) => m.status === 'PENDING');
+    const confirmed = all.filter((m) => m.status === 'CONFIRMED');
+    const refunded = all.filter((m) => m.status === 'REFUNDED');
+    const totalRefund = all.reduce((sum, m) => sum + m.finalRefund, 0);
+    return {
+      total: total,
+      pending: pending.length,
+      confirmed: confirmed.length,
+      refunded: refunded.length,
+      totalRefund,
+    };
+  }, [moveOuts]);
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+
+  function openNew() {
+    setNewForm({ ...EMPTY_NEW_FORM });
+    setNewError(null);
+    setPanelMode('new');
+    setSelectedMoveOut(null);
+  }
+
+  async function openDetail(m: MoveOutRecord) {
+    setSelectedMoveOut(m);
+    setPanelMode('detail');
+    // Reset deduction form
+    const totalExistingDeduction = m.items.reduce((sum, item) => sum + item.cost, 0);
+    setDeductionForm({
+      cleaningFee: m.items.find((i) => i.category === 'cleaning')?.cost.toString() || '0',
+      damageRepairCost: m.items.find((i) => i.category === 'damage')?.cost.toString() || '0',
+      otherDeductions: m.items.find((i) => i.category === 'other')?.cost.toString() || '0',
+    });
+    // Refresh data from server
+    try {
+      const res = await fetch(`/api/moveouts/${m.id}`);
+      if (res.ok) {
+        const json = await res.json();
+        setSelectedMoveOut(json.data);
+      }
+    } catch {
+      // Use cached data
+    }
+  }
+
+  function closePanel() {
+    setPanelMode('none');
+    setSelectedMoveOut(null);
+    setNewError(null);
+    setCalcError(null);
+  }
+
+  async function handleNewSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setNewSaving(true);
+    setNewError(null);
+    try {
+      const body = {
+        contractId: newForm.contractId,
+        moveOutDate: new Date(newForm.moveOutDate).toISOString(),
+        notes: newForm.notes || undefined,
+      };
+      const res = await fetch('/api/moveouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+      }
+      closePanel();
+      void loadMoveOuts();
+    } catch (err) {
+      setNewError(err instanceof Error ? err.message : 'ไม่สามารถสร้างการย้ายออก');
+    } finally {
+      setNewSaving(false);
+    }
+  }
+
+  async function handleCalculate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedMoveOut) return;
+    setCalculating(true);
+    setCalcError(null);
+    try {
+      const body = {
+        cleaningFee: parseFloat(deductionForm.cleaningFee) || 0,
+        damageRepairCost: parseFloat(deductionForm.damageRepairCost) || 0,
+        otherDeductions: parseFloat(deductionForm.otherDeductions) || 0,
+      };
+      const res = await fetch(`/api/moveouts/${selectedMoveOut.id}/calculate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+      }
+      setSelectedMoveOut(json.data);
+      void loadMoveOuts();
+    } catch (err) {
+      setCalcError(err instanceof Error ? err.message : 'ไม่สามารถคำนวณมัดจำ');
+    } finally {
+      setCalculating(false);
+    }
+  }
+
+  async function handleAddItem(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedMoveOut) return;
+    setItemSaving(true);
+    try {
+      const body = {
+        category: newItemForm.category,
+        item: newItemForm.item,
+        condition: newItemForm.condition,
+        cost: parseFloat(newItemForm.cost) || 0,
+        notes: newItemForm.notes || undefined,
+      };
+      const res = await fetch(`/api/moveouts/${selectedMoveOut.id}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+      }
+      // Refresh detail
+      const detailRes = await fetch(`/api/moveouts/${selectedMoveOut.id}`);
+      if (detailRes.ok) {
+        const detailJson = await detailRes.json();
+        setSelectedMoveOut(detailJson.data);
+      }
+      // Reset form
+      setNewItemForm({
+        category: 'wall',
+        item: '',
+        condition: 'GOOD',
+        cost: '0',
+        notes: '',
+      });
+      void loadMoveOuts();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'ไม่สามารถเพิ่มรายการ', 'error');
+    } finally {
+      setItemSaving(false);
+    }
+  }
+
+  async function handleDeleteItem(itemId: string) {
+    if (!selectedMoveOut) return;
+    setConfirmDialog({
+      open: true,
+      title: 'ลบรายการ',
+      description: 'ต้องการลบรายการนี้?',
+      dangerous: true,
+      onConfirm: async () => {
+        setConfirmDialog((p) => ({ ...p, open: false }));
+        try {
+          const res = await fetch(`/api/moveouts/${selectedMoveOut!.id}/items/${itemId}`, {
+            method: 'DELETE',
+          });
+          if (!res.ok) {
+            const json = await res.json();
+            throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+          }
+          const detailRes = await fetch(`/api/moveouts/${selectedMoveOut!.id}`);
+          if (detailRes.ok) {
+            const detailJson = await detailRes.json();
+            setSelectedMoveOut(detailJson.data);
+          }
+          void loadMoveOuts();
+        } catch (err) {
+          toast(err instanceof Error ? err.message : 'ไม่สามารถลบรายการ', 'error');
+        }
+      },
+    });
+  }
+
+  async function handleConfirm() {
+    if (!selectedMoveOut) return;
+    setConfirmDialog({
+      open: true,
+      title: 'ยืนยันการย้ายออก',
+      description: 'ยืนยันการย้ายออก?',
+      onConfirm: async () => {
+        setConfirmDialog((p) => ({ ...p, open: false }));
+        try {
+          const res = await fetch(`/api/moveouts/${selectedMoveOut!.id}/confirm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+          });
+          const json = await res.json();
+          if (!res.ok || !json.success) {
+            throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+          }
+          setSelectedMoveOut(json.data);
+          void loadMoveOuts();
+        } catch (err) {
+          toast(err instanceof Error ? err.message : 'ไม่สามารถยืนยันการย้ายออก', 'error');
+        }
+      },
+    });
+  }
+
+  async function handleRefund() {
+    if (!selectedMoveOut) return;
+    setConfirmDialog({
+      open: true,
+      title: 'ยืนยันการคืนเงินมัดจำ',
+      description: 'ยืนยันการคืนเงินมัดจำ?',
+      onConfirm: async () => {
+        setConfirmDialog((p) => ({ ...p, open: false }));
+        try {
+          const res = await fetch(`/api/moveouts/${selectedMoveOut!.id}/refund`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+          });
+          const json = await res.json();
+          if (!res.ok || !json.success) {
+            throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+          }
+          setSelectedMoveOut(json.data);
+          void loadMoveOuts();
+        } catch (err) {
+          toast(err instanceof Error ? err.message : 'ไม่สามารถบันทึกการคืนเงิน', 'error');
+        }
+      },
+    });
+  }
+
+  async function handleCancel() {
+    if (!selectedMoveOut) return;
+    setConfirmDialog({
+      open: true,
+      title: 'ยกเลิกการย้ายออก',
+      description: 'ต้องการยกเลิกการย้ายออก?',
+      dangerous: true,
+      onConfirm: async () => {
+        setConfirmDialog((p) => ({ ...p, open: false }));
+        try {
+          const res = await fetch(`/api/moveouts/${selectedMoveOut!.id}/cancel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+          });
+          const json = await res.json();
+          if (!res.ok || !json.success) {
+            throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+          }
+          closePanel();
+          void loadMoveOuts();
+        } catch (err) {
+          toast(err instanceof Error ? err.message : 'ไม่สามารถยกเลิกการย้ายออก', 'error');
+        }
+      },
+    });
+  }
+
+  async function handleSendNotice() {
+    if (!selectedMoveOut) return;
+    try {
+      const res = await fetch(`/api/moveouts/${selectedMoveOut.id}/send-notice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+      }
+      toast('ส่งการแจ้งเตือนไปยัง LINE เรียบร้อยแล้ว', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'ไม่สามารถส่งการแจ้งเตือน', 'error');
+    }
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="flex min-h-0 flex-1">
+      {/* ── Main content ─────────────────────────────────────────── */}
+      <main
+        className={`space-y-6 flex-1 min-w-0 transition-all duration-200 ${
+          panelMode !== 'none' ? 'mr-0 xl:mr-[420px]' : ''
+        }`}
+      >
+        {/* Header */}
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
+                <ArrowLeft size={20} className="text-white" strokeWidth={2} />
+              </div>
+              <div>
+                <h1 className="text-base font-semibold text-[var(--on-primary)]">การย้ายออก</h1>
+                <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">จัดการข้อมูลการย้ายออกและคืนเงินมัดจำ</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
+                onClick={() => void loadMoveOuts()}
+                title="Refresh"
+              >
+                <RefreshCw size={13} />
+                รีเฟรช
+              </button>
+              <button
+                className="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
+                onClick={openNew}
+              >
+                <Plus size={14} strokeWidth={2.5} />
+                บันทึกย้ายออกใหม่
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI Row */}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5 mb-1">
+          <KpiCard
+            label="ทั้งหมด"
+            value={kpis.total}
+            sub="รายการ"
+            color="bg-indigo-500"
+            icon={Clock}
+          />
+          <KpiCard
+            label="รอดำเนินการ"
+            value={kpis.pending}
+            sub="รอตรวจสอบ"
+            color="bg-gray-500"
+            icon={Clock}
+          />
+          <KpiCard
+            label="ยืนยันแล้ว"
+            value={kpis.confirmed}
+            sub="รอคืนเงิน"
+            color="bg-amber-500"
+            icon={CheckCircle2}
+          />
+          <KpiCard
+            label="คืนเงินแล้ว"
+            value={kpis.refunded}
+            sub="เสร็จสิ้น"
+            color="bg-emerald-500"
+            icon={CheckCircle2}
+          />
+          <KpiCard
+            label="รวมคืนเงิน"
+            value={fmtMoney(kpis.totalRefund)}
+            sub="จำนวนเงิน"
+            color="bg-teal-500"
+            icon={Calculator}
+          />
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-2 mb-4 mt-4">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)]" />
+            <input
+              className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 pl-8"
+              placeholder="ค้นหาหมายเลขห้องหรือชื่อผู้เช่า..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <select
+            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">ทุกสถานะ</option>
+            <option value="PENDING">รอดำเนินการ</option>
+            <option value="INSPECTION_DONE">ตรวจสอบแล้ว</option>
+            <option value="DEPOSIT_CALCULATED">คำนวณแล้ว</option>
+            <option value="CONFIRMED">ยืนยันแล้ว</option>
+            <option value="REFUNDED">คืนเงินแล้ว</option>
+            <option value="CANCELLED">ยกเลิก</option>
+          </select>
+        </div>
+
+        {/* Error banner */}
+        {error && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm font-medium text-[var(--on-error-container)]">
+            <AlertCircle size={15} />
+            {error}
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="bg-[var(--surface-container)]">
+                  <th className="pl-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้อง</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ผู้เช่า</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">วันที่ย้ายออก</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">มัดจำ</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">หัก</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">คืนเงิน</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">สถานะ</th>
+                  <th className="pr-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] text-right">การดำเนินการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i}>
+                      {Array.from({ length: 8 }).map((__, j) => (
+                        <td key={j}>
+                          <div className="h-4 rounded bg-[var(--surface-container)] animate-pulse" style={{ width: `${70 + (i * 13 + j * 17) % 25}%` }} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : filteredMoveOuts.length === 0 ? (
+                  <tr>
+                    <td colSpan={8}>
+                      <EmptyState onNew={openNew} hasFilter={!!search || !!filterStatus} />
+                    </td>
+                  </tr>
+                ) : (
+                  filteredMoveOuts.map((m) => (
+                    <tr
+                      key={m.id}
+                      className={`hover:bg-[var(--surface-container-lowest)] cursor-pointer ${selectedMoveOut?.id === m.id && panelMode === 'detail' ? 'ring-2 ring-inset ring-primary' : ''}`}
+                      onClick={() => openDetail(m)}
+                    >
+                      <td className="pl-4 font-semibold text-[var(--on-surface)]">{m.contract?.roomNo ?? '—'}</td>
+                      <td className="text-[var(--on-surface)]">
+                        <div className="font-medium">{m.contract?.primaryTenant?.fullName ?? '—'}</div>
+                        {m.contract?.primaryTenant?.phone && (
+                          <div className="text-[11px] text-[var(--on-surface-variant)]">{m.contract.primaryTenant.phone}</div>
+                        )}
+                      </td>
+                      <td className="text-[var(--on-surface)]">{fmtDate(m.moveOutDate)}</td>
+                      <td className="text-[var(--on-surface)]">{fmtMoney(m.depositAmount)}</td>
+                      <td className="text-[var(--on-surface)] text-red-600">{m.totalDeduction > 0 ? `-${fmtMoney(m.totalDeduction)}` : '—'}</td>
+                      <td className="font-medium text-[var(--on-surface)]">{fmtMoney(m.finalRefund)}</td>
+                      <td>
+                        <StatusBadge status={m.status} />
+                      </td>
+                      <td className="pr-4 text-right">
+                        <button
+                          className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] flex items-center gap-1 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDetail(m);
+                          }}
+                        >
+                          <Eye size={11} />
+                          รายละเอียด
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination footer */}
+          {!loading && filteredMoveOuts.length > 0 && (
+            <div className="flex items-center justify-between border-t border-[var(--outline-variant)] px-4 py-2.5">
+              <span className="text-xs text-[var(--on-surface-variant)]">
+                แสดง {filteredMoveOuts.length} จาก {total} รายการ
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  ก่อนหน้า
+                </button>
+                <span className="px-2 text-xs text-[var(--on-surface-variant)]">หน้า {page}</span>
+                <button
+                  className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={page >= Math.ceil(total / 50)}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  ถัดไป
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* ── Side Panel ───────────────────────────────────────────── */}
+      {panelMode !== 'none' && (
+        <aside className="fixed right-0 top-0 z-30 flex h-full w-full flex-col border-l border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] shadow-2xl xl:w-[420px]">
+          {/* Panel header */}
+          <div className="flex items-center justify-between border-b border-[var(--outline-variant)] px-5 py-4">
+            <div className="flex items-center gap-2">
+              {panelMode === 'new' ? (
+                <Plus size={16} className="text-[var(--primary)]" />
+              ) : (
+                <Eye size={15} className="text-[var(--primary)]" />
+              )}
+              <span className="text-[15px] font-semibold text-[var(--on-surface)]">
+                {panelMode === 'new' ? 'บันทึกย้ายออกใหม่' : `รายละเอียด — ห้อง ${selectedMoveOut?.contract?.roomNo ?? ''}`}
+              </span>
+            </div>
+            <button
+              onClick={closePanel}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--surface-container)] hover:text-[var(--on-surface)]"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          {/* Panel body */}
+          <div className="flex-1 overflow-y-auto p-5">
+            {panelMode === 'new' ? (
+              <NewMoveOutForm
+                form={newForm}
+                setForm={setNewForm}
+                contracts={contracts}
+                contractsLoading={contractsLoading}
+                onSubmit={handleNewSubmit}
+                saving={newSaving}
+                error={newError}
+                onCancel={closePanel}
+              />
+            ) : (
+              selectedMoveOut && (
+                <MoveOutDetailPanel
+                  moveOut={selectedMoveOut}
+                  deductionForm={deductionForm}
+                  setDeductionForm={setDeductionForm}
+                  newItemForm={newItemForm}
+                  setNewItemForm={setNewItemForm}
+                  onCalculate={handleCalculate}
+                  onAddItem={handleAddItem}
+                  onDeleteItem={handleDeleteItem}
+                  onConfirm={handleConfirm}
+                  onRefund={handleRefund}
+                  onCancel={handleCancel}
+                  onSendNotice={handleSendNotice}
+                  calculating={calculating}
+                  calcError={calcError}
+                  itemSaving={itemSaving}
+                  confirmDialog={confirmDialog}
+                  setConfirmDialog={setConfirmDialog}
+                />
+              )
+            )}
+          </div>
+        </aside>
+      )}
+
+      {/* Backdrop for panel on mobile */}
+      {panelMode !== 'none' && (
+        <div
+          className="fixed inset-0 z-20 bg-black/20 xl:hidden"
+          onClick={closePanel}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── New Move-Out Form ────────────────────────────────────────────────────────
+
+function NewMoveOutForm({
+  form,
+  setForm,
+  contracts,
+  contractsLoading,
+  onSubmit,
+  saving,
+  error,
+  onCancel,
+}: {
+  form: typeof EMPTY_NEW_FORM;
+  setForm: React.Dispatch<React.SetStateAction<typeof EMPTY_NEW_FORM>>;
+  contracts: ContractOption[];
+  contractsLoading: boolean;
+  onSubmit: (e: React.FormEvent) => void;
+  saving: boolean;
+  error: string | null;
+  onCancel: () => void;
+}) {
+  const patch = (k: keyof typeof EMPTY_NEW_FORM, v: string) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const selectedContract = contracts.find((c) => c.id === form.contractId);
+
+  return (
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <p className="text-[12px] text-[var(--on-surface-variant)] leading-relaxed">
+        บันทึกการย้ายออกสำหรับสัญญาเช่าที่กำลังใช้งาน ระบบจะอัปเดตสถานะห้องเป็นว่างและยกเลิกสัญญาเช่า
+      </p>
+
+      {/* Contract select */}
+      <div>
+        <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">
+          สัญญาเช่า <span className="text-red-500">*</span>
+        </label>
+        {contractsLoading ? (
+          <div className="flex h-10 items-center rounded-md border border-[var(--outline-variant)] px-3 text-xs text-[var(--on-surface-variant)] animate-pulse">
+            กำลังโหลดสัญญา...
+          </div>
+        ) : (
+          <select
+            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+            required
+            value={form.contractId}
+            onChange={(e) => patch('contractId', e.target.value)}
+          >
+            <option value="">— เลือกสัญญาเช่า —</option>
+            {contracts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.roomNo} - {c.tenantName} (มัดจำ: {c.deposit.toLocaleString()} ฿)
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* Move-out date */}
+      <div>
+        <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">
+          วันที่ย้ายออก <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="date"
+          className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+          required
+          value={form.moveOutDate}
+          onChange={(e) => patch('moveOutDate', e.target.value)}
+        />
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">หมายเหตุ</label>
+        <textarea
+          className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 resize-none"
+          rows={3}
+          placeholder="หมายเหตุเพิ่มเติม..."
+          value={form.notes}
+          onChange={(e) => patch('notes', e.target.value)}
+        />
+      </div>
+
+      {/* Selected contract info */}
+      {selectedContract && (
+        <div className="rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 py-3 space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">ห้อง</span>
+            <span className="font-medium text-[var(--on-surface)]">{selectedContract.roomNo}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">เงินมัดจำ</span>
+            <span className="font-medium text-[var(--on-surface)]">{selectedContract.deposit.toLocaleString()} ฿</span>
+          </div>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="flex items-start gap-2 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)]/20 px-3 py-2.5 text-xs font-medium text-[var(--on-error-container)]">
+          <AlertCircle size={13} className="mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]" onClick={onCancel}>
+          ยกเลิก
+        </button>
+        <button
+          type="submit"
+          disabled={saving}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
+        >
+          {saving ? (
+            <>
+              <RefreshCw size={12} className="animate-spin" />
+              กำลังบันทึก...
+            </>
+          ) : (
+            <>
+              <ChevronRight size={13} />
+              บันทึก
+            </>
+          )}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ─── Move-Out Detail Panel ─────────────────────────────────────────────────────
+
+function MoveOutDetailPanel({
+  moveOut,
+  deductionForm,
+  setDeductionForm,
+  newItemForm,
+  setNewItemForm,
+  onCalculate,
+  onAddItem,
+  onDeleteItem,
+  onConfirm,
+  onRefund,
+  onCancel,
+  onSendNotice,
+  calculating,
+  calcError,
+  itemSaving,
+  confirmDialog,
+  setConfirmDialog,
+}: {
+  moveOut: MoveOutRecord;
+  deductionForm: typeof EMPTY_DEDUCTION_FORM;
+  setDeductionForm: React.Dispatch<React.SetStateAction<typeof EMPTY_DEDUCTION_FORM>>;
+  newItemForm: { category: string; item: string; condition: 'GOOD' | 'FAIR' | 'DAMAGED' | 'MISSING'; cost: string; notes: string };
+  setNewItemForm: React.Dispatch<React.SetStateAction<{ category: string; item: string; condition: 'GOOD' | 'FAIR' | 'DAMAGED' | 'MISSING'; cost: string; notes: string }>>;
+  onCalculate: (e: React.FormEvent) => void;
+  onAddItem: (e: React.FormEvent) => void;
+  onDeleteItem: (itemId: string) => void;
+  onConfirm: () => void;
+  onRefund: () => void;
+  onCancel: () => void;
+  onSendNotice: () => void;
+  calculating: boolean;
+  calcError: string | null;
+  itemSaving: boolean;
+  confirmDialog: {
+    open: boolean;
+    title: string;
+    description?: string;
+    dangerous?: boolean;
+    onConfirm: () => void;
+  };
+  setConfirmDialog: React.Dispatch<React.SetStateAction<{
+    open: boolean;
+    title: string;
+    description?: string;
+    dangerous?: boolean;
+    onConfirm: () => void;
+  }>>;
+}) {
+  const canCalculate = moveOut.status === 'PENDING' || moveOut.status === 'INSPECTION_DONE';
+  const canConfirm = moveOut.status === 'DEPOSIT_CALCULATED';
+  const canRefund = moveOut.status === 'CONFIRMED';
+  const canCancel = moveOut.status !== 'REFUNDED' && moveOut.status !== 'CANCELLED';
+
+  const patchDeduction = (k: keyof typeof EMPTY_DEDUCTION_FORM, v: string) =>
+    setDeductionForm((f) => ({ ...f, [k]: v }));
+
+  const patchItem = (k: string, v: string) =>
+    setNewItemForm((f) => ({ ...f, [k]: v }));
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Status and Actions */}
+      <div className="flex items-center justify-between">
+        <StatusBadge status={moveOut.status} />
+        <div className="flex gap-2">
+          {canCancel && (
+            <button
+              onClick={onCancel}
+              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+            >
+              <XCircle size={12} />
+              ยกเลิก
+            </button>
+          )}
+          {moveOut.contract?.primaryTenant?.lineUserId && (
+            <button
+              onClick={onSendNotice}
+              className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+            >
+              <Send size={12} />
+              ส่ง LINE
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Summary Card */}
+      <div className="rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 py-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">ห้อง</span>
+          <span className="font-semibold text-[var(--on-surface)]">{moveOut.contract?.roomNo ?? '—'}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">ผู้เช่า</span>
+          <span className="text-[var(--on-surface)]">{moveOut.contract?.primaryTenant?.fullName ?? '—'}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">วันที่ย้ายออก</span>
+          <span className="text-[var(--on-surface)]">{fmtDate(moveOut.moveOutDate)}</span>
+        </div>
+      </div>
+
+      {/* Deposit Summary */}
+      <div className="rounded-lg border border-[var(--primary-container)]/30 bg-[var(--primary-container)]/30 px-4 py-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">เงินมัดจำ</span>
+          <span className="font-semibold text-[var(--on-surface)]">{fmtMoney(moveOut.depositAmount)}</span>
+        </div>
+        <div className="flex items-center justify-between text-red-600">
+          <span className="text-[11px] font-semibold uppercase tracking-wider">หักลงาด</span>
+          <span className="font-semibold">-{fmtMoney(moveOut.totalDeduction)}</span>
+        </div>
+        <div className="border-t border-[var(--outline-variant)] pt-2 flex items-center justify-between">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--on-surface-variant)]">คืนเงินสุทธิ</span>
+          <span className="font-bold text-lg text-emerald-600">{fmtMoney(moveOut.finalRefund)}</span>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-2">
+        {canCalculate && (
+          <button
+            onClick={onCalculate}
+            disabled={calculating}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 disabled:opacity-50"
+          >
+            <Calculator size={14} />
+            {calculating ? 'กำลังคำนวณ...' : 'คำนวณมัดจำ'}
+          </button>
+        )}
+        {canConfirm && (
+          <button
+            onClick={onConfirm}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-600"
+          >
+            <CheckCircle2 size={14} />
+            ยืนยันการย้ายออก
+          </button>
+        )}
+        {canRefund && (
+          <button
+            onClick={onRefund}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-600"
+          >
+            <CheckCircle2 size={14} />
+            บันทึกคืนเงิน
+          </button>
+        )}
+      </div>
+
+      {/* Deduction Form */}
+      {canCalculate && (
+        <form onSubmit={onCalculate} className="rounded-lg border border-[var(--outline-variant)] p-4 space-y-3">
+          <h4 className="text-[12px] font-semibold text-[var(--on-surface)]">รายการหักลบ</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">ค่าทำความสะอาด</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                value={deductionForm.cleaningFee}
+                onChange={(e) => patchDeduction('cleaningFee', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">ค่าซ่อมแซม</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                value={deductionForm.damageRepairCost}
+                onChange={(e) => patchDeduction('damageRepairCost', e.target.value)}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">หักอื่นๆ</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+              value={deductionForm.otherDeductions}
+              onChange={(e) => patchDeduction('otherDeductions', e.target.value)}
+            />
+          </div>
+          {calcError && (
+            <div className="text-xs text-red-600">{calcError}</div>
+          )}
+          <button
+            type="submit"
+            disabled={calculating}
+            className="w-full rounded-lg bg-amber-500 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+          >
+            {calculating ? 'กำลังคำนวณ...' : 'คำนวณและบันทึก'}
+          </button>
+        </form>
+      )}
+
+      {/* Add Item Form */}
+      {canCalculate && (
+        <form onSubmit={onAddItem} className="rounded-lg border border-[var(--outline-variant)] p-4 space-y-3">
+          <h4 className="text-[12px] font-semibold text-[var(--on-surface)]">เพิ่มรายการตรวจสอบ</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">หมวดหมู่</label>
+              <select
+                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                value={newItemForm.category}
+                onChange={(e) => patchItem('category', e.target.value)}
+              >
+                <option value="wall">ผนัง</option>
+                <option value="floor">พื้น</option>
+                <option value="bathroom">ห้องน้ำ</option>
+                <option value="kitchen">ห้องครัว</option>
+                <option value="furniture">เฟอร์นิเจอร์</option>
+                <option value="other">อื่นๆ</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">สภาพ</label>
+              <select
+                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                value={newItemForm.condition}
+                onChange={(e) => patchItem('condition', e.target.value)}
+              >
+                <option value="GOOD">ดี</option>
+                <option value="FAIR">พอใช้</option>
+                <option value="DAMAGED">เสียหาย</option>
+                <option value="MISSING">หาย</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">รายการ</label>
+            <input
+              type="text"
+              className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+              placeholder="เช่น ผนังทาสี, กระเบื้องแตก"
+              value={newItemForm.item}
+              onChange={(e) => patchItem('item', e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">ค่าใช้จ่าย (฿)</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+              value={newItemForm.cost}
+              onChange={(e) => patchItem('cost', e.target.value)}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={itemSaving}
+            className="w-full rounded-lg bg-primary py-2 text-sm font-semibold text-[var(--on-primary)] hover:bg-primary/90 disabled:opacity-50"
+          >
+            {itemSaving ? 'กำลังเพิ่ม...' : 'เพิ่มรายการ'}
+          </button>
+        </form>
+      )}
+
+      {/* Inspection Items */}
+      {moveOut.items.length > 0 && (
+        <div className="rounded-lg border border-[var(--outline-variant)] p-4 space-y-3">
+          <h4 className="text-[12px] font-semibold text-[var(--on-surface)]">รายการตรวจสอบ</h4>
+          <div className="space-y-2">
+            {moveOut.items.map((item) => (
+              <div key={item.id} className="flex items-center justify-between rounded-lg bg-[var(--surface-container)] px-3 py-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-[var(--on-surface)]">{item.item}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                      item.condition === 'GOOD' ? 'bg-emerald-100 text-emerald-700' :
+                      item.condition === 'FAIR' ? 'bg-amber-100 text-amber-700' :
+                      item.condition === 'DAMAGED' ? 'bg-red-100 text-red-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {item.condition === 'GOOD' ? 'ดี' :
+                       item.condition === 'FAIR' ? 'พอใช้' :
+                       item.condition === 'DAMAGED' ? 'เสียหาย' : 'หาย'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-[var(--on-surface-variant)]">
+                    {item.category} {item.notes && `- ${item.notes}`}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-red-600">{fmtMoney(item.cost)}</span>
+                  {canCalculate && (
+                    <button
+                      onClick={() => onDeleteItem(item.id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Notes */}
+      {moveOut.notes && (
+        <div className="rounded-lg border border-[var(--outline-variant)] p-4">
+          <h4 className="text-[12px] font-semibold text-[var(--on-surface)] mb-2">หมายเหตุ</h4>
+          <p className="text-sm text-[var(--on-surface-variant)] whitespace-pre-wrap">{moveOut.notes}</p>
+        </div>
+      )}
+
+      {/* Timeline */}
+      <div className="rounded-lg border border-[var(--outline-variant)] p-4 space-y-2">
+        <h4 className="text-[12px] font-semibold text-[var(--on-surface)]">ประวัติ</h4>
+        <div className="text-xs text-[var(--on-surface-variant)] space-y-1">
+          <div>สร้าง: {fmtDate(moveOut.createdAt)}</div>
+          {moveOut.lineNoticeSentAt && <div>ส่ง LINE: {fmtDate(moveOut.lineNoticeSentAt)}</div>}
+          {moveOut.confirmedAt && <div>ยืนยัน: {fmtDate(moveOut.confirmedAt)}</div>}
+          {moveOut.refundAt && <div>คืนเงิน: {fmtDate(moveOut.refundAt)}</div>}
+        </div>
+      </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        dangerous={confirmDialog.dangerous}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog((p) => ({ ...p, open: false }))}
+      />
+    </div>
+  );
+}
+
+// ─── Empty State ──────────────────────────────────────────────────────────────
+
+function EmptyState({ onNew, hasFilter }: { onNew: () => void; hasFilter: boolean }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--surface-container)]">
+        <ArrowLeft size={28} className="text-[var(--on-surface-variant)]" strokeWidth={1.5} />
+      </div>
+      <h3 className="text-[15px] font-semibold text-[var(--on-surface)]">
+        {hasFilter ? 'ไม่พบรายการที่ตรงกับตัวกรอง' : 'ยังไม่มีการบันทึกย้ายออก'}
+      </h3>
+      <p className="mt-1 max-w-xs text-[13px] text-[var(--on-surface-variant)]">
+        {hasFilter
+          ? 'ลองล้างการค้นหาหรือเปลี่ยนตัวกรองสถานะ'
+          : 'บันทึกการย้ายออกเมื่อผู้เช่าแจ้งย้ายออก'}
+      </p>
+      {!hasFilter && (
+        <button
+          onClick={onNew}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 mt-5"
+        >
+          <Plus size={14} strokeWidth={2.5} />
+          บันทึกย้ายออกใหม่
+        </button>
+      )}
+    </div>
+  );
+}

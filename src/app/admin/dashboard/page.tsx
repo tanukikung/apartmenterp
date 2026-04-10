@@ -2,33 +2,22 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useToast } from '@/components/providers/ToastProvider';
 import {
-  Plus,
-  CheckSquare,
-  Send,
-  ArrowRight,
-  MessageSquare,
-  Clock,
-  DollarSign,
   Home,
-  FileText,
-  TrendingUp,
-  TrendingDown,
-  Inbox,
-  Wrench,
-  BarChart2,
   AlertTriangle,
+  DollarSign,
+  Wrench,
+  Receipt,
+  ClipboardCheck,
+  FileText,
+  Megaphone,
+  ArrowRight,
+  Clock,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-type SummaryData = {
-  monthlyRevenue: number;
-  unpaidInvoices: number;
-  paidInvoices: number;
-  overdueInvoices: number;
-};
 
 type OccupancyData = {
   totalRooms: number;
@@ -37,33 +26,11 @@ type OccupancyData = {
   maintenanceRooms: number;
 };
 
-type RevenuePoint = { year: number; month: number; total: number };
-
-type Invoice = {
-  id: string;
-  year: number;
-  month: number;
-  status: 'DRAFT' | 'GENERATED' | 'SENT' | 'VIEWED' | 'PAID' | 'OVERDUE';
-  totalAmount?: number;
-  total?: number;
-  dueDate?: string | null;
-  sentAt?: string | null;
-  room?: { roomNumber?: string; roomNo?: string } | null;
-  tenant?: { fullName?: string | null } | null;
-  billingRecord?: { tenant?: { fullName?: string | null } | null } | null;
-};
-
-type InvoiceListResponse = {
-  data: Invoice[];
-  total: number;
-};
-
-type Payment = {
-  id: string;
-  amount: number;
-  transactionDate: string;
-  status: string;
-  reference?: string | null;
+type SummaryData = {
+  monthlyRevenue: number;
+  unpaidInvoices: number;
+  paidInvoices: number;
+  overdueInvoices: number;
 };
 
 type MaintenanceTicket = {
@@ -75,10 +42,13 @@ type MaintenanceTicket = {
   createdAt: string;
 };
 
-type Conversation = {
+type Invoice = {
   id: string;
-  lastMessageAt: string;
-  unreadCount: number;
+  year: number;
+  month: number;
+  status: string;
+  totalAmount?: number;
+  total?: number;
   room?: { roomNumber?: string; roomNo?: string } | null;
   tenant?: { fullName?: string | null } | null;
 };
@@ -91,19 +61,15 @@ type AuditRow = {
   createdAt: string;
 };
 
-type DashboardAlert = {
-  type: 'billing_missing' | 'contract_expiring' | 'overdue_invoices' | 'unmatched_payments' | 'unsent_invoices';
-  priority: 'urgent' | 'normal';
-  label: string;
-  description: string;
-  count: number;
-  actionLabel: string;
-  actionHref: string;
-  actionSecondaryLabel?: string;
-  actionSecondaryHref?: string;
+type ExpiringContract = {
+  id: string;
+  roomNo: string;
+  tenantName: string;
+  endDate: string;
+  daysLeft: number;
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function money(amount: number): string {
   return new Intl.NumberFormat('th-TH', {
@@ -119,10 +85,16 @@ function moneyCompact(amount: number): string {
   return `฿${amount.toFixed(0)}`;
 }
 
-const MONTH_ABBR = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-
-function monthLabel(point: RevenuePoint): string {
-  return MONTH_ABBR[(point.month - 1) % 12] ?? `${point.month}`;
+function todayThai(): { greeting: string; date: string } {
+  const now = new Date();
+  const weekday = now.toLocaleDateString('th-TH', { weekday: 'long' });
+  const day = now.getDate();
+  const month = now.toLocaleDateString('th-TH', { month: 'long' });
+  const year = now.getFullYear() + 543;
+  return {
+    greeting: 'สวัสดี',
+    date: `${weekday} ${day} ${month} ${year}`,
+  };
 }
 
 function timeAgo(iso: string): string {
@@ -135,53 +107,12 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hrs / 24)} วันที่แล้ว`;
 }
 
-function todayThai(): string {
-  return new Date().toLocaleDateString('th-TH', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
-
-function priorityColor(p: MaintenanceTicket['priority']): string {
-  if (p === 'URGENT') return 'bg-red-50 text-red-700 border-red-200';
-  if (p === 'HIGH') return 'bg-orange-50 text-orange-700 border-orange-200';
-  if (p === 'MEDIUM') return 'bg-amber-50 text-amber-700 border-amber-200';
-  return 'bg-surface-container text-on-surface-variant border-outline';
-}
-
-function statusBadge(status: Invoice['status']): { label: string; cls: string } {
-  switch (status) {
-    case 'PAID': return { label: 'ชำระแล้ว', cls: 'bg-tertiary-container text-on-tertiary-container' };
-    case 'OVERDUE': return { label: 'เกินกำหนด', cls: 'bg-error-container text-on-error-container' };
-    case 'SENT': return { label: 'ส่งแล้ว', cls: 'bg-blue-50 text-blue-700 border-blue-200' };
-    case 'VIEWED': return { label: 'เปิดดูแล้ว', cls: 'bg-blue-50 text-blue-700 border-blue-200' };
-    case 'DRAFT': return { label: 'ร่าง', cls: 'bg-surface-container text-on-surface' };
-    default: return { label: status, cls: 'bg-surface-container text-on-surface' };
-  }
-}
-
 function invoiceAmount(inv: Invoice): number {
   return inv.totalAmount ?? inv.total ?? 0;
 }
 
-function tenantName(inv: Invoice): string {
-  return (
-    inv.tenant?.fullName ??
-    inv.billingRecord?.tenant?.fullName ??
-    '—'
-  );
-}
+const MONTH_ABBR = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
-const AVATAR_COLORS = ['bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700', 'bg-blue-100 text-blue-700'];
-function avatarColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
-// Thai labels for audit actions
 const AUDIT_LABELS: Record<string, string> = {
   PAYMENT_CONFIRMED: 'ยืนยันชำระเงิน',
   PAYMENT_REJECTED: 'ปฏิเสธชำระเงิน',
@@ -191,139 +122,214 @@ const AUDIT_LABELS: Record<string, string> = {
   INVOICE_CANCELLED: 'ยกเลิกใบแจ้งหนี้',
   INVOICE_SEND_REQUESTED: 'ส่งใบแจ้งหนี้',
   CHAT_MESSAGE_SENT: 'ส่งข้อความ LINE',
-  REMINDER_SEND_REQUESTED: 'ส่ง напоминание',
-  BULK_REMINDER_SEND_REQUESTED: 'ส่ง напоминаниеหลายรายการ',
-  RECEIPT_SEND_REQUESTED: 'ส่งใบเสร็จ',
   MAINTENANCE_TICKET_CREATED: 'สร้างงานซ่อม',
   MAINTENANCE_TICKET_CLOSED: 'ปิดงานซ่อม',
   MAINTENANCE_STATUS_UPDATED: 'อัปเดตสถานะซ่อม',
   ADMIN_USER_CREATED: 'สร้างผู้ดูแล',
   ADMIN_USER_UPDATED: 'แก้ไขผู้ดูแล',
-  ADMIN_RESET_LINK_ISSUED: 'ออกลิงก์รีเซ็ต',
-  ADMIN_RESET_LINK_REVOKED: 'ยกเลิกลิงก์รีเซ็ต',
-  PASSWORD_CHANGED: 'เปลี่ยนรหัสผ่าน',
-  PASSWORD_RESET_REQUESTED: 'ขอรีเซ็ตรหัส',
-  SYSTEM_RESET: 'รีเซ็ตระบบ',
-  DB_CLEANUP_STARTED: 'เริ่มล้างข้อมูล',
-  DB_CLEANUP_COMPLETED: 'ล้างข้อมูลเสร็จ',
-  DOCUMENT_TEMPLATE_CREATED: 'สร้างแม่แบบ',
-  DOCUMENT_TEMPLATE_VERSION_CREATED: 'สร้างเวอร์ชันแม่แบบ',
-  DOCUMENT_TEMPLATE_VERSION_UPLOADED: 'อัปโหลดแม่แบบ',
-  DOCUMENT_TEMPLATE_VERSION_ACTIVATED: 'เปิดใช้แม่แบบ',
-  DOCUMENT_TEMPLATE_VERSION_SAVED: 'บันทึกแม่แบบ',
-  DOCUMENT_GENERATION_REQUESTED: 'สร้างเอกสาร',
-  GENERATED_DOCUMENT_CREATED: 'สร้างเอกสารแล้ว',
-  DOCUMENT_GENERATION_COMPLETED: 'สร้างเอกสารเสร็จ',
-  GENERATED_DOCUMENT_REGENERATE_REQUESTED: 'สร้างเอกสารใหม่',
-  GENERATED_DOCUMENT_PDF_EXPORTED: 'ส่งออก PDF',
-  GENERATED_DOCUMENT_FILE_EXPORTED: 'ส่งออกไฟล์',
   TENANT_REGISTRATION_APPROVED: 'อนุมัติลงทะเบียน',
   TENANT_REGISTRATION_REJECTED: 'ปฏิเสธลงทะเบียน',
   BANK_STATEMENT_UPLOADED: 'อัปโหลด Statement',
-  BANK_ACCOUNT_CREATED: 'สร้างบัญชีธนาคาร',
-  BANK_ACCOUNT_UPDATED: 'แก้ไขบัญชีธนาคาร',
-  BANK_ACCOUNT_DEACTIVATED: 'ปิดบัญชีธนาคาร',
-  LINE_INTEGRATION_UPDATED: 'แก้ไข LINE',
   BUILDING_SETTINGS_UPDATED: 'แก้ไขตั้งค่าอาคาร',
-  AUTOMATION_SETTINGS_UPDATED: 'แก้ไขตั้งค่าอัตโนมัติ',
-  DELIVERY_RESEND_REQUESTED: 'ส่งใหม่',
+  CONTRACT_RENEWED: 'ต่อสัญญา',
+  CONTRACT_TERMINATED: 'ยกเลิกสัญญา',
 };
+
 function auditLabel(action: string): string {
   return AUDIT_LABELS[action] ?? action;
 }
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 
-type TrendDir = 'up' | 'down' | 'neutral';
+function SkeletonCard({ className = '' }: { className?: string }) {
+  return <div className={`skeleton rounded-xl ${className}`} />;
+}
+
+// ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({
   label,
   value,
   sub,
   icon: Icon,
-  accentClass = 'bg-surface-container-lowest',
-  trendDir = 'neutral',
-  trendLabel,
-  loading,
+  accent,
+  href,
 }: {
   label: string;
   value: string | number;
   sub?: string;
   icon: React.ElementType;
-  accentClass?: string;
-  trendDir?: TrendDir;
-  trendLabel?: string;
-  loading: boolean;
+  accent: 'green' | 'red' | 'yellow' | 'blue';
+  href?: string;
 }) {
-  const TrendIcon = trendDir === 'down' ? TrendingDown : TrendingUp;
-  const trendColor =
-    trendDir === 'up'
-      ? 'text-emerald-600'
-      : trendDir === 'down'
-      ? 'text-red-500'
-      : 'text-on-surface-variant';
+  const colors = {
+    green: { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: 'bg-emerald-100 text-emerald-600', text: 'text-emerald-600' },
+    red: { bg: 'bg-red-50', border: 'border-red-200', icon: 'bg-red-100 text-red-600', text: 'text-red-600' },
+    yellow: { bg: 'bg-amber-50', border: 'border-amber-200', icon: 'bg-amber-100 text-amber-600', text: 'text-amber-600' },
+    blue: { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'bg-blue-100 text-blue-600', text: 'text-blue-600' },
+  }[accent];
 
-  if (loading) {
-    return (
-      <div className={`${accentClass} p-5 rounded-xl border border-outline-variant/10 skeleton`} style={{ height: '120px' }} />
-    );
-  }
-
-  return (
-    <div className={`${accentClass} p-5 rounded-xl border border-outline-variant/10 hover:shadow-lg transition-all duration-200`}>
+  const card = (
+    <div className={`${colors.bg} ${colors.border} border rounded-xl p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer`}>
       <div className="flex items-start justify-between gap-2 mb-3">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</span>
-        <div className="h-9 w-9 rounded-xl bg-primary-container/10 flex items-center justify-center">
-          <Icon size={16} strokeWidth={2} className="text-primary" />
+        <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--on-surface-variant)]">{label}</span>
+        <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${colors.icon}`}>
+          <Icon size={16} strokeWidth={2} />
         </div>
       </div>
-      <div className="text-2xl font-extrabold tracking-tight text-primary leading-none mb-2">{value}</div>
-      {(trendLabel || sub) && (
-        <div className={`flex items-center gap-1 text-xs ${trendColor}`}>
-          {trendDir !== 'neutral' && <TrendIcon size={11} strokeWidth={2} />}
-          <span>{trendLabel ?? sub}</span>
+      <div className={`text-2xl font-extrabold tracking-tight ${colors.text} leading-none mb-1`}>{value}</div>
+      {sub && <div className="text-xs text-[var(--on-surface-variant)] mt-1">{sub}</div>}
+    </div>
+  );
+
+  if (href) {
+    return <Link href={href} className="block">{card}</Link>;
+  }
+  return card;
+}
+
+// ─── Action Button ────────────────────────────────────────────────────────────
+
+function ActionButton({
+  label,
+  icon: Icon,
+  color,
+  href,
+}: {
+  label: string;
+  icon: React.ElementType;
+  color: 'blue' | 'green' | 'red';
+  href: string;
+}) {
+  const colors = {
+    blue: 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200',
+    green: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200',
+    red: 'bg-red-600 hover:bg-red-700 text-white shadow-red-200',
+  }[color];
+
+  return (
+    <Link
+      href={href}
+      className={`flex flex-col items-center justify-center gap-2 rounded-xl py-4 px-6 font-bold text-sm shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${colors}`}
+    >
+      <Icon size={22} strokeWidth={2} />
+      {label}
+    </Link>
+  );
+}
+
+// ─── Task Card ───────────────────────────────────────────────────────────────
+
+function TaskCard({
+  title,
+  count,
+  sub,
+  actionLabel,
+  actionHref,
+  secondaryActionLabel,
+  secondaryActionHref,
+  items,
+  accent,
+  icon: Icon,
+}: {
+  title: string;
+  count?: number;
+  sub?: string;
+  actionLabel?: string;
+  actionHref?: string;
+  secondaryActionLabel?: string;
+  secondaryActionHref?: string;
+  items?: { label: string; sub?: string }[];
+  accent: 'green' | 'red' | 'yellow' | 'blue';
+  icon: React.ElementType;
+}) {
+  const colors = {
+    green: { bg: 'bg-white', border: 'border-emerald-200', header: 'bg-emerald-50 text-emerald-700', count: 'bg-emerald-100 text-emerald-700', icon: 'text-emerald-500' },
+    red: { bg: 'bg-white', border: 'border-red-200', header: 'bg-red-50 text-red-700', count: 'bg-red-100 text-red-700', icon: 'text-red-500' },
+    yellow: { bg: 'bg-white', border: 'border-amber-200', header: 'bg-amber-50 text-amber-700', count: 'bg-amber-100 text-amber-700', icon: 'text-amber-500' },
+    blue: { bg: 'bg-white', border: 'border-blue-200', header: 'bg-blue-50 text-blue-700', count: 'bg-blue-100 text-blue-700', icon: 'text-blue-500' },
+  }[accent];
+
+  return (
+    <div className={`${colors.bg} ${colors.border} border rounded-xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200`}>
+      <div className={`px-4 py-3 border-b border-[var(--outline-variant)]/30 flex items-center justify-between`}>
+        <div className="flex items-center gap-2">
+          <Icon size={14} className={colors.icon} />
+          <span className="text-sm font-bold text-[var(--on-surface)]">{title}</span>
         </div>
-      )}
+        {count !== undefined && (
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${colors.count}`}>
+            {count}
+          </span>
+        )}
+      </div>
+
+      <div className="p-4">
+        {items && items.length > 0 && (
+          <ul className="space-y-1.5 mb-3">
+            {items.slice(0, 3).map((item, i) => (
+              <li key={i} className="flex items-center gap-2 text-xs text-[var(--on-surface-variant)]">
+                <div className="h-1.5 w-1.5 rounded-full bg-current shrink-0" />
+                <span className="font-medium text-[var(--on-surface)]">{item.label}</span>
+                {item.sub && <span>{item.sub}</span>}
+              </li>
+            ))}
+            {items.length > 3 && (
+              <li className="text-xs text-[var(--on-surface-variant)] pl-3.5">+{items.length - 3} รายการ</li>
+            )}
+          </ul>
+        )}
+
+        {sub && !items && <p className="text-xs text-[var(--on-surface-variant)] mb-3">{sub}</p>}
+
+        <div className="flex items-center gap-2">
+          {actionLabel && actionHref && (
+            <Link
+              href={actionHref}
+              className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                accent === 'green'
+                  ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  : accent === 'red'
+                  ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                  : accent === 'yellow'
+                  ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+              }`}
+            >
+              {actionLabel} <ArrowRight size={10} />
+            </Link>
+          )}
+          {secondaryActionLabel && secondaryActionHref && (
+            <Link
+              href={secondaryActionHref}
+              className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface-variant)] hover:bg-[var(--surface-container)] transition-colors"
+            >
+              {secondaryActionLabel}
+            </Link>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-// ─── Revenue Bar Chart ─────────────────────────────────────────────────────────
+// ─── Recent Activity Item ─────────────────────────────────────────────────────
 
-function RevenueBarChart({ data }: { data: RevenuePoint[] }) {
-  const last6 = data.slice(-6);
-  const max = Math.max(...last6.map((d) => d.total), 1);
+function ActivityItem({ log }: { log: AuditRow }) {
+  const isPositive = ['PAYMENT_CONFIRMED', 'INVOICE_SEND_REQUESTED', 'MAINTENANCE_TICKET_CLOSED', 'TENANT_REGISTRATION_APPROVED', 'CONTRACT_RENEWED'].includes(log.action);
+  const isNegative = ['PAYMENT_REJECTED', 'INVOICE_CANCELLED', 'TENANT_REGISTRATION_REJECTED', 'CONTRACT_TERMINATED'].includes(log.action);
+  const dotColor = isPositive ? 'bg-emerald-400' : isNegative ? 'bg-red-400' : 'bg-blue-400';
+
   return (
-    <div className="flex h-44 items-end justify-between gap-3 px-2">
-      {last6.map((pt, i) => {
-        const pct = Math.max(4, (pt.total / max) * 100);
-        return (
-          <div key={i} className="group flex flex-1 flex-col items-center gap-2">
-            <div className="relative flex w-full flex-col items-center">
-              <div className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-outline-variant bg-white px-2 py-0.5 text-[10px] font-semibold text-on-surface opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
-                {moneyCompact(pt.total)}
-              </div>
-              <div
-                className="w-full rounded-t-md bg-gradient-to-t from-indigo-600 to-indigo-400 transition-all duration-500 group-hover:from-indigo-700 group-hover:to-indigo-500"
-                style={{ height: `${pct}%`, minHeight: '4px', maxHeight: '100%' }}
-              />
-            </div>
-            <div className="text-[10px] font-medium text-on-surface-variant">{monthLabel(pt)}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── Skeleton Row ────────────────────────────────────────────────────────────
-
-function SkeletonRows({ count = 5 }: { count?: number }) {
-  return (
-    <div className="space-y-2 p-5">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="skeleton h-12 rounded-lg" />
-      ))}
+    <div className="flex items-start gap-3 py-2.5">
+      <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${dotColor}`} />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-[var(--on-surface)] leading-snug">
+          {auditLabel(log.action)}
+          <span className="font-normal text-[var(--on-surface-variant)] ml-1">{log.entityType}</span>
+        </p>
+        <p className="text-[10px] text-[var(--on-surface-variant)] mt-0.5">{log.userName} · {timeAgo(log.createdAt)}</p>
+      </div>
     </div>
   );
 }
@@ -331,19 +337,18 @@ function SkeletonRows({ count = 5 }: { count?: number }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminDashboardPage() {
-  const { success, error: toastError } = useToast();
-  const [summary, setSummary] = useState<SummaryData | null>(null);
   const [occupancy, setOccupancy] = useState<OccupancyData | null>(null);
-  const [revenue, setRevenue] = useState<RevenuePoint[]>([]);
-  const [, setOverdueInvoices] = useState<Invoice[]>([]);
-  const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
-  const [, setUnmatchedPayments] = useState<Payment[]>([]);
-  const [openTickets, setOpenTickets] = useState<MaintenanceTicket[]>([]);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [summary, setSummary] = useState<SummaryData | null>(null);
+  const [pendingMaintenance, setPendingMaintenance] = useState<MaintenanceTicket[]>([]);
+  const [pendingMaintenanceCount, setPendingMaintenanceCount] = useState(0);
+  const [unmatchedPayments, setUnmatchedPayments] = useState(0);
+  const [overdueInvoices, setOverdueInvoices] = useState<Invoice[]>([]);
+  const [overdueCount, setOverdueCount] = useState(0);
+  const [expiringContracts, setExpiringContracts] = useState<ExpiringContract[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sendingId, setSendingId] = useState<string | null>(null);
-  const [dashboardAlerts, setDashboardAlerts] = useState<DashboardAlert[]>([]);
+
+  const { greeting, date } = todayThai();
 
   useEffect(() => {
     async function load() {
@@ -358,64 +363,71 @@ export default function AdminDashboardPage() {
         };
 
         const [
-          summaryRes,
           occupancyRes,
-          revenueRes,
-          overdueRes,
-          recentRes,
-          unmatchedRes,
+          summaryRes,
           maintenanceRes,
-          convRes,
-          auditRes,
+          unmatchedRes,
+          overdueRes,
           alertsRes,
+          auditRes,
         ] = await Promise.all([
-          safe('/api/analytics/summary'),
           safe('/api/analytics/occupancy'),
-          safe('/api/analytics/revenue'),
-          safe('/api/invoices?status=OVERDUE&pageSize=5'),
-          safe('/api/invoices?pageSize=10&sortBy=createdAt&sortOrder=desc'),
-          safe('/api/payments?status=PENDING&pageSize=5'),
+          safe('/api/analytics/summary'),
           safe('/api/admin/maintenance?status=OPEN&pageSize=5'),
-          safe('/api/conversations?pageSize=3'),
-          safe('/api/audit-logs?pageSize=5'),
+          safe('/api/admin/payments/review?limit=1'),
+          safe('/api/invoices?status=OVERDUE&pageSize=5'),
           safe('/api/admin/dashboard-alerts'),
+          safe('/api/audit-logs?limit=10'),
         ]);
 
-        if (summaryRes?.success) setSummary(summaryRes.data);
         if (occupancyRes?.success) setOccupancy(occupancyRes.data);
-        if (revenueRes?.success) setRevenue(Array.isArray(revenueRes.data) ? revenueRes.data : []);
+        if (summaryRes?.success) setSummary(summaryRes.data);
 
-        if (overdueRes?.success) {
-          const list: InvoiceListResponse = overdueRes.data;
-          setOverdueInvoices(Array.isArray(list?.data) ? list.data : []);
-        }
-        if (recentRes?.success) {
-          const list: InvoiceListResponse = recentRes.data;
-          setRecentInvoices(Array.isArray(list?.data) ? list.data : []);
+        if (maintenanceRes?.success) {
+          const data = maintenanceRes.data;
+          const tickets: MaintenanceTicket[] = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+          const total: number = data?.total ?? tickets.length;
+          setPendingMaintenance(tickets.slice(0, 5));
+          setPendingMaintenanceCount(total);
         }
 
         if (unmatchedRes?.success) {
           const raw = unmatchedRes.data;
-          const arr = Array.isArray(raw) ? raw : (raw?.data ?? raw?.transactions ?? []);
-          setUnmatchedPayments(arr.slice(0, 5));
+          const total: number = raw?.total ?? (Array.isArray(raw?.transactions) ? raw.transactions.length : 0);
+          setUnmatchedPayments(total);
+        } else {
+          // Fallback: count from dashboard alerts
+          const alerts = alertsRes?.data?.alerts ?? [];
+          const unmatched = alerts.find((a: { type: string }) => a.type === 'unmatched_payments');
+          if (unmatched) setUnmatchedPayments(unmatched.count);
         }
-        if (maintenanceRes?.success) {
-          const raw = maintenanceRes.data;
-          const arr = Array.isArray(raw) ? raw : (raw?.data ?? []);
-          setOpenTickets(arr.slice(0, 5));
+
+        if (overdueRes?.success) {
+          const raw = overdueRes.data;
+          const list: Invoice[] = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
+          const total: number = raw?.total ?? list.length;
+          setOverdueInvoices(list);
+          setOverdueCount(total);
         }
-        if (convRes?.success) {
-          const raw = convRes.data;
-          const arr = Array.isArray(raw) ? raw : (raw?.data ?? []);
-          setConversations(arr.slice(0, 3));
+
+        if (alertsRes?.success) {
+          const alerts = alertsRes.data?.alerts ?? [];
+          const expiring = alerts.filter((a: { type: string }) => a.type === 'contract_expiring');
+          if (expiring.length > 0) {
+            setExpiringContracts(
+              alertsRes.data?.expiringContracts?.slice(0, 5).map((c: ExpiringContract) => ({
+                ...c,
+                roomNo: c.roomNo,
+                tenantName: c.tenantName,
+              })) ?? []
+            );
+          }
         }
+
         if (auditRes?.success) {
           const raw = auditRes.data;
-          const arr = Array.isArray(raw) ? raw : (raw?.rows ?? raw?.data ?? []);
-          setAuditLogs(arr.slice(0, 5));
-        }
-        if (alertsRes?.success) {
-          setDashboardAlerts(alertsRes.data?.alerts ?? []);
+          const logs: AuditRow[] = Array.isArray(raw?.rows) ? raw.rows : Array.isArray(raw) ? raw : [];
+          setAuditLogs(logs.slice(0, 10));
         }
       } finally {
         setLoading(false);
@@ -424,490 +436,204 @@ export default function AdminDashboardPage() {
     void load();
   }, []);
 
-  // Derived values
-  const occupancyRate = occupancy
-    ? Math.round((occupancy.occupiedRooms / Math.max(1, occupancy.totalRooms)) * 100)
-    : 0;
-  const maintenanceCount = occupancy?.maintenanceRooms ?? 0;
+  // Derive overdue 3+ days items (use due date comparison)
+  const overdueItems = overdueInvoices.slice(0, 3).map((inv) => ({
+    label: `${inv.room?.roomNumber ?? inv.room?.roomNo ?? '?'} — ${inv.tenant?.fullName ?? 'ไม่ระบุ'}`,
+    sub: MONTH_ABBR[(inv.month - 1) % 12] + ' ' + inv.year,
+  }));
 
-  async function handleSendInvoice(invoiceId: string) {
-    setSendingId(invoiceId);
-    try {
-      const res = await fetch(`/api/invoices/${invoiceId}/send`, { method: 'POST' });
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json?.success) {
-        toastError(json?.error?.message || 'ส่งใบแจ้งหนี้ไม่สำเร็จ');
-        return;
-      }
-      success('ส่งใบแจ้งหนี้สำเร็จแล้ว');
-      setRecentInvoices((prev) =>
-        prev.map((inv) => (inv.id === invoiceId ? { ...inv, status: 'SENT' as const } : inv))
-      );
-    } finally {
-      setSendingId(null);
-    }
-  }
+  const maintenanceItems = pendingMaintenance.slice(0, 3).map((t) => ({
+    label: t.title,
+    sub: `ห้อง ${t.room?.roomNumber ?? t.room?.roomNo ?? '?'}`,
+  }));
+
+  const contractItems = expiringContracts.slice(0, 3).map((c) => ({
+    label: `ห้อง ${c.roomNo} — ${c.tenantName}`,
+    sub: `${c.daysLeft} วัน`,
+  }));
 
   return (
-    <main className="space-y-6">
-
+    <main className="min-h-screen bg-gray-50/50">
       {/* ── Page Header ─────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
-        <div className="relative flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-xl font-extrabold tracking-tight text-on-primary">สวัสดี, Admin</h1>
-            <p className="mt-1 text-sm text-on-primary/80">{todayThai()}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/admin/billing"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 text-on-primary text-sm font-bold rounded-lg shadow-md hover:bg-white/30 transition-all"
-            >
-              <Plus size={14} strokeWidth={2.5} />
-              นำเข้าบิล
-            </Link>
-            <Link href="/admin/payments/review" className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 text-on-primary text-sm font-semibold rounded-lg hover:bg-white/30 transition-all">
-              <CheckSquare size={14} strokeWidth={2} />
-              ตรวจสอบชำระ
-            </Link>
-            <Link href="/admin/invoices" className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 text-on-primary text-sm font-semibold rounded-lg hover:bg-white/30 transition-all">
-              <Send size={14} strokeWidth={2} />
-              ส่งใบแจ้งหนี้
-            </Link>
-          </div>
+      <div className="bg-gradient-to-br from-primary to-[var(--primary)]/80 px-6 py-6 shadow-lg">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-extrabold tracking-tight text-white">
+            {greeting} 👋
+          </h1>
+          <p className="text-sm text-white/80 font-medium">{date}</p>
         </div>
       </div>
 
-      {/* ── KPI Row — 4 cards ───────────────────────────────────── */}
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          label="รายรับเดือนนี้"
-          value={money(summary?.monthlyRevenue ?? 0)}
-          trendDir="up"
-          trendLabel="จากเดือนที่แล้ว"
-          icon={DollarSign}
-          loading={loading}
-        />
-        <KpiCard
-          label="อัตราการเข้าพัก"
-          value={`${occupancyRate}%`}
-          trendDir={occupancyRate >= 80 ? 'up' : 'neutral'}
-          trendLabel={`${occupancy?.occupiedRooms ?? 0} / ${occupancy?.totalRooms ?? 0} ห้อง`}
-          icon={Home}
-          loading={loading}
-        />
-        <KpiCard
-          label="รอชำระ"
-          value={summary?.unpaidInvoices ?? 0}
-          trendDir="neutral"
-          trendLabel="GENERATED + SENT + VIEWED"
-          icon={FileText}
-          loading={loading}
-        />
-        <KpiCard
-          label="เกินกำหนด"
-          value={summary?.overdueInvoices ?? 0}
-          trendDir={(summary?.overdueInvoices ?? 0) > 0 ? 'down' : 'neutral'}
-          trendLabel="OVERDUE"
-          icon={AlertTriangle}
-          loading={loading}
-        />
-      </section>
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-      {/* ── Two-column layout ──────────────────────────────────── */}
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        {/* ── KPI Row ─────────────────────────────────────────────── */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {loading ? (
+            <>
+              <SkeletonCard className="h-28" />
+              <SkeletonCard className="h-28" />
+              <SkeletonCard className="h-28" />
+              <SkeletonCard className="h-28" />
+            </>
+          ) : (
+            <>
+              <KpiCard
+                label="ห้องว่าง"
+                value={occupancy?.vacantRooms ?? 0}
+                sub={`จาก ${occupancy?.totalRooms ?? 0} ห้อง`}
+                icon={Home}
+                accent="green"
+                href="/admin/rooms"
+              />
+              <KpiCard
+                label="ค้างชำระ"
+                value={summary?.overdueInvoices ?? 0}
+                sub="เกินกำหนดชำระ"
+                icon={AlertTriangle}
+                accent="red"
+                href="/admin/overdue"
+              />
+              <KpiCard
+                label="รายได้เดือนนี้"
+                value={moneyCompact(summary?.monthlyRevenue ?? 0)}
+                sub="รายรับรวม"
+                icon={DollarSign}
+                accent="blue"
+              />
+              <KpiCard
+                label="แจ้งซ่อมรอดำเนินการ"
+                value={pendingMaintenanceCount}
+                sub={`${pendingMaintenanceCount} รายการ`}
+                icon={Wrench}
+                accent="yellow"
+                href="/admin/maintenance"
+              />
+            </>
+          )}
+        </section>
 
-        {/* Left 2/3 */}
-        <div className="space-y-6">
+        {/* ── 3 Big Action Buttons ────────────────────────────────── */}
+        <section className="grid grid-cols-3 gap-4">
+          <ActionButton
+            label="ตรวจสลิป"
+            icon={ClipboardCheck}
+            color="blue"
+            href="/admin/payments/review"
+          />
+          <ActionButton
+            label="วางบิล"
+            icon={Receipt}
+            color="green"
+            href="/admin/billing"
+          />
+          <ActionButton
+            label="ดูค้างชำระ"
+            icon={FileText}
+            color="red"
+            href="/admin/overdue"
+          />
+        </section>
 
-          {/* Revenue Trend */}
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-            <div className="px-6 py-4 border-b border-outline-variant/10 flex items-center justify-between">
-              <div className="text-sm font-bold text-primary">แนวโน้มรายรับรายเดือน</div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant bg-surface-container-low px-2 py-0.5 rounded">6 เดือนล่าสุด</span>
-            </div>
-            <div className="p-5">
-              {loading ? (
-                <div className="skeleton h-44 rounded-xl" />
-              ) : revenue.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <BarChart2 size={32} className="text-on-surface-variant mb-3" />
-                  <div className="text-sm font-semibold text-on-surface-variant">ยังไม่มีข้อมูลรายรับ</div>
-                  <div className="text-xs text-on-surface-variant mt-1">ข้อมูลจะแสดงเมื่อมีการสร้างบิลรายเดือน</div>
-                </div>
-              ) : (
-                <RevenueBarChart data={revenue} />
-              )}
-            </div>
+        {/* ── Task Cards + Recent Activity ─────────────────────────── */}
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* Left: Task Cards Grid */}
+          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            {/* รอตรวจสลิป */}
+            <TaskCard
+              title="รอตรวจสลิป"
+              count={unmatchedPayments}
+              icon={ClipboardCheck}
+              accent="blue"
+              actionLabel="ตรวจเลย"
+              actionHref="/admin/payments/review"
+            />
+
+            {/* ค้างชำระ 3+ วัน */}
+            <TaskCard
+              title="ค้างชำระ"
+              count={overdueCount}
+              icon={AlertTriangle}
+              accent="red"
+              items={overdueItems}
+              actionLabel="ดูทั้งหมด"
+              actionHref="/admin/overdue"
+            />
+
+            {/* แจ้งซ่อมใหม่ */}
+            <TaskCard
+              title="แจ้งซ่อมใหม่"
+              count={pendingMaintenanceCount}
+              icon={Wrench}
+              accent="yellow"
+              items={maintenanceItems}
+              actionLabel="ดู"
+              actionHref="/admin/maintenance"
+            />
+
+            {/* สัญญาใกล้หมด */}
+            <TaskCard
+              title="สัญญาใกล้หมด"
+              count={expiringContracts.length}
+              icon={FileText}
+              accent="yellow"
+              items={contractItems}
+              actionLabel="ต่อสัญญา"
+              actionHref="/admin/contracts"
+            />
+
+            {/* ประกาศ */}
+            <TaskCard
+              title="ประกาศ"
+              icon={Megaphone}
+              accent="blue"
+              actionLabel="ส่งประกาศ"
+              actionHref="/admin/broadcast"
+            />
+
           </div>
 
-          {/* Recent Invoices */}
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-            <div className="px-6 py-4 border-b border-outline-variant/10 flex items-center justify-between">
-              <div className="text-sm font-bold text-primary">ใบแจ้งหนี้ล่าสุด</div>
-              <Link href="/admin/invoices" className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary">
-                ดูทั้งหมด <ArrowRight size={12} />
+          {/* Right: Recent Activity */}
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock size={14} className="text-gray-400" />
+                <span className="text-sm font-bold text-[var(--on-surface)]">กิจกรรมล่าสุด</span>
+              </div>
+              <Link
+                href="/admin/audit-logs"
+                className="flex items-center gap-1 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary)]/80 transition-colors"
+              >
+                ดูทั้งหมด <ArrowRight size={10} />
               </Link>
             </div>
-            <div className="overflow-x-auto">
-              {loading ? (
-                <SkeletonRows count={5} />
-              ) : recentInvoices.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <FileText size={32} className="text-on-surface-variant mb-3" />
-                  <div className="text-sm font-semibold text-on-surface-variant">ยังไม่มีใบแจ้งหนี้</div>
-                  <div className="text-xs text-on-surface-variant mt-1">สร้างใบแจ้งหนี้ได้จากหน้าบิลรายเดือน</div>
-                </div>
-              ) : (
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-surface-container-low/50">
-                      <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
-                      <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ผู้เช่า</th>
-                      <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เดือน</th>
-                      <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-right">จำนวน</th>
-                      <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
-                      <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-outline-variant/10">
-                    {recentInvoices.map((inv) => {
-                      const badge = statusBadge(inv.status);
-                      const canSend = inv.status === 'DRAFT' || inv.status === 'GENERATED';
-                      const name = tenantName(inv);
-                      return (
-                        <tr key={inv.id} className="hover:bg-surface-container-lowest transition-colors">
-                          <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{inv.room?.roomNumber ?? inv.room?.roomNo ?? '—'}</td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${avatarColor(name)}`}>
-                                {name.charAt(0).toUpperCase()}
-                              </div>
-                              <span className="max-w-[120px] truncate text-sm text-on-surface">{name}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-on-surface-variant">
-                            {MONTH_ABBR[(inv.month - 1) % 12]} {inv.year}
-                          </td>
-                          <td className="px-6 py-4 text-right text-sm font-semibold text-on-surface">
-                            {money(invoiceAmount(inv))}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${badge.cls}`}>{badge.label}</span>
-                          </td>
-                          <td className="px-6 py-4">
-                            {canSend && (
-                              <button
-                                onClick={() => handleSendInvoice(inv.id)}
-                                disabled={sendingId === inv.id}
-                                className="flex items-center gap-1 rounded-md border border-primary/30 bg-primary-container/20 px-2 py-1 text-[11px] font-semibold text-primary hover:bg-primary-container/40 disabled:opacity-50 transition-colors"
-                              >
-                                <Send size={10} strokeWidth={2} />
-                                {sendingId === inv.id ? '...' : 'ส่ง'}
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </div>
 
-        {/* Right 1/3 */}
-        <div className="space-y-6">
-
-          {/* Tasks Today — Priority Queue */}
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-            <div className="px-6 py-4 border-b border-outline-variant/10 flex items-center justify-between">
-              <div className="text-sm font-bold text-primary">งานที่ต้องทำวันนี้</div>
-              {dashboardAlerts.length > 0 && (
-                <span className="rounded-full bg-primary-container px-2 py-0.5 text-[10px] font-bold text-primary">
-                  {dashboardAlerts.length}
-                </span>
-              )}
-            </div>
-
-            {dashboardAlerts.length === 0 && !loading ? (
-              <div className="flex flex-col items-center justify-center py-8 px-6">
-                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
-                  <CheckSquare size={20} className="text-emerald-600" />
-                </div>
-                <p className="text-sm font-medium text-emerald-700">ไม่มีงานที่ต้องทำวันนี้</p>
-                <p className="text-xs text-on-surface-variant mt-1">ทุกอย่างเรียบร้อยแล้ว</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-outline-variant/10">
-                {/* Urgent section */}
-                {dashboardAlerts.filter(a => a.priority === 'urgent').length > 0 && (
-                  <div>
-                    <div className="px-6 py-2 bg-red-50">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-red-600">ด่วน</span>
-                    </div>
-                    {dashboardAlerts
-                      .filter(a => a.priority === 'urgent')
-                      .map((alert) => (
-                        <div key={alert.type} className="flex items-start justify-between gap-3 px-6 py-4">
-                          <div className="flex items-start gap-3 min-w-0">
-                            <div className="mt-0.5 h-2 w-2 rounded-full bg-red-400 shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-on-surface truncate">{alert.description}</p>
-                              <div className="flex items-center gap-2 mt-2">
-                                <Link
-                                  href={alert.actionHref}
-                                  className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors"
-                                >
-                                  {alert.actionLabel} <ArrowRight size={10} />
-                                </Link>
-                                {alert.actionSecondaryHref && (
-                                  <Link
-                                    href={alert.actionSecondaryHref}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 transition-colors"
-                                  >
-                                    {alert.actionSecondaryLabel}
-                                  </Link>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                )}
-
-                {/* Normal section */}
-                {dashboardAlerts.filter(a => a.priority === 'normal').length > 0 && (
-                  <div>
-                    <div className="px-6 py-2 bg-amber-50">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600">รอดำเนินการ</span>
-                    </div>
-                    {dashboardAlerts
-                      .filter(a => a.priority === 'normal')
-                      .map((alert) => (
-                        <div key={alert.type} className="flex items-start justify-between gap-3 px-6 py-4">
-                          <div className="flex items-start gap-3 min-w-0">
-                            <div className="mt-0.5 h-2 w-2 rounded-full bg-amber-400 shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-on-surface truncate">{alert.description}</p>
-                              <div className="flex items-center gap-2 mt-2">
-                                <Link
-                                  href={alert.actionHref}
-                                  className="inline-flex items-center gap-1 rounded-lg bg-primary-container px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
-                                >
-                                  {alert.actionLabel} <ArrowRight size={10} />
-                                </Link>
-                                {alert.actionSecondaryHref && (
-                                  <Link
-                                    href={alert.actionSecondaryHref}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-outline px-2.5 py-1 text-xs font-medium text-on-surface-variant hover:bg-surface-container transition-colors"
-                                  >
-                                    {alert.actionSecondaryLabel}
-                                  </Link>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          {alert.count > 0 && (
-                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 shrink-0">
-                              {alert.count}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Recent Activity */}
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-            <div className="px-6 py-4 border-b border-outline-variant/10 flex items-center justify-between">
-              <div className="text-sm font-bold text-primary">กิจกรรมล่าสุด</div>
-              <Link href="/admin/audit-logs" className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary">
-                ดูทั้งหมด <ArrowRight size={12} />
-              </Link>
-            </div>
             <div className="p-4">
               {loading ? (
                 <div className="space-y-3">
-                  {[1,2,3].map(i => <div key={i} className="skeleton h-12 rounded-lg" />)}
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="skeleton h-10 rounded-lg" />
+                  ))}
                 </div>
               ) : auditLogs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <Clock size={24} className="text-on-surface-variant mb-2" />
-                  <div className="text-xs font-semibold text-on-surface-variant">ไม่มีกิจกรรม</div>
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <CheckCircle2 size={28} className="text-gray-300 mb-2" />
+                  <p className="text-sm font-medium text-gray-400">ไม่มีกิจกรรมล่าสุด</p>
                 </div>
               ) : (
-                <ol className="relative border-l-2 border-primary/20 pl-4 space-y-4">
+                <div className="divide-y divide-gray-100">
                   {auditLogs.map((log) => (
-                    <li key={log.id} className="relative">
-                      <div className="absolute -left-[21px] top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-primary/20 bg-white">
-                        <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                      </div>
-                      <p className="text-xs font-semibold text-on-surface leading-snug">
-                        {auditLabel(log.action)}{' '}
-                        <span className="font-normal text-on-surface-variant">{log.entityType}</span>
-                      </p>
-                      <p className="mt-0.5 text-[10px] text-on-surface-variant">
-                        {log.userName} · {timeAgo(log.createdAt)}
-                      </p>
-                    </li>
+                    <ActivityItem key={log.id} log={log} />
                   ))}
-                </ol>
-              )}
-            </div>
-          </div>
-
-          {/* Rooms At a Glance */}
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-            <div className="px-6 py-4 border-b border-outline-variant/10 flex items-center justify-between">
-              <div className="text-sm font-bold text-primary">ภาพรวมห้องพัก</div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant bg-surface-container-low px-2 py-0.5 rounded">{occupancy?.totalRooms ?? 0} ทั้งหมด</span>
-            </div>
-            <div className="space-y-3 p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  <span className="text-sm text-on-surface">เข้าพัก</span>
-                </div>
-                <span className="text-sm font-bold text-on-surface">{loading ? '—' : occupancy?.occupiedRooms ?? 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-surface-container" />
-                  <span className="text-sm text-on-surface">ว่าง</span>
-                </div>
-                <span className="text-sm font-bold text-on-surface">{loading ? '—' : occupancy?.vacantRooms ?? 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-                  <span className="text-sm text-on-surface">ซ่อมบำรุง</span>
-                </div>
-                <span className="text-sm font-bold text-on-surface">{loading ? '—' : maintenanceCount}</span>
-              </div>
-              {!loading && occupancy && occupancy.totalRooms > 0 && (
-                <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-surface-container-high">
-                  <div className="bg-emerald-500 transition-all" style={{ width: `${(occupancy.occupiedRooms / occupancy.totalRooms) * 100}%` }} />
-                  <div className="bg-amber-400 transition-all" style={{ width: `${(maintenanceCount / occupancy.totalRooms) * 100}%` }} />
                 </div>
               )}
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* ── Bottom Section ──────────────────────────────────────── */}
-      <section className="grid gap-6 xl:grid-cols-2">
+        </section>
 
-        {/* Recent Conversations */}
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-          <div className="px-6 py-4 border-b border-outline-variant/10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MessageSquare size={14} className="text-on-surface-variant" />
-              <div className="text-sm font-bold text-primary">การสนทนาล่าสุด</div>
-            </div>
-            <Link href="/admin/chat" className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary">
-              ดูทั้งหมด <ArrowRight size={12} />
-            </Link>
-          </div>
-          <div className="divide-y divide-outline-variant/10">
-            {loading ? (
-              <SkeletonRows count={3} />
-            ) : conversations.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <Inbox size={28} className="text-on-surface-variant mb-2" />
-                <div className="text-sm font-semibold text-on-surface-variant">ไม่มีการสนทนาล่าสุด</div>
-                <div className="text-xs text-on-surface-variant mt-1">ข้อความจาก LINE จะแสดงที่นี่</div>
-              </div>
-            ) : (
-              conversations.map((conv) => {
-                const name = conv.tenant?.fullName ?? 'ไม่ระบุผู้เช่า';
-                return (
-                  <Link
-                    key={conv.id}
-                    href="/admin/chat"
-                    className="flex items-center justify-between px-6 py-4 hover:bg-surface-container-lowest transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold relative ${avatarColor(name)}`}>
-                        {name.charAt(0).toUpperCase()}
-                        {conv.unreadCount > 0 && (
-                          <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white">
-                            {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
-                          </span>
-                        )}
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-on-surface">{name}</div>
-                        <div className="text-xs text-on-surface-variant">ห้อง {conv.room?.roomNumber ?? conv.room?.roomNo ?? '—'}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 text-[11px] text-on-surface-variant">
-                      <Clock size={10} />
-                      {timeAgo(conv.lastMessageAt)}
-                    </div>
-                  </Link>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Maintenance Alerts */}
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-          <div className="px-6 py-4 border-b border-outline-variant/10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Wrench size={14} className="text-on-surface-variant" />
-              <div className="text-sm font-bold text-primary">แจ้งซ่อมบำรุง</div>
-            </div>
-            <Link href="/admin/maintenance" className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary">
-              ดูทั้งหมด <ArrowRight size={12} />
-            </Link>
-          </div>
-          <div className="divide-y divide-outline-variant/10">
-            {loading ? (
-              <SkeletonRows count={3} />
-            ) : openTickets.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <Wrench size={28} className="text-on-surface-variant mb-2" />
-                <div className="text-sm font-semibold text-on-surface-variant">ไม่มีงานซ่อม</div>
-                <div className="text-xs text-on-surface-variant mt-1">ระบบจะแสดงงานซ่อมที่ยังไม่เสร็จ</div>
-              </div>
-            ) : (
-              openTickets
-                .slice()
-                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-                .map((ticket) => (
-                  <div key={ticket.id} className="flex items-start justify-between gap-3 px-6 py-4 hover:bg-surface-container-lowest transition-colors">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-on-surface">{ticket.title}</div>
-                      <div className="mt-0.5 flex items-center gap-2 text-xs text-on-surface-variant">
-                        <span>ห้อง {ticket.room?.roomNumber ?? ticket.room?.roomNo ?? '—'}</span>
-                        <span>·</span>
-                        <Clock size={10} />
-                        <span>{timeAgo(ticket.createdAt)}</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${priorityColor(ticket.priority)}`}>
-                        {ticket.priority}
-                      </span>
-                      <span className="text-[10px] uppercase tracking-wide text-on-surface-variant">
-                        {ticket.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                  </div>
-                ))
-            )}
-          </div>
-        </div>
-      </section>
+      </div>
     </main>
   );
 }

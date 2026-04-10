@@ -1,9 +1,9 @@
 'use client';
 
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
-import { CheckCircle2, AlertTriangle, Info } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Info, AlertCircle } from 'lucide-react';
 
-type ToastVariant = 'success' | 'error' | 'info';
+type ToastVariant = 'success' | 'error' | 'warning' | 'info';
 
 interface Toast {
   id: string;
@@ -15,6 +15,7 @@ interface ToastContextValue {
   toast: (message: string, variant?: ToastVariant) => void;
   success: (message: string) => void;
   error: (message: string) => void;
+  warning: (message: string) => void;
   info: (message: string) => void;
 }
 
@@ -35,36 +36,43 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const success = useCallback((message: string) => toast(message, 'success'), [toast]);
   const error = useCallback((message: string) => toast(message, 'error'), [toast]);
+  const warning = useCallback((message: string) => toast(message, 'warning'), [toast]);
   const info = useCallback((message: string) => toast(message, 'info'), [toast]);
 
   return (
-    <ToastContext.Provider value={{ toast, success, error, info }}>
+    <ToastContext.Provider value={{ toast, success, error, warning, info }}>
       {children}
-      {/* Toast container */}
-      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2 max-w-sm pointer-events-none">
+      {/* Toast container — fixed top-right, stacked */}
+      <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm pointer-events-none">
         {toasts.map((t) => (
           <div
             key={t.id}
             className={[
-              'pointer-events-auto flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-sm font-medium shadow-xl anim-fade-in',
+              'pointer-events-auto flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-sm font-medium shadow-xl',
+              'transition-all duration-300 ease-out',
               t.variant === 'success'
-                ? 'border-tertiary-container bg-tertiary-container/20 text-on-tertiary-container'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                 : t.variant === 'error'
-                ? 'border-error-container bg-error-container/20 text-on-error-container'
-                : 'border-primary-container bg-primary-container/20 text-primary',
+                ? 'border-red-200 bg-red-50 text-red-800'
+                : t.variant === 'warning'
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-blue-200 bg-blue-50 text-blue-800',
             ].join(' ')}
+            style={{ animation: 'toast-slide-in 300ms cubic-bezier(0.16, 1, 0.3, 1)' }}
           >
             {t.variant === 'success' ? (
-              <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+              <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
             ) : t.variant === 'error' ? (
-              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-red-600" />
+            ) : t.variant === 'warning' ? (
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
             ) : (
-              <Info className="h-4 w-4 mt-0.5 shrink-0" />
+              <Info className="h-4 w-4 mt-0.5 shrink-0 text-blue-600" />
             )}
             <span className="flex-1">{t.message}</span>
             <button
               onClick={() => dismiss(t.id)}
-              className="ml-1 shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+              className="ml-1 shrink-0 opacity-50 hover:opacity-100 transition-opacity"
             >
               ×
             </button>

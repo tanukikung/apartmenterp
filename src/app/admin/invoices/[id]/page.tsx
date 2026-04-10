@@ -187,7 +187,7 @@ function RecordPaymentForm({
             type="number"
             value={amount}
             onChange={e => setAmount(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-outline bg-white px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-lg border border-[var(--outline)] bg-white px-3 py-2 text-sm"
             required
             min="1"
           />
@@ -197,7 +197,7 @@ function RecordPaymentForm({
           <select
             value={method}
             onChange={e => setMethod(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-outline bg-white px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-lg border border-[var(--outline)] bg-white px-3 py-2 text-sm"
           >
             <option value="CASH">เงินสด</option>
             <option value="BANK_TRANSFER">โอนเงิน</option>
@@ -210,7 +210,7 @@ function RecordPaymentForm({
             type="text"
             value={reference}
             onChange={e => setReference(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-outline bg-white px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-lg border border-[var(--outline)] bg-white px-3 py-2 text-sm"
             placeholder="เช่น TMB-REF-001"
           />
         </div>
@@ -297,7 +297,7 @@ export default function InvoiceDetailPage() {
   if (loading) {
     return (
       <main className="space-y-6">
-        <div className="py-16 text-center text-sm text-on-surface-variant">กำลังโหลดใบแจ้งหนี้...</div>
+        <div className="py-16 text-center text-sm text-[var(--on-surface-variant)]">กำลังโหลดใบแจ้งหนี้...</div>
       </main>
     );
   }
@@ -306,24 +306,24 @@ export default function InvoiceDetailPage() {
   if (notFound || (!loading && !invoice)) {
     return (
       <main className="space-y-6">
-        <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-          <Link href="/admin/invoices" className="hover:text-primary transition-colors">
+        <nav className="flex items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
+          <Link href="/admin/invoices" className="hover:text-[var(--primary)] transition-colors">
             ใบแจ้งหนี้
           </Link>
           <span className="text-slate-400">/</span>
-          <span className="font-medium text-on-surface">ไม่พบ</span>
+          <span className="font-medium text-[var(--on-surface)]">ไม่พบ</span>
         </nav>
-        <div className="flex flex-col items-center gap-4 rounded-3xl border border-outline-variant/10 bg-surface-container-lowest py-20 text-center">
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)] py-20 text-center">
           <AlertTriangle className="h-12 w-12 text-tertiary" />
           <div>
-            <h2 className="text-lg font-semibold text-on-surface">ไม่พบใบแจ้งหนี้</h2>
+            <h2 className="text-lg font-semibold text-[var(--on-surface)]">ไม่พบใบแจ้งหนี้</h2>
             <p className="mt-1 text-sm text-slate-500">
               ไม่พบใบแจ้งหนี้รหัส <code className="font-mono text-xs">{invoiceId}</code>
             </p>
           </div>
           <Link
             href="/admin/invoices"
-            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors mt-2"
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-primary text-[var(--on-primary)] hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors mt-2"
           >
             <ArrowLeft className="h-4 w-4" />
             กลับไปยังใบแจ้งหนี้
@@ -367,31 +367,31 @@ export default function InvoiceDetailPage() {
   return (
     <main className="space-y-6">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-        <Link href="/admin/invoices" className="hover:text-primary transition-colors">
+      <nav className="flex items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
+        <Link href="/admin/invoices" className="hover:text-[var(--primary)] transition-colors">
           ใบแจ้งหนี้
         </Link>
         <span className="text-slate-400">/</span>
-        <span className="font-medium text-on-surface">{inv.invoiceNumber}</span>
+        <span className="font-medium text-[var(--on-surface)]">{inv.invoiceNumber}</span>
       </nav>
 
       {/* Page header */}
-      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
+      <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
         <div className="flex items-center gap-4">
           <Link
             href="/admin/invoices"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-colors hover:border-primary/30 hover:bg-surface-container"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] shadow-sm transition-colors hover:border-[var(--primary)]30 hover:bg-[var(--surface-container)]"
           >
-            <ArrowLeft className="h-4 w-4 text-on-primary" />
+            <ArrowLeft className="h-4 w-4 text-[var(--on-primary)]" />
           </Link>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold text-on-primary">{inv.invoiceNumber}</h1>
+              <h1 className="text-xl font-semibold text-[var(--on-primary)]">{inv.invoiceNumber}</h1>
               <span className={`inline-flex items-center rounded-full border px-3 py-0.5 text-xs font-semibold ${invoiceBadgeClass(inv.status)}`}>
                 {inv.status}
               </span>
             </div>
-            <p className="text-sm text-on-primary/80">
+            <p className="text-sm text-[var(--on-primary)]/80">
               {period} · Room {roomNumber} · {tenantName}
             </p>
           </div>
@@ -399,7 +399,7 @@ export default function InvoiceDetailPage() {
         <div className="flex items-center gap-2 mt-4 flex-wrap">
           <button
             onClick={() => void load()}
-            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
           >
             <RefreshCw className="h-4 w-4" />
             รีเฟรช
@@ -436,8 +436,8 @@ export default function InvoiceDetailPage() {
       {/* Invoice details */}
       <section className="grid gap-4 lg:grid-cols-3">
         {/* Left: details card */}
-        <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-5 lg:col-span-2">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-4">รายละเอียดใบแจ้งหนี้</h2>
+        <div className="rounded-2xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)] p-5 lg:col-span-2">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-4">รายละเอียดใบแจ้งหนี้</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">ห้อง</div>
@@ -476,7 +476,7 @@ export default function InvoiceDetailPage() {
           {/* Line items */}
           {lineItems.length > 0 && (
             <div className="mt-6">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">รายการ</h3>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-3">รายการ</h3>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -509,8 +509,8 @@ export default function InvoiceDetailPage() {
         <div className="flex flex-col gap-4">
           {/* Delivery history */}
           {inv.deliveries && inv.deliveries.length > 0 && (
-            <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-5">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">ประวัติการส่ง</h2>
+            <div className="rounded-2xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)] p-5">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-3">ประวัติการส่ง</h2>
               <div className="flex flex-col gap-2">
                 {inv.deliveries.map(d => (
                   <div key={d.id} className="flex items-center gap-2 text-sm">

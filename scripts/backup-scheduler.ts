@@ -10,7 +10,7 @@ export function startBackupScheduler(
     const task = cron.schedule(expr, handler);
     return { stop: () => task.stop() };
   },
-  run: () => Promise<void> = runBackup
+  run: () => Promise<void> = async () => { await runBackup(); }
 ): { stop: () => void } {
   logger.info({ type: 'backup_scheduler_start', expression });
   const task = scheduleFn(expression, async () => {

@@ -316,6 +316,9 @@ export function asyncHandler<Params extends Record<string, string> = Record<stri
   handler: (req: NextRequest, context?: { params: Params }) => Promise<NextResponse> | NextResponse
 ): (req: NextRequest, context?: { params: Params }) => Promise<NextResponse>;
 export function asyncHandler<Params extends Record<string, string> = Record<string, string>>(
+  handler: (req: NextRequest, context: { params: Promise<Params> }) => Promise<NextResponse> | NextResponse
+): (req: NextRequest, context: { params: Promise<Params> }) => Promise<NextResponse>;
+export function asyncHandler<Params extends Record<string, string> = Record<string, string>>(
   handler: (
     req: {
       params: Params;

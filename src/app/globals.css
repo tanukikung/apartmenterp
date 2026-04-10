@@ -88,6 +88,86 @@
     --on-error-container:    0 72% 40%;
   }
 
+  .dark {
+    /* ── Dark mode: gray-950 background, gray-100 text ── */
+    --background: 240 6% 4%;        /* gray-950 ≈ #0a0a0a */
+    --foreground: 240 5% 96%;        /* gray-100 */
+
+    --card:        240 6% 7%;        /* gray-900 */
+    --card-foreground: 240 5% 96%;
+    --popover:     240 6% 7%;
+    --popover-foreground: 240 5% 96%;
+
+    --primary:     239 84% 67%;      /* blue-500 — lighter for dark bg */
+    --primary-foreground: 0 0% 100%;
+    --secondary:   240 5% 14%;       /* gray-800 */
+    --secondary-foreground: 240 5% 65%;
+    --muted:       240 5% 14%;
+    --muted-foreground: 240 5% 55%;
+    --accent:      240 5% 14%;
+    --accent-foreground: 240 5% 96%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border:      240 5% 18%;       /* gray-800 */
+    --input:       240 5% 18%;
+    --ring:        239 84% 67%;
+
+    --color-primary:       239 84% 67%;
+    --color-primary-dark:  239 84% 57%;
+    --color-primary-light: 239 84% 12%;
+
+    --color-bg:            240 6% 4%;
+    --color-surface:       240 6% 7%;        /* gray-900 */
+    --color-border:        240 5% 18%;
+    --color-border-strong: 240 5% 26%;
+
+    --color-text:          240 5% 96%;
+    --color-text-2:        240 5% 65%;
+    --color-text-3:        240 5% 50%;
+
+    --color-success:       158 64% 45%;
+    --color-warning:       35 92% 52%;
+    --color-danger:        0 72% 55%;
+    --color-info:          199 89% 55%;
+
+    --sidebar-bg:          240 6% 4%;
+    --sidebar-active:      239 84% 67%;
+    --sidebar-text:        240 5% 65%;
+    --sidebar-text-active: 0 0% 100%;
+    --sidebar-divider:     240 6% 10%;
+
+    --shadow-xs:   0 1px 2px rgba(0,0,0,0.3);
+    --shadow-sm:   0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.03);
+    --shadow-md:   0 4px 12px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-lg:   0 8px 24px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.3);
+
+    /* Material Design 3 dark tokens */
+    --surface-container-lowest:  240 6% 4%;
+    --surface-container-low:     240 5% 7%;
+    --surface-container:         240 5% 10%;
+    --surface-container-high:    240 5% 14%;
+    --surface-container-highest: 240 5% 17%;
+    --on-surface:          240 5% 96%;
+    --on-surface-variant: 240 5% 65%;
+    --primary-container:   239 84% 20%;
+    --on-primary-container: 239 84% 90%;
+    --outline:             240 5% 30%;
+    --outline-variant:     240 5% 20%;
+    --secondary-container: 240 5% 14%;
+    --tertiary:            158 64% 48%;
+    --tertiary-container:   158 64% 12%;
+    --on-tertiary:         0 0% 100%;
+    --on-tertiary-container: 158 64% 90%;
+    --error:               0 72% 55%;
+    --error-container:      0 72% 12%;
+    --on-error:            0 0% 100%;
+    --on-error-container:   0 72% 75%;
+
+    /* Dark auth shell background */
+    --color-auth-bg: 240 6% 4%;
+  }
+
   * {
     @apply border-border;
     box-sizing: border-box;
@@ -2015,12 +2095,75 @@
     to   { transform: translateX(0); }
   }
 
+  @keyframes slide-in-left {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(0); }
+  }
+
+  @keyframes toast-slide-in {
+    from { opacity: 0; transform: translateX(100%); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes toast-fade-out {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(20px); }
+  }
+
+  @keyframes scale-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes mega-fade-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
   .anim-fade-in    { animation: fade-in 300ms ease; }
   .anim-slide-up   { animation: slide-up 350ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .animate-fade-in { animation: mega-fade-in 180ms ease; }
   .anim-stagger-1  { animation-delay: 50ms;  animation-fill-mode: both; }
   .anim-stagger-2  { animation-delay: 100ms; animation-fill-mode: both; }
   .anim-stagger-3  { animation-delay: 150ms; animation-fill-mode: both; }
   .anim-stagger-4  { animation-delay: 200ms; animation-fill-mode: both; }
+  .anim-scale-in   { animation: scale-in 200ms ease; }
+  .anim-slide-in-right { animation: slide-in-right 250ms cubic-bezier(0.16, 1, 0.3, 1); }
+
+  /* Page transition — wraps each admin page */
+  .page-enter {
+    animation: fade-in 250ms ease;
+  }
+
+  /* Staggered list items */
+  .stagger-item {
+    animation: slide-up 350ms ease both;
+  }
+  .stagger-item:nth-child(1) { animation-delay: 0ms; }
+  .stagger-item:nth-child(2) { animation-delay: 50ms; }
+  .stagger-item:nth-child(3) { animation-delay: 100ms; }
+  .stagger-item:nth-child(4) { animation-delay: 150ms; }
+  .stagger-item:nth-child(5) { animation-delay: 200ms; }
+  .stagger-item:nth-child(6) { animation-delay: 250ms; }
+  .stagger-item:nth-child(7) { animation-delay: 300ms; }
+  .stagger-item:nth-child(8) { animation-delay: 350ms; }
+
+  /* Hover lift for cards */
+  .hover-lift {
+    transition: transform 200ms ease, box-shadow 200ms ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    animation: fade-in 200ms ease;
+  }
+  .modal-content {
+    animation: scale-in 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
 
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
      RESPONSIVE ADJUSTMENTS

@@ -141,16 +141,16 @@ function invoiceStatusClass(s: InvoiceStatus) {
 function contractStatusClass(s: ContractStatus) {
   if (s === 'ACTIVE') return 'inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700';
   if (s === 'TERMINATED') return 'inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600';
-  return 'inline-flex items-center gap-1.5 rounded-full bg-surface-container-lowest border border-outline-variant px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant';
+  return 'inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-container-lowest)] border border-[var(--outline-variant)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface-variant)]';
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-lg border border-outline-variant bg-surface-container-lowest/80 px-4 py-3">
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant">{label}</span>
-      <span className="text-sm text-on-surface break-all">{value || '-'}</span>
+    <div className="flex flex-col gap-0.5 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)]/80 px-4 py-3">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--on-surface-variant)]">{label}</span>
+      <span className="text-sm text-[var(--on-surface)] break-all">{value || '-'}</span>
     </div>
   );
 }
@@ -386,7 +386,7 @@ export default function TenantDetailPage() {
   if (loading) {
     return (
       <main className="space-y-6">
-        <div className="flex items-center justify-center py-24 text-on-surface-variant">กำลังโหลดโปรไฟล์ผู้เช่า…</div>
+        <div className="flex items-center justify-center py-24 text-[var(--on-surface-variant)]">กำลังโหลดโปรไฟล์ผู้เช่า…</div>
       </main>
     );
   }
@@ -396,8 +396,8 @@ export default function TenantDetailPage() {
       <main className="space-y-6">
         <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
           <AlertCircle className="h-10 w-10 text-red-400" />
-          <div className="text-on-surface-variant">{error ?? 'Tenant not found'}</div>
-          <Link href="/admin/tenants" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+          <div className="text-[var(--on-surface-variant)]">{error ?? 'Tenant not found'}</div>
+          <Link href="/admin/tenants" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
             Back to Tenants
           </Link>
         </div>
@@ -416,23 +416,23 @@ export default function TenantDetailPage() {
     <main className="space-y-6">
 
       {/* ── Breadcrumb ─────────────────────────────────────────────────────── */}
-      <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-        <Link href="/admin/tenants" className="hover:text-on-surface transition-colors">ผู้เช่า</Link>
+      <nav className="flex items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
+        <Link href="/admin/tenants" className="hover:text-[var(--on-surface)] transition-colors">ผู้เช่า</Link>
         <ChevronRight size={14} className="shrink-0 text-outline-variant" />
-        <span className="font-medium text-on-surface">{tenant.fullName}</span>
+        <span className="font-medium text-[var(--on-surface)]">{tenant.fullName}</span>
       </nav>
 
       {/* ── Hero card ──────────────────────────────────────────────────────── */}
-      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
         <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:gap-6">
           {/* Avatar */}
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary-container text-xl font-bold text-primary shadow-sm">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[var(--primary-container)] text-xl font-bold text-[var(--primary)] shadow-sm">
             {initials}
           </div>
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-semibold text-on-surface">{tenant.fullName}</h1>
-            <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-on-surface-variant">
+            <h1 className="text-lg font-semibold text-[var(--on-surface)]">{tenant.fullName}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-[var(--on-surface-variant)]">
               {tenant.phone && (
                 <span className="flex items-center gap-1">
                   <Phone size={13} /> {tenant.phone}
@@ -463,28 +463,28 @@ export default function TenantDetailPage() {
 
       {/* ── Quick stats ────────────────────────────────────────────────────── */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">ใบแจ้งหนี้</div>
-          <div className="text-xl font-semibold text-on-surface">{stats.invoicesCount}</div>
+        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">ใบแจ้งหนี้</div>
+          <div className="text-xl font-semibold text-[var(--on-surface)]">{stats.invoicesCount}</div>
         </div>
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">ชำระแล้ว</div>
+        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">ชำระแล้ว</div>
           <div className="text-xl font-semibold text-emerald-600">{money(stats.totalPaid)}</div>
         </div>
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">ค้างชำระ</div>
-          <div className={`text-xl font-semibold ${stats.outstanding > 0 ? 'text-amber-600' : 'text-on-surface'}`}>{money(stats.outstanding)}</div>
+        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">ค้างชำระ</div>
+          <div className={`text-xl font-semibold ${stats.outstanding > 0 ? 'text-amber-600' : 'text-[var(--on-surface)]'}`}>{money(stats.outstanding)}</div>
         </div>
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">งานเปิด</div>
-          <div className={`text-xl font-semibold ${stats.openTickets > 0 ? 'text-red-500' : 'text-on-surface'}`}>{stats.openTickets}</div>
+        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">งานเปิด</div>
+          <div className={`text-xl font-semibold ${stats.openTickets > 0 ? 'text-red-500' : 'text-[var(--on-surface)]'}`}>{stats.openTickets}</div>
         </div>
       </section>
 
       {/* ── Tabs ───────────────────────────────────────────────────────────── */}
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-visible">
+      <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-visible">
         {/* Tab bar */}
-        <div className="flex overflow-x-auto border-b border-outline-variant bg-surface-container-lowest">
+        <div className="flex overflow-x-auto border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest)]">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -494,8 +494,8 @@ export default function TenantDetailPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex shrink-0 items-center gap-2 border-b-2 px-5 py-3.5 text-sm font-medium transition-colors ${
                   active
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-on-surface-variant hover:text-on-surface'
+                    ? 'border-primary text-[var(--primary)]'
+                    : 'border-transparent text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]'
                 }`}
               >
                 <Icon size={14} />
@@ -513,7 +513,7 @@ export default function TenantDetailPage() {
             <div className="grid gap-6 xl:grid-cols-2">
               {/* Personal info */}
               <div className="space-y-4">
-                <h2 className="text-base font-semibold text-on-surface">ข้อมูลส่วนตัว</h2>
+                <h2 className="text-base font-semibold text-[var(--on-surface)]">ข้อมูลส่วนตัว</h2>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <InfoRow label="ชื่อ" value={tenant.firstName} />
                   <InfoRow label="นามสกุล" value={tenant.lastName} />
@@ -536,12 +536,12 @@ export default function TenantDetailPage() {
               {/* Room assignments */}
               {tenant.roomTenants && tenant.roomTenants.length > 0 && (
                 <div className="space-y-2">
-                  <h2 className="text-base font-semibold text-on-surface">ห้องที่ลงทะเบียน</h2>
+                  <h2 className="text-base font-semibold text-[var(--on-surface)]">ห้องที่ลงทะเบียน</h2>
                   {tenant.roomTenants.map((rt) => (
-                    <div key={rt.id} className="flex items-center justify-between rounded-lg border border-primary-container bg-primary-container/50 px-4 py-3 text-sm">
+                    <div key={rt.id} className="flex items-center justify-between rounded-lg border border-primary-container bg-[var(--primary-container)]/50 px-4 py-3 text-sm">
                       <div>
-                        <div className="font-medium text-on-surface">ห้อง {rt.room?.roomNo ?? rt.roomNo}</div>
-                        <div className="text-on-surface-variant">
+                        <div className="font-medium text-[var(--on-surface)]">ห้อง {rt.room?.roomNo ?? rt.roomNo}</div>
+                        <div className="text-[var(--on-surface-variant)]">
                           {rt.role} · เข้าอยู่ {fmtDate(rt.moveInDate)}
                           {rt.moveOutDate ? ` · ย้ายออก ${fmtDate(rt.moveOutDate)}` : ''}
                         </div>
@@ -559,11 +559,11 @@ export default function TenantDetailPage() {
           {/* ── CONTRACTS ──────────────────────────────────────────────────── */}
           {activeTab === 'contracts' && (
             <div className="space-y-3">
-              <h2 className="text-base font-semibold text-on-surface">สัญญา</h2>
+              <h2 className="text-base font-semibold text-[var(--on-surface)]">สัญญา</h2>
               {contractsLoading ? (
-                <div className="py-10 text-center text-on-surface-variant">กำลังโหลดสัญญา...</div>
+                <div className="py-10 text-center text-[var(--on-surface-variant)]">กำลังโหลดสัญญา...</div>
               ) : contracts.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
+                <div className="rounded-lg border border-dashed border-[var(--outline-variant)] p-8 text-center text-sm text-[var(--on-surface-variant)]">
                   ไม่พบสัญญาสำหรับผู้เช่ารายนี้
                 </div>
               ) : (
@@ -571,10 +571,10 @@ export default function TenantDetailPage() {
                   {contracts.map((contract) => {
                     const expanded = expandedContracts.has(contract.id);
                     return (
-                      <div key={contract.id} className="rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm overflow-hidden">
+                      <div key={contract.id} className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] shadow-sm overflow-hidden">
                         {/* Row header */}
                         <button
-                          className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-surface-container-lowest transition-colors"
+                          className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-[var(--surface-container-lowest)] transition-colors"
                           onClick={() =>
                             setExpandedContracts((prev) => {
                               const next = new Set(prev);
@@ -585,12 +585,12 @@ export default function TenantDetailPage() {
                           }
                         >
                           <div className="flex items-center gap-4 min-w-0">
-                            <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-surface-container-lowest text-on-surface-variant">
+                            <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--surface-container-lowest)] text-[var(--on-surface-variant)]">
                               <FileText size={15} />
                             </div>
                             <div className="min-w-0">
-                              <div className="font-medium text-on-surface">ห้อง {contract.roomNumber}</div>
-                              <div className="text-xs text-on-surface-variant">
+                              <div className="font-medium text-[var(--on-surface)]">ห้อง {contract.roomNumber}</div>
+                              <div className="text-xs text-[var(--on-surface-variant)]">
                                 {fmtDate(contract.startDate)}
                                 {contract.endDate ? ` → ${fmtDate(contract.endDate)}` : ' · ดำเนินอยู่'}
                               </div>
@@ -598,18 +598,18 @@ export default function TenantDetailPage() {
                           </div>
                           <div className="flex items-center gap-3 shrink-0">
                             {contract.monthlyRent > 0 && (
-                              <span className="text-sm text-on-surface-variant">{money(contract.monthlyRent)}/mo</span>
+                              <span className="text-sm text-[var(--on-surface-variant)]">{money(contract.monthlyRent)}/mo</span>
                             )}
                             <span className={` ${contractStatusClass(contract.status)}`}>
                               {contract.status}
                             </span>
-                            {expanded ? <ChevronUp size={15} className="text-on-surface-variant" /> : <ChevronDown size={15} className="text-on-surface-variant" />}
+                            {expanded ? <ChevronUp size={15} className="text-[var(--on-surface-variant)]" /> : <ChevronDown size={15} className="text-[var(--on-surface-variant)]" />}
                           </div>
                         </button>
 
                         {/* Expanded details */}
                         {expanded && (
-                          <div className="border-t border-outline-variant bg-surface-container-lowest/60 px-5 py-4">
+                          <div className="border-t border-[var(--outline-variant)] bg-[var(--surface-container-lowest)]/60 px-5 py-4">
                             <div className="grid gap-3 sm:grid-cols-3">
                               <InfoRow label="วันเริ่มต้น" value={fmtDate(contract.startDate)} />
                               <InfoRow label="วันสิ้นสุด" value={contract.endDate ? fmtDate(contract.endDate) : 'ดำเนินอยู่'} />
@@ -635,9 +635,9 @@ export default function TenantDetailPage() {
           {activeTab === 'invoices' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h2 className="text-base font-semibold text-on-surface">ใบแจ้งหนี้</h2>
+                <h2 className="text-base font-semibold text-[var(--on-surface)]">ใบแจ้งหนี้</h2>
                 <select
-                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface w-auto min-w-[160px]"
+                  className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)] w-auto min-w-[160px]"
                   value={invoiceFilter}
                   onChange={(e) => setInvoiceFilter(e.target.value)}
                 >
@@ -652,14 +652,14 @@ export default function TenantDetailPage() {
               </div>
 
               {invoicesLoading ? (
-                <div className="py-10 text-center text-on-surface-variant">กำลังโหลดใบแจ้งหนี้...</div>
+                <div className="py-10 text-center text-[var(--on-surface-variant)]">กำลังโหลดใบแจ้งหนี้...</div>
               ) : filteredInvoices.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
+                <div className="rounded-lg border border-dashed border-[var(--outline-variant)] p-8 text-center text-sm text-[var(--on-surface-variant)]">
                   ไม่พบใบแจ้งหนี้{invoiceFilter ? ` สถานะ ${invoiceFilter}` : ''}
                 </div>
               ) : (
-                <div className="overflow-auto rounded-xl border border-outline-variant">
-                  <table className="w-full text-sm [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-on-surface-variant [&_th]:uppercase [&_th]:tracking-wider [&_th]:pb-3 [&_td]:text-on-surface [&_td]:py-3">
+                <div className="overflow-auto rounded-xl border border-[var(--outline-variant)]">
+                  <table className="w-full text-sm [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-[var(--on-surface-variant)] [&_th]:uppercase [&_th]:tracking-wider [&_th]:pb-3 [&_td]:text-[var(--on-surface)] [&_td]:py-3">
                     <thead>
                       <tr>
                         <th>เลขใบแจ้งหนี้</th>
@@ -675,7 +675,7 @@ export default function TenantDetailPage() {
                       {filteredInvoices.map((inv) => (
                         <tr key={inv.id}>
                           <td>
-                            <span className="font-mono text-xs text-on-surface-variant">{inv.id.slice(0, 12)}…</span>
+                            <span className="font-mono text-xs text-[var(--on-surface-variant)]">{inv.id.slice(0, 12)}…</span>
                           </td>
                           <td>{inv.room?.roomNumber ?? inv.room?.roomNo ?? '-'}</td>
                           <td>{inv.year}-{String(inv.month).padStart(2, '0')}</td>
@@ -697,16 +697,16 @@ export default function TenantDetailPage() {
           {/* ── PAYMENTS ───────────────────────────────────────────────────── */}
           {activeTab === 'payments' && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-on-surface">ประวัติการชำระ</h2>
+              <h2 className="text-base font-semibold text-[var(--on-surface)]">ประวัติการชำระ</h2>
               {paymentsLoading ? (
-                <div className="py-10 text-center text-on-surface-variant">กำลังโหลดการชำระ...</div>
+                <div className="py-10 text-center text-[var(--on-surface-variant)]">กำลังโหลดการชำระ...</div>
               ) : payments.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
+                <div className="rounded-lg border border-dashed border-[var(--outline-variant)] p-8 text-center text-sm text-[var(--on-surface-variant)]">
                   ไม่พบรายการชำระสำหรับผู้เช่ารายนี้
                 </div>
               ) : (
-                <div className="overflow-auto rounded-xl border border-outline-variant">
-                  <table className="w-full text-sm [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-on-surface-variant [&_th]:uppercase [&_th]:tracking-wider [&_th]:pb-3 [&_td]:text-on-surface [&_td]:py-3">
+                <div className="overflow-auto rounded-xl border border-[var(--outline-variant)]">
+                  <table className="w-full text-sm [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-[var(--on-surface-variant)] [&_th]:uppercase [&_th]:tracking-wider [&_th]:pb-3 [&_td]:text-[var(--on-surface)] [&_td]:py-3">
                     <thead>
                       <tr>
                         <th>วันที่</th>
@@ -742,20 +742,20 @@ export default function TenantDetailPage() {
           {/* ── CHAT ───────────────────────────────────────────────────────── */}
           {activeTab === 'chat' && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-on-surface">แชท LINE</h2>
+              <h2 className="text-base font-semibold text-[var(--on-surface)]">แชท LINE</h2>
               {!tenant.lineUserId ? (
-                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
+                <div className="rounded-lg border border-dashed border-[var(--outline-variant)] p-8 text-center text-sm text-[var(--on-surface-variant)]">
                   <MessageSquare size={28} className="mx-auto mb-2 text-outline-variant" />
                   ผู้เช่ารายนี้ยังไม่ได้ลิงก์บัญชี LINE กรุณาลิงก์ LINE UID ก่อนเพื่อส่งข้อความ
                 </div>
               ) : chatLoading ? (
-                <div className="py-10 text-center text-on-surface-variant">กำลังโหลดข้อความ...</div>
+                <div className="py-10 text-center text-[var(--on-surface-variant)]">กำลังโหลดข้อความ...</div>
               ) : (
                 <div className="space-y-4">
                   {/* Recent messages preview */}
                   {chatMessages.length > 0 ? (
                     <div className="space-y-2">
-                      <div className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-3">
+                      <div className="text-xs font-semibold uppercase tracking-widest text-[var(--on-surface-variant)] mb-3">
                         ข้อความล่าสุด
                       </div>
                       {chatMessages.map((msg) => (
@@ -767,11 +767,11 @@ export default function TenantDetailPage() {
                             className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
                               msg.direction === 'OUTGOING'
                                 ? 'bg-indigo-600 text-white'
-                                : 'bg-surface-container-lowest text-on-surface'
+                                : 'bg-[var(--surface-container-lowest)] text-[var(--on-surface)]'
                             }`}
                           >
                             <div className="break-words">{msg.content}</div>
-                            <div className={`mt-1 text-[10px] ${msg.direction === 'OUTGOING' ? 'text-primary-container' : 'text-on-surface-variant'}`}>
+                            <div className={`mt-1 text-[10px] ${msg.direction === 'OUTGOING' ? 'text-[var(--primary-container)]' : 'text-[var(--on-surface-variant)]'}`}>
                               <ClientOnly fallback="-">{new Date(msg.sentAt).toLocaleString()}</ClientOnly>
                             </div>
                           </div>
@@ -779,7 +779,7 @@ export default function TenantDetailPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-dashed border-outline-variant p-6 text-center text-sm text-on-surface-variant">
+                    <div className="rounded-lg border border-dashed border-[var(--outline-variant)] p-6 text-center text-sm text-[var(--on-surface-variant)]">
                       ไม่พบข้อความในการสนทนานี้
                     </div>
                   )}
@@ -789,7 +789,7 @@ export default function TenantDetailPage() {
                     <div className="pt-2">
                       <Link
                         href={`/admin/chat?conversationId=${conversation.id}`}
-                        className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container-primary inline-flex items-center gap-2"
+                        className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]-primary inline-flex items-center gap-2"
                       >
                         <ExternalLink size={14} />
                         เปิดแชทเต็ม
@@ -804,16 +804,16 @@ export default function TenantDetailPage() {
           {/* ── ACTIVITY ───────────────────────────────────────────────────── */}
           {activeTab === 'activity' && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-on-surface">กิจกรรม</h2>
+              <h2 className="text-base font-semibold text-[var(--on-surface)]">กิจกรรม</h2>
               {auditLoading ? (
-                <div className="py-10 text-center text-on-surface-variant">กำลังโหลดกิจกรรม...</div>
+                <div className="py-10 text-center text-[var(--on-surface-variant)]">กำลังโหลดกิจกรรม...</div>
               ) : auditRows.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
+                <div className="rounded-lg border border-dashed border-[var(--outline-variant)] p-8 text-center text-sm text-[var(--on-surface-variant)]">
                   ไม่มีกิจกรรมสำหรับผู้เช่ารายนี้
                 </div>
               ) : (
-                <div className="overflow-auto rounded-xl border border-outline-variant">
-                  <table className="w-full text-sm [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-on-surface-variant [&_th]:uppercase [&_th]:tracking-wider [&_th]:pb-3 [&_td]:text-on-surface [&_td]:py-3">
+                <div className="overflow-auto rounded-xl border border-[var(--outline-variant)]">
+                  <table className="w-full text-sm [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-[var(--on-surface-variant)] [&_th]:uppercase [&_th]:tracking-wider [&_th]:pb-3 [&_td]:text-[var(--on-surface)] [&_td]:py-3">
                     <thead>
                       <tr>
                         <th>เวลา</th>
@@ -831,8 +831,8 @@ export default function TenantDetailPage() {
                           <td>
                             <span className="">{row.action}</span>
                           </td>
-                          <td className="font-mono text-xs text-on-surface-variant">{row.entityType}:{row.entityId.slice(0, 8)}</td>
-                          <td className="max-w-[300px] truncate text-xs text-on-surface-variant">
+                          <td className="font-mono text-xs text-[var(--on-surface-variant)]">{row.entityType}:{row.entityId.slice(0, 8)}</td>
+                          <td className="max-w-[300px] truncate text-xs text-[var(--on-surface-variant)]">
                             {row.details ? JSON.stringify(row.details) : '-'}
                           </td>
                         </tr>

@@ -21,11 +21,12 @@ type ScheduleEntry = {
 };
 
 const SCHEDULES: ScheduleEntry[] = [
-  { jobId: 'overdue-flag',     hour: 1, minute: 0 },
-  { jobId: 'billing-generate', hour: 6, minute: 0, dayOfMonth: 1 },
-  { jobId: 'invoice-send',     hour: 7, minute: 0, dayOfMonth: 1 },
-  { jobId: 'late-fee',         hour: 2, minute: 0 },
-  { jobId: 'db-cleanup',       hour: 3, minute: 0, dayOfWeek: 0 },
+  { jobId: 'overdue-flag',       hour: 1, minute: 0 },
+  { jobId: 'billing-generate',   hour: 6, minute: 0, dayOfMonth: 1 },
+  { jobId: 'invoice-send',       hour: 7, minute: 0, dayOfMonth: 1 },
+  { jobId: 'late-fee',           hour: 2, minute: 0 },
+  { jobId: 'db-cleanup',         hour: 3, minute: 0, dayOfWeek: 0 },
+  { jobId: 'contract-expiry',    hour: 9, minute: 0 },
 ];
 
 export async function register() {
@@ -36,6 +37,18 @@ export async function register() {
   const { default: logger } = await import('./lib/utils/logger');
 
   logger.info('🚀 Server starting — instrumentation hook registered');
+
+  // ── Interval registry for graceful shutdown ─────────────────────────────
+  const intervals: ReturnType<typeof setInterval>[] = [];
+
+  // ── Graceful shutdown ─────────────────────────────────────────────────────
+  const shutdown = (signal: string) => {
+    logger.info({ signal }, '🛑 Shutdown signal received — clearing intervals');
+    for (const id of intervals) clearInterval(id);
+    intervals.length = 0;
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT',  () => shutdown('SIGINT'));
 
   // ── Scheduled job runner ────────────────────────────────────────────────
   let jobRunners: Record<string, JobRunner> = {};
@@ -48,7 +61,7 @@ export async function register() {
     setJobStatus = storeModule.setJobStatus as SetJobStatusFn;
 
     // Start a once-per-minute ticker that checks the schedule
-    setInterval(() => {
+    intervals.push(setInterval(() => {
       const now = new Date();
       const h   = now.getHours();
       const m   = now.getMinutes();
@@ -93,26 +106,42 @@ export async function register() {
     }, 60_000);
 
     // ── Messaging runtime bootstrap ────────────────────────────────────
-    const { bootstrapMessagingRuntime } = await import('./modules/messaging/bootstrap');
-    await bootstrapMessagingRuntime();
-    logger.info('📨 Messaging runtime bootstrapped');
+    try {
+      const { bootstrapMessagingRuntime } = await import('./modules/messaging/bootstrap');
+      await bootstrapMessagingRuntime();
+      logger.info('📨 Messaging runtime bootstrapped');
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Messaging runtime bootstrap failed — messaging disabled');
+    }
 
     // ── Outbox worker ────────────────────────────────────────────────────
-    const { startOutboxWorker } = await import('./infrastructure/outbox/outbox.processor');
-    startOutboxWorker();
-    logger.info('📤 Outbox worker started');
+    try {
+      const { startOutboxWorker } = await import('./infrastructure/outbox/outbox.processor');
+      startOutboxWorker();
+      logger.info('📤 Outbox worker started');
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Outbox worker failed to start — outbox processing disabled');
+    }
 
     // ── Legacy cron jobs (runs 3am/4am/8am/9am) ───────────────────────────
-    const { startCronIfEnabled } = await import('./server/cron');
-    startCronIfEnabled();
-    logger.info('⏰ Legacy cron jobs started');
+    try {
+      const { startCronIfEnabled } = await import('./server/cron');
+      startCronIfEnabled();
+      logger.info('⏰ Legacy cron jobs started');
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Legacy cron failed to start');
+    }
 
     // ── Worker heartbeat ─────────────────────────────────────────────────
     // Set the in-memory heartbeat so GET /api/admin/jobs reports
     // workerAvailable=true and the UI enables "Run Now" buttons.
-    const { setWorkerHeartbeat } = await import('./infrastructure/redis');
-    await setWorkerHeartbeat(30);
-    setInterval(() => { void setWorkerHeartbeat(30); }, 10_000);
+    try {
+      const { setWorkerHeartbeat } = await import('./infrastructure/redis');
+      await setWorkerHeartbeat(30);
+      intervals.push(setInterval(() => { void setWorkerHeartbeat(30); }, 10_000));
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Worker heartbeat failed — heartbeat will not be maintained');
+    }
 
     logger.info('⏰ Job scheduler started');
   } catch (err) {

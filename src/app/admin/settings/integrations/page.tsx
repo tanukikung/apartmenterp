@@ -81,7 +81,7 @@ function SecretInput({
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           autoComplete="off"
-          className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 pr-10 font-mono disabled:cursor-not-allowed disabled:bg-surface-container disabled:text-on-surface-variant"
+          className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 pr-10 font-mono disabled:cursor-not-allowed disabled:bg-[var(--surface-container)] disabled:text-[var(--on-surface-variant)]"
         />
         <button
           type="button"
@@ -210,13 +210,13 @@ export default function IntegrationsPage() {
   return (
     <main className="space-y-6">
       {/* ── Header ── */}
-      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
+      <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
         <div className="flex items-center gap-3">
           <Link
             href="/admin/settings"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-colors hover:border-primary/30 hover:bg-surface-container"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] shadow-sm transition-colors hover:border-[var(--primary)]30 hover:bg-[var(--surface-container)]"
           >
-            <ArrowLeft className="h-4 w-4 text-on-primary" />
+            <ArrowLeft className="h-4 w-4 text-[var(--on-primary)]" />
           </Link>
           <div>
             <div className="flex items-center gap-2">
@@ -226,9 +226,9 @@ export default function IntegrationsPage() {
               >
                 <MessageSquare className="h-5 w-5 text-white" />
               </div>
-              <h1 className="text-xl font-semibold text-on-primary">การเชื่อมต่อ LINE</h1>
+              <h1 className="text-xl font-semibold text-[var(--on-primary)]">การเชื่อมต่อ LINE</h1>
             </div>
-            <p className="text-sm text-on-primary/80 mt-0.5">
+            <p className="text-sm text-[var(--on-primary)]/80 mt-0.5">
               เชื่อมต่อ LINE Official Account สำหรับการส่งข้อความถึงผู้เช่า
             </p>
           </div>
@@ -236,7 +236,7 @@ export default function IntegrationsPage() {
         <button
           onClick={() => void load()}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container mt-4"
+          className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] mt-4"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           รีเฟรช
@@ -351,7 +351,7 @@ export default function IntegrationsPage() {
                   placeholder="เช่น 1234567890"
                   onChange={(e) => setChannelId(e.target.value)}
                   disabled={data?.envOverrideActive}
-                  className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono disabled:cursor-not-allowed disabled:bg-surface-container disabled:text-on-surface-variant"
+                  className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 font-mono disabled:cursor-not-allowed disabled:bg-[var(--surface-container)] disabled:text-[var(--on-surface-variant)]"
                 />
               </div>
 
@@ -386,7 +386,7 @@ export default function IntegrationsPage() {
                     type="text"
                     value={data?.webhookUrl ?? ''}
                     readOnly
-                    className="flex-1 rounded-xl border border-outline bg-surface-container px-3 py-2.5 text-xs text-on-surface cursor-default select-all font-mono focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="flex-1 rounded-xl border border-[var(--outline)] bg-[var(--surface-container)] px-3 py-2.5 text-xs text-[var(--on-surface)] cursor-default select-all font-mono focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
                   />
                   {data?.webhookUrl && <CopyButton text={data.webhookUrl} />}
                 </div>
@@ -406,7 +406,7 @@ export default function IntegrationsPage() {
               <button
                 onClick={() => void handleSave()}
                 disabled={saving || data?.envOverrideActive}
-                className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-primary text-[var(--on-primary)] hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                 style={
                   !saving && !data?.envOverrideActive
                     ? { backgroundColor: LINE_GREEN, borderColor: LINE_GREEN }

@@ -72,12 +72,12 @@ export default function AdminSettingsClient() {
   if (loading) {
     return (
       <main className="space-y-6">
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
           <div className="relative flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-base font-semibold text-on-primary">การตั้งค่า</h1>
-              <p className="text-xs text-on-primary/80 mt-0.5">กำลังโหลดค่าเริ่มต้นการทำงาน...</p>
+              <h1 className="text-base font-semibold text-[var(--on-primary)]">การตั้งค่า</h1>
+              <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">กำลังโหลดค่าเริ่มต้นการทำงาน...</p>
             </div>
             <div className="flex items-center gap-3"></div>
           </div>
@@ -88,12 +88,12 @@ export default function AdminSettingsClient() {
 
   return (
     <main className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-base font-semibold text-on-primary">การตั้งค่า</h1>
-            <p className="text-xs text-on-primary/80 mt-0.5">กำหนดรอบการเรียกเก็บและตรวจสอบการเชื่อมต่อที่สนับสนุนจากสภาพแวดล้อม</p>
+            <h1 className="text-base font-semibold text-[var(--on-primary)]">การตั้งค่า</h1>
+            <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">กำหนดรอบการเรียกเก็บและตรวจสอบการเชื่อมต่อที่สนับสนุนจากสภาพแวดล้อม</p>
           </div>
           <div className="flex items-center gap-3"></div>
         </div>
@@ -103,21 +103,21 @@ export default function AdminSettingsClient() {
       {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-4 shadow-lg">
+        <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
+          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-4 shadow-lg">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
             <div className="relative flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-base font-semibold text-on-primary">การตั้งค่าการเรียกเก็บ</h2>
+                <h2 className="text-base font-semibold text-[var(--on-primary)]">การตั้งค่าการเรียกเก็บ</h2>
               </div>
               <div className="flex items-center gap-3"></div>
             </div>
           </div>
           <form className="grid gap-4 p-4 md:grid-cols-3" onSubmit={saveBillingSettings}>
             <div>
-              <label className="mb-2 block text-sm font-medium text-on-surface">วันที่เรียกเก็บ</label>
+              <label className="mb-2 block text-sm font-medium text-[var(--on-surface)]">วันที่เรียกเก็บ</label>
               <input
-                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
                 type="number"
                 min={1}
                 max={28}
@@ -126,9 +126,9 @@ export default function AdminSettingsClient() {
               />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-on-surface">วันครบกำหนด</label>
+              <label className="mb-2 block text-sm font-medium text-[var(--on-surface)]">วันครบกำหนด</label>
               <input
-                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
                 type="number"
                 min={1}
                 max={31}
@@ -137,9 +137,9 @@ export default function AdminSettingsClient() {
               />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-on-surface">วันเกินกำหนด</label>
+              <label className="mb-2 block text-sm font-medium text-[var(--on-surface)]">วันเกินกำหนด</label>
               <input
-                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
                 type="number"
                 min={1}
                 max={31}
@@ -148,37 +148,37 @@ export default function AdminSettingsClient() {
               />
             </div>
             <div className="md:col-span-3">
-              <button className="inline-flex items-center gap-2 rounded-lg border border-primary bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" disabled={working}>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-primary bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]" disabled={working}>
                 {working ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่าการเรียกเก็บ'}
               </button>
             </div>
           </form>
         </section>
 
-        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-4 shadow-lg">
+        <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
+          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-4 shadow-lg">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
             <div className="relative flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-base font-semibold text-on-primary">การเชื่อมต่อ</h2>
+                <h2 className="text-base font-semibold text-[var(--on-primary)]">การเชื่อมต่อ</h2>
               </div>
               <div className="flex items-center gap-3"></div>
             </div>
           </div>
-          <div className="grid gap-3 p-4 text-sm text-on-surface-variant">
-            <div className="rounded-3xl border border-primary-container bg-primary-container/70 px-4 py-3">
-              <div className="font-medium text-on-surface">App Base URL</div>
+          <div className="grid gap-3 p-4 text-sm text-[var(--on-surface-variant)]">
+            <div className="rounded-3xl border border-primary-container bg-[var(--primary-container)]/70 px-4 py-3">
+              <div className="font-medium text-[var(--on-surface)]">App Base URL</div>
               <div className="mt-1">{settings?.appBaseUrl || 'ไม่ได้ตั้งค่าในสภาพแวดล้อม'}</div>
             </div>
-            <div className="rounded-3xl border border-primary-container bg-primary-container/70 px-4 py-3">
-              <div className="font-medium text-on-surface">LINE Channel ID</div>
+            <div className="rounded-3xl border border-primary-container bg-[var(--primary-container)]/70 px-4 py-3">
+              <div className="font-medium text-[var(--on-surface)]">LINE Channel ID</div>
               <div className="mt-1">{settings?.lineChannelIdConfigured ? 'กำหนดแล้ว' : 'ยังไม่กำหนด'}</div>
             </div>
-            <div className="rounded-3xl border border-primary-container bg-primary-container/70 px-4 py-3">
-              <div className="font-medium text-on-surface">LINE Access Token</div>
+            <div className="rounded-3xl border border-primary-container bg-[var(--primary-container)]/70 px-4 py-3">
+              <div className="font-medium text-[var(--on-surface)]">LINE Access Token</div>
               <div className="mt-1">{settings?.lineAccessTokenConfigured ? 'กำหนดแล้ว' : 'ยังไม่กำหนด'}</div>
             </div>
-            <div className="rounded-3xl border border-primary-container bg-primary-container px-4 py-3 text-on-surface-variant">
+            <div className="rounded-3xl border border-primary-container bg-[var(--primary-container)] px-4 py-3 text-[var(--on-surface-variant)]">
               การสร้างผู้ใช้ การกำหนดบทบาท และการรีเซ็ตรหัสผ่าน จัดการจากหน้าผู้ดูแลระบบ
             </div>
           </div>

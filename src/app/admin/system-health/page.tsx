@@ -74,7 +74,7 @@ function statusIcon(status: ServiceStatus | null, size = 'h-5 w-5') {
   if (status === 'error')
     return <XCircle className={`${size} text-red-500`} />;
   if (status === 'not_configured')
-    return <AlertTriangle className={`${size} text-on-surface-variant`} />;
+    return <AlertTriangle className={`${size} text-[var(--on-surface-variant)]`} />;
   return <Clock className={`${size} text-outline-variant`} />;
 }
 
@@ -98,21 +98,21 @@ function statusCardBorder(status: ServiceStatus | null): string {
   if (status === 'ok' || status === 'connected') return 'border-emerald-200 bg-emerald-50/40';
   if (status === 'degraded') return 'border-amber-200 bg-amber-50/40';
   if (status === 'error') return 'border-red-200 bg-red-50/40';
-  return 'border-outline-variant bg-surface-container-lowest';
+  return 'border-[var(--outline-variant)] bg-[var(--surface-container-lowest)]';
 }
 
 function statusTextColor(status: ServiceStatus | null): string {
   if (status === 'ok' || status === 'connected') return 'text-emerald-700';
   if (status === 'degraded') return 'text-amber-700';
   if (status === 'error') return 'text-red-700';
-  return 'text-on-surface-variant';
+  return 'text-[var(--on-surface-variant)]';
 }
 
 function globalBadgeClass(status: 'ok' | 'degraded' | 'error' | undefined): string {
-  if (status === 'ok') return 'inline-flex items-center gap-2 rounded-full bg-success-container/30 px-3 py-1 text-xs font-semibold text-success';
-  if (status === 'degraded') return 'inline-flex items-center gap-2 rounded-full bg-warning-container/30 px-3 py-1 text-xs font-semibold text-warning';
-  if (status === 'error') return 'inline-flex items-center gap-2 rounded-full bg-error-container/30 px-3 py-1 text-xs font-semibold text-error';
-  return 'inline-flex items-center gap-2 rounded-full bg-surface-container-lowest px-3 py-1 text-xs font-semibold text-on-surface-variant';
+  if (status === 'ok') return 'inline-flex items-center gap-2 rounded-full bg-[var(--success-container)]/30 px-3 py-1 text-xs font-semibold text-[var(--color-success)]';
+  if (status === 'degraded') return 'inline-flex items-center gap-2 rounded-full bg-[var(--warning-container)]/30 px-3 py-1 text-xs font-semibold text-[var(--color-warning)]';
+  if (status === 'error') return 'inline-flex items-center gap-2 rounded-full bg-[var(--error-container)]/30 px-3 py-1 text-xs font-semibold text-[var(--color-danger)]';
+  return 'inline-flex items-center gap-2 rounded-full bg-[var(--surface-container-lowest)] px-3 py-1 text-xs font-semibold text-[var(--on-surface-variant)]';
 }
 
 function fmtTs(iso: string | null | undefined): string {
@@ -291,18 +291,18 @@ function HealthCardItem({ card }: { card: HealthCard }) {
       ].join(' ')}
     >
       <div className="flex items-center justify-between">
-        <span className="text-on-surface-variant">{card.icon}</span>
+        <span className="text-[var(--on-surface-variant)]">{card.icon}</span>
         {statusIcon(card.status)}
       </div>
       <div>
-        <div className="font-semibold text-on-surface">{card.label}</div>
+        <div className="font-semibold text-[var(--on-surface)]">{card.label}</div>
         <div className={['text-xs font-medium mt-0.5', statusTextColor(card.status)].join(' ')}>
           {statusLabel(card.status)}
           {card.latencyMs != null ? ` · ${card.latencyMs}ms` : ''}
         </div>
       </div>
       {card.detail ? (
-        <p className="text-xs text-on-surface-variant leading-relaxed">{card.detail}</p>
+        <p className="text-xs text-[var(--on-surface-variant)] leading-relaxed">{card.detail}</p>
       ) : null}
     </div>
   );
@@ -351,12 +351,12 @@ export default function SystemHealthPage() {
   if (loading) {
     return (
       <main className="space-y-6">
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
           <div className="relative flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-base font-semibold text-on-primary">สถานะระบบ</h1>
-              <p className="text-xs text-on-primary/80 mt-0.5">กำลังตรวจสอบ...</p>
+              <h1 className="text-base font-semibold text-[var(--on-primary)]">สถานะระบบ</h1>
+              <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">กำลังตรวจสอบ...</p>
             </div>
             <div className="flex items-center gap-3"></div>
           </div>
@@ -372,21 +372,21 @@ export default function SystemHealthPage() {
   if (error && !data) {
     return (
       <main className="space-y-6">
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
           <div className="relative flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-base font-semibold text-on-primary">สถานะระบบ</h1>
+              <h1 className="text-base font-semibold text-[var(--on-primary)]">สถานะระบบ</h1>
             </div>
             <div className="flex items-center gap-3">
-              <button onClick={() => void load(true)} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+              <button onClick={() => void load(true)} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
                 <RefreshCw className="h-4 w-4" />
                 ลองอีกครั้ง
               </button>
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-error/30 bg-error-container/20 px-4 py-3 text-sm text-error">{error}</div>
+        <div className="rounded-xl border border-[var(--color-danger)]/30 bg-[var(--error-container)]/20 px-4 py-3 text-sm text-[var(--color-danger)]">{error}</div>
       </main>
     );
   }
@@ -419,12 +419,12 @@ export default function SystemHealthPage() {
   return (
     <main className="space-y-6">
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-base font-semibold text-on-primary">สถานะระบบ</h1>
-            <p className="text-xs text-on-primary/80 mt-0.5">
+            <h1 className="text-base font-semibold text-[var(--on-primary)]">สถานะระบบ</h1>
+            <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">
               {lastChecked
                 ? `ตรวจสอบล่าสุด: ${fmtTs(lastChecked)}`
                 : 'การวินิจฉัยแบบเรียลไทม์ข้างบริการทั้งหมด'}
@@ -434,11 +434,11 @@ export default function SystemHealthPage() {
             <span className={globalBadgeClass(data.status)}>
               {data.status?.toUpperCase() ?? 'UNKNOWN'}
             </span>
-            <span className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface-variant shadow-sm">v{data.version}</span>
+            <span className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface-variant)] shadow-sm">v{data.version}</span>
             <button
               onClick={() => void load(true)}
               disabled={refreshing}
-              className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+              className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
             >
               <RefreshCw className={['h-4 w-4', refreshing ? 'animate-spin' : ''].join(' ')} />
               {refreshing ? 'กำลังรีเฟรช...' : 'รีเฟรช'}
@@ -447,11 +447,11 @@ export default function SystemHealthPage() {
         </div>
       </div>
 
-      {error ? <div className="rounded-xl border border-error/30 bg-error-container/20 px-4 py-3 text-sm text-error">{error}</div> : null}
+      {error ? <div className="rounded-xl border border-[var(--color-danger)]/30 bg-[var(--error-container)]/20 px-4 py-3 text-sm text-[var(--color-danger)]">{error}</div> : null}
 
       {/* ── Health indicator cards ──────────────────────────────────────── */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">
           ตัวชี้วัดบริการ
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -463,8 +463,8 @@ export default function SystemHealthPage() {
 
       {/* ── Missing env vars warning ───────────────────────────────────── */}
       {data.missingEnv && data.missingEnv.length > 0 ? (
-        <section className="rounded-xl border border-warning/30 bg-warning-container/20 px-4 py-3">
-          <div className="flex items-center gap-2 font-semibold text-warning text-sm">
+        <section className="rounded-xl border border-[var(--color-warning)]/30 bg-[var(--warning-container)]/20 px-4 py-3">
+          <div className="flex items-center gap-2 font-semibold text-[var(--color-warning)] text-sm">
             <AlertTriangle className="h-4 w-4" />
             ตัวแปรสภาพแวดล้อมที่ขาดหายไป
           </div>
@@ -472,7 +472,7 @@ export default function SystemHealthPage() {
             {data.missingEnv.map((key) => (
               <li
                 key={key}
-                className="rounded bg-warning-container/50 px-2 py-0.5 font-mono text-xs text-warning"
+                className="rounded bg-[var(--warning-container)]/50 px-2 py-0.5 font-mono text-xs text-[var(--color-warning)]"
               >
                 {key}
               </li>
@@ -483,13 +483,13 @@ export default function SystemHealthPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         {/* ── Service status list ─────────────────────────────────────── */}
-        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-          <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-medium text-on-surface">
-              <Server className="h-4 w-4 text-on-surface-variant" />
+        <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--outline-variant)]/10 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--on-surface)]">
+              <Server className="h-4 w-4 text-[var(--on-surface-variant)]" />
               สถานะบริการ
             </div>
-            <span className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1 text-xs font-medium text-on-surface-variant shadow-sm">{serviceRows.length} บริการ</span>
+            <span className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1 text-xs font-medium text-[var(--on-surface-variant)] shadow-sm">{serviceRows.length} บริการ</span>
           </div>
           <div className="overflow-auto">
             <table className="w-full text-sm">
@@ -504,7 +504,7 @@ export default function SystemHealthPage() {
                 {serviceRows.map((row) => (
                   <tr key={row.name}>
                     <td>
-                      <div className="flex items-center gap-2 font-medium text-on-surface">
+                      <div className="flex items-center gap-2 font-medium text-[var(--on-surface)]">
                         {statusIcon(row.status, 'h-4 w-4')}
                         {row.name}
                       </div>
@@ -519,7 +519,7 @@ export default function SystemHealthPage() {
                         {statusLabel(row.status)}
                       </span>
                     </td>
-                    <td className="text-xs text-on-surface-variant">{fmtTs(row.lastHeartbeat)}</td>
+                    <td className="text-xs text-[var(--on-surface-variant)]">{fmtTs(row.lastHeartbeat)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -528,10 +528,10 @@ export default function SystemHealthPage() {
         </section>
 
         {/* ── Background jobs ──────────────────────────────────────────── */}
-        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-          <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-medium text-on-surface">
-              <Gauge className="h-4 w-4 text-on-surface-variant" />
+        <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--outline-variant)]/10 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--on-surface)]">
+              <Gauge className="h-4 w-4 text-[var(--on-surface-variant)]" />
               งานเบื้องหลัง
             </div>
           </div>
@@ -547,8 +547,8 @@ export default function SystemHealthPage() {
               <tbody>
                 {jobs.map((job) => (
                   <tr key={job.name}>
-                    <td className="font-medium text-on-surface text-sm">{job.name}</td>
-                    <td className="text-xs text-on-surface-variant">{fmtTs(job.lastRun)}</td>
+                    <td className="font-medium text-[var(--on-surface)] text-sm">{job.name}</td>
+                    <td className="text-xs text-[var(--on-surface-variant)]">{fmtTs(job.lastRun)}</td>
                     <td>
                       <div className="flex items-center gap-1.5">
                         {statusIcon(job.status, 'h-3.5 w-3.5')}
@@ -565,12 +565,12 @@ export default function SystemHealthPage() {
 
           {/* Outbox stats */}
           {outbox ? (
-            <div className="grid grid-cols-2 gap-3 border-t border-outline-variant/10 p-4">
-              <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">
+            <div className="grid grid-cols-2 gap-3 border-t border-[var(--outline-variant)]/10 p-4">
+              <div className="rounded-xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)] px-4 py-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[var(--on-surface-variant)]">
                   ความยาวคิว
                 </div>
-                <div className="mt-1 text-2xl font-bold text-on-surface">
+                <div className="mt-1 text-2xl font-bold text-[var(--on-surface)]">
                   {outbox.queueLength}
                 </div>
               </div>
@@ -578,17 +578,17 @@ export default function SystemHealthPage() {
                 className={[
                   'rounded-xl border px-4 py-3',
                   outbox.failedCount > 0
-                    ? 'border-error/30 bg-error-container/20'
-                    : 'border-outline-variant/10 bg-surface-container-lowest',
+                    ? 'border-[var(--color-danger)]/30 bg-[var(--error-container)]/20'
+                    : 'border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)]',
                 ].join(' ')}
               >
-                <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">
+                <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[var(--on-surface-variant)]">
                   เหตุการณ์ที่ล้มเหลว
                 </div>
                 <div
                   className={[
                     'mt-1 text-2xl font-bold',
-                    outbox.failedCount > 0 ? 'text-error' : 'text-on-surface',
+                    outbox.failedCount > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--on-surface)]',
                   ].join(' ')}
                 >
                   {outbox.failedCount}
@@ -600,25 +600,25 @@ export default function SystemHealthPage() {
       </div>
 
       {/* ── Environment info ────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary shadow-lg">
-        <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm font-medium text-on-surface">
-            <Wifi className="h-4 w-4 text-on-surface-variant" />
+      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] shadow-lg">
+        <div className="px-4 py-3 border-b border-[var(--outline-variant)]/10 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-medium text-[var(--on-surface)]">
+            <Wifi className="h-4 w-4 text-[var(--on-surface-variant)]" />
             สภาพแวดล้อม
           </div>
         </div>
         <div className="grid gap-3 p-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest/60 px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">เวอร์ชัน</div>
-            <div className="mt-1 font-mono text-sm font-medium text-on-surface">{data.version}</div>
+          <div className="rounded-xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)]/60 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[var(--on-surface-variant)]">เวอร์ชัน</div>
+            <div className="mt-1 font-mono text-sm font-medium text-[var(--on-surface)]">{data.version}</div>
           </div>
-          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest/60 px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">สภาพแวดล้อม</div>
-            <div className="mt-1 font-mono text-sm font-medium text-on-surface">{data.environment}</div>
+          <div className="rounded-xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)]/60 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[var(--on-surface-variant)]">สภาพแวดล้อม</div>
+            <div className="mt-1 font-mono text-sm font-medium text-[var(--on-surface)]">{data.environment}</div>
           </div>
-          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest/60 px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">เวลาตอบสนอง DB</div>
-            <div className="mt-1 font-mono text-sm font-medium text-on-surface">
+          <div className="rounded-xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)]/60 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[var(--on-surface-variant)]">เวลาตอบสนอง DB</div>
+            <div className="mt-1 font-mono text-sm font-medium text-[var(--on-surface)]">
               {data.latencies?.databaseMs != null
                 ? `${data.latencies.databaseMs}ms`
                 : data.servicesDetailed?.database?.latencyMs != null

@@ -124,19 +124,19 @@ function AutomationCard({
   const humanDesc = valid ? parseCron(value) : null;
 
   return (
-    <div className={`rounded-2xl border bg-surface-container-lowest p-5 shadow-sm transition-shadow hover:shadow-md ${c.ring}`}>
+    <div className={`rounded-2xl border bg-[var(--surface-container-lowest)] p-5 shadow-sm transition-shadow hover:shadow-md ${c.ring}`}>
       <div className="mb-4 flex items-start gap-3">
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${c.iconBg}`}>
           <Icon className={`h-5 w-5 ${c.iconText}`} />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-on-surface">{title}</h3>
-          <p className="mt-0.5 text-xs text-on-surface-variant">{description}</p>
+          <h3 className="font-semibold text-[var(--on-surface)]">{title}</h3>
+          <p className="mt-0.5 text-xs text-[var(--on-surface-variant)]">{description}</p>
         </div>
       </div>
 
       <div className="space-y-2">
-        <label htmlFor={id} className="block text-xs font-medium text-on-surface-variant">
+        <label htmlFor={id} className="block text-xs font-medium text-[var(--on-surface-variant)]">
           นิพจน์ Cron
         </label>
         <input
@@ -146,12 +146,12 @@ function AutomationCard({
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           placeholder="0 3 * * *"
-          className={`w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2 font-mono text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50 ${
-            value && !valid ? 'border-error-container' : ''
+          className={`w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 font-mono text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/50 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-50 ${
+            value && !valid ? 'border-[var(--error-container)]' : ''
           }`}
         />
         {value && !valid && (
-          <p className="text-xs text-on-error-container">Cron ไม่ถูกต้อง — ต้องมี 5 ฟิลด์ (นาที ชม. วัน เดือน วันในสัปดาห์)</p>
+          <p className="text-xs text-[var(--on-error-container)]">Cron ไม่ถูกต้อง — ต้องมี 5 ฟิลด์ (นาที ชม. วัน เดือน วันในสัปดาห์)</p>
         )}
 
         <div className="flex flex-wrap gap-1.5 pt-1">
@@ -169,9 +169,9 @@ function AutomationCard({
         </div>
 
         {humanDesc && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-surface-container px-3 py-2">
-            <Clock className="h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
-            <p className="text-xs text-on-surface-variant">
+          <div className="flex items-center gap-1.5 rounded-lg bg-[var(--surface-container)] px-3 py-2">
+            <Clock className="h-3.5 w-3.5 shrink-0 text-[var(--on-surface-variant)]" />
+            <p className="text-xs text-[var(--on-surface-variant)]">
               <span className="font-medium">รอบถัดไป: </span>{humanDesc}
             </p>
           </div>
@@ -260,22 +260,22 @@ export default function AutomationRulesPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
-              <Cpu className="h-5 w-5 text-on-primary" strokeWidth={1.75} />
+              <Cpu className="h-5 w-5 text-[var(--on-primary)]" strokeWidth={1.75} />
             </div>
             <div>
-              <h1 className="text-base font-semibold text-on-primary">กฎระบบอัตโนมัติ</h1>
-              <p className="text-xs text-on-primary/80 mt-0.5">กำหนด cron schedules สำหรับ background jobs</p>
+              <h1 className="text-base font-semibold text-[var(--on-primary)]">กฎระบบอัตโนมัติ</h1>
+              <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">กำหนด cron schedules สำหรับ background jobs</p>
             </div>
           </div>
           <button
             onClick={() => void load()}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30"
+            className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             รีเฟรช
@@ -285,22 +285,22 @@ export default function AutomationRulesPage() {
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
-        <Link href="/admin/settings" className="flex items-center gap-1 text-on-surface-variant hover:text-on-surface">
+        <Link href="/admin/settings" className="flex items-center gap-1 text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]">
           <ArrowLeft className="h-4 w-4" /> ตั้งค่า
         </Link>
         <span className="text-outline-variant">/</span>
-        <span className="text-on-surface">กฎระบบอัตโนมัติ</span>
+        <span className="text-[var(--on-surface)]">กฎระบบอัตโนมัติ</span>
       </div>
 
       {/* Alerts */}
       {successMsg && (
-        <div className="flex items-center gap-3 rounded-xl border border-tertiary-container bg-tertiary-container/20 px-5 py-3.5 text-sm font-medium text-on-tertiary-container">
+        <div className="flex items-center gap-3 rounded-xl border border-[var(--tertiary-container)] bg-[var(--tertiary-container)]/20 px-5 py-3.5 text-sm font-medium text-[var(--on-tertiary-container)]">
           <CheckCircle2 className="h-5 w-5 shrink-0" />
           {successMsg}
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-5 py-3.5 text-sm font-medium text-on-error-container">
+        <div className="flex items-center gap-3 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-5 py-3.5 text-sm font-medium text-[var(--on-error-container)]">
           <XCircle className="h-5 w-5 shrink-0" />
           {error}
         </div>
@@ -318,7 +318,7 @@ export default function AutomationRulesPage() {
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-56 animate-pulse rounded-2xl bg-surface-container" />
+            <div key={i} className="h-56 animate-pulse rounded-2xl bg-[var(--surface-container)]" />
           ))}
         </div>
       ) : (
@@ -331,21 +331,21 @@ export default function AutomationRulesPage() {
           </div>
 
           {/* Save bar */}
-          <div className="flex items-center justify-between rounded-xl border border-outline-variant bg-surface-container-lowest px-5 py-4 shadow-sm">
-            <div className="flex items-center gap-2 text-sm text-on-surface-variant">
-              <Cpu className="h-4 w-4 text-on-surface-variant" />
+          <div className="flex items-center justify-between rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-5 py-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sm text-[var(--on-surface-variant)]">
+              <Cpu className="h-4 w-4 text-[var(--on-surface-variant)]" />
               {isDirty ? 'คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก' : data ? 'ตารางอัตโนมัติเป็นปัจจุบันแล้ว' : 'กำลังโหลด…'}
             </div>
             <div className="flex items-center gap-3">
               {isDirty && (
-                <button onClick={handleReset} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+                <button onClick={handleReset} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
                   รีเซ็ต
                 </button>
               )}
               <button
                 onClick={() => void handleSave()}
                 disabled={saving || loading || !isDirty || !allValid}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
                 {saving ? 'กำลังบันทึก…' : 'บันทึกทั้งหมด'}
@@ -354,8 +354,8 @@ export default function AutomationRulesPage() {
           </div>
 
           {/* Cron reference */}
-          <div className="rounded-xl border border-outline-variant bg-surface-container px-6 py-5">
-            <h3 className="mb-3 text-sm font-semibold text-on-surface">คู่มือนิพจน์ Cron</h3>
+          <div className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container)] px-6 py-5">
+            <h3 className="mb-3 text-sm font-semibold text-[var(--on-surface)]">คู่มือนิพจน์ Cron</h3>
             <div className="mb-3 rounded-lg bg-[#1e293b] px-4 py-3 font-mono text-xs text-slate-300">
               ┌───── minute (0-59)<br />
               │ ┌─────── hour (0-23)<br />
@@ -364,7 +364,7 @@ export default function AutomationRulesPage() {
               │ │ │ │ ┌───────────── day of week (0-6, Sun=0)<br />
               * * * * *
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 text-xs text-on-surface-variant">
+            <div className="grid gap-2 sm:grid-cols-2 text-xs text-[var(--on-surface-variant)]">
               {[
                 { expr: '0 3 1 * *', desc: 'รายเดือน วันที่ 1 เวลา 03:00' },
                 { expr: '0 8 * * *', desc: 'ทุกวันเวลา 08:00' },
@@ -374,7 +374,7 @@ export default function AutomationRulesPage() {
                 { expr: '*/30 * * * *', desc: 'ทุก 30 นาที' },
               ].map(({ expr, desc }) => (
                 <div key={expr} className="flex items-center gap-2">
-                  <code className="rounded bg-surface-container-lowest px-2 py-0.5 font-mono text-on-surface border border-outline-variant">{expr}</code>
+                  <code className="rounded bg-[var(--surface-container-lowest)] px-2 py-0.5 font-mono text-[var(--on-surface)] border border-[var(--outline-variant)]">{expr}</code>
                   <span>{desc}</span>
                 </div>
               ))}
@@ -383,11 +383,11 @@ export default function AutomationRulesPage() {
 
           {/* Related links */}
           <div className="flex flex-wrap gap-3">
-            <Link href="/admin/system-jobs" className="inline-flex items-center gap-2 rounded-xl border border-outline bg-surface-container-lowest px-4 py-2.5 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+            <Link href="/admin/system-jobs" className="inline-flex items-center gap-2 rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2.5 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
               <Cpu className="h-4 w-4" />
               งานระบบ
             </Link>
-            <Link href="/admin/settings/billing-policy" className="inline-flex items-center gap-2 rounded-xl border border-outline bg-surface-container-lowest px-4 py-2.5 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+            <Link href="/admin/settings/billing-policy" className="inline-flex items-center gap-2 rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2.5 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
               <Calendar className="h-4 w-4" />
               ปฏิทินการเรียกเก็บ
             </Link>

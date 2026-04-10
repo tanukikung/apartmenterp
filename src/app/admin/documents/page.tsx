@@ -77,18 +77,18 @@ export default function DocumentsPage() {
 
   return (
     <main className="space-y-6">
-      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
+      <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
         <div>
-          <h1 className="text-xl font-semibold text-on-primary">เอกสารที่สร้างแล้ว</h1>
-          <p className="text-sm text-on-primary/80">
+          <h1 className="text-xl font-semibold text-[var(--on-primary)]">เอกสารที่สร้างแล้ว</h1>
+          <p className="text-sm text-[var(--on-primary)]/80">
             เอกสารที่บันทึกแยกตามห้องพร้อมข้อมูลต้นแบบเทมเพลต ประวัติเวอร์ชัน และไฟล์ที่ดาวน์โหลดได้
           </p>
         </div>
         <div className="flex items-center gap-2 mt-4">
-          <Link href="/admin/documents/generate" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors">
+          <Link href="/admin/documents/generate" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-primary text-[var(--on-primary)] hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors">
             สร้างเอกสาร
           </Link>
-          <Link href="/admin/templates" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+          <Link href="/admin/templates" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
             เทมเพลต
           </Link>
         </div>
@@ -96,26 +96,26 @@ export default function DocumentsPage() {
 
       {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
 
-      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-        <div className="px-5 py-4 border-b border-outline-variant">
-          <div className="text-sm font-semibold text-primary flex items-center gap-2">
-            <Layers3 className="h-4 w-4 text-primary" />
+      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
+        <div className="px-5 py-4 border-b border-[var(--outline-variant)]">
+          <div className="text-sm font-semibold text-[var(--primary)] flex items-center gap-2">
+            <Layers3 className="h-4 w-4 text-[var(--primary)]" />
             ทะเบียนเอกสาร
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-surface-container text-on-surface-variant mt-1">{documents.length} เอกสาร</span>
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-[var(--surface-container)] text-[var(--on-surface-variant)] mt-1">{documents.length} เอกสาร</span>
         </div>
         <div className="overflow-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-surface-container">
+            <thead className="bg-[var(--surface-container)]">
               <tr>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ชื่อเรื่อง</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ประเภท</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เทมเพลต</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เวอร์ชัน</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สร้างเมื่อ</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">การดำเนินการ</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ชื่อเรื่อง</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ประเภท</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้อง</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">เทมเพลต</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">เวอร์ชัน</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">สร้างเมื่อ</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">สถานะ</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">การดำเนินการ</th>
               </tr>
             </thead>
             <tbody>
@@ -141,28 +141,28 @@ export default function DocumentsPage() {
                       </div>
                     </td>
                     <td>
-                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-surface-container text-on-surface-variant">{document.documentType.replace(/_/g, ' ')}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-[var(--surface-container)] text-[var(--on-surface-variant)]">{document.documentType.replace(/_/g, ' ')}</span>
                     </td>
                     <td>
-                      <div className="font-semibold text-on-surface">{document.room.roomNumber ?? document.room.roomNo ?? '-'}</div>
-                      <div className="mt-1 text-xs text-on-surface-variant">
+                      <div className="font-semibold text-[var(--on-surface)]">{document.room.roomNumber ?? document.room.roomNo ?? '-'}</div>
+                      <div className="mt-1 text-xs text-[var(--on-surface-variant)]">
                         ชั้น {document.room.floorNumber ?? '—'} · {document.tenantName ?? 'ไม่มีผู้เช่า'}
                       </div>
                     </td>
                     <td>
-                      <div className="font-medium text-on-surface">{document.template.name}</div>
-                      <div className="mt-1 text-xs text-on-surface-variant">เวอร์ชันเทมเพลต v{document.templateVersion.version}</div>
+                      <div className="font-medium text-[var(--on-surface)]">{document.template.name}</div>
+                      <div className="mt-1 text-xs text-[var(--on-surface-variant)]">เวอร์ชันเทมเพลต v{document.templateVersion.version}</div>
                     </td>
                     <td>Doc v{document.documentVersion}</td>
                     <td><ClientOnly fallback="-">{new Date(document.generatedAt).toLocaleString('th-TH')}</ClientOnly></td>
                     <td>
                       <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                         document.status === 'GENERATED' || document.status === 'EXPORTED'
-                          ? 'bg-tertiary-container text-on-tertiary-container'
+                          ? 'bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)]'
                           : document.status === 'FAILED'
-                            ? 'bg-error-container text-on-error-container'
+                            ? 'bg-[var(--error-container)] text-[var(--on-error-container)]'
                             : document.status === 'SENT'
-                              ? 'bg-primary-container text-primary-container'
+                              ? 'bg-[var(--primary-container)] text-[var(--primary-container)]'
                               : 'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}
                       >
@@ -174,7 +174,7 @@ export default function DocumentsPage() {
                         {document.files.some((f) => f.role === 'PDF') && document.status !== 'SENT' && (
                           <button
                             type="button"
-                            className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+                            className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
                             onClick={() => void sendDocument(document.id)}
                             disabled={sendingIds.has(document.id)}
                           >
@@ -182,15 +182,15 @@ export default function DocumentsPage() {
                             {sendingIds.has(document.id) ? 'กำลังส่ง...' : 'ส่ง PDF'}
                           </button>
                         )}
-                        <Link href={`/admin/documents/${document.id}`} className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+                        <Link href={`/admin/documents/${document.id}`} className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
                           <FolderOpen className="h-3.5 w-3.5" />
                           รายละเอียด
                         </Link>
-                        <a href={`/api/documents/${document.id}/pdf`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+                        <a href={`/api/documents/${document.id}/pdf`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
                           <ExternalLink className="h-3.5 w-3.5" />
                           PDF
                         </a>
-                        <a href={`/api/documents/${document.id}/download?format=docx`} className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+                        <a href={`/api/documents/${document.id}/download?format=docx`} className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
                           <FileOutput className="h-3.5 w-3.5" />
                           DOCX
                         </a>

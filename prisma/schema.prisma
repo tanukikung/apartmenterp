@@ -33,10 +33,31 @@ model BillingRule {
   electricMinCharge        Decimal        @db.Decimal(10, 2)
   electricServiceFeeMode   ServiceFeeMode
   electricServiceFeeAmount Decimal        @db.Decimal(10, 2)
+  penaltyPerDay            Decimal         @default(0) @db.Decimal(10, 2)
+  maxPenalty               Decimal         @default(0) @db.Decimal(10, 2)
+  gracePeriodDays          Int             @default(0)
   roomBillings             RoomBilling[]  @relation("RoomBillingRule")
   rooms                    Room[]         @relation("RoomDefaultRule")
 
   @@map("billing_rules")
+}
+
+model Expense {
+  id          String         @id @default(uuid())
+  category    ExpenseCategory
+  amount      Decimal        @db.Decimal(12, 2)
+  date        DateTime
+  description String         @db.Text
+  paidTo      String?
+  receiptNo   String?
+  createdBy   String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([category])
+  @@index([date])
+  @@index([createdAt])
+  @@map("expenses")
 }
 
 model Room {
@@ -130,6 +151,7 @@ model RoomBilling {
   @@index([billingPeriodId])
   @@index([roomNo])
   @@index([status])
+  @@index([ruleCode])
   @@map("room_billings")
 }
 
@@ -141,6 +163,8 @@ model Invoice {
   month                     Int
   status                    InvoiceStatus              @default(GENERATED)
   totalAmount               Decimal                    @db.Decimal(10, 2)
+  lateFeeAmount             Decimal                    @default(0) @db.Decimal(10, 2)
+  lateFeeAppliedAt          DateTime?
   dueDate                   DateTime
   issuedAt                  DateTime                   @default(now())
   sentAt                    DateTime?
@@ -350,6 +374,7 @@ model Contract {
   room                      Room                       @relation(fields: [roomNo], references: [roomNo], onDelete: Cascade)
   documentGenerationTargets DocumentGenerationTarget[]
   generatedDocuments        GeneratedDocument[]
+  moveOut                   MoveOut?
 
   @@unique([roomNo, status])
   @@index([status])
@@ -1149,6 +1174,72 @@ enum GeneratedDocumentFileRole {
   PREVIEW
 }
 
+model Broadcast {
+  id            String          @id @default(uuid())
+  message       String
+  target        BroadcastTarget @default(ALL)
+  targetFloors  Int[]
+  targetRooms   String[]
+  sentBy        String
+  sentByName    String?
+  sentAt        DateTime        @default(now())
+  lineMessageId String?
+  totalCount    Int             @default(0)
+  sentCount     Int             @default(0)
+  failedCount   Int             @default(0)
+  status        BroadcastStatus @default(PENDING)
+  idempotencyKey String?        @unique
+
+  @@index([sentAt])
+  @@index([target])
+  @@index([status])
+  @@index([idempotencyKey])
+  @@map("broadcasts")
+}
+
+model ReminderConfig {
+  id            String              @id @default(uuid())
+  periodDays    Int                 // negative = overdue, positive = before due
+  messageTh     String              @db.Text
+  messageEn     String              @db.Text
+  isActive      Boolean             @default(true)
+  priority      ReminderPriority     @default(NORMAL)
+  appliesTo     ReminderAppliesTo   @default(ALL)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@unique([periodDays])
+  @@index([isActive])
+  @@map("reminder_configs")
+}
+
+enum BroadcastStatus {
+  PENDING
+  SENDING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+enum BroadcastTarget {
+  ALL
+  FLOORS
+  ROOMS
+}
+
+enum ReminderPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ReminderAppliesTo {
+  ALL
+  OVERDUE
+  DUE_SOON
+}
+
 enum InvoiceDeliveryChannel {
   LINE
   PDF
@@ -1178,4 +1269,70 @@ enum DocumentTemplateType {
   GENERAL_NOTICE
   NOTICE
   OTHER
+}
+
+enum ExpenseCategory {
+  CLEANING
+  REPAIR
+  UTILITY
+  STAFF_SALARY
+  MANAGEMENT
+  OTHER
+}
+
+enum MoveOutStatus {
+  PENDING
+  INSPECTION_DONE
+  DEPOSIT_CALCULATED
+  CONFIRMED
+  REFUNDED
+  CANCELLED
+}
+
+enum MoveOutItemCondition {
+  GOOD
+  FAIR
+  DAMAGED
+  MISSING
+}
+
+model MoveOut {
+  id                String           @id @default(uuid())
+  contractId        String           @unique
+  moveOutDate       DateTime
+  depositAmount     Decimal          @db.Decimal(12, 2)
+  totalDeduction   Decimal          @default(0) @db.Decimal(12, 2)
+  finalRefund       Decimal          @default(0) @db.Decimal(12, 2)
+  status            MoveOutStatus    @default(PENDING)
+  notes             String?
+  lineNoticeSentAt  DateTime?
+  confirmedAt       DateTime?
+  confirmedBy       String?
+  refundAt          DateTime?
+  refundBy          String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  contract          Contract         @relation(fields: [contractId], references: [id])
+  items             MoveOutItem[]
+
+  @@index([status])
+  @@index([moveOutDate])
+  @@index([contractId])
+  @@map("move_outs")
+}
+
+model MoveOutItem {
+  id            String               @id @default(uuid())
+  moveOutId     String
+  category      String               // wall, floor, bathroom, kitchen, furniture, other
+  item          String               // paint, tiles, faucet, bed, wardrobe, etc.
+  condition     MoveOutItemCondition
+  cost          Decimal              @default(0) @db.Decimal(12, 2)
+  notes         String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  moveOut       MoveOut              @relation(fields: [moveOutId], references: [id], onDelete: Cascade)
+
+  @@index([moveOutId])
+  @@map("move_out_items")
 }

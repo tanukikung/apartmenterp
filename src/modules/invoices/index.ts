@@ -1,6 +1,9 @@
 // Invoice Service
 export { InvoiceService, createInvoiceService } from './invoice.service';
 
+// Balance inquiry — LINE tenant "ยอดค้าง?" response
+export { getLatestUnpaidInvoiceForLineUser, type BalanceInquiryResult } from './balance-inquiry';
+
 // PDF — active Unicode/Thai-safe renderer (pdf-lib + fontkit + Sarabun TTF)
 export { generateInvoicePdf, type InvoicePdfOptions } from './pdf';
 
