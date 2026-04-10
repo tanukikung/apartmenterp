@@ -62,48 +62,50 @@ export async function register() {
 
     // Start a once-per-minute ticker that checks the schedule
     intervals.push(setInterval(() => {
-      const now = new Date();
-      const h   = now.getHours();
-      const m   = now.getMinutes();
-      const dow = now.getDay();
-      const dom = now.getDate();
+      (() => {
+        const now = new Date();
+        const h   = now.getHours();
+        const m   = now.getMinutes();
+        const dow = now.getDay();
+        const dom = now.getDate();
 
-      for (const s of SCHEDULES) {
-        if (s.hour !== h || s.minute !== m) continue;
-        if (s.dayOfWeek  !== undefined && s.dayOfWeek  !== dow) continue;
-        if (s.dayOfMonth !== undefined && s.dayOfMonth !== dom) continue;
+        for (const s of SCHEDULES) {
+          if (s.hour !== h || s.minute !== m) continue;
+          if (s.dayOfWeek  !== undefined && s.dayOfWeek  !== dow) continue;
+          if (s.dayOfMonth !== undefined && s.dayOfMonth !== dom) continue;
 
-        const runner = jobRunners[s.jobId];
-        if (!runner) continue;
+          const runner = jobRunners[s.jobId];
+          if (!runner) continue;
 
-        const jobId = s.jobId;
-        setJobStatus(jobId, { status: 'running' });
-        const startMs = Date.now();
+          const jobId = s.jobId;
+          setJobStatus(jobId, { status: 'running' });
+          const startMs = Date.now();
 
-        void runner()
-          .then((result) => {
-            const durationMs = Date.now() - startMs;
-            setJobStatus(jobId, {
-              status: 'idle',
-              lastRun: new Date().toISOString(),
-              lastMessage: result.message,
-              durationMs,
+          void runner()
+            .then((result) => {
+              const durationMs = Date.now() - startMs;
+              setJobStatus(jobId, {
+                status: 'idle',
+                lastRun: new Date().toISOString(),
+                lastMessage: result.message,
+                durationMs,
+              });
+              logger.info({ jobId, ...result, durationMs }, '✅ Scheduled job completed');
+            })
+            .catch((err: unknown) => {
+              const durationMs = Date.now() - startMs;
+              const message = err instanceof Error ? err.message : String(err);
+              setJobStatus(jobId, {
+                status: 'error',
+                lastRun: new Date().toISOString(),
+                lastMessage: message,
+                durationMs,
+              });
+              logger.error({ jobId, error: message }, '❌ Scheduled job failed');
             });
-            logger.info({ jobId, ...result, durationMs }, '✅ Scheduled job completed');
-          })
-          .catch((err: unknown) => {
-            const durationMs = Date.now() - startMs;
-            const message = err instanceof Error ? err.message : String(err);
-            setJobStatus(jobId, {
-              status: 'error',
-              lastRun: new Date().toISOString(),
-              lastMessage: message,
-              durationMs,
-            });
-            logger.error({ jobId, error: message }, '❌ Scheduled job failed');
-          });
-      }
-    }, 60_000);
+        }
+      })();
+    }, 60_000));
 
     // ── Messaging runtime bootstrap ────────────────────────────────────
     try {
