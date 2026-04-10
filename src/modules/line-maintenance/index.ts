@@ -232,7 +232,7 @@ async function notifyStaffOfNewTicket(ticket: { id: string; priority: string; ro
 
 👤 ผู้เช่า: ${tenantName}
 🏠 ห้อง: ${ticket.roomNo}
-� priority: ${priorityText}
+⚠️ Priority: ${priorityText}
 
 📝 ${shortDesc}
 
@@ -466,7 +466,7 @@ export async function finalizeMaintenanceRequest(lineUserId: string): Promise<{ 
     roomNo: requestData.roomNo,
     tenantId: requestData.tenantId,
     description: currentStep.description,
-    imageMessageIds: Array.isArray((currentStep as any).imageMessageIds) ? (currentStep as any).imageMessageIds : [],
+    imageMessageIds: (currentStep as { imageMessageIds: string[] }).imageMessageIds,
   });
 
   if (!ticket) {
@@ -482,7 +482,7 @@ export async function finalizeMaintenanceRequest(lineUserId: string): Promise<{ 
   // Notify staff
   await notifyStaffOfNewTicket(ticket, requestData.tenantName);
 
-  const imgIds = Array.isArray((currentStep as any).imageMessageIds) ? (currentStep as any).imageMessageIds : [];
+  const imgIds = (currentStep as { imageMessageIds: string[] }).imageMessageIds;
   return {
     replyText:
       `✅ ระบบได้รับคำขอแจ้งซ่อมแล้วค่ะ\n\n` +

@@ -142,14 +142,12 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
   // Track in in-memory cache
   if (idempotencyKey) {
-    idempotencyCache.set(idempotencyKey, { broadcastId: broadcast.id, createdAt: Date.now() });
-    // Prune stale entries
-    if (idempotencyCache.size > 10000) {
-      const cutoff = Date.now() - IDEMPOTENCY_TTL_MS;
-      for (const [k, v] of idempotencyCache.entries()) {
-        if (v.createdAt < cutoff) idempotencyCache.delete(k);
-      }
+    // Prune all expired entries before adding new one to prevent memory leak
+    const cutoff = Date.now() - IDEMPOTENCY_TTL_MS;
+    for (const [k, v] of idempotencyCache.entries()) {
+      if (v.createdAt < cutoff) idempotencyCache.delete(k);
     }
+    idempotencyCache.set(idempotencyKey, { broadcastId: broadcast.id, createdAt: Date.now() });
   }
 
   // Send LINE messages
