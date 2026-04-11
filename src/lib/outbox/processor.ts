@@ -218,6 +218,18 @@ export class OutboxProcessor {
             // Parse payload
             const payload = event.payload as Record<string, unknown>;
 
+            // Mark as processed FIRST, then publish.
+            // If we crash after markProcessed but before publish, on restart the event
+            // will be re-processed (not double-delivered since it wasn't published yet).
+            // If publish fails after the commit, eventBus has at-least-once semantics
+            // via redelivery — safe to mark processed first.
+            await tx.outboxEvent.update({
+              where: { id: event.id },
+              data: {
+                processedAt: new Date(),
+              },
+            });
+
             // Publish to EventBus
             await this.eventBus.publish(
               event.eventType,
@@ -225,14 +237,6 @@ export class OutboxProcessor {
               event.aggregateId,
               payload as any
             );
-
-            // Mark as processed
-            await tx.outboxEvent.update({
-              where: { id: event.id },
-              data: {
-                processedAt: new Date(),
-              },
-            });
 
             result.processed++;
 

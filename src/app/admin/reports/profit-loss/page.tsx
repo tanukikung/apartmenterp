@@ -221,7 +221,7 @@ export default function AdminProfitLossPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">กำไรสุทธิ</p>
-                <p className={`mt-0.5 text-2xl font-bold ${report.netProfit >= 0 ? 'text-[var(--tertiary-container)]' : 'text-[var(--color-danger)]-container'}`}>
+                <p className={`mt-0.5 text-2xl font-bold ${report.netProfit >= 0 ? 'text-[var(--tertiary-container)]' : 'text-[var(--on-error-container)]'}`}>
                   ฿{formatBaht(Math.abs(report.netProfit))}
                   {report.netProfit < 0 && <span className="text-sm ml-1">(ขาดทุน)</span>}
                 </p>
@@ -297,7 +297,7 @@ export default function AdminProfitLossPage() {
               </div>
               <div className="flex justify-between items-center py-3 font-bold">
                 <span className="text-[var(--on-surface)]">กำไรสุทธิ</span>
-                <span className={`text-xl ${report.netProfit >= 0 ? 'text-[var(--tertiary-container)]' : 'text-[var(--color-danger)]-container'}`}>
+                <span className={`text-xl ${report.netProfit >= 0 ? 'text-[var(--tertiary-container)]' : 'text-[var(--on-error-container)]'}`}>
                   ฿{formatBaht(report.netProfit)}
                 </span>
               </div>

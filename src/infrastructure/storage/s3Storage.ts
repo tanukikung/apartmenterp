@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
 import type { StorageDriver, UploadParams, UploadResult } from './types';
 import { Readable } from 'node:stream';
 
@@ -72,6 +72,15 @@ export class S3Storage implements StorageDriver {
 
   async deleteFile(key: string): Promise<void> {
     const command = new DeleteObjectCommand({ Bucket: this.bucket, Key: key });
+    await this.client.send(command);
+  }
+
+  async copyFile(src: string, dest: string): Promise<void> {
+    const command = new CopyObjectCommand({
+      Bucket: this.bucket,
+      CopySource: `${this.bucket}/${src}`,
+      Key: dest,
+    });
     await this.client.send(command);
   }
 }

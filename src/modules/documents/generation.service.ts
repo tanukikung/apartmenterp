@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { DocumentSourceScope, DocumentTemplateType, GeneratedDocumentStatus, GeneratedDocumentFileRole, DocumentTemplateVersionStatus, Prisma } from '@prisma/client';
+import { DocumentSourceScope, DocumentTemplateType, GeneratedDocumentFileRole, DocumentTemplateVersionStatus, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/client';
 import { BadRequestError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit';
@@ -8,6 +8,8 @@ import { getDocumentResolverService, type ResolvedDocumentTarget } from './resol
 import { renderTemplateHtml } from './render.service';
 import { generateDocumentPdf } from './pdf.service';
 import { storeDocumentFile } from './storage.service';
+import { getStorage } from '@/infrastructure/storage';
+import type { GeneratedDocumentStatus } from './types';
 import type {
   DocumentGenerateInput,
   DocumentGenerationJobResponse,
@@ -79,7 +81,7 @@ function mapGeneratedDocument(
     id: document.id,
     title: document.title,
     subject: document.subject,
-    status: document.status,
+    status: document.status as GeneratedDocumentStatus,
     documentType: document.documentType,
     documentVersion: document.documentVersion,
     sourceScope: document.sourceScope,
@@ -373,7 +375,7 @@ export class DocumentGenerationService {
         templateId,
         templateVersionId,
         documentType: template.type,
-        status: GeneratedDocumentStatus.GENERATED,
+        status: 'GENERATED',
         title: generatedTitle(template.name, target.roomNumber, target.context.billing?.year ?? input.year, target.context.billing?.month ?? input.month),
         subject: template.subject,
         sourceScope: input.scope,
@@ -748,6 +750,37 @@ export class DocumentGenerationService {
     });
 
     return this.generateDocuments(input, actorId);
+  }
+
+  async deleteDocument(id: string, actorId?: string | null): Promise<void> {
+    const document = await prisma.generatedDocument.findUnique({
+      where: { id },
+      include: { files: { include: { uploadedFile: true } } },
+    });
+
+    if (!document) {
+      throw new NotFoundError('GeneratedDocument', id);
+    }
+
+    const storage = getStorage();
+    for (const file of document.files) {
+      try {
+        await storage.deleteFile(file.uploadedFile.storageKey);
+      } catch {
+        // File may already be deleted
+      }
+    }
+
+    await prisma.generatedDocument.delete({ where: { id } });
+
+    await logAudit({
+      actorId: actorId ?? 'system',
+      actorRole: 'ADMIN',
+      action: 'GENERATED_DOCUMENT_DELETED',
+      entityType: 'GeneratedDocument',
+      entityId: id,
+      metadata: { title: document.title, roomNo: document.roomNo },
+    });
   }
 }
 

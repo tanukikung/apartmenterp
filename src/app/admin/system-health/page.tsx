@@ -55,30 +55,38 @@ type HealthCard = {
   latencyMs?: number | null;
 };
 
+type JobStatus = 'idle' | 'running' | 'error' | ServiceStatus;
+
 type BackgroundJob = {
+  id: string;
   name: string;
   lastRun: string | null;
-  nextRun: string | null;
-  status: ServiceStatus;
+  lastMessage: string | null;
+  durationMs: number | null;
+  status: JobStatus;
 };
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function statusIcon(status: ServiceStatus | null, size = 'h-5 w-5') {
+function statusIcon(status: ServiceStatus | JobStatus | null, size = 'h-5 w-5') {
   if (status === 'ok' || status === 'connected')
     return <CheckCircle2 className={`${size} text-emerald-500`} />;
   if (status === 'degraded')
     return <AlertTriangle className={`${size} text-amber-500`} />;
   if (status === 'error')
     return <XCircle className={`${size} text-red-500`} />;
+  if (status === 'running')
+    return <Activity className={`${size} text-blue-500 animate-pulse`} />;
   if (status === 'not_configured')
     return <AlertTriangle className={`${size} text-[var(--on-surface-variant)]`} />;
+  if (status === 'idle')
+    return <Clock className={`${size} text-outline-variant`} />;
   return <Clock className={`${size} text-outline-variant`} />;
 }
 
-function statusLabel(status: ServiceStatus | null): string {
+function statusLabel(status: ServiceStatus | JobStatus | null): string {
   switch (status) {
     case 'ok':
     case 'connected':
@@ -89,22 +97,28 @@ function statusLabel(status: ServiceStatus | null): string {
       return 'ข้อผิดพลาด';
     case 'not_configured':
       return 'ไม่ได้ตั้งค่า';
+    case 'idle':
+      return 'รอ';
+    case 'running':
+      return 'กำลังทำงาน';
     default:
       return 'ไม่ทราบ';
   }
 }
 
-function statusCardBorder(status: ServiceStatus | null): string {
+function statusCardBorder(status: ServiceStatus | JobStatus | null): string {
   if (status === 'ok' || status === 'connected') return 'border-emerald-200 bg-emerald-50/40';
   if (status === 'degraded') return 'border-amber-200 bg-amber-50/40';
   if (status === 'error') return 'border-red-200 bg-red-50/40';
+  if (status === 'running') return 'border-blue-200 bg-blue-50/40';
   return 'border-[var(--outline-variant)] bg-[var(--surface-container-lowest)]';
 }
 
-function statusTextColor(status: ServiceStatus | null): string {
+function statusTextColor(status: ServiceStatus | JobStatus | null): string {
   if (status === 'ok' || status === 'connected') return 'text-emerald-700';
   if (status === 'degraded') return 'text-amber-700';
   if (status === 'error') return 'text-red-700';
+  if (status === 'running') return 'text-blue-700';
   return 'text-[var(--on-surface-variant)]';
 }
 
@@ -271,12 +285,19 @@ function buildServiceRows(data: HealthData): ServiceRow[] {
 // Static background jobs (not exposed by /api/health, shown for completeness)
 // ---------------------------------------------------------------------------
 
-const STATIC_JOBS: BackgroundJob[] = [
-  { name: 'Invoice Generator', lastRun: null, nextRun: null, status: 'not_configured' },
-  { name: 'Payment Auto-Matcher', lastRun: null, nextRun: null, status: 'not_configured' },
-  { name: 'Overdue Checker', lastRun: null, nextRun: null, status: 'not_configured' },
-  { name: 'Outbox Event Processor', lastRun: null, nextRun: null, status: 'not_configured' },
-];
+// Human-readable labels for job IDs returned by /api/admin/jobs
+const JOB_LABELS: Record<string, string> = {
+  'overdue-flag':     'Mark Overdue Invoices',
+  'billing-generate': 'Generate Billing Period',
+  'invoice-send':     'Send Invoices',
+  'late-fee':         'Late Fee Check',
+  'db-cleanup':      'Database Cleanup',
+  'contract-expiry':  'Contract Expiry Check',
+  'outbox-cleanup':   'Outbox Cleanup',
+  'document-notify':  'Document Notify',
+  'document-cleanup': 'Document Cleanup',
+  'backup-cleanup':   'Backup Cleanup',
+};
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -318,6 +339,7 @@ export default function SystemHealthPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastChecked, setLastChecked] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [jobEntries, setJobEntries] = useState<Record<string, { lastRun: string | null; lastMessage: string | null; durationMs: number | null; status: 'idle' | 'running' | 'error' }>>({});
 
   const load = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -337,12 +359,37 @@ export default function SystemHealthPage() {
     }
   }, []);
 
+  const loadJobs = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/jobs');
+      const json = await res.json();
+      if (json.success && json.data?.jobs) {
+        const map: Record<string, { lastRun: string | null; lastMessage: string | null; durationMs: number | null; status: 'idle' | 'running' | 'error' }> = {};
+        for (const job of json.data.jobs) {
+          map[job.id] = {
+            lastRun: job.lastRun,
+            lastMessage: job.lastMessage,
+            durationMs: job.durationMs,
+            status: job.status,
+          };
+        }
+        setJobEntries(map);
+      }
+    } catch {
+      // Silently ignore — jobs panel will show empty until next poll
+    }
+  }, []);
+
   useEffect(() => {
     void load();
+    void loadJobs();
     // Auto-refresh every 30 seconds
-    const interval = setInterval(() => void load(), 30_000);
+    const interval = setInterval(() => {
+      void load();
+      void loadJobs();
+    }, 30_000);
     return () => clearInterval(interval);
-  }, [load]);
+  }, [load, loadJobs]);
 
   // ---------------------------------------------------------------------------
   // Render — loading
@@ -397,23 +444,17 @@ export default function SystemHealthPage() {
   const serviceRows = buildServiceRows(data);
   const outbox = data.servicesDetailed?.outbox;
 
-  // Build jobs list enriched with outbox data
-  const jobs: BackgroundJob[] = STATIC_JOBS.map((job) => {
-    if (job.name === 'Outbox Event Processor' && outbox) {
-      return {
-        ...job,
-        status: outbox.status,
-        lastRun: data.timestamp,
-      };
-    }
-    if (job.name === 'Background Worker' && data.servicesDetailed?.worker) {
-      return {
-        ...job,
-        status: data.servicesDetailed.worker.status,
-        lastRun: data.servicesDetailed.worker.lastHeartbeatAt,
-      };
-    }
-    return job;
+  // Build jobs list from live job store entries
+  const jobs: BackgroundJob[] = Object.entries(JOB_LABELS).map(([id, name]) => {
+    const entry = jobEntries[id];
+    return {
+      id,
+      name,
+      lastRun: entry?.lastRun ?? null,
+      lastMessage: entry?.lastMessage ?? null,
+      durationMs: entry?.durationMs ?? null,
+      status: entry?.status ?? 'idle',
+    };
   });
 
   return (
@@ -542,11 +583,13 @@ export default function SystemHealthPage() {
                   <th>งาน</th>
                   <th>รันล่าสุด</th>
                   <th>สถานะ</th>
+                  <th>ระยะเวลา</th>
+                  <th>ข้อความ</th>
                 </tr>
               </thead>
               <tbody>
                 {jobs.map((job) => (
-                  <tr key={job.name}>
+                  <tr key={job.id}>
                     <td className="font-medium text-[var(--on-surface)] text-sm">{job.name}</td>
                     <td className="text-xs text-[var(--on-surface-variant)]">{fmtTs(job.lastRun)}</td>
                     <td>
@@ -556,6 +599,12 @@ export default function SystemHealthPage() {
                           {statusLabel(job.status)}
                         </span>
                       </div>
+                    </td>
+                    <td className="text-xs text-[var(--on-surface-variant)]">
+                      {job.durationMs != null ? `${(job.durationMs / 1000).toFixed(1)}s` : '—'}
+                    </td>
+                    <td className="text-xs text-[var(--on-surface-variant)] max-w-[160px] truncate" title={job.lastMessage ?? undefined}>
+                      {job.lastMessage ?? '—'}
                     </td>
                   </tr>
                 ))}

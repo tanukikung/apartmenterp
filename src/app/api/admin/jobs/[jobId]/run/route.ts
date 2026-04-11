@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, NotFoundError } from '@/lib/utils/errors';
 import { JOB_RUNNERS, isValidJobId } from '@/modules/jobs/job-runner';
-import { setJobStatus } from '@/modules/jobs/job-store';
+import { setJobStatus, getJobEntry } from '@/modules/jobs/job-store';
 import { requireRole } from '@/lib/auth/guards';
 
 export const dynamic = 'force-dynamic';
@@ -24,6 +24,11 @@ export const POST = asyncHandler(
 
     if (!isValidJobId(jobId)) {
       throw new NotFoundError('Job', jobId);
+    }
+
+    // Prevent concurrent execution — return 409 if already running.
+    if (getJobEntry(jobId)?.status === 'running') {
+      return NextResponse.json({ success: false, error: 'Job is already running' }, { status: 409 });
     }
 
     // Mark as running

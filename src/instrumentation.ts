@@ -26,12 +26,26 @@ const SCHEDULES: ScheduleEntry[] = [
   { jobId: 'invoice-send',       hour: 7, minute: 0, dayOfMonth: 1 },
   { jobId: 'late-fee',           hour: 2, minute: 0 },
   { jobId: 'db-cleanup',         hour: 3, minute: 0, dayOfWeek: 0 },
-  { jobId: 'contract-expiry',    hour: 9, minute: 0 },
+  { jobId: 'outbox-cleanup',    hour: 4, minute: 0, dayOfWeek: 0 },
+  { jobId: 'document-notify',   hour: 7, minute: 0 },
+  { jobId: 'document-cleanup',  hour: 7, minute: 0, dayOfWeek: 0 },
+  { jobId: 'backup-cleanup',     hour: 8, minute: 0 },
+  { jobId: 'contract-expiry',   hour: 9, minute: 0 },
 ];
 
 export async function register() {
   // Only run in the Node.js server runtime (not Edge, not during builds).
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
+
+  // ── Sentry (optional — continues gracefully without it) ─────────────────────
+  try {
+    const { default: Sentry } = await import('@sentry/nextjs');
+    Sentry.init({ dsn: process.env.SENTRY_DSN });
+  } catch { /* Sentry optional */ }
+
+  // Validate environment at startup.
+  const { runStartupChecks } = await import('@/lib/config/startup-check');
+  runStartupChecks();
 
   // Lazy-import to avoid webpack bundling native Node modules.
   const { default: logger } = await import('./lib/utils/logger');
@@ -41,11 +55,21 @@ export async function register() {
   // ── Interval registry for graceful shutdown ─────────────────────────────
   const intervals: ReturnType<typeof setInterval>[] = [];
 
+  // ── In-flight job registry (for graceful shutdown) ─────────────────────
+  const inFlightJobs = new Set<Promise<unknown>>();
+
   // ── Graceful shutdown ─────────────────────────────────────────────────────
-  const shutdown = (signal: string) => {
+  const shutdown = async (signal: string) => {
     logger.info({ signal }, '🛑 Shutdown signal received — clearing intervals');
     for (const id of intervals) clearInterval(id);
     intervals.length = 0;
+
+    // Wait for in-flight jobs to finish before exiting.
+    if (inFlightJobs.size > 0) {
+      logger.info({ count: inFlightJobs.size }, '⏳ Waiting for in-flight jobs to complete');
+      await Promise.all(inFlightJobs);
+      logger.info('✅ All in-flight jobs completed');
+    }
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT',  () => shutdown('SIGINT'));
@@ -81,8 +105,9 @@ export async function register() {
           setJobStatus(jobId, { status: 'running' });
           const startMs = Date.now();
 
-          void runner()
+          const jobPromise = runner()
             .then((result) => {
+              inFlightJobs.delete(jobPromise);
               const durationMs = Date.now() - startMs;
               setJobStatus(jobId, {
                 status: 'idle',
@@ -93,6 +118,7 @@ export async function register() {
               logger.info({ jobId, ...result, durationMs }, '✅ Scheduled job completed');
             })
             .catch((err: unknown) => {
+              inFlightJobs.delete(jobPromise);
               const durationMs = Date.now() - startMs;
               const message = err instanceof Error ? err.message : String(err);
               setJobStatus(jobId, {
@@ -103,6 +129,7 @@ export async function register() {
               });
               logger.error({ jobId, error: message }, '❌ Scheduled job failed');
             });
+          inFlightJobs.add(jobPromise);
         }
       })();
     }, 60_000));
@@ -115,6 +142,11 @@ export async function register() {
     } catch (err) {
       logger.error({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Messaging runtime bootstrap failed — messaging disabled');
     }
+
+    // ── Rich menu bootstrap — handled via admin UI at POST /api/line/rich-menu ─
+    // Rich menu creation requires ADMIN session (HTTP-only cookie), so it cannot
+    // be bootstrapped here without a proper request context. Admin can trigger it
+    // from /admin/settings/integrations or by calling POST /api/line/rich-menu.
 
     // ── Outbox worker ────────────────────────────────────────────────────
     try {

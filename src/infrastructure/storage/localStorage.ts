@@ -35,4 +35,11 @@ export class LocalStorage implements StorageDriver {
     const dest = safeJoin(baseDir(), key);
     await fs.rm(dest, { force: true });
   }
+
+  async copyFile(src: string, destKey: string): Promise<void> {
+    const srcPath = safeJoin(baseDir(), src);
+    const destPath = safeJoin(baseDir(), destKey);
+    await ensureDirFor(destPath);
+    await fs.copyFile(srcPath, destPath);
+  }
 }

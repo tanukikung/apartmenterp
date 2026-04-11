@@ -13,5 +13,6 @@ export interface StorageDriver {
   uploadFile(params: UploadParams): Promise<UploadResult>;
   downloadFile(key: string): Promise<Buffer>;
   deleteFile(key: string): Promise<void>;
+  copyFile(src: string, dest: string): Promise<void>;
 }
 

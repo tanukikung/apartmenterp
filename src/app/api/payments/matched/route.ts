@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { asyncHandler } from '@/lib/utils/errors';
+import { asyncHandler, formatError } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
 import { getServiceContainer } from '@/lib/service-container';
 import { z } from 'zod';
@@ -37,10 +37,11 @@ export const GET = asyncHandler(async (request: NextRequest): Promise<NextRespon
         offset,
       },
     });
-  } catch {
+  } catch (err) {
+    const response = formatError(err);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch auto-matched payments' },
-      { status: 500 }
+      { success: false, error: response.error },
+      { status: response.error.statusCode }
     );
   }
 });

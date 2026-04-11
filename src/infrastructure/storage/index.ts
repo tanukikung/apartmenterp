@@ -12,6 +12,9 @@ class UnconfiguredStorage implements StorageDriver {
   async deleteFile(): Promise<never> {
     throw new Error('Storage driver not configured');
   }
+  async copyFile(): Promise<never> {
+    throw new Error('Storage driver not configured');
+  }
 }
 
 export function getStorage(): StorageDriver {

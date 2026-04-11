@@ -68,8 +68,8 @@ export function resolveAuthSecret(): string | null {
   const env = getEnv();
   const configured = env.AUTH_SECRET || env.NEXTAUTH_SECRET || env.ADMIN_TOKEN;
   if (configured) return configured;
-  if (env.NODE_ENV === 'production') return null;
-  return 'development-auth-secret';
+  // Never use a fallback secret in production — getAuthSecret() will throw
+  return null;
 }
 
 export function getAuthSecret(): string {

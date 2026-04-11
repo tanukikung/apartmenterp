@@ -61,11 +61,6 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   } as ApiResponse<unknown>);
 });
 
-// In-memory idempotency cache (used before schema has idempotencyKey field)
-// TTL: 5 minutes
-const idempotencyCache = new Map<string, { broadcastId: string; createdAt: number }>();
-const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000;
-
 // POST /api/broadcast — create and send a broadcast
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const session = requireRole(req, ['ADMIN', 'STAFF']) as { sub: string; role: string; displayName?: string };
@@ -77,29 +72,14 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     req.headers.get('Idempotency-Key') ||
     body.idempotencyKey;
 
-  // Check in-memory cache first (fallback when DB field not yet migrated)
+  // Check DB for existing broadcast with this idempotency key
   if (idempotencyKey) {
-    const cached = idempotencyCache.get(idempotencyKey);
-    if (cached && Date.now() - cached.createdAt < IDEMPOTENCY_TTL_MS) {
-      const existing = await prisma.broadcast.findUnique({ where: { id: cached.broadcastId } });
-      if (existing) {
-        const response = NextResponse.json(
-          { success: true, data: existing } as ApiResponse<unknown>,
-          { status: 200 }
-        );
-        response.headers.set('X-Idempotent-Replay', 'true');
-        return response;
-      }
-    }
-    // Also check DB directly for idempotency key (covers all statuses including FAILED)
-    const existingByKey = await prisma.broadcast.findUnique({ where: { idempotencyKey } });
-    if (existingByKey) {
-      const response = NextResponse.json(
-        { success: true, data: existingByKey } as ApiResponse<unknown>,
+    const existing = await prisma.broadcast.findUnique({ where: { idempotencyKey } });
+    if (existing) {
+      return NextResponse.json(
+        { success: true, data: existing } as ApiResponse<unknown>,
         { status: 200 }
       );
-      response.headers.set('X-Idempotent-Replay', 'true');
-      return response;
     }
   }
 
@@ -150,16 +130,6 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     },
   });
 
-  // Track in in-memory cache
-  if (idempotencyKey) {
-    // Prune all expired entries before adding new one to prevent memory leak
-    const cutoff = Date.now() - IDEMPOTENCY_TTL_MS;
-    for (const [k, v] of idempotencyCache.entries()) {
-      if (v.createdAt < cutoff) idempotencyCache.delete(k);
-    }
-    idempotencyCache.set(idempotencyKey, { broadcastId: broadcast.id, createdAt: Date.now() });
-  }
-
   // Send LINE messages
   if (lineUserIds.length > 0 && isLineConfigured()) {
     const lineClient = getLineClient();
@@ -180,9 +150,33 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         });
         lineMessageId = (result as unknown as { messageId?: string }).messageId;
         sent++;
-      } catch (err) {
-        logger.warn({ type: 'broadcast_send_error', userId, error: String(err) });
-        failed++;
+      } catch (err: unknown) {
+        const error = err as { status?: number; message?: string; headers?: { get?: (name: string) => string | null } };
+        // Handle LINE rate limit (429) with retry-after header
+        if (error.status === 429) {
+          const retryAfterMs = (parseInt(error.headers?.get?.('retry-after') ?? '0', 10) || 60) * 1000;
+          logger.warn({ type: 'broadcast_rate_limited', userId, retryAfterMs, error: String(err) });
+          // Wait for retry-after period then retry once
+          await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+          try {
+            const result = await lineClient.pushMessage(userId, {
+              type: 'text',
+              text: input.message,
+            });
+            lineMessageId = (result as unknown as { messageId?: string }).messageId;
+            sent++;
+          } catch (retryErr) {
+            logger.warn({ type: 'broadcast_send_error_retry', userId, error: String(retryErr) });
+            failed++;
+          }
+        } else {
+          logger.warn({ type: 'broadcast_send_error', userId, error: String(err) });
+          failed++;
+        }
+      }
+      // Rate limiter: max ~20 messages/second (50ms delay between each)
+      if (userId !== lineUserIds[lineUserIds.length - 1]) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
     }
 

@@ -10,6 +10,8 @@ import {
   GeneratedDocumentFileRole,
 } from '@prisma/client';
 
+export type { GeneratedDocumentStatus } from '@prisma/client';
+
 export const documentTemplateTypeSchema = z.nativeEnum(DocumentTemplateType);
 export const documentTemplateStatusSchema = z.nativeEnum(DocumentTemplateStatus);
 export const documentTemplateVersionStatusSchema = z.nativeEnum(DocumentTemplateVersionStatus);

@@ -83,8 +83,8 @@ const EXPLICIT_POLICIES: ApiRoutePolicy[] = [
   {
     pattern: '/api/health/deep',
     methods: ['GET'],
-    accessClass: 'public',
-    guardApplied: 'public',
+    accessClass: 'operator',
+    guardApplied: 'requireRole(ADMIN)',
   },
   {
     pattern: '/api/admin/setup/complete',
@@ -107,8 +107,8 @@ const EXPLICIT_POLICIES: ApiRoutePolicy[] = [
   {
     pattern: '/api/metrics',
     methods: ['GET'],
-    accessClass: 'public',
-    guardApplied: 'public',
+    accessClass: 'operator',
+    guardApplied: 'requireRole(ADMIN)',
   },
   {
     pattern: '/api/system/backup-status',
@@ -155,8 +155,8 @@ const EXPLICIT_POLICIES: ApiRoutePolicy[] = [
   {
     pattern: '/api/maintenance/my',
     methods: ['GET'],
-    accessClass: 'public',
-    guardApplied: 'legacyTenantPublic',
+    accessClass: 'operator',
+    guardApplied: 'requireAuthSession',
   },
 ];
 

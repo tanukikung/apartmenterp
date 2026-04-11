@@ -21,14 +21,17 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // Log to console for server-side observability. In production, wire this to
-    // an error reporting service (e.g. Sentry) for centralised tracking.
     console.error(JSON.stringify({
       type: 'react_error_boundary',
       message: error.message,
       stack: error.stack,
       componentStack: info.componentStack,
     }));
+
+    // Report to Sentry if available (continues gracefully without it).
+    void import('@sentry/nextjs')
+      .then(({ captureException }) => captureException(error, { extra: { componentStack: info.componentStack } }))
+      .catch(() => { /* Sentry unavailable */ });
   }
 
   handleReset = () => {

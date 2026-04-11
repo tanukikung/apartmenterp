@@ -113,6 +113,36 @@ async function handlePostback(data: string, replyToken: string, conversationId: 
       await sendReplyMessage(replyToken, `ℹ️ ห้อง ${invoice.roomNo} ชำระเงินแล้วเรียบร้อยค่ะ`);
       return;
     }
+
+    // SECURITY: Verify a CONFIRMED payment actually exists for this invoice with sufficient amount
+    const confirmedPayments = await prisma.payment.findMany({
+      where: {
+        matchedInvoiceId: invoiceId,
+        status: 'CONFIRMED',
+      },
+    });
+
+    if (confirmedPayments.length === 0) {
+      await sendReplyMessage(
+        replyToken,
+        '❌ ไม่พบการชำระเงินสำหรับ invoice นี้ กรุณาติดต่อเจ้าหน้าที่'
+      );
+      return;
+    }
+
+    const invoiceTotal = Number(invoice.totalAmount);
+    const totalPaid = confirmedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+
+    if (totalPaid < invoiceTotal - 0.01) {
+      const paidAmount = `฿${totalPaid.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+      const expectedAmount = `฿${invoiceTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+      await sendReplyMessage(
+        replyToken,
+        `❌ ยอดชำระไม่เพียงพอค่ะ\nจ่ายแล้ว: ${paidAmount}\nต้องชำระ: ${expectedAmount}\n\nกรุณาติดต่อเจ้าหน้าที่หากมีข้อสงสัยค่ะ`
+      );
+      return;
+    }
+
     await prisma.invoice.update({
       where: { id: invoiceId },
       data: { status: 'PAID', paidAt: new Date() },
@@ -122,6 +152,11 @@ async function handlePostback(data: string, replyToken: string, conversationId: 
       `✅ ยืนยันการชำระเงินเรียบร้อยแล้วสำหรับห้อง ${invoice.roomNo} ใบเสร็จจะถูกส่งให้ท่านเร็วๆ นี้ค่ะ 😊`
     );
     logger.info({ type: 'postback_confirm_payment', invoiceId, conversationId });
+
+  } else if (action === 'confirm_payment_inquiry') {
+    // Rich menu "ยืนยันชำระเงิน" button — show outstanding invoices via balance inquiry
+    const userId = (await prisma.conversation.findUnique({ where: { id: conversationId } }))?.lineUserId ?? '';
+    await handleBalanceInquiry(userId, replyToken, conversationId);
 
   } else if (action === 'view_invoice') {
     const invoiceId = params.get('invoiceId');
@@ -299,6 +334,14 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
     // ── Handle follow ──────────────────────────────────────────────────────
     if (eventType === 'follow') {
+      // Ensure LineUser record exists before creating Conversation (required FK).
+      // Use upsert so this is idempotent — safe to call even if the record already exists.
+      await prisma.lineUser.upsert({
+        where: { lineUserId: userId },
+        create: { lineUserId: userId, displayName: 'LINE User' },
+        update: {},
+      });
+
       let conversation = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
       if (!conversation) {
         conversation = await prisma.conversation.create({
@@ -328,6 +371,13 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     // ── Handle incoming messages (text, image, sticker, postback) ────────────
     const incoming = extractIncomingMessage(event);
     if (!incoming) continue;
+
+    // Ensure LineUser record exists before creating Conversation (required FK).
+    await prisma.lineUser.upsert({
+      where: { lineUserId: userId },
+      create: { lineUserId: userId, displayName: 'LINE User' },
+      update: {},
+    });
 
     let conversation = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
     if (!conversation) {

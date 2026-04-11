@@ -65,6 +65,14 @@ export interface ComputedBilling {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Money rounding — avoid float precision errors before storing to Decimal(10,2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -80,7 +88,7 @@ function computeServiceFee(
     case 'FLAT_ROOM':
       return amount;
     case 'PER_UNIT':
-      return units * amount;
+      return roundMoney(units * amount);
     case 'MANUAL_FEE':
       return manualFee ?? 0;
     default:
@@ -125,7 +133,7 @@ function computeWater(
       0, // units = 0 for flat
       row.waterServiceFeeManual
     );
-    return { waterUnits: 0, waterUsageCharge, waterServiceFee, waterTotal: waterUsageCharge + waterServiceFee };
+    return { waterUnits: 0, waterUsageCharge, waterServiceFee, waterTotal: roundMoney(waterUsageCharge + waterServiceFee) };
   }
 
   // STEP = tiered pricing (future extension — treat as NORMAL for now)
@@ -136,7 +144,7 @@ function computeWater(
       : Math.max(0, (row.waterCurr ?? 0) - (row.waterPrev ?? 0));
 
   const waterUsageCharge = waterUnits > 0
-    ? Math.max(waterUnits * rule.waterUnitPrice, rule.waterMinCharge)
+    ? roundMoney(Math.max(waterUnits * rule.waterUnitPrice, rule.waterMinCharge))
     : 0;
 
   const waterServiceFee = computeServiceFee(
@@ -146,7 +154,7 @@ function computeWater(
     row.waterServiceFeeManual
   );
 
-  const waterTotal = waterUsageCharge + waterServiceFee;
+  const waterTotal = roundMoney(waterUsageCharge + waterServiceFee);
 
   return { waterUnits, waterUsageCharge, waterServiceFee, waterTotal };
 }
@@ -193,7 +201,7 @@ function computeElectric(
       0,
       row.electricServiceFeeManual
     );
-    return { electricUnits: 0, electricUsageCharge, electricServiceFee, electricTotal: electricUsageCharge + electricServiceFee };
+    return { electricUnits: 0, electricUsageCharge, electricServiceFee, electricTotal: roundMoney(electricUsageCharge + electricServiceFee) };
   }
 
   // STEP = tiered pricing (future extension — treat as NORMAL for now)
@@ -203,7 +211,7 @@ function computeElectric(
       : Math.max(0, (row.electricCurr ?? 0) - (row.electricPrev ?? 0));
 
   const electricUsageCharge = electricUnits > 0
-    ? Math.max(electricUnits * rule.electricUnitPrice, rule.electricMinCharge)
+    ? roundMoney(Math.max(electricUnits * rule.electricUnitPrice, rule.electricMinCharge))
     : 0;
 
   const electricServiceFee = computeServiceFee(
@@ -213,7 +221,7 @@ function computeElectric(
     row.electricServiceFeeManual
   );
 
-  const electricTotal = electricUsageCharge + electricServiceFee;
+  const electricTotal = roundMoney(electricUsageCharge + electricServiceFee);
 
   return { electricUnits, electricUsageCharge, electricServiceFee, electricTotal };
 }
@@ -233,12 +241,13 @@ export function computeRoomBilling(
   const water = computeWater(row, rule);
   const electric = computeElectric(row, rule);
 
-  const totalDue =
+  const totalDue = roundMoney(
     row.rentAmount +
     water.waterTotal +
     electric.electricTotal +
     row.furnitureFee +
-    row.otherFee;
+    row.otherFee
+  );
 
   return {
     ...water,

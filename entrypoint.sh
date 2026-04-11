@@ -18,7 +18,7 @@ echo "[ 2/3 ] Checking if seeding is needed..."
 USER_COUNT=$(node -e "
 const { PrismaClient } = require('@prisma/client');
 const p = new PrismaClient();
-p.user.count()
+p.adminUser.count()
   .then(n => { process.stdout.write(String(n)); return p.\$disconnect(); })
   .catch(() => { process.stdout.write('0'); });
 " 2>/dev/null || echo "0")
