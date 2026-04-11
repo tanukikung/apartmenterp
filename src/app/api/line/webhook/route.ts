@@ -63,6 +63,7 @@ function extractIncomingMessage(event: WebhookEvent): IncomingMessage | null {
       lineMessageId: evt.message.id,
       type: 'TEXT',
       content: evt.message.text || '',
+      replyToken: evt.replyToken,
     };
   }
 

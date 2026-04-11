@@ -7,45 +7,56 @@ import {
   clearMaintenanceRequest,
 } from '@/modules/line-maintenance';
 
-// ─── Mock — hoisted so vi.mock resolves at evaluation time ────────────────────
+// ─── Shared in-memory store ────────────────────────────────────────────────────
+// Mirrors the real module's `_maintenanceRequestCache`.
+// This is the ONLY source of truth for lineMaintenanceState in these tests.
+// All mock Prisma calls go through this store.
 
-const { mockPrismaInstance, mockLineClientInstance } = vi.hoisted(() => {
-  const mockRoomTenant = {
-    id: 'rt-1',
-    roomNo: '101',
-    tenantId: 'tenant-1',
-    role: 'PRIMARY',
-    moveInDate: new Date('2024-01-01'),
-    moveOutDate: null,
-    room: { roomNo: '101' },
-  };
+interface StoredState {
+  lineUserId: string;
+  currentStep: string;
+  requestData: Record<string, unknown>;
+}
 
-  const mockTenant = {
-    id: 'tenant-1',
-    firstName: 'สมชาย',
-    lastName: 'ใจดี',
-    lineUserId: 'U123',
-    roomTenants: [mockRoomTenant],
-  };
+const { mockPrisma, stateStore } = vi.hoisted(() => {
+  const store: Record<string, StoredState> = {};
 
-  // Shared state for lineMaintenanceState to make upsert/findUnique/delete work together
-  const lineStateStore: Record<string, object> = {};
-
-  const mockPrisma = {
+  const mock = {
     tenant: {
-      findUnique: vi.fn().mockResolvedValue(mockTenant),
+      findUnique: vi.fn().mockResolvedValue({
+        id: 'tenant-1',
+        firstName: 'สมชาย',
+        lastName: 'ใจดี',
+        lineUserId: 'U123',
+        roomTenants: [{
+          id: 'rt-1',
+          roomNo: '101',
+          tenantId: 'tenant-1',
+          role: 'PRIMARY',
+          moveInDate: new Date('2024-01-01'),
+          moveOutDate: null,
+          room: { roomNo: '101' },
+        }],
+      }),
     },
     roomTenant: {
-      findFirst: vi.fn().mockResolvedValue(mockRoomTenant),
+      findFirst: vi.fn().mockResolvedValue({
+        id: 'rt-1',
+        roomNo: '101',
+        tenantId: 'tenant-1',
+        role: 'PRIMARY',
+        moveInDate: new Date('2024-01-01'),
+        moveOutDate: null,
+      }),
     },
     maintenanceTicket: {
-      create: vi.fn().mockImplementation(async ({ data }: any) => ({
+      create: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
         id: 'ticket-new',
         roomNo: data.roomNo,
         tenantId: data.tenantId,
         title: data.title,
         description: data.description,
-        priority: data.priority,
+        priority: data.priority ?? 'MEDIUM',
       })),
     },
     maintenanceAttachment: {
@@ -53,14 +64,14 @@ const { mockPrismaInstance, mockLineClientInstance } = vi.hoisted(() => {
     },
     lineMaintenanceState: {
       findUnique: vi.fn().mockImplementation(async ({ where }: { where: { lineUserId: string } }) => {
-        return lineStateStore[where.lineUserId] ?? null;
+        return store[where.lineUserId] ?? null;
       }),
-      upsert: vi.fn().mockImplementation(async ({ where, create, update }: any) => {
-        lineStateStore[where.lineUserId] = create;
+      upsert: vi.fn().mockImplementation(async ({ where, create }: { where: { lineUserId: string }; create: StoredState }) => {
+        store[where.lineUserId] = create as StoredState;
         return create;
       }),
       delete: vi.fn().mockImplementation(async ({ where }: { where: { lineUserId: string } }) => {
-        delete lineStateStore[where.lineUserId];
+        delete store[where.lineUserId];
         return {};
       }),
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -68,40 +79,39 @@ const { mockPrismaInstance, mockLineClientInstance } = vi.hoisted(() => {
     adminUser: {
       findMany: vi.fn().mockResolvedValue([]),
     },
-    $transaction: vi.fn(async (fn: (tx: any) => Promise<unknown>) => fn(mockPrisma)),
+    $transaction: vi.fn(async (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma as never)),
   };
 
-  const mockLineClient = {
-    getMessageContent: vi.fn().mockResolvedValue(Buffer.from([0xff, 0xd8])),
-  };
-
-  return { mockPrismaInstance: mockPrisma, mockLineClientInstance: mockLineClient, lineStateStore };
+  return { mockPrisma: mock, stateStore: store };
 });
 
-vi.mock('@/lib/db/client', () => ({ prisma: mockPrismaInstance }));
+vi.mock('@/lib/db/client', () => ({ prisma: mockPrisma }));
 vi.mock('@/lib/line/client', () => ({
-  getLineClient: vi.fn(() => mockLineClientInstance),
+  getLineClient: vi.fn().mockReturnValue({
+    getMessageContent: vi.fn().mockResolvedValue(Buffer.from([0xff, 0xd8])),
+  }),
   sendLineMessage: vi.fn().mockResolvedValue({ status: 200 }),
   sendReplyMessage: vi.fn().mockResolvedValue({ status: 200 }),
 }));
 vi.mock('@/lib', () => ({
-  prisma: mockPrismaInstance,
+  prisma: {},
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
-  getLineClient: vi.fn(() => mockLineClientInstance),
+  getLineClient: vi.fn().mockReturnValue({
+    getMessageContent: vi.fn().mockResolvedValue(Buffer.from([0xff, 0xd8])),
+  }),
 }));
 
-// ─── Tests ──────────────────────────────────────────────────────────────────────
+// ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('LINE Maintenance Request', () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
 
-    // Reset in-memory state for test users
-    await clearMaintenanceRequest('U123');
-    await clearMaintenanceRequest('U999');
+    // Clear the shared store that underpins both the mock and the real cache
+    Object.keys(stateStore).forEach((k) => delete stateStore[k]);
 
-    // Restore default resolved values for each test
-    mockPrismaInstance.tenant.findUnique.mockResolvedValue({
+    // Reset to default tenant
+    (mockPrisma.tenant.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 'tenant-1',
       firstName: 'สมชาย',
       lastName: 'ใจดี',
@@ -116,7 +126,7 @@ describe('LINE Maintenance Request', () => {
         room: { roomNo: '101' },
       }],
     });
-    mockPrismaInstance.roomTenant.findFirst.mockResolvedValue({
+    (mockPrisma.roomTenant.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 'rt-1',
       roomNo: '101',
       tenantId: 'tenant-1',
@@ -124,23 +134,34 @@ describe('LINE Maintenance Request', () => {
       moveInDate: new Date('2024-01-01'),
       moveOutDate: null,
     });
-    mockPrismaInstance.maintenanceTicket.create.mockImplementation(async ({ data }: any) => ({
-      id: 'ticket-new',
-      roomNo: data?.roomNo ?? 'unknown',
-      tenantId: data?.tenantId ?? 'unknown',
-      title: data?.title ?? 'unknown',
-      description: data?.description ?? 'unknown',
-      priority: data?.priority ?? 'MEDIUM',
-    }));
-    mockPrismaInstance.maintenanceAttachment.create.mockResolvedValue({ id: 'att-1' });
-    mockPrismaInstance.lineMaintenanceState.findUnique.mockResolvedValue(null);
-    mockPrismaInstance.lineMaintenanceState.upsert.mockImplementation(async ({ create }: any) => create);
-    mockPrismaInstance.lineMaintenanceState.delete.mockResolvedValue({});
-    mockPrismaInstance.lineMaintenanceState.deleteMany.mockResolvedValue({ count: 0 });
-    mockPrismaInstance.adminUser.findMany.mockResolvedValue([]);
+    (mockPrisma.lineMaintenanceState.findUnique as ReturnType<typeof vi.fn>).mockImplementation(
+      async ({ where }: { where: { lineUserId: string } }) => stateStore[where.lineUserId] ?? null
+    );
+    (mockPrisma.lineMaintenanceState.upsert as ReturnType<typeof vi.fn>).mockImplementation(
+      async ({ where, create }: { where: { lineUserId: string }; create: StoredState }) => {
+        stateStore[where.lineUserId] = create as StoredState;
+        return create;
+      }
+    );
+    (mockPrisma.lineMaintenanceState.delete as ReturnType<typeof vi.fn>).mockImplementation(
+      async ({ where }: { where: { lineUserId: string } }) => {
+        delete stateStore[where.lineUserId];
+        return {};
+      }
+    );
+    (mockPrisma.maintenanceTicket.create as ReturnType<typeof vi.fn>).mockImplementation(
+      async ({ data }: { data: Record<string, unknown> }) => ({
+        id: 'ticket-new',
+        roomNo: data.roomNo,
+        tenantId: data.tenantId,
+        title: data.title,
+        description: data.description,
+        priority: data.priority ?? 'MEDIUM',
+      })
+    );
   });
 
-  // ── startMaintenanceRequest ───────────────────────────────────────────────
+  // ── startMaintenanceRequest ────────────────────────────────────────────────
 
   describe('startMaintenanceRequest', () => {
     it('returns greeting and stores state when tenant is linked', async () => {
@@ -153,7 +174,7 @@ describe('LINE Maintenance Request', () => {
     });
 
     it('returns error when LINE user is not a registered tenant', async () => {
-      mockPrismaInstance.tenant.findUnique.mockResolvedValue(null);
+      (mockPrisma.tenant.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
       const { replyText } = await startMaintenanceRequest('U999');
 
@@ -162,7 +183,7 @@ describe('LINE Maintenance Request', () => {
     });
 
     it('returns error when tenant has no active room assignment', async () => {
-      mockPrismaInstance.tenant.findUnique.mockResolvedValue({
+      (mockPrisma.tenant.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: 'tenant-1',
         firstName: 'สมชาย',
         lastName: 'ใจดี',
@@ -176,7 +197,7 @@ describe('LINE Maintenance Request', () => {
     });
   });
 
-  // ── handleMaintenanceRequestMessage ───────────────────────────────────────
+  // ── handleMaintenanceRequestMessage ──────────────────────────────────────
 
   describe('handleMaintenanceRequestMessage', () => {
     it('acknowledges description and transitions state to DESCRIPTION_PROVIDED', async () => {
@@ -227,7 +248,7 @@ describe('LINE Maintenance Request', () => {
     });
   });
 
-  // ── handleMaintenanceRequestImage ─────────────────────────────────────────
+  // ── handleMaintenanceRequestImage ──────────────────────────────────────────
 
   describe('handleMaintenanceRequestImage', () => {
     it('returns null when no maintenance request is in progress', async () => {
@@ -264,8 +285,8 @@ describe('LINE Maintenance Request', () => {
       await handleMaintenanceRequestMessage('U123', 'ก็อกน้ำรั่ว');
       const result = await handleMaintenanceRequestMessage('U123', 'เสร็จสิ้น');
 
-      expect(mockPrismaInstance.maintenanceTicket.create).toHaveBeenCalled();
-      const createCallArgs = mockPrismaInstance.maintenanceTicket.create.mock.calls[0][0] as any;
+      expect(mockPrisma.maintenanceTicket.create).toHaveBeenCalled();
+      const createCallArgs = mockPrisma.maintenanceTicket.create.mock.calls[0][0] as Record<string, unknown>;
       expect(Object.keys(createCallArgs)).toContain('data');
       expect(createCallArgs.data.roomNo).toBe('101');
       expect(createCallArgs.data.tenantId).toBe('tenant-1');
@@ -274,13 +295,13 @@ describe('LINE Maintenance Request', () => {
     });
 
     it('does NOT create ticket when tenant is not assigned to room', async () => {
-      mockPrismaInstance.roomTenant.findFirst.mockResolvedValue(null);
+      (mockPrisma.roomTenant.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
       await startMaintenanceRequest('U123');
       await handleMaintenanceRequestMessage('U123', 'ประตูห้องเสีย');
       const result = await handleMaintenanceRequestMessage('U123', 'เสร็จสิ้น');
 
-      expect(mockPrismaInstance.maintenanceTicket.create).not.toHaveBeenCalled();
+      expect(mockPrisma.maintenanceTicket.create).not.toHaveBeenCalled();
       expect(result!.replyText).toContain('ไม่สามารถสร้างคำขอแจ้งซ่อม');
     });
 

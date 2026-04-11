@@ -35,6 +35,7 @@ vi.mock('@/lib/line', () => ({
   sendWelcomeMessage: vi.fn().mockResolvedValue({}),
   sendTemplateMessage: vi.fn().mockResolvedValue({}),
   sendReplyMessage: vi.fn().mockResolvedValue({}),
+  sendTextWithQuickReply: vi.fn().mockResolvedValue({}),
   getLineUserProfile: vi.fn().mockResolvedValue({}),
   verifyLineSignature: vi.fn().mockReturnValue(true),
   parseWebhookEvent: vi.fn(),

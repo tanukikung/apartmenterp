@@ -82,6 +82,7 @@ vi.mock('@/lib/db/client', () => ({
 
 vi.mock('@/lib/line', () => ({
   isLineConfigured: mocks.isLineConfigured,
+  sendTextWithQuickReply: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock('@/lib/events', () => {

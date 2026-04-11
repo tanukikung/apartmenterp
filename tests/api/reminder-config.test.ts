@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { makeRequestLike } from '../helpers/auth';
 
-const { mockPrismaInstance } = vi.hoisted(() => {
+const { mockPrismaInstance, configs } = vi.hoisted(() => {
   const configs: Record<string, object> = {};
 
   const mockPrisma = {
@@ -22,9 +22,11 @@ const { mockPrismaInstance } = vi.hoisted(() => {
         }
         return null;
       }),
-      create: vi.fn().mockImplementation(async ({ data }: { data: { id: string; periodDays: number; messageTh: string; messageEn?: string; isActive: boolean; priority: string; appliesTo: string } }) => {
-        configs[data.id] = data;
-        return data;
+      create: vi.fn().mockImplementation(async ({ data }: { data: { id?: string; periodDays: number; messageTh: string; messageEn?: string; isActive: boolean; priority: string; appliesTo: string } }) => {
+        const id = data.id ?? '550e8400-e29b-41d4-a716-446655440000';
+        const record = { ...data, id };
+        configs[id] = record;
+        return record;
       }),
       update: vi.fn().mockImplementation(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
         if (configs[where.id]) {
@@ -66,7 +68,7 @@ describe('Reminder Config API', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Clear the configs store between tests
-    Object.keys(mockPrismaInstance.reminderConfig.findUnique['__configs'] ?? {}).forEach(k => delete mockPrismaInstance.reminderConfig.findUnique['__configs'][k]);
+    Object.keys(configs).forEach(k => delete configs[k]);
     // Clear mockPrismaInstance.reminderConfig state by resetting mock implementations
     mockPrismaInstance.reminderConfig.count.mockClear();
     mockPrismaInstance.reminderConfig.findMany.mockClear();
@@ -153,7 +155,7 @@ describe('Reminder Config API', () => {
   it('DELETE /api/reminders/config removes a config', async () => {
     const mod = await import('@/app/api/reminders/config/route');
 
-    // Create one
+    // Create one via the API
     const createReq = makeRequestLike({
       url: 'http://localhost/api/reminders/config',
       method: 'POST',
@@ -167,7 +169,8 @@ describe('Reminder Config API', () => {
       },
     });
     const createRes = await (mod as any).POST(createReq);
-    const id = createRes.json().data?.id;
+    const createJson = await createRes.json();
+    const id = createJson.data?.id;
 
     // Delete it
     const delReq = makeRequestLike({
@@ -197,7 +200,8 @@ describe('Reminder Config API', () => {
       },
     });
     const createRes = await (mod as any).POST(createReq);
-    const id = createRes.json().data?.id;
+    const createJson = await createRes.json();
+    const id = createJson.data?.id;
 
     const updateReq = makeRequestLike({
       url: 'http://localhost/api/reminders/config',
@@ -211,7 +215,7 @@ describe('Reminder Config API', () => {
     });
     const updateRes = await (mod as any).PUT(updateReq);
     expect(updateRes.status).toBe(200);
-    const json = updateRes.json();
+    const json = await updateRes.json();
     expect(json.data?.isActive).toBe(false);
     expect(json.data?.messageTh).toBe('updated message');
   });
