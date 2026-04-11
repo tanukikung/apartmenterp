@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/providers/ToastProvider';
 import {
   Search,
@@ -73,6 +74,7 @@ function EmptyState({
 
 export default function AdminMoveOutsPage() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -82,12 +84,6 @@ export default function AdminMoveOutsPage() {
     dangerous?: boolean;
     onConfirm: () => void;
   }>({ open: false, title: '', onConfirm: () => {} });
-
-  // Data state
-  const [moveOuts, setMoveOuts] = useState<MoveOutRecord[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // Filter / search state
   const [search, setSearch] = useState('');
@@ -120,16 +116,11 @@ export default function AdminMoveOutsPage() {
   });
   const [itemSaving, setItemSaving] = useState(false);
 
-  // Contract options for new move-out form
-  const [contracts, setContracts] = useState<ContractOption[]>([]);
-  const [contractsLoading, setContractsLoading] = useState(false);
+  // ── Move-outs query ────────────────────────────────────────────────────────
 
-  // ── Load move-outs ──────────────────────────────────────────────────────────
-
-  const loadMoveOuts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  const { data: moveOutsData, isLoading: loading, error: error, refetch: refetchMoveOuts } = useQuery({
+    queryKey: ['moveouts', page, filterStatus],
+    queryFn: async () => {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: '50',
@@ -142,57 +133,41 @@ export default function AdminMoveOutsPage() {
       const json: { success: boolean; data: MoveOutListResponse } =
         await res.json();
       if (!json.success) throw new Error('API ส่งคืนข้อผิดพลาด');
-      setMoveOuts(json.data.data);
-      setTotal(json.data.total);
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : 'ไม่สามารถโหลดข้อมูลการย้ายออก',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [page, filterStatus]);
+      return json.data;
+    },
+  });
 
-  useEffect(() => {
-    void loadMoveOuts();
-  }, [loadMoveOuts]);
+  const moveOuts: MoveOutRecord[] = moveOutsData?.data ?? [];
+  const total = moveOutsData?.total ?? 0;
 
-  // ── Load contracts for "New" form ───────────────────────────────────────────
+  // ── Contracts query (for new move-out form) ────────────────────────────────
 
-  const loadContracts = useCallback(async () => {
-    setContractsLoading(true);
-    try {
+  const { data: contractsData, isLoading: contractsLoading } = useQuery({
+    queryKey: ['contracts-active'],
+    queryFn: async () => {
       const res = await fetch('/api/contracts?status=ACTIVE&pageSize=300');
-      if (!res.ok) return;
+      if (!res.ok) return [];
       const json = await res.json();
-      if (json.success) {
-        const contractsData = json.data.data.map(
-          (c: {
-            id: string;
-            roomNo: string;
-            depositAmount: number;
-            status: string;
-            primaryTenant?: { fullName: string };
-          }) => ({
-            id: c.id,
-            roomNo: c.roomNo,
-            tenantName: c.primaryTenant?.fullName || 'ไม่ระบุ',
-            deposit: c.depositAmount,
-            status: c.status,
-          }),
-        );
-        setContracts(contractsData);
-      }
-    } catch {
-      // non-critical
-    } finally {
-      setContractsLoading(false);
-    }
-  }, []);
+      if (!json.success) return [];
+      const contractsFromApi: {
+        id: string;
+        roomNo: string;
+        depositAmount: number;
+        status: string;
+        primaryTenant?: { fullName: string };
+      }[] = json.data.data;
+      return contractsFromApi.map((c) => ({
+        id: c.id,
+        roomNo: c.roomNo,
+        tenantName: c.primaryTenant?.fullName || 'ไม่ระบุ',
+        deposit: c.depositAmount,
+        status: c.status,
+      }));
+    },
+    enabled: panelMode === 'new',
+  });
 
-  useEffect(() => {
-    if (panelMode === 'new') void loadContracts();
-  }, [panelMode, loadContracts]);
+  const contracts: ContractOption[] = contractsData ?? [];
 
   // ── Derived / computed ──────────────────────────────────────────────────────
 
@@ -288,7 +263,7 @@ export default function AdminMoveOutsPage() {
         );
       }
       closePanel();
-      void loadMoveOuts();
+      void queryClient.invalidateQueries({ queryKey: ['moveouts'] });
     } catch (err) {
       setNewError(
         err instanceof Error ? err.message : 'ไม่สามารถสร้างการย้ายออก',
@@ -324,7 +299,7 @@ export default function AdminMoveOutsPage() {
         );
       }
       setSelectedMoveOut(json.data);
-      void loadMoveOuts();
+      void queryClient.invalidateQueries({ queryKey: ['moveouts'] });
     } catch (err) {
       setCalcError(
         err instanceof Error ? err.message : 'ไม่สามารถคำนวณมัดจำ',
@@ -371,7 +346,7 @@ export default function AdminMoveOutsPage() {
         cost: '0',
         notes: '',
       });
-      void loadMoveOuts();
+      void queryClient.invalidateQueries({ queryKey: ['moveouts'] });
     } catch (err) {
       toast(
         err instanceof Error ? err.message : 'ไม่สามารถเพิ่มรายการ',
@@ -411,7 +386,7 @@ export default function AdminMoveOutsPage() {
             const detailJson = await detailRes.json();
             setSelectedMoveOut(detailJson.data);
           }
-          void loadMoveOuts();
+          void queryClient.invalidateQueries({ queryKey: ['moveouts'] });
         } catch (err) {
           toast(
             err instanceof Error ? err.message : 'ไม่สามารถลบรายการ',
@@ -446,7 +421,7 @@ export default function AdminMoveOutsPage() {
             );
           }
           setSelectedMoveOut(json.data);
-          void loadMoveOuts();
+          void queryClient.invalidateQueries({ queryKey: ['moveouts'] });
         } catch (err) {
           toast(
             err instanceof Error ? err.message : 'ไม่สามารถยืนยันการย้ายออก',
@@ -481,7 +456,7 @@ export default function AdminMoveOutsPage() {
             );
           }
           setSelectedMoveOut(json.data);
-          void loadMoveOuts();
+          void queryClient.invalidateQueries({ queryKey: ['moveouts'] });
         } catch (err) {
           toast(
             err instanceof Error ? err.message : 'ไม่สามารถบันทึกการคืนเงิน',
@@ -517,7 +492,7 @@ export default function AdminMoveOutsPage() {
             );
           }
           closePanel();
-          void loadMoveOuts();
+          void queryClient.invalidateQueries({ queryKey: ['moveouts'] });
         } catch (err) {
           toast(
             err instanceof Error ? err.message : 'ไม่สามารถยกเลิกการย้ายออก',
@@ -584,7 +559,7 @@ export default function AdminMoveOutsPage() {
             <div className="flex items-center gap-3">
               <button
                 className="inline-flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
-                onClick={() => void loadMoveOuts()}
+                onClick={() => void refetchMoveOuts()}
                 title="Refresh"
               >
                 <RefreshCw size={13} />
@@ -676,7 +651,7 @@ export default function AdminMoveOutsPage() {
         {error && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm font-medium text-[var(--on-error-container)]">
             <AlertCircle size={15} />
-            {error}
+            {error.message}
           </div>
         )}
 

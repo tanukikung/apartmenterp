@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Key, Shield, UserPlus, Users } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -65,35 +66,24 @@ function roleBadgeClass(role: string): string {
 // ---------------------------------------------------------------------------
 
 export default function AdminUsersSettingsPage() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [apiUnavailable, setApiUnavailable] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Create form state
-  const [form, setForm] = useState<CreateForm>(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  // ---------------------------------------------------------------------------
-  // Load users
-  // ---------------------------------------------------------------------------
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    setApiUnavailable(false);
-    try {
+  // useQuery for admin users list
+  const {
+    isLoading,
+    error: queryError,
+    data: queryData,
+    fetchStatus,
+  } = useQuery({
+    queryKey: ['admin-users'],
+    queryFn: async () => {
       const res = await fetch('/api/admin/users?page=1&pageSize=50', {
         cache: 'no-store',
       });
       if (res.status === 404) {
-        setApiUnavailable(true);
-        setUsers([]);
-        return;
+        throw new Error('API_NOT_FOUND');
       }
-      const json = (await res.json()) as {
+      const json = await res.json() as {
         success: boolean;
         data?: { users?: AdminUser[] } | AdminUser[];
         error?: { message?: string };
@@ -101,7 +91,35 @@ export default function AdminUsersSettingsPage() {
       if (!json.success) {
         throw new Error(json.error?.message ?? 'ไม่สามารถโหลดผู้ใช้');
       }
-      const payload = json.data;
+      return json;
+    },
+    retry: false,
+  });
+
+  // Local state mirroring original behaviour
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [apiUnavailable, setApiUnavailable] = useState(false);
+
+  // Sync from useQuery result to local state
+  useEffect(() => {
+    if (fetchStatus === 'fetching') return;
+
+    if (queryError) {
+      const msg = queryError instanceof Error ? queryError.message : String(queryError);
+      if (msg === 'API_NOT_FOUND') {
+        setApiUnavailable(true);
+        setUsers([]);
+        setError(null);
+      } else {
+        setApiUnavailable(false);
+        setError(msg);
+        setUsers([]);
+      }
+    } else if (queryData) {
+      setApiUnavailable(false);
+      setError(null);
+      const payload = queryData.data;
       if (Array.isArray(payload)) {
         setUsers(payload);
       } else if (payload && Array.isArray((payload as { users?: AdminUser[] }).users)) {
@@ -109,22 +127,19 @@ export default function AdminUsersSettingsPage() {
       } else {
         setUsers([]);
       }
-    } catch (err) {
-      if (err instanceof TypeError) {
-        // Network error — treat as unavailable
-        setApiUnavailable(true);
-        setUsers([]);
-      } else {
-        setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดผู้ใช้');
-      }
-    } finally {
-      setLoading(false);
     }
-  }, []);
+  }, [queryData, queryError, fetchStatus]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // Replace load() with invalidate + refetch
+  const load = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+  }, [queryClient]);
+
+  // Create form state
+  const [form, setForm] = useState<CreateForm>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // ---------------------------------------------------------------------------
   // Create user
@@ -170,7 +185,7 @@ export default function AdminUsersSettingsPage() {
       }
       setSuccessMessage(`สร้างผู้ใช้ "${form.username.trim()}" สำเร็จแล้ว`);
       setForm(EMPTY_FORM);
-      await load();
+      load();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'ไม่สามารถสร้างผู้ใช้');
     } finally {
@@ -204,8 +219,8 @@ export default function AdminUsersSettingsPage() {
             </p>
           </div>
         </div>
-        <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] mt-4" disabled={loading}>
-          {loading ? 'กำลังโหลด...' : 'รีเฟรช'}
+        <button onClick={() => load()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] mt-4" disabled={isLoading}>
+          {isLoading ? 'กำลังโหลด...' : 'รีเฟรช'}
         </button>
       </section>
 
@@ -257,7 +272,7 @@ export default function AdminUsersSettingsPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
+                {isLoading ? (
                   // Loading skeleton rows
                   Array.from({ length: 4 }).map((_, i) => (
                     <tr key={i}>

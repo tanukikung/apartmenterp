@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -136,6 +137,7 @@ function RecordPaymentForm({
   invoiceId: string;
   onSuccess: () => void;
 }) {
+  const queryClient = useQueryClient();
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('CASH');
   const [reference, setReference] = useState('');
@@ -233,43 +235,28 @@ function RecordPaymentForm({
 export default function InvoiceDetailPage() {
   const params = useParams();
   const invoiceId = params?.id as string;
+  const queryClient = useQueryClient();
 
-  const [invoice, setInvoice] = useState<InvoiceResponse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [sendMessage, setSendMessage] = useState<string | null>(null);
   const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!invoiceId) return;
-    setLoading(true);
-    setError(null);
-    setNotFound(false);
-    try {
+  const { data: invoice, isLoading: loading, error } = useQuery<InvoiceResponse>({
+    queryKey: ['invoices', invoiceId],
+    queryFn: async () => {
+      if (!invoiceId) throw new Error('No invoice ID');
       const res = await fetch(`/api/invoices/${invoiceId}`, { cache: 'no-store' });
       if (res.status === 404) {
         setNotFound(true);
-        setLoading(false);
-        return;
+        throw new Error('Not found');
       }
       const data = await res.json();
-      if (data.success) {
-        setInvoice(data.data as InvoiceResponse);
-      } else {
-        throw new Error(data.error?.message || 'ไม่สามารถโหลดใบแจ้งหนี้');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดใบแจ้งหนี้');
-    } finally {
-      setLoading(false);
-    }
-  }, [invoiceId]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+      if (!data.success) throw new Error(data.error?.message || 'ไม่สามารถโหลดใบแจ้งหนี้');
+      return data.data as InvoiceResponse;
+    },
+    enabled: !!invoiceId,
+  });
 
   async function sendInvoice() {
     if (!invoiceId) return;
@@ -282,7 +269,7 @@ export default function InvoiceDetailPage() {
       }).then(r => r.json());
       if (res.success) {
         setSendMessage('Invoice sent via LINE.');
-        await load();
+        await queryClient.invalidateQueries({ queryKey: ['invoices', invoiceId] });
       } else {
         setSendMessage(res.error?.message || 'Failed to send invoice');
       }
@@ -398,7 +385,7 @@ export default function InvoiceDetailPage() {
         </div>
         <div className="flex items-center gap-2 mt-4 flex-wrap">
           <button
-            onClick={() => void load()}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['invoices', invoiceId] })}
             className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
           >
             <RefreshCw className="h-4 w-4" />
@@ -431,7 +418,7 @@ export default function InvoiceDetailPage() {
         )}
       </section>
 
-      {error && <div className="auth-alert auth-alert-error">{error}</div>}
+      {error && <div className="auth-alert auth-alert-error">{error instanceof Error ? error.message : String(error)}</div>}
 
       {/* Invoice details */}
       <section className="grid gap-4 lg:grid-cols-3">
@@ -538,7 +525,7 @@ export default function InvoiceDetailPage() {
           {inv.status !== 'PAID' && (
             <RecordPaymentForm
               invoiceId={invoiceId}
-              onSuccess={() => { void load(); }}
+              onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['invoices', invoiceId] }); }}
             />
           )}
 

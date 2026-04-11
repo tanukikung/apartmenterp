@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   CheckCircle,
@@ -105,28 +106,20 @@ function StepIndicator({ current }: { current: WizardStep }): JSX.Element {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function BillingWizardPage(): JSX.Element {
-  const [data, setData] = useState<WizardData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const loadWizard = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  const { data, isLoading: loading } = useQuery<WizardData>({
+    queryKey: ['billing-wizard'],
+    queryFn: async () => {
       const res = await fetch('/api/billing/wizard', { cache: 'no-store' });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error?.message ?? 'โหลดข้อมูลไม่สำเร็จ');
-      setData(json.data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'เกิดข้อผิดพลาด');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { void loadWizard(); }, [loadWizard]);
+      return json.data as WizardData;
+    },
+  });
 
   async function doAction(action: string, extra: Record<string, unknown> = {}): Promise<void> {
     setActionLoading(true);
@@ -141,7 +134,7 @@ export default function BillingWizardPage(): JSX.Element {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error?.message ?? `Action ${action} failed`);
       setSuccessMsg(json.data?.message ?? 'สำเร็จแล้ว');
-      await loadWizard();
+      await queryClient.invalidateQueries({ queryKey: ['billing-wizard'] });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'เกิดข้อผิดพลาด');
     } finally {
@@ -236,7 +229,7 @@ export default function BillingWizardPage(): JSX.Element {
             </Link>
             {data?.period && (
               <button
-                onClick={() => setData(d => d ? { ...d, currentStep: 'review' } : d)}
+                onClick={() => queryClient.setQueryData<WizardData>(['billing-wizard'], (old) => old ? { ...old, currentStep: 'review' } : old)}
                 disabled={actionLoading}
                 className="inline-flex items-center gap-2 rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-5 py-2.5 text-sm font-medium text-[var(--on-surface)] hover:bg-[var(--surface-container)] transition-colors"
               >
@@ -356,7 +349,7 @@ export default function BillingWizardPage(): JSX.Element {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setData(d => d ? { ...d, currentStep: 'send' } : d)}
+              onClick={() => queryClient.setQueryData<WizardData>(['billing-wizard'], (old) => old ? { ...old, currentStep: 'send' } : old)}
               disabled={period.generatedInvoices === 0}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
@@ -410,7 +403,7 @@ export default function BillingWizardPage(): JSX.Element {
             <div className="flex items-center gap-3">
               <p className="text-sm text-emerald-600 font-medium">✓ ส่งใบแจ้งหนี้หมดแล้ว</p>
               <button
-                onClick={() => setData(d => d ? { ...d, currentStep: 'complete' } : d)}
+                onClick={() => queryClient.setQueryData<WizardData>(['billing-wizard'], (old) => old ? { ...old, currentStep: 'complete' } : old)}
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 transition-colors"
               >
                 เสร็จสิ้น →

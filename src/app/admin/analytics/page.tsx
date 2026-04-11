@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import {
   AlertCircle,
@@ -102,38 +102,54 @@ function KpiCard({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+async function fetchAnalyticsSummary() {
+  const r = await fetch('/api/analytics/summary');
+  if (!r.ok) throw new Error('Failed to fetch summary');
+  const json = await r.json() as Record<string, unknown>;
+  if (!json.success) throw new Error('API error');
+  return json.data as Summary;
+}
+
+async function fetchAnalyticsRevenue() {
+  const r = await fetch('/api/analytics/revenue');
+  if (!r.ok) throw new Error('Failed to fetch revenue');
+  const json = await r.json() as Record<string, unknown>;
+  if (!json.success) throw new Error('API error');
+  return (json.data as RevenuePoint[] ?? []);
+}
+
+async function fetchAnalyticsOccupancy() {
+  const r = await fetch('/api/analytics/occupancy');
+  if (!r.ok) throw new Error('Failed to fetch occupancy');
+  const json = await r.json() as Record<string, unknown>;
+  if (!json.success) throw new Error('API error');
+  return json.data as OccupancyData;
+}
+
 export default function AnalyticsPage() {
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [revenue, setRevenue] = useState<RevenuePoint[]>([]);
-  const [occupancy, setOccupancy] = useState<OccupancyData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data: summary, isLoading, error, refetch: refetchSummary } = useQuery({
+    queryKey: ['analytics-summary'],
+    queryFn: fetchAnalyticsSummary,
+  });
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-    setError(null);
+  const { data: revenue = [], refetch: refetchRevenue } = useQuery({
+    queryKey: ['analytics-revenue'],
+    queryFn: fetchAnalyticsRevenue,
+  });
 
-    try {
-      const [sumRes, revRes, occRes] = await Promise.all([
-        safeJson('/api/analytics/summary'),
-        safeJson('/api/analytics/revenue'),
-        safeJson('/api/analytics/occupancy'),
-      ]);
+  const { data: occupancy, refetch: refetchOccupancy } = useQuery({
+    queryKey: ['analytics-occupancy'],
+    queryFn: fetchAnalyticsOccupancy,
+  });
 
-      if (sumRes?.success) setSummary(sumRes.data as Summary);
-      if (revRes?.success && Array.isArray(revRes.data)) setRevenue(revRes.data as RevenuePoint[]);
-      if (occRes?.success) setOccupancy(occRes.data as OccupancyData);
-    } catch {
-      setError('โหลดข้อมูลล้มเหลว กรุณาลองใหม่');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const loading = isLoading;
+  const refreshing = false;
 
-  useEffect(() => { void load(); }, [load]);
+  const load = () => {
+    void refetchSummary();
+    void refetchRevenue();
+    void refetchOccupancy();
+  };
 
   // Build chart data — last 12 months
   const chartData = revenue.slice(-12).map(p => ({
@@ -161,7 +177,7 @@ export default function AnalyticsPage() {
           <p className="text-sm text-slate-500 mt-0.5">ภาพรวมสถิติและตัวชี้วัดหลัก</p>
         </div>
         <button
-          onClick={() => void load(true)}
+          onClick={() => void load()}
           disabled={refreshing}
           className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
         >
@@ -174,7 +190,7 @@ export default function AnalyticsPage() {
       {error && (
         <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <AlertCircle size={16} className="shrink-0" />
-          {error}
+          {error.message}
         </div>
       )}
 

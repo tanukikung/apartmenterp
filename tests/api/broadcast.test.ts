@@ -2,27 +2,35 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { makeRequestLike } from '../helpers/auth';
 import { hashPassword } from '@/lib/auth/password';
 
-// Track created broadcasts so findUnique can return them
-const createdBroadcasts = new Map<string, any>();
+// Mock uuid to return predictable values
+vi.mock('uuid', () => ({
+  v4: vi.fn(() => 'test-uuid-123'),
+}));
 
-// Create shared mock prisma instance
+// Create shared mock prisma instance with proper state management
 const mockPrisma = {
   broadcast: {
     findMany: vi.fn().mockResolvedValue([]),
-    findUnique: vi.fn().mockImplementation(({ where }: any) => {
-      return Promise.resolve(createdBroadcasts.get(where.id) ?? null);
-    }),
+    findUnique: vi.fn().mockResolvedValue(null),
     create: vi.fn().mockImplementation(({ data }: any) => {
-      const id = data.id || 'broadcast-uuid-created';
-      const record = { id, ...data };
-      createdBroadcasts.set(id, record);
-      return Promise.resolve(record);
+      return Promise.resolve({
+        id: data.id || 'broadcast-uuid-created',
+        ...data,
+        status: 'PENDING',
+        sentCount: 0,
+        failedCount: 0,
+        sentAt: null,
+      });
     }),
     update: vi.fn().mockImplementation(({ where, data }: any) => {
-      const existing = createdBroadcasts.get(where.id) || { id: where.id };
-      const updated = { ...existing, ...data };
-      createdBroadcasts.set(where.id, updated);
-      return Promise.resolve(updated);
+      return Promise.resolve({
+        id: where.id,
+        message: 'Test broadcast',
+        target: 'ALL',
+        targetFloors: [],
+        targetRooms: [],
+        ...data,
+      });
     }),
     count: vi.fn().mockResolvedValue(0),
   },
@@ -75,7 +83,6 @@ vi.mock('@/modules/audit', () => ({
 
 describe('Broadcast API', () => {
   beforeEach(() => {
-    createdBroadcasts.clear();
     // Reset mock implementations
     mockPrisma.broadcast.findMany.mockResolvedValue([]);
     mockPrisma.broadcast.count.mockResolvedValue(0);
@@ -124,6 +131,17 @@ describe('Broadcast API', () => {
   });
 
   it('POST /api/broadcast creates a broadcast record', async () => {
+    // Set up findUnique to return the created broadcast
+    mockPrisma.broadcast.findUnique.mockResolvedValue({
+      id: 'test-uuid-123',
+      message: 'ทดสอบการประกาศ',
+      target: 'ALL',
+      targetFloors: [],
+      targetRooms: [],
+      status: 'COMPLETED',
+      sentCount: 0,
+      failedCount: 0,
+    });
     const mod = await import('@/app/api/broadcast/route');
     const req = makeRequestLike({
       url: 'http://localhost/api/broadcast',
@@ -145,6 +163,17 @@ describe('Broadcast API', () => {
   });
 
   it('POST /api/broadcast with FLOORS target filters rooms', async () => {
+    // Set up findUnique to return the created broadcast
+    mockPrisma.broadcast.findUnique.mockResolvedValue({
+      id: 'test-uuid-123',
+      message: 'ประกาศถึงชั้น 1-3',
+      target: 'FLOORS',
+      targetFloors: [1, 2, 3],
+      targetRooms: [],
+      status: 'COMPLETED',
+      sentCount: 0,
+      failedCount: 0,
+    });
     const mod = await import('@/app/api/broadcast/route');
     const req = makeRequestLike({
       url: 'http://localhost/api/broadcast',

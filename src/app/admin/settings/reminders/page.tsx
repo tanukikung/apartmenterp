@@ -13,7 +13,7 @@
  *   appliesTo   — ALL / OVERDUE / DUE_SOON
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useToast } from '@/components/providers/ToastProvider';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -31,6 +31,7 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react';
+import { useApiData } from '@/hooks/useApi';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -100,9 +101,7 @@ export default function ReminderConfigPage() {
     onConfirm: () => void;
   }>({ open: false, title: '', onConfirm: () => {} });
 
-  const [configs, setConfigs] = useState<ReminderConfig[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Form state for adding new config
@@ -117,30 +116,17 @@ export default function ReminderConfigPage() {
   // Delete state
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/reminders/config?pageSize=50', { cache: 'no-store' });
-      const json: ApiResp<ListResp> = await res.json();
-      if (!json.success) throw new Error(json.error?.message ?? 'ไม่สามารถโหลดการตั้งค่า');
-      setConfigs(json.data?.items ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูล');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data: configsData, isLoading, error: fetchError, refetch } = useApiData<ApiResp<ListResp>>('/api/reminders/config?pageSize=50', ['reminder-configs']);
 
-  useEffect(() => { void load(); }, [load]);
+  const configs: ReminderConfig[] = configsData?.data?.items ?? [];
 
   async function handleAdd() {
     if (!formMessage.trim()) {
-      setError('กรุณากรอกข้อความ');
+      setActionError('กรุณากรอกข้อความ');
       return;
     }
     setSaving(true);
-    setError(null);
+    setActionError(null);
     setSuccessMsg(null);
     try {
       const res = await fetch('/api/reminders/config', {
@@ -160,9 +146,9 @@ export default function ReminderConfigPage() {
       setShowForm(false);
       setFormMessage('');
       setFormDays(7);
-      void load();
+      void refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'เพิ่มไม่สำเร็จ');
+      setActionError(err instanceof Error ? err.message : 'เพิ่มไม่สำเร็จ');
     } finally {
       setSaving(false);
     }
@@ -181,7 +167,7 @@ export default function ReminderConfigPage() {
           const res = await fetch(`/api/reminders/config?id=${id}`, { method: 'DELETE' });
           const json: ApiResp<{ deleted: boolean }> = await res.json();
           if (!json.success) throw new Error(json.error?.message ?? 'ลบไม่สำเร็จ');
-          setConfigs((prev) => prev.filter((c) => c.id !== id));
+          void refetch();
         } catch (err) {
           toast(err instanceof Error ? err.message : 'ลบไม่สำเร็จ', 'error');
         } finally {
@@ -200,11 +186,9 @@ export default function ReminderConfigPage() {
       });
       const json: ApiResp<ReminderConfig> = await res.json();
       if (!json.success) throw new Error(json.error?.message ?? 'อัปเดตไม่สำเร็จ');
-      setConfigs((prev) =>
-        prev.map((c) => (c.id === config.id ? { ...c, isActive: !c.isActive } : c))
-      );
+      void refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'อัปเดตไม่สำเร็จ');
+      setActionError(err instanceof Error ? err.message : 'อัปเดตไม่สำเร็จ');
     }
   }
 
@@ -231,10 +215,10 @@ export default function ReminderConfigPage() {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => void load()}
+              onClick={() => void refetch()}
               className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               รีเฟรช
             </button>
           </div>
@@ -257,10 +241,10 @@ export default function ReminderConfigPage() {
           {successMsg}
         </div>
       )}
-      {error && (
+      {fetchError && (
         <div className="flex items-center gap-3 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-5 py-3.5 text-sm font-medium text-[var(--on-error-container)]">
           <XCircle className="h-5 w-5 shrink-0" />
-          {error}
+          {fetchError instanceof Error ? fetchError.message : String(fetchError)}
         </div>
       )}
 
@@ -379,7 +363,7 @@ export default function ReminderConfigPage() {
               {saving ? 'กำลังบันทึก...' : 'บันทึก'}
             </button>
             <button
-              onClick={() => { setShowForm(false); setError(null); }}
+              onClick={() => { setShowForm(false); setActionError(null); }}
               className="inline-flex items-center gap-2 rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
             >
               ยกเลิก
@@ -389,7 +373,7 @@ export default function ReminderConfigPage() {
       )}
 
       {/* Config List */}
-      {loading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center p-10">
           <Loader2 className="h-8 w-8 animate-spin text-[var(--on-surface-variant)]" />
         </div>

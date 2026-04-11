@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Building2,
@@ -159,34 +160,53 @@ function LetterheadPreview({ profile }: { profile: BuildingProfile }) {
 // ---------------------------------------------------------------------------
 
 export default function BuildingProfilePage() {
-  const [fields, setFields] = useState<BuildingProfile>(DEFAULTS);
-  const [originalFields, setOriginalFields] = useState<BuildingProfile>(DEFAULTS);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  // useQuery for building profile
+  const {
+    isLoading,
+    data: queryData,
+    error: queryError,
+  } = useQuery({
+    queryKey: ['settings-building'],
+    queryFn: async () => {
       const res = await fetch('/api/settings/building', { cache: 'no-store' });
-      const json = (await res.json()) as {
+      const json = await res.json() as {
         success: boolean;
         data?: BuildingProfile;
         error?: { message?: string };
       };
-      if (!json.success || !json.data) throw new Error(json.error?.message ?? 'ไม่สามารถโหลดข้อมูลอาคารได้');
-      setFields(json.data);
-      setOriginalFields(json.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลอาคารได้');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      if (!json.success || !json.data) {
+        throw new Error(json.error?.message ?? 'ไม่สามารถโหลดข้อมูลอาคารได้');
+      }
+      return json;
+    },
+  });
 
-  useEffect(() => { void load(); }, [load]);
+  // Local state mirroring original behaviour
+  const [fields, setFields] = useState<BuildingProfile>(DEFAULTS);
+  const [originalFields, setOriginalFields] = useState<BuildingProfile>(DEFAULTS);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  // Sync from useQuery result to local state
+  useEffect(() => {
+    if (queryError) {
+      setError(queryError instanceof Error ? queryError.message : 'ไม่สามารถโหลดข้อมูลอาคารได้');
+      return;
+    }
+    if (queryData) {
+      setFields(queryData.data as BuildingProfile);
+      setOriginalFields(queryData.data as BuildingProfile);
+      setError(null);
+    }
+  }, [queryData, queryError]);
+
+  // Replace load() with invalidate + refetch
+  const load = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['settings-building'] });
+  }, [queryClient]);
 
   async function handleSave() {
     setSaving(true);
@@ -207,7 +227,7 @@ export default function BuildingProfilePage() {
       });
       const json = (await res.json()) as { success: boolean; error?: { message?: string } };
       if (!json.success) throw new Error(json.error?.message ?? 'ไม่สามารถบันทึกข้อมูลอาคารได้');
-      await load();
+      load();
       setMessage('บันทึกข้อมูลอาคารเรียบร้อยแล้ว');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถบันทึกข้อมูลอาคารได้');
@@ -278,7 +298,7 @@ export default function BuildingProfilePage() {
         <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-6 xl:col-span-3">
           <h2 className="mb-6 text-base font-semibold text-[var(--on-surface)]">ข้อมูลอาคาร</h2>
 
-          {loading ? (
+          {isLoading ? (
             <div className="space-y-5">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-start gap-4">
@@ -407,7 +427,7 @@ export default function BuildingProfilePage() {
           )}
           <button
             onClick={() => void handleSave()}
-            disabled={saving || loading || !isDirty}
+            disabled={saving || isLoading || !isDirty}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Save className="h-4 w-4" />

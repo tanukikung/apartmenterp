@@ -39,10 +39,10 @@ describe('Invoice reminders selection and outbox', () => {
 
     const res = await service.runDaily(base);
 
-    // runDailyDefault returns { scheduled, dueSoon, dueToday, overdue3, errors }
+    // runDailyDefault returns { scheduled, dueSoon, dueToday, overdue, errors }
     expect(res.dueSoon).toBe(1);
     expect(res.dueToday).toBe(1);
-    expect(res.overdue3).toBe(1);
+    expect(res.overdue).toBe(1);
     expect(res.scheduled).toBe(3);
     const calls = (prisma.outboxEvent.create as any).mock.calls.map((c: any) => c[0].data.eventType);
     expect(calls).toContain(EventTypes.INVOICE_REMINDER_DUE_SOON);

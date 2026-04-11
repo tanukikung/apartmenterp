@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import { ExternalLink, FileOutput, FolderOpen, Layers3, Send, Trash2 } from 'lucide-react';
 
@@ -22,52 +23,40 @@ type GeneratedDocument = {
   files: Array<{ role: string; format: string; url: string }>;
 };
 
+async function fetchDocuments(): Promise<{ data: GeneratedDocument[] }> {
+  const res = await fetch('/api/documents?pageSize=100', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch documents');
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
+  return json.data;
+}
+
 export default function DocumentsPage() {
-  const [documents, setDocuments] = useState<GeneratedDocument[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<GeneratedDocument | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch('/api/documents?pageSize=100', { cache: 'no-store' });
-        const json = await response.json();
-        if (!response.ok || !json.success) {
-          throw new Error(json.error?.message ?? 'ไม่สามารถโหลดเอกสาร');
-        }
-        setDocuments(json.data?.data ?? []);
-      } catch (nextError) {
-        setError(nextError instanceof Error ? nextError.message : 'ไม่สามารถโหลดเอกสาร');
-      } finally {
-        setLoading(false);
-      }
-    }
+  const { data: docsData, isLoading, error: fetchError } = useQuery<{ data: GeneratedDocument[] }>({
+    queryKey: ['documents'],
+    queryFn: fetchDocuments,
+  });
 
-    void load();
-  }, []);
+  const documents: GeneratedDocument[] = docsData?.data ?? [];
 
   async function sendDocument(documentId: string) {
     setSendingIds((prev) => new Set(prev).add(documentId));
-    setError(null);
+    setActionError(null);
     try {
       const response = await fetch(`/api/documents/${documentId}/send`, { method: 'POST' });
       const json = await response.json();
       if (!response.ok || !json.success) {
         throw new Error(json.error?.message ?? 'ไม่สามารถส่งเอกสาร');
       }
-      // Refresh the list to get updated status
-      const refreshResponse = await fetch('/api/documents?pageSize=100', { cache: 'no-store' });
-      const refreshJson = await refreshResponse.json();
-      if (refreshJson.success) {
-        setDocuments(refreshJson.data?.data ?? []);
-      }
+      void queryClient.invalidateQueries({ queryKey: ['documents'] });
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'ไม่สามารถส่งเอกสาร');
+      setActionError(nextError instanceof Error ? nextError.message : 'ไม่สามารถส่งเอกสาร');
     } finally {
       setSendingIds((prev) => {
         const next = new Set(prev);
@@ -80,7 +69,7 @@ export default function DocumentsPage() {
   async function deleteDocument() {
     if (!deleteTarget) return;
     setDeleting(true);
-    setError(null);
+    setActionError(null);
     try {
       const response = await fetch(`/api/documents/${deleteTarget.id}`, { method: 'DELETE' });
       const json = await response.json();
@@ -88,14 +77,9 @@ export default function DocumentsPage() {
         throw new Error(json.error?.message ?? 'ไม่สามารถลบเอกสาร');
       }
       setDeleteTarget(null);
-      // Refresh the list
-      const refreshResponse = await fetch('/api/documents?pageSize=100', { cache: 'no-store' });
-      const refreshJson = await refreshResponse.json();
-      if (refreshJson.success) {
-        setDocuments(refreshJson.data?.data ?? []);
-      }
+      void queryClient.invalidateQueries({ queryKey: ['documents'] });
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'ไม่สามารถลบเอกสาร');
+      setActionError(nextError instanceof Error ? nextError.message : 'ไม่สามารถลบเอกสาร');
     } finally {
       setDeleting(false);
     }
@@ -120,7 +104,7 @@ export default function DocumentsPage() {
         </div>
       </section>
 
-      {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
+      {fetchError ? <div className="auth-alert auth-alert-error">{fetchError instanceof Error ? fetchError.message : String(fetchError)}</div> : null}
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -174,7 +158,7 @@ export default function DocumentsPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {isLoading ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
                     กำลังโหลดเอกสารที่สร้างแล้ว...

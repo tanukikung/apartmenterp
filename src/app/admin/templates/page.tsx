@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import { ExternalLink, FilePlus2, Layers3, PencilLine } from 'lucide-react';
+import { useApiData } from '@/hooks/useApi';
 
 const TEMPLATE_TYPE_LABELS: Record<string, string> = {
   INVOICE: 'ใบแจ้งหนี้',
@@ -43,30 +44,9 @@ type TemplateRow = {
 };
 
 export default function TemplatesPage() {
-  const [templates, setTemplates] = useState<TemplateRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: templatesData, isLoading, error: fetchError, refetch } = useApiData<{ success: boolean; data?: { data: TemplateRow[] } }>('/api/templates?pageSize=100', ['templates']);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch('/api/templates?pageSize=100', { cache: 'no-store' });
-        const json = await response.json();
-        if (!response.ok || !json.success) {
-          throw new Error(json.error?.message ?? 'ไม่สามารถโหลดเทมเพลต');
-        }
-        setTemplates((json.data?.data ?? []) as TemplateRow[]);
-      } catch (nextError) {
-        setError(nextError instanceof Error ? nextError.message : 'ไม่สามารถโหลดเทมเพลต');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    void load();
-  }, []);
+  const templates: TemplateRow[] = templatesData?.data?.data ?? [];
 
   return (
     <main className="space-y-6">
@@ -85,7 +65,7 @@ export default function TemplatesPage() {
         </div>
       </section>
 
-      {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
+      {fetchError ? <div className="auth-alert auth-alert-error">{fetchError instanceof Error ? fetchError.message : String(fetchError)}</div> : null}
 
       <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
         <div className="px-5 py-4 border-b border-[var(--outline-variant)]">
@@ -108,7 +88,7 @@ export default function TemplatesPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {isLoading ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">
                     กำลังโหลดเทมเพลต...

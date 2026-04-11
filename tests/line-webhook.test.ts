@@ -1,16 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { v4 as uuidv4 } from 'uuid';
 
+// Mock uuid to return predictable values
+vi.mock('uuid', () => ({
+  v4: vi.fn(() => 'test-uuid-123'),
+}));
+
 // Use hoisted refs so the mocks are never garbage-collected and stay stable across module imports
 const mockLineUserCreate = vi.hoisted(() => vi.fn().mockResolvedValue({ id: 'lu-1', lineUserId: 'U123', displayName: 'Unknown' }));
 const mockConversationCreate = vi.hoisted(() => vi.fn().mockResolvedValue({ id: 'c-1', lineUserId: 'U123' }));
 const mockMessageCreate = vi.fn().mockResolvedValue({ id: 'm-1' });
+const mockLineUserUpsert = vi.hoisted(() => vi.fn().mockImplementation(({ create }: any) => Promise.resolve(create)));
 
 const mockPrisma = {
   lineUser: {
     findUnique: vi.fn().mockResolvedValue(null),
     create: mockLineUserCreate,
     update: vi.fn().mockResolvedValue({ id: 'lu-1', lineUserId: 'U123', displayName: 'Test User' }),
+    upsert: mockLineUserUpsert,
   },
   conversation: {
     findUnique: vi.fn().mockResolvedValue(null),
@@ -20,6 +27,9 @@ const mockPrisma = {
   message: {
     findUnique: vi.fn().mockResolvedValue(null),
     create: mockMessageCreate,
+  },
+  lineMaintenanceState: {
+    findUnique: vi.fn().mockResolvedValue(null),
   },
   $transaction: vi.fn(async (fn: (tx: any) => Promise<unknown>) => fn(mockPrisma)),
 };

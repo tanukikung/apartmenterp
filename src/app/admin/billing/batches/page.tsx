@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -65,20 +66,15 @@ function statusBadge(status: BatchStatus) {
 }
 
 export default function BillingBatchesPage() {
-  const [batches, setBatches] = useState<ImportBatch[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<BatchStatus | 'ALL'>('ALL');
+  const queryClient = useQueryClient();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
+  const { data: batchesData, isLoading: loading, error, refetch } = useQuery<{ success: boolean; data: { batches: ImportBatch[] } }>({
+    queryKey: ['billing-batches', status],
+    queryFn: async () => {
       const params = new URLSearchParams({ pageSize: '100' });
       if (status !== 'ALL') params.set('status', status);
-
       const response = await fetch(`/api/billing/import/batches?${params.toString()}`, {
         cache: 'no-store',
       });
@@ -86,19 +82,11 @@ export default function BillingBatchesPage() {
       if (!response.ok || !json.success) {
         throw new Error(json.error?.message ?? 'ไม่สามารถโหลดแบทช์นำเข้า');
       }
+      return json;
+    },
+  });
 
-      const rows = (json.data?.batches ?? []) as ImportBatch[];
-      setBatches(rows);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดแบทช์นำเข้า');
-    } finally {
-      setLoading(false);
-    }
-  }, [status]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const batches: ImportBatch[] = batchesData?.data?.batches ?? [];
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -141,7 +129,7 @@ export default function BillingBatchesPage() {
             <Link href="/admin/billing/import" className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30">
               นำเข้าใหม่
             </Link>
-            <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30" disabled={loading}>
+            <button onClick={() => void refetch()} className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30" disabled={loading}>
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               รีเฟรช
             </button>
@@ -152,7 +140,7 @@ export default function BillingBatchesPage() {
       {error ? (
         <div className="flex items-center gap-2 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm font-medium text-[var(--on-error-container)]">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          {error}
+          {error instanceof Error ? error.message : String(error)}
         </div>
       ) : null}
 

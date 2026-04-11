@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { FileOutput, Layers3, Search, Wand2 } from 'lucide-react';
 
 type TemplateOption = {
@@ -65,10 +66,31 @@ const SCOPES = [
   { value: 'ROOMS_WITH_BILLING', label: 'เฉพาะห้องที่มีการเรียกเก็บ' },
 ] as const;
 
+async function fetchTemplates(): Promise<{ data: TemplateOption[] }> {
+  const res = await fetch('/api/templates?pageSize=100', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch templates');
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
+  return json.data;
+}
+
+async function fetchFloors(): Promise<{ data: FloorOption[] }> {
+  const res = await fetch('/api/floors', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch floors');
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
+  return json.data;
+}
+
+async function fetchRooms(): Promise<{ data: RoomOption[] }> {
+  const res = await fetch('/api/rooms?pageSize=100&page=1', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch rooms');
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
+  return json.data;
+}
+
 export default function GenerateDocumentsPage() {
-  const [templates, setTemplates] = useState<TemplateOption[]>([]);
-  const [floors, setFloors] = useState<FloorOption[]>([]);
-  const [rooms, setRooms] = useState<RoomOption[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [scope, setScope] = useState<(typeof SCOPES)[number]['value']>('ELIGIBLE_FOR_MONTH');
   const [selectedRoomId, setSelectedRoomId] = useState('');
@@ -82,38 +104,33 @@ export default function GenerateDocumentsPage() {
   const [onlyRoomsWithBillingRecord, setOnlyRoomsWithBillingRecord] = useState(false);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [job, setJob] = useState<JobResponse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState<'preview' | 'generate' | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const [templatesResponse, floorsResponse, roomsResponse] = await Promise.all([
-          fetch('/api/templates?pageSize=100', { cache: 'no-store' }).then((response) => response.json()),
-          fetch('/api/floors', { cache: 'no-store' }).then((response) => response.json()),
-          fetch('/api/rooms?pageSize=100&page=1', { cache: 'no-store' }).then((response) => response.json()),
-        ]);
+  const initRef = useRef(false);
 
-        setTemplates((templatesResponse.data?.data ?? []).filter((template: TemplateOption) => template.activeVersionId));
-        setFloors(floorsResponse.data ?? []);
-        setRooms(roomsResponse.data?.data ?? []);
-      } catch (nextError) {
-        setError(nextError instanceof Error ? nextError.message : 'ไม่สามารถโหลดข้อมูลสำหรับสร้างเอกสาร');
-      } finally {
-        setLoading(false);
-      }
-    }
+  const { data: templatesRaw, isLoading: templatesLoading } = useQuery<{ data: TemplateOption[] }>({
+    queryKey: ['templates-for-generate'],
+    queryFn: fetchTemplates,
+  });
+  const { data: floorsRaw, isLoading: floorsLoading } = useQuery<{ data: FloorOption[] }>({
+    queryKey: ['floors-for-generate'],
+    queryFn: fetchFloors,
+  });
+  const { data: roomsRaw, isLoading: roomsLoading } = useQuery<{ data: RoomOption[] }>({
+    queryKey: ['rooms-for-generate'],
+    queryFn: fetchRooms,
+  });
 
-    void load();
-  }, []);
+  const templates: TemplateOption[] = (templatesRaw?.data ?? []).filter((t: TemplateOption) => t.activeVersionId);
+  const floors: FloorOption[] = floorsRaw?.data ?? [];
+  const rooms: RoomOption[] = roomsRaw?.data ?? [];
+  const isLoading = templatesLoading || floorsLoading || roomsLoading;
 
-  useEffect(() => {
-    if (!selectedTemplateId && templates.length) {
-      setSelectedTemplateId(templates[0].id);
-    }
-  }, [templates, selectedTemplateId]);
+  if (!initRef.current && templates.length > 0 && !selectedTemplateId) {
+    initRef.current = true;
+    setSelectedTemplateId(templates[0].id);
+  }
 
   const filteredRooms = useMemo(() => {
     return rooms.filter((room) => room.roomNo.toLowerCase().includes(search.toLowerCase()));
@@ -145,7 +162,7 @@ export default function GenerateDocumentsPage() {
 
   async function runPreview() {
     setWorking('preview');
-    setError(null);
+    setActionError(null);
     setJob(null);
     try {
       const response = await fetch('/api/documents/generate', {
@@ -159,7 +176,7 @@ export default function GenerateDocumentsPage() {
       }
       setPreview(json.data as PreviewResponse);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'ไม่สามารถดูตัวอย่างการสร้างเอกสาร');
+      setActionError(nextError instanceof Error ? nextError.message : 'ไม่สามารถดูตัวอย่างการสร้างเอกสาร');
     } finally {
       setWorking(null);
     }
@@ -167,7 +184,7 @@ export default function GenerateDocumentsPage() {
 
   async function runGeneration() {
     setWorking('generate');
-    setError(null);
+    setActionError(null);
     try {
       const response = await fetch('/api/documents/generate', {
         method: 'POST',
@@ -180,7 +197,7 @@ export default function GenerateDocumentsPage() {
       }
       setJob(json.data as JobResponse);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'ไม่สามารถสร้างเอกสาร');
+      setActionError(nextError instanceof Error ? nextError.message : 'ไม่สามารถสร้างเอกสาร');
     } finally {
       setWorking(null);
     }
@@ -208,9 +225,9 @@ export default function GenerateDocumentsPage() {
         </div>
       </div>
 
-      {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
+      {actionError ? <div className="auth-alert auth-alert-error">{actionError}</div> : null}
 
-      {loading ? (
+      {isLoading ? (
         <div className="py-16 text-center text-slate-500">กำลังโหลดข้อมูลสำหรับสร้างเอกสาร...</div>
       ) : (
         <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">

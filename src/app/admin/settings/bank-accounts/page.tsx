@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Banknote,
@@ -104,36 +105,51 @@ function SkeletonRow() {
 // ---------------------------------------------------------------------------
 
 export default function BankAccountsPage() {
+  const queryClient = useQueryClient();
+
+  // useQuery for bank accounts list
+  const {
+    isLoading,
+    data: queryData,
+    error: queryError,
+  } = useQuery({
+    queryKey: ['settings-bank-accounts'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings/bank-accounts', { cache: 'no-store' });
+      const json = await res.json() as { success: boolean; data?: BankAccount[]; error?: { message?: string } };
+      if (!json.success || !json.data) {
+        throw new Error(json.error?.message ?? 'ไม่สามารถโหลดบัญชีธนาคารได้');
+      }
+      return json;
+    },
+  });
+
+  // Local state mirroring original behaviour
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  // Sync from useQuery result to local state
+  useEffect(() => {
+    if (queryError) {
+      setError(queryError instanceof Error ? queryError.message : 'ไม่สามารถโหลดบัญชีธนาคารได้');
+      return;
+    }
+    if (queryData) {
+      setAccounts(queryData.data as BankAccount[]);
+      setError(null);
+    }
+  }, [queryData, queryError]);
+
+  // Replace load() with invalidate + refetch
+  const load = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['settings-bank-accounts'] });
+  }, [queryClient]);
+
   const [form, setForm] = useState<CreateForm>(EMPTY_FORM);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-
-  // ---------------------------------------------------------------------------
-  // Data fetching
-  // ---------------------------------------------------------------------------
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/settings/bank-accounts', { cache: 'no-store' });
-      const json = (await res.json()) as { success: boolean; data?: BankAccount[]; error?: { message?: string } };
-      if (!json.success || !json.data) throw new Error(json.error?.message ?? 'ไม่สามารถโหลดบัญชีธนาคารได้');
-      setAccounts(json.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดบัญชีธนาคารได้');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { void load(); }, [load]);
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -190,7 +206,7 @@ export default function BankAccountsPage() {
       if (!json.success) throw new Error(json.error?.message ?? 'ไม่สามารถสร้างบัญชีธนาคารได้');
       setForm(EMPTY_FORM);
       flashMessage('สร้างบัญชีธนาคารสำเร็จแล้ว');
-      await load();
+      load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถสร้างบัญชีธนาคารได้');
     } finally {
@@ -222,7 +238,7 @@ export default function BankAccountsPage() {
       if (!json.success) throw new Error(json.error?.message ?? 'ไม่สามารถอัปเดตบัญชีธนาคารได้');
       cancelEdit();
       flashMessage('อัปเดตบัญชีธนาคารแล้ว');
-      await load();
+      load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถอัปเดตบัญชีธนาคารได้');
     } finally {
@@ -245,7 +261,7 @@ export default function BankAccountsPage() {
       if (!json.success) throw new Error(json.error?.message ?? 'ไม่สามารถปิดใช้งานบัญชีธนาคารได้');
       setDeleteConfirmId(null);
       flashMessage('ปิดใช้งานบัญชีธนาคารแล้ว');
-      await load();
+      load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถปิดใช้งานบัญชีธนาคารได้');
     } finally {
@@ -338,7 +354,7 @@ export default function BankAccountsPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
+                {isLoading ? (
                   Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} />)
                 ) : accounts.length === 0 ? (
                   <tr>

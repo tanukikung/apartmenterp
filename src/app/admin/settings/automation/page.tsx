@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -185,9 +186,27 @@ function AutomationCard({
 // Main Page
 // ────────────────────────────────────────────────────────────────────────────
 export default function AutomationRulesPage() {
+  const queryClient = useQueryClient();
+
+  // useQuery for automation settings
+  const {
+    isLoading,
+    data: queryData,
+    error: queryError,
+  } = useQuery({
+    queryKey: ['settings-automation'],
+    queryFn: async () => {
+      const res: ApiResp<AutomationData> = await fetch('/api/settings/automation', { cache: 'no-store' }).then((r) => r.json());
+      if (!res.success || !res.data) {
+        throw new Error(res.error?.message ?? 'ไม่สามารถโหลดการตั้งค่าอัตโนมัติได้');
+      }
+      return res;
+    },
+  });
+
+  // Local state mirroring original behaviour
   const [data, setData] = useState<AutomationData | null>(null);
   const [original, setOriginal] = useState<AutomationData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -197,26 +216,28 @@ export default function AutomationRulesPage() {
   const [overdueCron, setOverdueCron] = useState('0 4 * * *');
   const [backupCron, setBackupCron] = useState('0 3 * * *');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res: ApiResp<AutomationData> = await fetch('/api/settings/automation', { cache: 'no-store' }).then((r) => r.json());
-      if (!res.success || !res.data) throw new Error(res.error?.message ?? 'ไม่สามารถโหลดการตั้งค่าอัตโนมัติได้');
-      setData(res.data);
-      setOriginal(res.data);
-      setBillingCron(res.data.billingCron);
-      setReminderCron(res.data.reminderCron);
-      setOverdueCron(res.data.overdueCron);
-      setBackupCron(res.data.backupCron);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดการตั้งค่าได้');
-    } finally {
-      setLoading(false);
+  // Sync from useQuery result to local state
+  useEffect(() => {
+    if (queryError) {
+      setError(queryError instanceof Error ? queryError.message : 'ไม่สามารถโหลดการตั้งค่าได้');
+      return;
     }
-  }, []);
+    if (queryData) {
+      const d = queryData.data as AutomationData;
+      setData(d);
+      setOriginal(d);
+      setBillingCron(d.billingCron);
+      setReminderCron(d.reminderCron);
+      setOverdueCron(d.overdueCron);
+      setBackupCron(d.backupCron);
+      setError(null);
+    }
+  }, [queryData, queryError]);
 
-  useEffect(() => { void load(); }, [load]);
+  // Replace load() with invalidate + refetch
+  const load = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['settings-automation'] });
+  }, [queryClient]);
 
   const isDirty =
     billingCron !== original?.billingCron ||
@@ -274,10 +295,10 @@ export default function AutomationRulesPage() {
           </div>
           <button
             onClick={() => void load()}
-            disabled={loading}
+            disabled={isLoading}
             className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             รีเฟรช
           </button>
         </div>
@@ -315,7 +336,7 @@ export default function AutomationRulesPage() {
         </p>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-56 animate-pulse rounded-2xl bg-[var(--surface-container)]" />
@@ -344,7 +365,7 @@ export default function AutomationRulesPage() {
               )}
               <button
                 onClick={() => void handleSave()}
-                disabled={saving || loading || !isDirty || !allValid}
+                disabled={saving || isLoading || !isDirty || !allValid}
                 className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />

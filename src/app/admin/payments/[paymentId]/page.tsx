@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  AlertTriangle,
   ArrowLeft,
   Banknote,
   Calendar,
@@ -181,29 +183,21 @@ export default function PaymentDetailPage() {
   const params = useParams<{ paymentId: string }>();
   const router = useRouter();
   const paymentId = params.paymentId;
+  const queryClient = useQueryClient();
 
-  const [payment, setPayment] = useState<PaymentDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    if (!paymentId) return;
-    setLoading(true);
-    setError(null);
-    try {
+  const { data: paymentData, isLoading: loading, error } = useQuery<{ success: boolean; data: PaymentDetail }>({
+    queryKey: ['payments', paymentId],
+    queryFn: async () => {
+      if (!paymentId) throw new Error('No payment ID');
       const res = await fetch(`/api/payments/${paymentId}`).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถโหลดการชำระ');
-      setPayment(res.data as PaymentDetail);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดการชำระ');
-    } finally {
-      setLoading(false);
-    }
-  }, [paymentId]);
+      return res;
+    },
+    enabled: !!paymentId,
+  });
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const payment: PaymentDetail | null = paymentData?.data ?? null;
+  const fetchError = error; // rename for clarity
 
   // ------ Loading state ------
   if (loading) {
@@ -223,7 +217,7 @@ export default function PaymentDetailPage() {
   }
 
   // ------ Error state ------
-  if (error && !payment) {
+  if (fetchError && !payment) {
     return (
       <main className="space-y-6">
         <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
@@ -240,7 +234,7 @@ export default function PaymentDetailPage() {
           </div>
         </div>
       </section>
-        <div className="auth-alert auth-alert-error">{error}</div>
+        <div className="auth-alert auth-alert-error">{fetchError instanceof Error ? fetchError.message : String(fetchError)}</div>
       </main>
     );
   }
@@ -274,7 +268,7 @@ export default function PaymentDetailPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]" disabled={loading}>
+            <button onClick={() => queryClient.invalidateQueries({ queryKey: ['payments', paymentId] })} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]" disabled={loading}>
               <RefreshCw className="h-4 w-4" />
               รีเฟรช
             </button>
@@ -287,7 +281,7 @@ export default function PaymentDetailPage() {
       </section>
 
       {/* ── Alerts ─────────────────────────────────────────────────────── */}
-      {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
+      {fetchError ? <div className="auth-alert auth-alert-error">{fetchError instanceof Error ? fetchError.message : String(fetchError)}</div> : null}
 
       {/* ── Hero card ──────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">

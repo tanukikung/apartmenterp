@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import Link from 'next/link';
 import {
@@ -14,6 +14,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useApiData } from '@/hooks/useApi';
 
 type OverdueInvoice = {
   id: string;
@@ -86,27 +87,16 @@ function exportCsv(invoices: OverdueInvoice[]) {
 }
 
 export default function AdminOverduePage() {
-  const [invoices, setInvoices] = useState<OverdueInvoice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [working, setWorking] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [range, setRange] = useState<OverdueRange>('all');
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      const res = await fetch('/api/invoices?status=OVERDUE&pageSize=100', { cache: 'no-store' }).then((r) => r.json());
-      if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถโหลดใบแจ้งหนี้ค้างชำระ');
-      const raw: OverdueInvoice[] = res.data?.data ?? res.data ?? [];
-      setInvoices(raw);
-    } catch (err) { setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดใบแจ้งหนี้ค้างชำระ'); }
-    finally { setLoading(false); }
-  }, []);
+  const { data: overdueData, isLoading, error: fetchError, refetch } = useApiData<{ success: boolean; data?: { data: OverdueInvoice[] } }>('/api/invoices?status=OVERDUE&pageSize=100', ['overdue-invoices']);
 
-  useEffect(() => { void load(); }, [load]);
+  const invoices: OverdueInvoice[] = overdueData?.data?.data ?? [];
 
   const filtered = useMemo(() => {
     let rows = invoices;
@@ -140,7 +130,7 @@ export default function AdminOverduePage() {
   }, [invoices]);
 
   async function sendReminder(id: string) {
-    setWorking(`remind:${id}`); setError(null); setMessage(null);
+    setWorking(`remind:${id}`); setActionError(null); setMessage(null);
     try {
       const res = await fetch(`/api/invoices/${id}/send`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -148,13 +138,13 @@ export default function AdminOverduePage() {
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถส่งการแจ้งเตือนได้');
       setMessage('ส่งการแจ้งเตือนผ่าน LINE แล้ว');
-    } catch (err) { setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการส่งการแจ้งเตือน'); }
+    } catch (err) { setActionError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการส่งการแจ้งเตือน'); }
     finally { setWorking(null); }
   }
 
   async function sendAllReminders() {
     if (filtered.length === 0) return;
-    setWorking('all'); setError(null); setMessage(null);
+    setWorking('all'); setActionError(null); setMessage(null);
     let sent = 0; let failed = 0;
     for (const inv of filtered) {
       try {
@@ -192,15 +182,15 @@ export default function AdminOverduePage() {
             <Download className="h-4 w-4" />
             ส่งออก CSV
           </button>
-          <button onClick={() => void load()} disabled={loading}
+          <button onClick={() => void refetch()} disabled={isLoading}
             className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]">
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
       {message && <div className="flex items-center gap-3 rounded-xl border border-[var(--tertiary-container)] bg-[var(--tertiary-container)]/20 px-4 py-3 text-sm text-[var(--on-tertiary-container)]"><CheckCircle2 className="h-4 w-4 shrink-0" />{message}</div>}
-      {error && <div className="flex items-center gap-3 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm text-[var(--on-error-container)]"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</div>}
+      {actionError && <div className="flex items-center gap-3 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm text-[var(--on-error-container)]"><AlertTriangle className="h-4 w-4 shrink-0" />{actionError}</div>}
       <ConfirmDialog
         open={confirmOpen}
         title={`ส่ง Reminder ถึง ${filtered.length} รายการ?`}
@@ -217,7 +207,7 @@ export default function AdminOverduePage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">ลูกหนี้ค้างชำระ</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{loading ? '...' : kpi.total}</p>
+              <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{isLoading ? '...' : kpi.total}</p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--error-container)]/30 bg-[var(--error-container)]/10">
               <AlertTriangle className="h-5 w-5 text-[var(--on-error-container)]" />
@@ -228,7 +218,7 @@ export default function AdminOverduePage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">ยอดค้างชำระรวม</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--on-error-container)]">{loading ? '...' : money(kpi.totalAmount)}</p>
+              <p className="mt-1 text-2xl font-bold text-[var(--on-error-container)]">{isLoading ? '...' : money(kpi.totalAmount)}</p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-200 bg-amber-100">
               <TrendingUp className="h-5 w-5 text-amber-700" />
@@ -239,7 +229,7 @@ export default function AdminOverduePage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">เฉลี่ยวันค้างชำระ</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{loading ? '...' : kpi.avgDays}</p>
+              <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{isLoading ? '...' : kpi.avgDays}</p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-200 bg-amber-100">
               <Clock className="h-5 w-5 text-amber-700" />
@@ -250,7 +240,7 @@ export default function AdminOverduePage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">ห้องที่มีลูกหนี้</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{loading ? '...' : kpi.uniqueRooms}</p>
+              <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{isLoading ? '...' : kpi.uniqueRooms}</p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container)]">
               <AlertTriangle className="h-5 w-5 text-[var(--on-surface-variant)]" />
@@ -283,7 +273,7 @@ export default function AdminOverduePage() {
           <span className="inline-flex items-center rounded-full bg-[var(--error-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-error-container)]">{filtered.length} ใบ</span>
         </div>
 
-        {!loading && invoices.length === 0 ? (
+        {!isLoading && invoices.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--tertiary-container)]/20">
               <CheckCircle2 className="h-7 w-7 text-[var(--on-tertiary-container)]" />
@@ -306,7 +296,7 @@ export default function AdminOverduePage() {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
+                {isLoading ? (
                   <tr><td colSpan={7} className="px-3 py-8 text-center text-[var(--on-surface-variant)]">กำลังโหลดใบแจ้งหนี้ค้างชำระ...</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={7} className="px-3 py-8 text-center text-[var(--on-surface-variant)]">ไม่พบใบแจ้งหนี้ค้างชำระที่ตรงกับการค้นหา</td></tr>

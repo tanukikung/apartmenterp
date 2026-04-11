@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, ArrowLeft, CalendarDays, CheckCircle2, Save } from 'lucide-react';
 
 type BillingSettings = {
@@ -56,35 +57,49 @@ function SettingRow({
 }
 
 export default function BillingPolicyPage() {
+  const queryClient = useQueryClient();
+
+  // useQuery for billing settings
+  const {
+    isLoading,
+    data: queryData,
+    error: queryError,
+  } = useQuery({
+    queryKey: ['admin-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/settings', { cache: 'no-store' });
+      const json = await res.json() as ApiResponse;
+      if (!json.success || !json.data) {
+        throw new Error(json.error?.message ?? 'ไม่สามารถโหลดการตั้งค่าการเรียกเก็บได้');
+      }
+      return json;
+    },
+  });
+
+  // Local state mirroring original behaviour
   const [fields, setFields] = useState<BillingSettings>(DEFAULTS);
   const [originalFields, setOriginalFields] = useState<BillingSettings>(DEFAULTS);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = (await fetch('/api/admin/settings', { cache: 'no-store' }).then((r) =>
-        r.json()
-      )) as ApiResponse;
-      if (!res.success || !res.data) {
-        throw new Error(res.error?.message ?? 'ไม่สามารถโหลดการตั้งค่าการเรียกเก็บได้');
-      }
-      setFields(res.data);
-      setOriginalFields(res.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดการตั้งค่าการเรียกเก็บได้');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Sync from useQuery result to local state
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (queryError) {
+      setError(queryError instanceof Error ? queryError.message : 'ไม่สามารถโหลดการตั้งค่าการเรียกเก็บได้');
+      return;
+    }
+    if (queryData) {
+      setFields(queryData.data as BillingSettings);
+      setOriginalFields(queryData.data as BillingSettings);
+      setError(null);
+    }
+  }, [queryData, queryError]);
+
+  // Replace load() with invalidate + refetch
+  const load = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
+  }, [queryClient]);
 
   const isDirty = JSON.stringify(fields) !== JSON.stringify(originalFields);
 
@@ -139,7 +154,7 @@ export default function BillingPolicyPage() {
         รองรับเฉพาะวันเรียกเก็บ วันครบกำหนด และวันค้างชำระเท่านั้น ค่าปรับ ระยะปลอดค่าปรับ และการควบคุมนโยบายอื่นๆ จะทยอยเพิ่มเมื่อมีการสนับสนุน backend
       </section>
 
-      {loading ? (
+      {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="h-24 animate-pulse rounded-xl bg-[var(--surface-container)]" />
@@ -194,7 +209,7 @@ export default function BillingPolicyPage() {
           ) : null}
           <button
             onClick={() => void handleSave()}
-            disabled={saving || loading || !isDirty}
+            disabled={saving || isLoading || !isDirty}
             className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-primary text-[var(--on-primary)] hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Save className="h-4 w-4" />

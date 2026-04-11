@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -71,9 +72,7 @@ function monthLabel(year: number, month: number): string {
 }
 
 export default function LateFeesPage() {
-  const [data, setData] = useState<LateFeeResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<'OVERDUE' | 'PAID' | 'all'>('OVERDUE');
   const [roomSearch, setRoomSearch] = useState('');
   const [editState, setEditState] = useState<EditState>({});
@@ -81,36 +80,29 @@ export default function LateFeesPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const fetchLateFees = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (filter === 'all') {
-        // no status filter
-      } else {
-        params.set('status', filter);
-      }
-      if (roomSearch) params.set('roomNo', roomSearch);
-      params.set('pageSize', '100');
-
-      const res = await fetch(`/api/late-fees?${params}`);
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error?.message ?? 'Failed to fetch');
-      setData(json.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
+  const fetchLateFees = useCallback(async (): Promise<LateFeeResponse> => {
+    const params = new URLSearchParams();
+    if (filter === 'all') {
+      // no status filter
+    } else {
+      params.set('status', filter);
     }
+    if (roomSearch) params.set('roomNo', roomSearch);
+    params.set('pageSize', '100');
+
+    const res = await fetch(`/api/late-fees?${params}`);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error?.message ?? 'Failed to fetch');
+    return json.data;
   }, [filter, roomSearch]);
 
-  useEffect(() => {
-    void fetchLateFees();
-  }, [fetchLateFees]);
+  const { data, isLoading, error, refetch } = useQuery<LateFeeResponse>({
+    queryKey: ['late-fees', filter, roomSearch],
+    queryFn: fetchLateFees,
+  });
 
   // Initialize edit state when data loads
-  useEffect(() => {
+  const initializeEditState = useCallback(() => {
     if (!data) return;
     const initial: EditState = {};
     for (const inv of data.invoices) {
@@ -118,6 +110,11 @@ export default function LateFeesPage() {
     }
     setEditState(initial);
   }, [data]);
+
+  // Call initializeEditState when data changes
+  useCallback(() => {
+    initializeEditState();
+  }, [initializeEditState]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -166,9 +163,9 @@ export default function LateFeesPage() {
       if (!json.success) throw new Error(json.error?.message ?? 'Failed to save');
       setSaveSuccess(true);
       setSelectedIds(new Set());
-      await fetchLateFees();
+      void queryClient.invalidateQueries({ queryKey: ['late-fees'] });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      void refetch();
     } finally {
       setSaving(false);
     }
@@ -197,9 +194,9 @@ export default function LateFeesPage() {
       const json = await res.json();
       if (!json.success) throw new Error(json.error?.message ?? 'Failed to save');
       setSaveSuccess(true);
-      await fetchLateFees();
+      void queryClient.invalidateQueries({ queryKey: ['late-fees'] });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      void refetch();
     } finally {
       setSaving(false);
     }
@@ -229,11 +226,11 @@ export default function LateFeesPage() {
             </p>
           </div>
           <button
-            onClick={() => void fetchLateFees()}
-            disabled={loading}
+            onClick={() => void refetch()}
+            disabled={isLoading}
             className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
@@ -242,7 +239,7 @@ export default function LateFeesPage() {
       {error ? (
         <div className="auth-alert auth-alert-error flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          {error}
+          {error.message}
         </div>
       ) : null}
 
@@ -340,7 +337,7 @@ export default function LateFeesPage() {
 
       {/* Table */}
       <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-        {loading ? (
+        {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
           </div>

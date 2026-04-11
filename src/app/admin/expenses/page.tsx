@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import React from 'react';
@@ -125,9 +126,7 @@ function CategoryBadge({ category }: { category: ExpenseCategory }) {
 // ---------------------------------------------------------------------------
 
 export default function AdminExpensesPage() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState<ExpenseCategory | 'ALL'>('ALL');
@@ -145,46 +144,39 @@ export default function AdminExpensesPage() {
   const monthOptions = getMonthOptions();
 
   // ---------------------------------------------------------------------------
-  // Load expenses
+  // Load expenses with useQuery
   // ---------------------------------------------------------------------------
 
   const loadExpenses = useCallback(async (pageNum: number = 1) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: String(pageNum),
-        pageSize: '20',
-        sortBy: 'date',
-        sortOrder: 'desc',
-      });
+    const params = new URLSearchParams({
+      page: String(pageNum),
+      pageSize: '20',
+      sortBy: 'date',
+      sortOrder: 'desc',
+    });
 
-      if (categoryFilter !== 'ALL') {
-        params.set('category', categoryFilter);
-      }
-      if (monthFilter !== 'ALL') {
-        const [y, m] = monthFilter.split('-');
-        params.set('year', y);
-        params.set('month', m);
-      }
-
-      const res = await fetch(`/api/expenses?${params}`, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`Failed to load: ${res.status}`);
-      const json: ExpenseListResponse = await res.json();
-
-      setExpenses(json.data);
-      setTotal(json.total);
-      setPage(json.page);
-      setTotalPages(json.totalPages);
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
-    } finally {
-      setLoading(false);
+    if (categoryFilter !== 'ALL') {
+      params.set('category', categoryFilter);
     }
+    if (monthFilter !== 'ALL') {
+      const [y, m] = monthFilter.split('-');
+      params.set('year', y);
+      params.set('month', m);
+    }
+
+    const res = await fetch(`/api/expenses?${params}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Failed to load: ${res.status}`);
+    const json: ExpenseListResponse = await res.json();
+    return json;
   }, [categoryFilter, monthFilter]);
 
-  useEffect(() => {
-    void loadExpenses(1);
-  }, [loadExpenses]);
+  const { data: expensesData, isLoading, refetch } = useQuery<ExpenseListResponse>({
+    queryKey: ['expenses', page, categoryFilter, monthFilter],
+    queryFn: () => loadExpenses(page),
+  });
+
+  const expenses: Expense[] = expensesData?.data ?? [];
+  const total = expensesData?.total ?? 0;
 
   // ---------------------------------------------------------------------------
   // Filtered list
@@ -216,7 +208,7 @@ export default function AdminExpensesPage() {
       setDeleteSuccess('ลบรายการสำเร็จแล้ว');
       setDeleteConfirmOpen(false);
       setDeleteTargetId(null);
-      void loadExpenses(page);
+      void queryClient.invalidateQueries({ queryKey: ['expenses'] });
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
     } finally {
@@ -245,11 +237,11 @@ export default function AdminExpensesPage() {
             เพิ่มรายจ่าย
           </button>
           <button
-            onClick={() => void loadExpenses(page)}
-            disabled={loading}
+            onClick={() => void refetch()}
+            disabled={isLoading}
             className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -317,7 +309,7 @@ export default function AdminExpensesPage() {
       </div>
 
       {/* Summary */}
-      {!loading && (
+      {!isLoading && (
         <div className="flex gap-4 text-sm text-[var(--on-surface-variant)]">
           <span>แสดง {filteredExpenses.length} รายการ</span>
           <span>•</span>
@@ -327,7 +319,7 @@ export default function AdminExpensesPage() {
 
       {/* Table */}
       <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-        {loading ? (
+        {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
           </div>
@@ -405,21 +397,21 @@ export default function AdminExpensesPage() {
       </div>
 
       {/* Pagination */}
-      {!loading && totalPages > 1 && (
+      {!isLoading && totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
           <button
-            onClick={() => void loadExpenses(page - 1)}
+            onClick={() => setPage(page - 1)}
             disabled={page <= 1}
             className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)] disabled:opacity-40"
           >
             ก่อนหน้า
           </button>
           <span className="text-sm text-[var(--on-surface-variant)]">
-            หน้า {page} จาก {totalPages}
+            หน้า {page} จาก {expensesData?.totalPages ?? 1}
           </span>
           <button
-            onClick={() => void loadExpenses(page + 1)}
-            disabled={page >= totalPages}
+            onClick={() => setPage(page + 1)}
+            disabled={page >= (expensesData?.totalPages ?? 1)}
             className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)] disabled:opacity-40"
           >
             ถัดไป
@@ -461,7 +453,7 @@ export default function AdminExpensesPage() {
           onClose={() => setShowForm(false)}
           onSuccess={() => {
             setShowForm(false);
-            void loadExpenses(1);
+            void queryClient.invalidateQueries({ queryKey: ['expenses'] });
           }}
         />
       )}

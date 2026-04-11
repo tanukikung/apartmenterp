@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -121,9 +122,28 @@ function CopyButton({ text }: { text: string }) {
 const LINE_GREEN = '#06C755';
 
 export default function IntegrationsPage() {
-  // ── state ──
+  const queryClient = useQueryClient();
+
+  // useQuery for integrations data
+  const {
+    isLoading,
+    data: queryData,
+    error: queryError,
+  } = useQuery({
+    queryKey: ['settings-integrations'],
+    queryFn: async () => {
+      const res: ApiResp<IntegrationData> = await fetch('/api/settings/integrations', {
+        cache: 'no-store',
+      }).then((r) => r.json());
+      if (!res.success || !res.data) {
+        throw new Error(res.error?.message ?? 'ไม่สามารถโหลดการตั้งค่าการเชื่อมต่อได้');
+      }
+      return res;
+    },
+  });
+
+  // Local state mirroring original behaviour
   const [data, setData] = useState<IntegrationData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -133,31 +153,23 @@ export default function IntegrationsPage() {
   const [channelSecret, setChannelSecret] = useState('');
   const [accessToken, setAccessToken] = useState('');
 
-  // ── load ──
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res: ApiResp<IntegrationData> = await fetch('/api/settings/integrations', {
-        cache: 'no-store',
-      }).then((r) => r.json());
-
-      if (!res.success || !res.data) {
-        throw new Error(res.error?.message ?? 'ไม่สามารถโหลดการตั้งค่าการเชื่อมต่อได้');
-      }
-      setData(res.data);
-      setChannelId(res.data.channelId ?? '');
-      // Never pre-fill secret/token — they show as masked in the API
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดการตั้งค่าได้');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Sync from useQuery result to local state
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (queryError) {
+      setError(queryError instanceof Error ? queryError.message : 'ไม่สามารถโหลดการตั้งค่าได้');
+      return;
+    }
+    if (queryData) {
+      setData(queryData.data as IntegrationData);
+      setChannelId((queryData.data as IntegrationData).channelId ?? '');
+      setError(null);
+    }
+  }, [queryData, queryError]);
+
+  // Replace load() with invalidate + refetch
+  const load = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['settings-integrations'] });
+  }, [queryClient]);
 
   // ── save ──
   async function handleSave() {
@@ -196,7 +208,7 @@ export default function IntegrationsPage() {
       // Clear secrets from form after save
       setChannelSecret('');
       setAccessToken('');
-      await load();
+      load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถบันทึกการตั้งค่าได้');
     } finally {
@@ -235,10 +247,10 @@ export default function IntegrationsPage() {
         </div>
         <button
           onClick={() => void load()}
-          disabled={loading}
+          disabled={isLoading}
           className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] mt-4"
         >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           รีเฟรช
         </button>
       </section>
@@ -257,7 +269,7 @@ export default function IntegrationsPage() {
         </div>
       )}
 
-      {loading ? (
+      {isLoading ? (
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-28 animate-pulse rounded-2xl bg-slate-100" />

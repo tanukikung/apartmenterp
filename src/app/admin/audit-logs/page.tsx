@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ClientOnly } from '@/components/ui/ClientOnly';
 
 type AuditRow = {
@@ -14,32 +15,27 @@ type AuditRow = {
   createdAt: string;
 };
 
+async function fetchAuditLogs(action: string): Promise<{ rows: AuditRow[] }> {
+  const query = new URLSearchParams({
+    limit: '100',
+    ...(action ? { action } : {}),
+  });
+  const res = await fetch(`/api/audit-logs?${query.toString()}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch audit logs');
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
+  return json.data;
+}
+
 export default function AdminAuditLogsPage() {
-  const [rows, setRows] = useState<AuditRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [action, setAction] = useState('');
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const query = new URLSearchParams({
-          limit: '100',
-          ...(action ? { action } : {}),
-        });
-        const res = await fetch(`/api/audit-logs?${query.toString()}`, { cache: 'no-store' }).then((r) => r.json());
-        if (res.success) setRows(res.data.rows);
-        else setError(res.error?.message || 'ไม่สามารถโหลดข้อมูลได้');
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
-      } finally {
-        setLoading(false);
-      }
-    }
-    void load();
-  }, [action]);
+  const { data, isLoading, error } = useQuery<{ rows: AuditRow[] }>({
+    queryKey: ['audit-logs', action],
+    queryFn: () => fetchAuditLogs(action),
+  });
+
+  const rows: AuditRow[] = data?.rows ?? [];
 
   return (
     <main className="space-y-6">
@@ -66,7 +62,7 @@ export default function AdminAuditLogsPage() {
         {error && (
           <div className="mx-5 my-4 flex items-center gap-3 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm text-[var(--on-error-container)]">
             <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-            {error}
+            {error instanceof Error ? error.message : String(error)}
           </div>
         )}
         <div className="overflow-auto">
@@ -81,7 +77,7 @@ export default function AdminAuditLogsPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {isLoading ? (
                 <tr><td colSpan={5} className="px-3 py-6 text-center text-slate-500">กำลังโหลดบันทึกกิจกรรม...</td></tr>
               ) : !rows.length ? (
                 <tr><td colSpan={5} className="px-3 py-6 text-center text-slate-500">ไม่พบบันทึกกิจกรรม</td></tr>

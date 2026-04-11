@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useToast } from '@/components/providers/ToastProvider';
 import {
   AlertCircle,
@@ -17,6 +17,7 @@ import {
   Package,
 } from 'lucide-react';
 import { isLineConfigured } from '@/lib/line/is-configured';
+import { useApiData } from '@/hooks/useApi';
 
 type OrderStatus = 'DRAFT' | 'SENDING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
 type ItemStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED' | 'SKIPPED' | 'VIEWED';
@@ -96,12 +97,7 @@ function ItemStatusBadge({ status }: { status: ItemStatus }) {
 
 export default function DeliveriesPage() {
   const { success, error: toastError } = useToast();
-  const [orders, setOrders] = useState<DeliveryOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [itemsMap, setItemsMap] = useState<Record<string, DeliveryOrderItem[]>>({});
@@ -110,27 +106,17 @@ export default function DeliveriesPage() {
 
   const pageSize = 20;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({ page: page.toString(), pageSize: pageSize.toString() });
-      if (statusFilter) params.set('status', statusFilter);
-      const res = await fetch(`/api/delivery-orders?${params}`, { cache: 'no-store' });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error?.message ?? 'ไม่สามารถโหลดข้อมูล');
-      const data = json.data;
-      setOrders(data.data);
-      setTotal(data.total);
-      setTotalPages(data.totalPages);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูล');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, statusFilter]);
+  const ordersUrl = (() => {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (statusFilter) params.set('status', statusFilter);
+    return `/api/delivery-orders?${params.toString()}`;
+  })();
 
-  useEffect(() => { void load(); }, [load]);
+  const { data: ordersData, isLoading, error: fetchError, refetch } = useApiData<{ success: boolean; data: { data: DeliveryOrder[]; total: number; totalPages: number } }>(ordersUrl, ['delivery-orders', String(page), statusFilter]);
+
+  const orders: DeliveryOrder[] = ordersData?.data?.data ?? [];
+  const total = ordersData?.data?.total ?? 0;
+  const totalPages = ordersData?.data?.totalPages ?? 1;
 
   async function toggleExpand(orderId: string) {
     if (expandedId === orderId) { setExpandedId(null); return; }
@@ -163,7 +149,7 @@ export default function DeliveriesPage() {
       const json = await res.json();
       if (!json.success) throw new Error(json.error?.message ?? 'ส่งไม่สำเร็จ');
       success('กำลังส่ง...');
-      await load();
+      void refetch();
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'ส่งไม่สำเร็จ');
     } finally {
@@ -199,18 +185,18 @@ export default function DeliveriesPage() {
             <Link href="/admin/documents" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
               เอกสาร
             </Link>
-            <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <button onClick={() => void refetch()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               รีเฟรช
             </button>
           </div>
         </div>
       </div>
 
-      {error && (
+      {fetchError && (
         <div className="flex items-center gap-2 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm text-[var(--on-error-container)]">
           <AlertCircle className="h-4 w-4" />
-          {error}
+          {fetchError instanceof Error ? fetchError.message : String(fetchError)}
         </div>
       )}
 
@@ -234,7 +220,7 @@ export default function DeliveriesPage() {
           </div>
         </div>
 
-        {loading ? (
+        {isLoading ? (
           <div className="flex items-center justify-center p-10">
             <Loader2 className="h-8 w-8 animate-spin text-[var(--on-surface-variant)]" />
           </div>

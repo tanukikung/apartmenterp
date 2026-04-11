@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Building2, DoorOpen, Users, AlertTriangle, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
@@ -56,58 +57,55 @@ function SkeletonCard() {
   );
 }
 
+async function fetchFloors(): Promise<{ data: FloorOption[] }> {
+  const res = await fetch('/api/floors', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch floors');
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
+  return json.data;
+}
+
+async function fetchRooms(): Promise<{ data: Room[] }> {
+  const res = await fetch('/api/rooms?pageSize=1000', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch rooms');
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
+  return json.data;
+}
+
 export default function AdminFloorsPage() {
-  const [floorStats, setFloorStats] = useState<FloorStats[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: floorsData, isLoading: floorsLoading, error: floorsError } = useQuery<{ data: FloorOption[] }>({
+    queryKey: ['floors'],
+    queryFn: fetchFloors,
+  });
+  const { data: roomsData, isLoading: roomsLoading, error: roomsError } = useQuery<{ data: Room[] }>({
+    queryKey: ['rooms'],
+    queryFn: fetchRooms,
+  });
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch all rooms in one call (no per-floor N+1 calls)
-        const [floorsRes, allRoomsRes] = await Promise.all([
-          fetch('/api/floors', { cache: 'no-store' }),
-          fetch('/api/rooms?pageSize=1000', { cache: 'no-store' }),
-        ]);
+  const isLoading = floorsLoading || roomsLoading;
+  const error = floorsError || roomsError;
 
-        const floorsData = await floorsRes.json();
-        if (!floorsData.success) throw new Error(floorsData.error?.message || 'ไม่สามารถโหลดข้อมูลชั้น');
+  const floors: FloorOption[] = floorsData?.data ?? [];
+  const allRooms: Room[] = roomsData?.data ?? [];
 
-        const floors: FloorOption[] = floorsData.data;
-
-        const allRoomsData = await allRoomsRes.json();
-        const allRooms: Room[] = allRoomsData.success ? (allRoomsData.data?.data ?? allRoomsData.data ?? []) : [];
-
-        // Group rooms by floorNo client-side
-        const roomsByFloor = new Map<number, Room[]>();
-        for (const room of allRooms) {
-          const list = roomsByFloor.get(room.floorNo) ?? [];
-          list.push(room);
-          roomsByFloor.set(room.floorNo, list);
-        }
-
-        const stats: FloorStats[] = floors.map((floor) => {
-          const rooms = roomsByFloor.get(floor.floorNo) ?? [];
-          return {
-            floor,
-            total: rooms.length,
-            active: rooms.filter((r) => r.roomStatus === 'OCCUPIED').length,
-            inactive: rooms.filter((r) => r.roomStatus === 'VACANT').length,
-          };
-        });
-
-        setFloorStats(stats);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลชั้น');
-      } finally {
-        setLoading(false);
-      }
+  const floorStats = useMemo((): FloorStats[] => {
+    const roomsByFloor = new Map<number, Room[]>();
+    for (const room of allRooms) {
+      const list = roomsByFloor.get(room.floorNo) ?? [];
+      list.push(room);
+      roomsByFloor.set(room.floorNo, list);
     }
-
-    void load();
-  }, []);
+    return floors.map((floor) => {
+      const rooms = roomsByFloor.get(floor.floorNo) ?? [];
+      return {
+        floor,
+        total: rooms.length,
+        active: rooms.filter((r) => r.roomStatus === 'OCCUPIED').length,
+        inactive: rooms.filter((r) => r.roomStatus === 'VACANT').length,
+      };
+    });
+  }, [floors, allRooms]);
 
   const totals = floorStats.reduce(
     (acc, fs) => ({
@@ -129,7 +127,7 @@ export default function AdminFloorsPage() {
       </section>
 
       {error ? (
-        <div className="auth-alert auth-alert-error">{error}</div>
+        <div className="auth-alert auth-alert-error">{error instanceof Error ? error.message : String(error)}</div>
       ) : null}
 
       {/* Stats row */}
@@ -138,7 +136,7 @@ export default function AdminFloorsPage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">จำนวนชั้นทั้งหมด</div>
-              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : totals.floors}</div>
+              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{isLoading ? '...' : totals.floors}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--primary)]/20 bg-primary/10 shadow-sm">
               <Building2 className="h-5 w-5 text-[var(--primary)]" />
@@ -150,7 +148,7 @@ export default function AdminFloorsPage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">จำนวนห้องทั้งหมด</div>
-              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : totals.rooms}</div>
+              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{isLoading ? '...' : totals.rooms}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container)] shadow-sm">
               <DoorOpen className="h-5 w-5 text-[var(--on-surface-variant)]" />
@@ -162,7 +160,7 @@ export default function AdminFloorsPage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้องใช้งาน</div>
-              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : totals.active}</div>
+              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{isLoading ? '...' : totals.active}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm">
               <Users className="h-5 w-5 text-emerald-600" />
@@ -174,7 +172,7 @@ export default function AdminFloorsPage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้องไม่ใช้งาน</div>
-              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : totals.inactive}</div>
+              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{isLoading ? '...' : totals.inactive}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 shadow-sm">
               <AlertTriangle className="h-5 w-5 text-sky-500" />
@@ -185,7 +183,7 @@ export default function AdminFloorsPage() {
 
       {/* Floor cards grid */}
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {loading ? (
+        {isLoading ? (
           Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
         ) : floorStats.length === 0 ? (
           <div className="col-span-3 rounded-3xl border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-sm">

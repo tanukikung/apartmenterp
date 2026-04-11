@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   FileText,
   Search,
@@ -164,11 +165,7 @@ function KpiCard({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminContractsPage() {
-  // Data state
-  const [contracts, setContracts] = useState<ContractRecord[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // Filter / search state
   const [search, setSearch] = useState('');
@@ -190,23 +187,15 @@ export default function AdminContractsPage() {
   const [editError, setEditError] = useState<string | null>(null);
   const [editSuccess, setEditSuccess] = useState<string | null>(null);
 
-  // Room / tenant options for new contract form
-  const [rooms, setRooms] = useState<RoomOption[]>([]);
-  const [roomTenantsMap, setRoomTenantsMap] = useState<Record<string, TenantOption[]>>({});
-  const [tenantsLoading, setTenantsLoading] = useState(false);
+  // ── Contracts query ────────────────────────────────────────────────────────
 
-  // ── Load contracts ──────────────────────────────────────────────────────────
-
-  const loadContracts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  const { data: contractsData, isLoading: contractsLoading, error: contractsError, refetch: refetchContracts } = useQuery({
+    queryKey: ['contracts', page, filterStatus],
+    queryFn: async () => {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: '50',
       });
-      // The API supports filtering by status but not a free-text search field —
-      // we'll post-filter client-side for name/room search.
       if (filterStatus && filterStatus !== 'EXPIRING_SOON') {
         params.set('status', filterStatus);
       }
@@ -214,65 +203,56 @@ export default function AdminContractsPage() {
       if (!res.ok) throw new Error(`ไม่สำเร็จ: รหัส ${res.status}`);
       const json: { success: boolean; data: ContractListResponse } = await res.json();
       if (!json.success) throw new Error('API ส่งคืนข้อผิดพลาด');
-      setContracts(json.data.data);
-      setTotal(json.data.total);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'ไม่สามารถโหลดสัญญา');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, filterStatus]);
-
-  useEffect(() => {
-    void loadContracts();
-  }, [loadContracts]);
-
-  // ── Load rooms for "New" form ───────────────────────────────────────────────
-
-  const loadRooms = useCallback(async () => {
-    try {
-      const res = await fetch('/api/rooms?pageSize=300&roomStatus=VACANT');
-      if (!res.ok) return;
-      const json = await res.json();
-      if (json.success) setRooms(json.data.data ?? []);
-    } catch {
-      // non-critical
-    }
-  }, []);
-
-  useEffect(() => {
-    if (panelMode === 'new') void loadRooms();
-  }, [panelMode, loadRooms]);
-
-  // ── Load tenants when room is selected ─────────────────────────────────────
-
-  const loadTenantsForRoom = useCallback(
-    async (roomNo: string) => {
-      if (!roomNo || roomTenantsMap[roomNo]) return;
-      setTenantsLoading(true);
-      try {
-        const res = await fetch(`/api/rooms/${encodeURIComponent(roomNo)}/tenants`);
-        if (!res.ok) return;
-        const json = await res.json();
-        if (json.success) {
-          // getTenantsByRoom returns TenantResponse[] with optional roomTenants
-          const tenants: TenantOption[] = (json.data as TenantOption[]).map((t) => ({
-            id: t.id,
-            firstName: t.firstName,
-            lastName: t.lastName,
-            fullName: t.fullName ?? `${t.firstName} ${t.lastName}`,
-            phone: t.phone,
-          }));
-          setRoomTenantsMap((prev) => ({ ...prev, [roomNo]: tenants }));
-        }
-      } catch {
-        // non-critical
-      } finally {
-        setTenantsLoading(false);
-      }
+      return json.data;
     },
-    [roomTenantsMap]
-  );
+  });
+
+  const contracts = contractsData?.data ?? [];
+  const total = contractsData?.total ?? 0;
+  const loading = contractsLoading;
+  const error = contractsError?.message ?? null;
+
+  // ── Rooms query (for new contract form) ────────────────────────────────────
+
+  const { data: roomsData } = useQuery({
+    queryKey: ['rooms-vacant'],
+    queryFn: async () => {
+      const res = await fetch('/api/rooms?pageSize=300&roomStatus=VACANT');
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.success ? (json.data.data ?? []) : [];
+    },
+    enabled: panelMode === 'new',
+  });
+
+  const rooms: RoomOption[] = roomsData ?? [];
+
+  // ── Tenants query (per room) ────────────────────────────────────────────────
+
+  const { data: tenantsData, isLoading: tenantsLoading } = useQuery({
+    queryKey: ['room-tenants', newForm.roomId],
+    queryFn: async () => {
+      if (!newForm.roomId) return [];
+      const res = await fetch(`/api/rooms/${encodeURIComponent(newForm.roomId)}/tenants`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      if (!json.success) return [];
+      const tenants: TenantOption[] = (json.data as TenantOption[]).map((t) => ({
+        id: t.id,
+        firstName: t.firstName,
+        lastName: t.lastName,
+        fullName: t.fullName ?? `${t.firstName} ${t.lastName}`,
+        phone: t.phone,
+      }));
+      return tenants;
+    },
+    enabled: !!newForm.roomId,
+  });
+
+  const roomTenantsMap: Record<string, TenantOption[]> = {};
+  if (newForm.roomId && tenantsData) {
+    roomTenantsMap[newForm.roomId] = tenantsData;
+  }
 
   // ── Derived / computed ──────────────────────────────────────────────────────
 
@@ -370,7 +350,7 @@ export default function AdminContractsPage() {
         throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
       }
       closePanel();
-      void loadContracts();
+      void queryClient.invalidateQueries({ queryKey: ['contracts'] });
     } catch (err) {
       setNewError(err instanceof Error ? err.message : 'ไม่สามารถสร้างสัญญา');
     } finally {
@@ -404,7 +384,7 @@ export default function AdminContractsPage() {
         throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
       }
       setEditSuccess('อัปเดตสัญญาเรียบร้อยแล้ว');
-      void loadContracts();
+      void queryClient.invalidateQueries({ queryKey: ['contracts'] });
     } catch (err) {
       setEditError(err instanceof Error ? err.message : 'ไม่สามารถอัปเดตสัญญา');
     } finally {
@@ -440,7 +420,7 @@ export default function AdminContractsPage() {
             <div className="flex items-center gap-3">
               <button
                 className="inline-flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
-                onClick={() => void loadContracts()}
+                onClick={() => void refetchContracts()}
                 title="Refresh"
               >
                 <RefreshCw size={13} />
@@ -682,7 +662,6 @@ export default function AdminContractsPage() {
                 tenantsLoading={tenantsLoading}
                 onRoomChange={(roomNo) => {
                   setNewForm((f) => ({ ...f, roomId: roomNo, primaryTenantId: '' }));
-                  void loadTenantsForRoom(roomNo);
                 }}
                 onSubmit={handleNewSubmit}
                 saving={newSaving}
