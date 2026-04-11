@@ -21,6 +21,7 @@ import {
 } from './monthly-data-parser';
 import { getStorage } from '@/infrastructure/storage';
 import { DEFAULT_DUE_DAY } from './billing.service';
+import { logMeterResetAlert } from '@/modules/audit/audit.service';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -547,6 +548,24 @@ export async function executeMonthlyDataImportBatch(
                   warnings.some(w => w.includes('ค่าไฟ')) ? 'electric_mismatch' :
                   warnings.some(w => w.includes('มิเตอร์')) ? 'meter_reset' : 'total_mismatch',
             message: warnings.join('; '),
+          });
+        }
+
+        // Alert admins when meter reset is detected
+        if (row.meterResetNote) {
+          const waterReset = row.waterPrev !== null && row.waterCurr !== null && row.waterCurr < row.waterPrev;
+          const electricReset = row.electricPrev !== null && row.electricCurr !== null && row.electricCurr < row.electricPrev;
+          const meterType = (waterReset && electricReset) ? 'both' : waterReset ? 'water' : 'electric';
+          const prevReading = waterReset ? row.waterPrev! : row.electricPrev!;
+          const currReading = waterReset ? row.waterCurr! : row.electricCurr!;
+
+          await logMeterResetAlert({
+            roomNumber: row.roomNo,
+            meterType,
+            previousReading: prevReading,
+            currentReading: currReading,
+            billingPeriod: { year, month },
+            batchId,
           });
         }
 

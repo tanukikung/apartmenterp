@@ -1,8 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
-import { EventBus, getEventBus } from '../events';
+import { EventBus, getEventBus, EventTypes } from '../events';
 import { prisma } from '../db/client';
 import { Json } from '@/types/prisma-json';
+import { logAudit } from '@/modules/audit/audit.service';
 
 export interface OutboxProcessorOptions {
   batchSize?: number;
@@ -263,6 +264,41 @@ export class OutboxProcessor {
                 retryCount: event.retryCount,
                 error: errorMessage,
               });
+
+              // Alert: outbox event has failed permanently after max retries
+              await logAudit({
+                actorId: 'SYSTEM',
+                actorRole: 'SYSTEM',
+                action: 'OUTBOX_EVENT_FAILED',
+                entityType: event.aggregateType,
+                entityId: event.aggregateId,
+                metadata: {
+                  severity: 'HIGH',
+                  outboxEventId: event.id,
+                  eventType: event.eventType,
+                  aggregateType: event.aggregateType,
+                  aggregateId: event.aggregateId,
+                  retryCount: event.retryCount,
+                  lastError: errorMessage,
+                  failedAt: new Date().toISOString(),
+                },
+              });
+
+              // Publish OUTBOX_EVENT_FAILED event to trigger further alerting (e.g., LINE notification)
+              await this.eventBus.publish(
+                EventTypes.OUTBOX_EVENT_FAILED,
+                event.aggregateType,
+                event.aggregateId,
+                {
+                  outboxEventId: event.id,
+                  eventType: event.eventType,
+                  aggregateType: event.aggregateType,
+                  aggregateId: event.aggregateId,
+                  retryCount: event.retryCount,
+                  lastError: errorMessage,
+                  failedAt: new Date(),
+                } as any
+              );
             } else {
               await tx.outboxEvent.update({
                 where: { id: event.id },

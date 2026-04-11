@@ -75,9 +75,11 @@ export {
   setupCompletedSchema,
   configChangedSchema,
   auditLogCreatedSchema,
+  outboxEventFailedSchema,
   type SetupCompleted,
   type ConfigChanged,
   type AuditLogCreated,
+  type OutboxEventFailed,
   type SystemEvent,
 
   // Union

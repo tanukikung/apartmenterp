@@ -747,6 +747,35 @@ export class InvoiceService {
         data: { status: 'CANCELLED' as const },
       });
 
+      // Unwind any CONFIRMED payments matched to this invoice:
+      // set matchedInvoiceId = null, status = 'REFUNDED'
+      const confirmedPayments = await tx.payment.findMany({
+        where: { matchedInvoiceId: id, status: 'CONFIRMED' },
+      });
+
+      if (confirmedPayments.length > 0) {
+        await tx.payment.updateMany({
+          where: { matchedInvoiceId: id, status: 'CONFIRMED' },
+          data: { matchedInvoiceId: null, status: 'REFUNDED' },
+        });
+
+        // Log each unwound payment
+        for (const pmt of confirmedPayments) {
+          await logAudit({
+            actorId: cancelledBy,
+            actorRole: 'ADMIN',
+            action: 'PAYMENT_REFUNDED',
+            entityType: 'PAYMENT',
+            entityId: pmt.id,
+            metadata: {
+              originalInvoiceId: id,
+              amount: Number(pmt.amount),
+              refundedReason: 'INVOICE_CANCELLED',
+            },
+          });
+        }
+      }
+
       return cancelled;
     });
 

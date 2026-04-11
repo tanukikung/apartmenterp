@@ -6,6 +6,7 @@ export type AuditAction =
   // Payment & Billing
   | 'PAYMENT_CONFIRMED'
   | 'PAYMENT_REJECTED'
+  | 'PAYMENT_REFUNDED'
   | 'PAYMENT_IMPORTED'
   | 'INVOICE_GENERATED'
   | 'INVOICE_REGENERATED'
@@ -32,6 +33,7 @@ export type AuditAction =
   | 'SYSTEM_RESET'
   | 'DB_CLEANUP_STARTED'
   | 'DB_CLEANUP_COMPLETED'
+  | 'OUTBOX_EVENT_FAILED'
   // Documents & Templates
   | 'DOCUMENT_TEMPLATE_CREATED'
   | 'DOCUMENT_TEMPLATE_VERSION_CREATED'
@@ -52,12 +54,15 @@ export type AuditAction =
   | 'BANK_ACCOUNT_CREATED'
   | 'BANK_ACCOUNT_UPDATED'
   | 'BANK_ACCOUNT_DEACTIVATED'
+  | 'OVERPAYMENT_DETECTED'
   // Settings
   | 'LINE_INTEGRATION_UPDATED'
   | 'BUILDING_SETTINGS_UPDATED'
   | 'AUTOMATION_SETTINGS_UPDATED'
   // Deliveries
-  | 'DELIVERY_RESEND_REQUESTED';
+  | 'DELIVERY_RESEND_REQUESTED'
+  // Meter Reset Detection
+  | 'METER_RESET_DETECTED';
 
 export interface LogAuditInput {
   actorId: string;
@@ -101,4 +106,40 @@ export async function logAudit(input: LogAuditInput): Promise<void> {
   } catch (error) {
     auditLogger.error(action, entityType, entityId, error as Error);
   }
+}
+
+/**
+ * Log a meter reset detection event as a HIGH severity audit log entry.
+ * This alerts admins when a meter reading is lower than the previous reading,
+ * indicating the meter was replaced/reset.
+ */
+export async function logMeterResetAlert(input: {
+  roomNumber: string;
+  meterType: 'water' | 'electric' | 'both';
+  previousReading: number;
+  currentReading: number;
+  billingPeriod: { year: number; month: number };
+  batchId?: string;
+  detectedBy?: string;
+}): Promise<void> {
+  const { roomNumber, meterType, previousReading, currentReading, billingPeriod, batchId, detectedBy } = input;
+
+  await logAudit({
+    actorId: detectedBy ?? 'system',
+    actorRole: 'SYSTEM',
+    action: 'METER_RESET_DETECTED',
+    entityType: 'RoomBilling',
+    entityId: batchId ?? roomNumber,
+    metadata: {
+      severity: 'HIGH',
+      roomNumber,
+      meterType,
+      previousReading,
+      currentReading,
+      year: billingPeriod.year,
+      month: billingPeriod.month,
+      billingPeriodLabel: `${billingPeriod.year}-${String(billingPeriod.month).padStart(2, '0')}`,
+      message: `มิเตอร์${meterType === 'both' ? 'น้ำ/ไฟ' : meterType === 'water' ? 'น้ำ' : 'ไฟ'} ถูกเปลี่ยน ห้อง ${roomNumber}: ค่าก่อน=${previousReading}, ค่าปัจจุบัน=${currentReading} (งวด ${billingPeriod.year}-${String(billingPeriod.month).padStart(2, '0')})`,
+    },
+  });
 }

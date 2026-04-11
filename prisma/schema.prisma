@@ -1018,6 +1018,7 @@ enum PaymentStatus {
   PENDING
   MATCHED
   CONFIRMED
+  REFUNDED
   REJECTED
 }
 

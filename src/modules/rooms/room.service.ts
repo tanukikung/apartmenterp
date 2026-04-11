@@ -220,6 +220,21 @@ export class RoomService {
       changes.defaultRentAmount = { old: Number(existingRoom.defaultRentAmount), new: input.defaultRentAmount };
     }
 
+    // Guard: cannot set room to VACANT via update if it has any active tenants
+    if (input.roomStatus === 'VACANT') {
+      const activeTenants = await prisma.roomTenant.findMany({
+        where: {
+          roomNo,
+          moveOutDate: null,
+        },
+      });
+      if (activeTenants.length > 0) {
+        throw new ConflictError(
+          'ไม่สามารถตั้งค่าห้องเป็นว่างได้: ห้องมีผู้เช่าที่ยังอยู่อาศัย กรุณาใช้การย้ายออกแทน'
+        );
+      }
+    }
+
     const room = await prisma.$transaction(async (tx) => {
       const updated = await tx.room.update({
         where: { roomNo },
@@ -295,6 +310,21 @@ export class RoomService {
     // Don't allow status change if no actual change
     if (existingRoom.roomStatus === input.roomStatus) {
       throw new BadRequestError('Room is already in this status');
+    }
+
+    // Guard: cannot set room to VACANT if it has any active tenants
+    if (input.roomStatus === 'VACANT') {
+      const activeTenants = await prisma.roomTenant.findMany({
+        where: {
+          roomNo,
+          moveOutDate: null,
+        },
+      });
+      if (activeTenants.length > 0) {
+        throw new ConflictError(
+          'ไม่สามารถตั้งค่าห้องเป็นว่างได้: ห้องมีผู้เช่าที่ยังอยู่อาศัย กรุณาใช้การย้ายออกแทน'
+        );
+      }
     }
 
     const room = await prisma.$transaction(async (tx) => {

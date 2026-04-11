@@ -473,6 +473,16 @@ export const auditLogCreatedSchema = z.object({
   createdAt: z.date(),
 });
 
+export const outboxEventFailedSchema = z.object({
+  outboxEventId: z.string().uuid(),
+  eventType: z.string(),
+  aggregateType: z.string(),
+  aggregateId: z.string(),
+  retryCount: z.number().int(),
+  lastError: z.string(),
+  failedAt: z.date(),
+});
+
 export type SetupCompleted = BaseEvent & {
   type: 'SetupCompleted';
   payload: z.infer<typeof setupCompletedSchema>;
@@ -488,10 +498,16 @@ export type AuditLogCreated = BaseEvent & {
   payload: z.infer<typeof auditLogCreatedSchema>;
 };
 
+export type OutboxEventFailed = BaseEvent & {
+  type: 'OutboxEventFailed';
+  payload: z.infer<typeof outboxEventFailedSchema>;
+};
+
 export type SystemEvent =
   | SetupCompleted
   | ConfigChanged
-  | AuditLogCreated;
+  | AuditLogCreated
+  | OutboxEventFailed;
 
 // ============================================================================
 // Room Events
@@ -794,6 +810,7 @@ export const EventTypes = {
   SETUP_COMPLETED: 'SetupCompleted',
   CONFIG_CHANGED: 'ConfigChanged',
   AUDIT_LOG_CREATED: 'AuditLogCreated',
+  OUTBOX_EVENT_FAILED: 'OutboxEventFailed',
 
   // Room
   ROOM_CREATED: 'RoomCreated',

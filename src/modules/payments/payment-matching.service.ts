@@ -252,6 +252,34 @@ export class PaymentMatchingService {
     matchedAmount: number,
     matchType: 'FULL' | 'PARTIAL' | 'OVERPAY',
   ): Promise<void> {
+    // Flag overpayment: excess amount over invoice total requires manual review
+    if (matchType === 'OVERPAY') {
+      const excessAmount = txAmount - (invoiceTotal ?? 0);
+      logger.warn({
+        type: 'overpayment_detected',
+        transactionId,
+        invoiceId,
+        txAmount,
+        invoiceTotal,
+        excessAmount,
+        message: `Overpayment of ${excessAmount} detected on invoice ${invoiceId}. Manual review required for refund/credit.`,
+      });
+      await logAudit({
+        actorId: 'SYSTEM',
+        actorRole: 'SYSTEM',
+        action: 'OVERPAYMENT_DETECTED',
+        entityType: 'PAYMENT_TRANSACTION',
+        entityId: transactionId,
+        metadata: {
+          transactionId,
+          invoiceId,
+          txAmount,
+          invoiceTotal,
+          excessAmount,
+        },
+      });
+    }
+
     // Update transaction to CONFIRMED
     await db.paymentTransaction.update({
       where: { id: transactionId },
@@ -504,6 +532,34 @@ export class PaymentMatchingService {
       const invoiceTotal = Number(invoice.totalAmount);
       const { matchedAmount: confirmedMatchedAmount, matchType: confirmedMatchType } =
         computeMatchResult(txAmount, invoiceTotal);
+
+      // Flag overpayment: excess amount over invoice total requires manual review
+      if (confirmedMatchType === 'OVERPAY') {
+        const excessAmount = txAmount - invoiceTotal;
+        logger.warn({
+          type: 'overpayment_detected',
+          transactionId,
+          invoiceId,
+          txAmount,
+          invoiceTotal,
+          excessAmount,
+          message: `Overpayment of ${excessAmount} detected on invoice ${invoiceId}. Manual review required for refund/credit.`,
+        });
+        await logAudit({
+          actorId: confirmedBy,
+          actorRole: 'ADMIN',
+          action: 'OVERPAYMENT_DETECTED',
+          entityType: 'PAYMENT_TRANSACTION',
+          entityId: transactionId,
+          metadata: {
+            transactionId,
+            invoiceId,
+            txAmount,
+            invoiceTotal,
+            excessAmount,
+          },
+        });
+      }
 
       // Belt-and-suspenders: ensure no other CONFIRMED transaction already owns this invoice.
       // The application-level check precedes the DB-level unique-index protection (there is

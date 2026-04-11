@@ -109,12 +109,14 @@ async function handlePostback(data: string, replyToken: string, conversationId: 
       await sendReplyMessage(replyToken, '❌ ไม่พบใบแจ้งหนี้ กรุณาติดต่อเจ้าหน้าที่');
       return;
     }
+    // SECURITY: Check PAID first — make this action idempotent.
+    // If LINE retries after invoice is already PAID, return early (still reply so LINE gets a response).
     if (invoice.status === 'PAID') {
       await sendReplyMessage(replyToken, `ℹ️ ห้อง ${invoice.roomNo} ชำระเงินแล้วเรียบร้อยค่ะ`);
       return;
     }
 
-    // SECURITY: Verify a CONFIRMED payment actually exists for this invoice with sufficient amount
+    // Verify a CONFIRMED payment actually exists for this invoice with sufficient amount
     const confirmedPayments = await prisma.payment.findMany({
       where: {
         matchedInvoiceId: invoiceId,
@@ -334,6 +336,13 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
     // ── Handle follow ──────────────────────────────────────────────────────
     if (eventType === 'follow') {
+      // Idempotent: skip if conversation already exists and is not ARCHIVED
+      const existingConv = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
+      if (existingConv && existingConv.status !== 'ARCHIVED') {
+        // Already have an active conversation — acknowledge without reprocessing
+        continue;
+      }
+
       // Ensure LineUser record exists before creating Conversation (required FK).
       // Use upsert so this is idempotent — safe to call even if the record already exists.
       await prisma.lineUser.upsert({
@@ -342,17 +351,14 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         update: {},
       });
 
-      let conversation = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
-      if (!conversation) {
-        conversation = await prisma.conversation.create({
-          data: { id: uuidv4(), lineUserId: userId, lastMessageAt: new Date() },
-        });
-      } else {
-        await prisma.conversation.update({
-          where: { id: conversation.id },
-          data: { status: 'ACTIVE', lastMessageAt: new Date() },
-        });
-      }
+      const conversation = existingConv
+        ? await prisma.conversation.update({
+            where: { id: existingConv.id },
+            data: { status: 'ACTIVE', lastMessageAt: new Date() },
+          })
+        : await prisma.conversation.create({
+            data: { id: uuidv4(), lineUserId: userId, lastMessageAt: new Date() },
+          });
       await prisma.message.create({
         data: {
           id: uuidv4(),
