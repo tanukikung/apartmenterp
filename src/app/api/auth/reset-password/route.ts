@@ -56,6 +56,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     displayName: resetToken.user.displayName,
     role: resetToken.user.role,
     forcePasswordChange: false,
+    buildingId: resetToken.user.buildingId,
     exp: Math.floor(Date.now() / 1000) + 60 * 60 * 12,
   });
 

@@ -255,7 +255,7 @@ model Payment {
   @@index([status])
   @@index([paidAt])
   @@index([amount])
-  @@unique([matchedInvoiceId])
+  @@index([matchedInvoiceId])
   @@map("payments")
 }
 
@@ -604,12 +604,17 @@ model AdminUser {
   isActive            Boolean              @default(true)
   forcePasswordChange Boolean              @default(false)
   lineUserId          String?
+  // buildingId: Reserved for multi-tenant/building isolation.
+  // Currently not enforced at API layer - ADMIN users can access all buildings' data.
+  // TODO: Add proper relations when Building model is introduced.
+  buildingId          String?
   createdAt           DateTime @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @db.Timestamptz(6)
   resetTokens         PasswordResetToken[]
 
   @@index([role])
   @@index([isActive])
+  @@index([buildingId])
   @@map("admin_users")
 }
 

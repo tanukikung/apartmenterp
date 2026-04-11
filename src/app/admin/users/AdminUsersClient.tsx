@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ClientOnly } from '@/components/ui/ClientOnly';
+import { PromptDialog } from '@/components/ui/PromptDialog';
+import { RejectDialog } from '@/components/ui/RejectDialog';
 
 type AdminUserRow = {
   id: string;
@@ -46,6 +48,10 @@ export default function AdminUsersClient() {
   const [createForm, setCreateForm] = useState(emptyCreateForm);
   const [working, setWorking] = useState<string | null>(null);
   const [resetLink, setResetLink] = useState<{ username: string; url: string; expiresAt: string } | null>(null);
+  const [promptTarget, setPromptTarget] = useState<{ user: AdminUserRow; field: 'displayName' | 'password' } | null>(null);
+  const [promptLoading, setPromptLoading] = useState(false);
+  const [rejectModalTarget, setRejectModalTarget] = useState<PendingRequestRow | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   async function loadUsers() {
     setLoading(true);
@@ -209,7 +215,7 @@ export default function AdminUsersClient() {
     setError(null);
     setMessage(null);
 
-    const reason = window.prompt('Optional rejection reason', '');
+    const reason = '';
 
     try {
       const res = await fetch(`/api/admin/registration-requests/${request.id}/reject`, {
@@ -223,6 +229,48 @@ export default function AdminUsersClient() {
       }
 
       setMessage(res.message || `ปฏิเสธ ${request.username} แล้ว`);
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ไม่สามารถปฏิเสธคำขอ');
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  const handlePromptConfirm = async (value: string) => {
+    if (!promptTarget) return;
+    setPromptLoading(true);
+    try {
+      if (promptTarget.field === 'displayName') {
+        if (value && value !== promptTarget.user.displayName) {
+          await patchUser(promptTarget.user, { displayName: value });
+        }
+      } else if (promptTarget.field === 'password') {
+        if (value && value.length >= 8) {
+          await patchUser(promptTarget.user, { password: value });
+        }
+      }
+    } finally {
+      setPromptLoading(false);
+      setPromptTarget(null);
+    }
+  };
+
+  async function handleRejectConfirm() {
+    if (!rejectModalTarget) return;
+    setWorking(`reject:${rejectModalTarget.id}`);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/admin/registration-requests/${rejectModalTarget.id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: rejectReason || undefined }),
+      }).then((response) => response.json());
+      if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถปฏิเสธคำขอ');
+      setMessage(res.message || `ปฏิเสธ ${rejectModalTarget.username} แล้ว`);
+      setRejectModalTarget(null);
+      setRejectReason('');
       await loadUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถปฏิเสธคำขอ');
@@ -311,7 +359,7 @@ export default function AdminUsersClient() {
                         <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-500 text-white px-4 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-emerald-600" onClick={() => void approveRequest(request)} disabled={working === `approve:${request.id}`}>
                           {working === `approve:${request.id}` ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
                         </button>
-                        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]" onClick={() => void rejectRequest(request)} disabled={working === `reject:${request.id}`}>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]" onClick={() => { setRejectModalTarget(request); setRejectReason(''); }} disabled={working === `reject:${request.id}`}>
                           {working === `reject:${request.id}` ? 'กำลังปฏิเสธ...' : 'ปฏิเสธ'}
                         </button>
                       </div>
@@ -413,12 +461,7 @@ export default function AdminUsersClient() {
                         <button
                           type="button"
                           className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
-                          onClick={() => {
-                            const nextName = window.prompt('อัปเดตชื่อที่แสดง', user.displayName);
-                            if (nextName && nextName !== user.displayName) {
-                              void patchUser(user, { displayName: nextName });
-                            }
-                          }}
+                          onClick={() => setPromptTarget({ user, field: 'displayName' })}
                           disabled={working === user.id}
                         >
                           เปลี่ยนชื่อ
@@ -426,12 +469,7 @@ export default function AdminUsersClient() {
                         <button
                           type="button"
                           className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
-                          onClick={() => {
-                            const nextPassword = window.prompt('ตั้งรหัสผ่านชั่วคราวใหม่ (อย่างน้อย 8 ตัวอักษร)');
-                            if (nextPassword && nextPassword.length >= 8) {
-                              void patchUser(user, { password: nextPassword });
-                            }
-                          }}
+                          onClick={() => setPromptTarget({ user, field: 'password' })}
                           disabled={working === user.id}
                         >
                           ตั้งรหัสชั่วคราว
@@ -453,6 +491,33 @@ export default function AdminUsersClient() {
           </div>
         </div>
       </div>
+
+      {/* Prompt dialog for display name / password */}
+      {promptTarget && (
+        <PromptDialog
+          open
+          title={promptTarget.field === 'displayName' ? 'อัปเดตชื่อที่แสดง' : 'ตั้งรหัสผ่านชั่วคราว'}
+          description={promptTarget.field === 'password' ? 'อย่างน้อย 8 ตัวอักษร' : undefined}
+          label={promptTarget.field === 'displayName' ? 'ชื่อที่แสดง' : 'รหัสผ่านชั่วคราว'}
+          placeholder={promptTarget.field === 'displayName' ? 'ชื่อที่แสดง' : 'รหัสผ่านชั่วคราว (อย่างน้อย 8 ตัวอักษร)'}
+          defaultValue={promptTarget.user.displayName}
+          confirmLabel={promptTarget.field === 'displayName' ? 'บันทึก' : 'บันทึกรหัสผ่าน'}
+          loading={promptLoading}
+          onConfirm={handlePromptConfirm}
+          onCancel={() => setPromptTarget(null)}
+        />
+      )}
+
+      {/* Reject modal for registration requests */}
+      {rejectModalTarget && (
+        <RejectDialog
+          open
+          username={rejectModalTarget.username}
+          loading={working === `reject:${rejectModalTarget.id}`}
+          onConfirm={handleRejectConfirm}
+          onCancel={() => setRejectModalTarget(null)}
+        />
+      )}
     </main>
   );
 }

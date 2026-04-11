@@ -16,6 +16,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
             displayName: session.displayName,
             role: session.role,
             forcePasswordChange: session.forcePasswordChange,
+            buildingId: session.buildingId,
           },
         }
       : {
@@ -30,6 +31,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
           displayName: string;
           role: string;
           forcePasswordChange: boolean;
+          buildingId: string | null;
         };
       }
     | {

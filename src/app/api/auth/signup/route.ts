@@ -134,6 +134,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     displayName: user.displayName,
     role: user.role,
     forcePasswordChange: false,
+    buildingId: user.buildingId,
     exp: expiresAt,
   });
 

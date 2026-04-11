@@ -463,10 +463,15 @@ export default function IntegrationsPage() {
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-700">
                   5
                 </span>
-                บันทึกข้อมูลที่นี่ แล้วทดสอบการเชื่อมต่อใน{' '}
-                <Link href="/admin/chat" className="font-medium underline underline-offset-2">
-                  แชท
-                </Link>
+                วาง <strong>Webhook URL</strong> ที่แสดงด้านบนใน LINE แล้วเปิดใช้งาน Use webhook
+              </li>
+              <li className="flex gap-2">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-700">
+                  6
+                </span>
+                <span>
+                  ตั้งค่า<strong>ชื่อ Bot</strong>, <strong>ไอคอน</strong> และ<strong>ข้อความต้อนรับ</strong>ใน LINE Developers Console → Basic settings หรือ Messaging API ก่อนเปิดใช้งานจริง — ผู้เช่าจะเห็นสิ่งเหล่านี้เมื่อแชทกับ Bot ครั้งแรก
+                </span>
               </li>
             </ol>
           </div>

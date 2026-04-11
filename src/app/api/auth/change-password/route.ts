@@ -62,6 +62,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     displayName: updated.displayName,
     role: updated.role,
     forcePasswordChange: false,
+    buildingId: updated.buildingId,
     exp: Math.floor(Date.now() / 1000) + 60 * 60 * 12,
   });
 

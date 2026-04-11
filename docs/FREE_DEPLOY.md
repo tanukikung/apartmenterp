@@ -67,12 +67,35 @@ In the Railway dashboard, go to your project → **Variables**. Add each variabl
 
 #### Optional — S3 Database Backups
 
-| Variable | Value | Notes |
-|---|---|---|
-| `BACKUP_S3_BUCKET` | e.g. `my-erp-backups` | S3 bucket name. Backup job runs on cron but can be triggered manually. |
-| `AWS_ACCESS_KEY_ID` | IAM user access key | IAM user needs `s3:PutObject`, `s3:ListBucket`, `s3:DeleteObject` on the bucket |
-| `AWS_SECRET_ACCESS_KEY` | IAM user secret key | |
-| `AWS_REGION` | e.g. `ap-southeast-1` | Region where the bucket lives |
+S3 backup upload is entirely optional. If `BACKUP_S3_BUCKET` (and/or the AWS credentials) are not set, the system still creates compressed local backups via `pg_dump + gzip` and retains them for `BACKUP_RETENTION_DAYS`. Only the S3 upload step is skipped.
+
+| Variable | Required for S3? | Default | Description |
+|---|---|---|---|
+| `BACKUP_S3_BUCKET` | Yes | _(none)_ | S3 bucket name, e.g. `my-erp-backups`. Controls whether S3 upload is attempted. |
+| `AWS_ACCESS_KEY_ID` | Yes | _(none)_ | IAM user access key. |
+| `AWS_SECRET_ACCESS_KEY` | Yes | _(none)_ | IAM user secret key. |
+| `AWS_REGION` | No | `ap-southeast-1` | AWS region where the bucket lives. |
+| `BACKUP_CRON` | No | `0 3 * * *` (3am daily) | Cron schedule for automatic backups. Crontab format: `minute hour day-of-month month day-of-week`. |
+| `BACKUP_RETENTION_DAYS` | No | `7` | Days to keep both local and S3 backups before deleting old files. |
+
+**IAM permissions needed** on the IAM user credentials:
+```
+s3:PutObject   — upload each new backup file
+s3:ListBucket   — list existing backups for retention cleanup
+s3:DeleteObject — remove backups older than BACKUP_RETENTION_DAYS
+```
+
+**Bucket policy example:**
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["s3:PutObject", "s3:ListBucket", "s3:DeleteObject"],
+    "Resource": ["arn:aws:s3:::my-erp-backups", "arn:aws:s3:::my-erp-backups/backups/*"]
+  }]
+}
+```
 
 ---
 
@@ -190,6 +213,26 @@ Default credentials (change immediately after first login):
    ```
 3. Enable **Use webhook** toggle.
 4. Verify the webhook with the **Verify** button.
+
+### Configure LINE Bot Profile (name, icon, greeting)
+
+The bot name, icon, and greeting message are set **directly in the LINE Developer Console** — not in the app code or environment variables. These are the first things tenants see when they add or chat with your LINE bot, so they matter for trust.
+
+**In LINE Developers Console → your Messaging API channel:**
+
+| Setting | Where to find it | Why it matters |
+|---|---|---|
+| **Bot name** | Basic settings tab | Shown as the sender name in every chat. Use your building/apartment name. |
+| **Icon / Picture** | Basic settings tab | Shown in chat threads and the bot profile card. Use a clear logo (500x500px recommended). |
+| **Greeting message** | Messaging API tab → Greeting section | Sent automatically when a tenant first adds your bot. Keep it short, e.g. "ยินดีต้อนรับสู่ [ Apartment Name ] พิมพ์ \"ยอดค้าง\" เพื่อดูยอดค่าใช้จ่าย" |
+| **Auto-reply** (optional) | Messaging API tab | Replies when the bot can't match a message. Useful to direct tenants to your support contact. |
+
+**Steps:**
+1. **Basic settings** tab → edit **Bot name** and upload an **Icon** image.
+2. **Messaging API** tab → **Greeting message** → toggle **Enable** and enter your greeting.
+3. Optionally configure a **Welcome rich menu** for quick-access buttons (the app provides `POST /api/line/rich-menu` to set this programmatically after deployment).
+
+> **Note:** Bot name/icon changes can take up to 15 minutes to propagate to all LINE users. Greeting messages update faster (usually within minutes).
 
 ### Set Up S3 Backups (Disaster Recovery)
 

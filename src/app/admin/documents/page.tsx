@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ClientOnly } from '@/components/ui/ClientOnly';
-import { ExternalLink, FileOutput, FolderOpen, Layers3, Send } from 'lucide-react';
+import { ExternalLink, FileOutput, FolderOpen, Layers3, Send, Trash2 } from 'lucide-react';
 
 type GeneratedDocument = {
   id: string;
@@ -27,6 +27,8 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<GeneratedDocument | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -75,6 +77,30 @@ export default function DocumentsPage() {
     }
   }
 
+  async function deleteDocument() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/documents/${deleteTarget.id}`, { method: 'DELETE' });
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        throw new Error(json.error?.message ?? 'ไม่สามารถลบเอกสาร');
+      }
+      setDeleteTarget(null);
+      // Refresh the list
+      const refreshResponse = await fetch('/api/documents?pageSize=100', { cache: 'no-store' });
+      const refreshJson = await refreshResponse.json();
+      if (refreshJson.success) {
+        setDocuments(refreshJson.data?.data ?? []);
+      }
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'ไม่สามารถลบเอกสาร');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <main className="space-y-6">
       <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
@@ -95,6 +121,35 @@ export default function DocumentsPage() {
       </section>
 
       {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-xl bg-[var(--surface-container-lowest)] p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-[var(--on-surface)]">ยืนยันการลบเอกสาร</h2>
+            <p className="mt-2 text-sm text-[var(--on-surface-variant)]">
+              คุณต้องการลบเอกสาร <strong>{deleteTarget.title}</strong> หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-[var(--error-container)] px-4 py-2 text-sm font-semibold text-[var(--on-error-container)] shadow-sm transition-colors hover:bg-[var(--error-container)]/80"
+                onClick={() => void deleteDocument()}
+                disabled={deleting}
+              >
+                {deleting ? 'กำลังลบ...' : 'ลบเอกสาร'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
         <div className="px-5 py-4 border-b border-[var(--outline-variant)]">
@@ -194,6 +249,14 @@ export default function DocumentsPage() {
                           <FileOutput className="h-3.5 w-3.5" />
                           DOCX
                         </a>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--error-container)] shadow-sm transition-colors hover:bg-[var(--error-container)] hover:text-[var(--on-error-container)]"
+                          onClick={() => setDeleteTarget(document)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          ลบ
+                        </button>
                       </div>
                     </td>
                   </tr>

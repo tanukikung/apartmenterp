@@ -66,30 +66,38 @@ export default function AdminFloorsPage() {
       setLoading(true);
       setError(null);
       try {
-        const floorsRes = await fetch('/api/floors', { cache: 'no-store' }).then((r) => r.json());
-        if (!floorsRes.success) throw new Error(floorsRes.error?.message || 'ไม่สามารถโหลดข้อมูลชั้น');
+        // Fetch all rooms in one call (no per-floor N+1 calls)
+        const [floorsRes, allRoomsRes] = await Promise.all([
+          fetch('/api/floors', { cache: 'no-store' }),
+          fetch('/api/rooms?pageSize=1000', { cache: 'no-store' }),
+        ]);
 
-        const floors: FloorOption[] = floorsRes.data;
+        const floorsData = await floorsRes.json();
+        if (!floorsData.success) throw new Error(floorsData.error?.message || 'ไม่สามารถโหลดข้อมูลชั้น');
 
-        const roomResults = await Promise.all(
-          floors.map((floor) =>
-            fetch(`/api/rooms?floorNo=${floor.floorNo}&pageSize=100`, { cache: 'no-store' })
-              .then((r) => r.json())
-              .then((res) => {
-                const rooms: Room[] = res.success ? (res.data?.data ?? res.data ?? []) : [];
-                return { floor, rooms };
-              })
-          )
-        );
+        const floors: FloorOption[] = floorsData.data;
 
-        const stats: FloorStats[] = roomResults.map(({ floor, rooms }) => ({
-          floor,
-          total: rooms.length,
-          active: rooms.filter((r) => r.roomStatus === 'OCCUPIED').length,
-          inactive: rooms.filter((r) => r.roomStatus === 'VACANT').length,
-        }));
+        const allRoomsData = await allRoomsRes.json();
+        const allRooms: Room[] = allRoomsData.success ? (allRoomsData.data?.data ?? allRoomsData.data ?? []) : [];
 
-        stats.sort((a, b) => a.floor.floorNo - b.floor.floorNo);
+        // Group rooms by floorNo client-side
+        const roomsByFloor = new Map<number, Room[]>();
+        for (const room of allRooms) {
+          const list = roomsByFloor.get(room.floorNo) ?? [];
+          list.push(room);
+          roomsByFloor.set(room.floorNo, list);
+        }
+
+        const stats: FloorStats[] = floors.map((floor) => {
+          const rooms = roomsByFloor.get(floor.floorNo) ?? [];
+          return {
+            floor,
+            total: rooms.length,
+            active: rooms.filter((r) => r.roomStatus === 'OCCUPIED').length,
+            inactive: rooms.filter((r) => r.roomStatus === 'VACANT').length,
+          };
+        });
+
         setFloorStats(stats);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลชั้น');

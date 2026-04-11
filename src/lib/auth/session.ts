@@ -6,12 +6,20 @@ import { getAuthSecret, resolveAuthSecret } from '@/lib/config/env';
 export const AUTH_COOKIE_NAME = 'auth_session';
 export const ROLE_COOKIE_NAME = 'role';
 
+// NOTE: Building isolation is NOT yet implemented at the API layer.
+// All ADMIN/STAFF users can access all buildings' data regardless of buildingId.
+// To enable building isolation:
+// 1. Add a Building model to the schema with proper relations to Room, AdminUser, etc.
+// 2. Ensure session.buildingId is set on login and checked in every API route.
+// 3. Add buildingId filtering to all list queries (tenants, rooms, invoices, etc.).
+// Currently buildingId in session is informational only - it is NOT enforced by any guard.
 export interface AuthSessionPayload {
   sub: string;
   username: string;
   displayName: string;
   role: AdminRole;
   forcePasswordChange: boolean;
+  buildingId: string | null; // Reserved for multi-building isolation (not yet enforced at API layer)
   exp: number;
 }
 
@@ -40,6 +48,7 @@ export function verifySessionToken(token: string, secret: string | null = resolv
   try {
     const payload = JSON.parse(decodeBase64Url(encodedPayload)) as AuthSessionPayload;
     if (!payload?.sub || !payload?.role || !payload?.exp || typeof payload.forcePasswordChange !== 'boolean') return null;
+    if (typeof payload.buildingId !== 'string' && payload.buildingId !== null) return null;
     if (payload.exp * 1000 <= Date.now()) return null;
     return payload;
   } catch {

@@ -65,6 +65,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         displayName: user.displayName,
         role: user.role,
         forcePasswordChange: user.forcePasswordChange,
+        buildingId: user.buildingId,
       },
     },
   } as ApiResponse<{
@@ -74,6 +75,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       displayName: string;
       role: typeof user.role;
       forcePasswordChange: boolean;
+      buildingId: string | null;
     };
   }>);
 
@@ -83,6 +85,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     displayName: user.displayName,
     role: user.role,
     forcePasswordChange: user.forcePasswordChange,
+    buildingId: user.buildingId,
     exp: expiresAt,
   });
 

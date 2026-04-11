@@ -152,16 +152,16 @@ export default function SystemJobsPage() {
   const [jobs, setJobs] = useState<Job[]>(JOB_CONFIG);
   const [workerAvailable, setWorkerAvailable] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setรีเฟรชing] = useState(false);
-  const [runningJobIds, setกำลังรันJobIds] = useState<Set<string>>(new Set());
+  const [refreshing, setRefreshing] = useState(false);
+  const [runningJobIds, setRunningJobIds] = useState<Set<string>>(new Set());
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // -------------------------------------------------------------------------
   // Fetch job status
   // -------------------------------------------------------------------------
 
-  const fetchJobStatus = useCallback(async (isรีเฟรช = false) => {
-    if (isรีเฟรช) setรีเฟรชing(true);
+  const fetchJobStatus = useCallback(async (isRefreshing = false) => {
+    if (isRefreshing) setRefreshing(true);
 
     try {
       const res = await fetch('/api/admin/jobs');
@@ -188,7 +188,7 @@ export default function SystemJobsPage() {
       setWorkerAvailable(false);
     } finally {
       setLoading(false);
-      if (isรีเฟรช) setรีเฟรชing(false);
+      if (isRefreshing) setRefreshing(false);
     }
   }, []);
 
@@ -210,7 +210,7 @@ export default function SystemJobsPage() {
   const handleRunNow = async (job: Job) => {
     if (!workerAvailable || runningJobIds.has(job.id)) return;
 
-    setกำลังรันJobIds((prev) => new Set(prev).add(job.id));
+    setRunningJobIds((prev) => new Set(prev).add(job.id));
     setJobs((prev) =>
       prev.map((j) => (j.id === job.id ? { ...j, status: 'running' as JobStatus } : j)),
     );
@@ -243,7 +243,7 @@ export default function SystemJobsPage() {
         prev.map((j) => (j.id === job.id ? { ...j, status: 'error' as JobStatus } : j)),
       );
     } finally {
-      setกำลังรันJobIds((prev) => {
+      setRunningJobIds((prev) => {
         const next = new Set(prev);
         next.delete(job.id);
         return next;
@@ -320,9 +320,9 @@ export default function SystemJobsPage() {
       ) : (
         <section className="space-y-4">
           {jobs.map((job) => {
-            const isกำลังรัน = runningJobIds.has(job.id) || job.status === 'running';
-            // "รันทันที" is only actionable when the worker is confirmed alive.
-            const canRun = workerAvailable === true && !isกำลังรัน;
+            const isRunning = runningJobIds.has(job.id) || job.status === 'running';
+            // "Run now" is only actionable when the worker is confirmed alive.
+            const canRun = workerAvailable === true && !isRunning;
             const jobToast = toasts.find((t) => t.jobId === job.id);
 
             return (
@@ -338,13 +338,13 @@ export default function SystemJobsPage() {
                     title={
                       !workerAvailable
                         ? 'เวิร์กเกอร์เบื้องหลังไม่ทำงาน — ไม่สามารถรันด้วยตนเองได้'
-                        : isกำลังรัน
+                        : isRunning
                         ? 'งานกำลังรันอยู่แล้ว'
                         : `รัน ${job.name} ทันที`
                     }
                     className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-primary text-[var(--on-primary)] hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 mt-3"
                   >
-                    {isกำลังรัน ? (
+                    {isRunning ? (
                       <>
                         <RotateCw className="w-4 h-4 animate-spin" />
                         กำลังรัน...
