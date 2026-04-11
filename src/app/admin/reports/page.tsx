@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   AlertCircle,
   ArrowUpDown,
@@ -906,7 +907,24 @@ function CollectionsTab() {
 // ============================================================================
 
 export default function AdminReportsPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const validTabs: Tab[] = ['overview', 'revenue', 'occupancy', 'collections'];
+  const initialTab = validTabs.includes(tabParam as Tab) ? (tabParam as Tab) : 'overview';
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+
+  // Sync tab changes to URL without full navigation
+  const handleTabChange = useCallback((tab: Tab) => {
+    setActiveTab(tab);
+    const url = new URL(window.location.href);
+    if (tab === 'overview') {
+      url.searchParams.delete('tab');
+    } else {
+      url.searchParams.set('tab', tab);
+    }
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [router]);
 
   return (
     <main className="space-y-6">
@@ -932,7 +950,7 @@ export default function AdminReportsPage() {
       {/* Tab Switcher */}
       <div className="inline-flex items-center gap-1 rounded-xl bg-[var(--surface-container)] p-1">
         {TABS.map((tab) => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+          <button key={tab.id} onClick={() => handleTabChange(tab.id)}
             className={['px-4 py-2 rounded-lg text-sm font-medium transition-all',
               activeTab === tab.id ? 'bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-sm' : 'text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] hover:text-[var(--on-surface)]'].join(' ')}>
             {tab.label}
