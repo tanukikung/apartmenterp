@@ -37,6 +37,7 @@ function makeAuthCookie(role: 'ADMIN' | 'STAFF' = 'ADMIN'): string {
     displayName: `${role} User`,
     role,
     forcePasswordChange: false,
+    buildingId: null,
     exp: Math.floor(Date.now() / 1000) + 3600,
   });
   return `auth_session=${token}; role=${role}`;

@@ -69,6 +69,7 @@ function adminCookie(): string {
     username: 'owner',
     displayName: 'Owner',
     forcePasswordChange: false,
+    buildingId: null,
     exp: Math.floor(Date.now() / 1000) + 3600,
   });
   return `auth_session=${token}`;

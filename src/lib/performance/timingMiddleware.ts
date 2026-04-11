@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '../utils/logger';
+import { recordHttpRequest } from '@/lib/metrics/registry';
 
 export interface TimingData {
   method: string;
@@ -28,7 +29,10 @@ export function withTiming<Args extends [NextRequest, ...unknown[]]>(
         duration,
         timestamp: Date.now(),
       };
-      
+
+      // Record HTTP metrics for Prometheus
+      recordHttpRequest(req.method, url.pathname, response.status, duration / 1000);
+
       // Log slow requests (>500ms)
       if (duration > 500) {
         logger.warn({

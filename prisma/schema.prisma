@@ -249,6 +249,7 @@ model Payment {
   rejectedAt       DateTime? @db.Timestamptz(6)
   rejectedBy       String?
   rejectReason     String?
+  remark           String?  // admin note, e.g. "Overpayment credit: excess of X THB"
   createdAt        DateTime @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @db.Timestamptz(6)
   matches          PaymentMatch[]
@@ -397,8 +398,21 @@ model LineUser {
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @db.Timestamptz(6)
   conversations Conversation?
+  maintenanceState LineMaintenanceState?
 
   @@map("line_users")
+}
+
+model LineMaintenanceState {
+  id            String   @id @default(uuid())
+  lineUserId    String   @unique
+  currentStep  String
+  requestData  Json
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  lineUser      LineUser @relation(fields: [lineUserId], references: [lineUserId], onDelete: Cascade)
+
+  @@map("line_maintenance_states")
 }
 
 model Conversation {

@@ -1,5 +1,56 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { makeRequestLike } from '../helpers/auth';
+
+const { mockPrismaInstance } = vi.hoisted(() => {
+  const configs: Record<string, object> = {};
+
+  const mockPrisma = {
+    reminderConfig: {
+      count: vi.fn().mockImplementation(async ({ where }: { where?: Record<string, unknown> }) => {
+        return Object.values(configs).length;
+      }),
+      findMany: vi.fn().mockImplementation(async ({ skip, take }: { skip?: number; take?: number }) => {
+        const items = Object.values(configs).slice(skip ?? 0, (skip ?? 0) + (take ?? 50));
+        return items;
+      }),
+      findUnique: vi.fn().mockImplementation(async ({ where }: { where: { periodDays?: number; id?: string } }) => {
+        if (where.periodDays !== undefined) {
+          return Object.values(configs).find((c: any) => c.periodDays === where.periodDays) ?? null;
+        }
+        if (where.id) {
+          return configs[where.id] ?? null;
+        }
+        return null;
+      }),
+      create: vi.fn().mockImplementation(async ({ data }: { data: { id: string; periodDays: number; messageTh: string; messageEn?: string; isActive: boolean; priority: string; appliesTo: string } }) => {
+        configs[data.id] = data;
+        return data;
+      }),
+      update: vi.fn().mockImplementation(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        if (configs[where.id]) {
+          configs[where.id] = { ...configs[where.id], ...data };
+          return configs[where.id];
+        }
+        return null;
+      }),
+      delete: vi.fn().mockImplementation(async ({ where }: { where: { id: string } }) => {
+        const deleted = configs[where.id];
+        delete configs[where.id];
+        return deleted;
+      }),
+    },
+  };
+
+  return { mockPrismaInstance: mockPrisma, configs };
+});
+
+vi.mock('@/lib/db/client', () => ({
+  prisma: mockPrismaInstance,
+}));
+
+vi.mock('@/modules/audit', () => ({
+  logAudit: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('@/lib/line/is-configured', () => ({
   isLineConfigured: vi.fn().mockReturnValue(false),
@@ -13,7 +64,16 @@ vi.mock('@/lib/line/client', () => ({
 
 describe('Reminder Config API', () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
+    // Clear the configs store between tests
+    Object.keys(mockPrismaInstance.reminderConfig.findUnique['__configs'] ?? {}).forEach(k => delete mockPrismaInstance.reminderConfig.findUnique['__configs'][k]);
+    // Clear mockPrismaInstance.reminderConfig state by resetting mock implementations
+    mockPrismaInstance.reminderConfig.count.mockClear();
+    mockPrismaInstance.reminderConfig.findMany.mockClear();
+    mockPrismaInstance.reminderConfig.findUnique.mockClear();
+    mockPrismaInstance.reminderConfig.create.mockClear();
+    mockPrismaInstance.reminderConfig.update.mockClear();
+    mockPrismaInstance.reminderConfig.delete.mockClear();
   });
 
   it('GET /api/reminders/config returns list', async () => {

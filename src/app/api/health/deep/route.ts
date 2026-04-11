@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { redisPing, getWorkerHeartbeat, isRedisConfigured } from '@/infrastructure/redis';
 import { requireRole } from '@/lib/auth/guards';
+import { getBackupStatus } from '../../../../../scripts/backup-scheduler';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   // Operator-only: deep health exposes sensitive internal state
@@ -64,6 +65,14 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
         ? 'ok'
         : 'degraded';
 
+  const backupStatus = getBackupStatus();
+  const backupOverallStatus: 'ok' | 'error' | 'degraded' | 'not_configured' =
+    !backupStatus.lastAttempt
+      ? 'not_configured'
+      : backupStatus.lastError
+        ? 'error'
+        : 'ok';
+
   const value = {
     status: overallStatus,
     services: {
@@ -78,12 +87,24 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
         lastHeartbeatMsAgo: hb ? now - hb : null,
         heartbeatSource: actualHeartbeatSource,
       },
+      backup: {
+        lastAttempt: backupStatus.lastAttempt,
+        lastSuccess: backupStatus.lastSuccess,
+        lastError: backupStatus.lastError,
+      },
     },
     servicesDetailed: {
       database: { status: database === 'connected' ? 'ok' : 'error', latencyMs: dbLatencyMs },
       redis: { status: redisStatus, latencyMs: redisConfigured ? redisLatencyMs : null },
       outbox: { status: outboxStuck > 0 ? 'degraded' : 'ok', queueLength: outboxPending, failedCount: outboxStuck },
       worker: { status: alive ? 'ok' : 'degraded', lastHeartbeatAt, heartbeatSource: actualHeartbeatSource },
+      backup: {
+        status: backupOverallStatus,
+        lastAttempt: backupStatus.lastAttempt,
+        lastSuccess: backupStatus.lastSuccess,
+        lastError: backupStatus.lastError,
+        consecutiveFailures: backupStatus.consecutiveFailures,
+      },
     },
     timestamp: new Date().toISOString(),
   };

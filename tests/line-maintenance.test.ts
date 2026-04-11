@@ -28,6 +28,9 @@ const { mockPrismaInstance, mockLineClientInstance } = vi.hoisted(() => {
     roomTenants: [mockRoomTenant],
   };
 
+  // Shared state for lineMaintenanceState to make upsert/findUnique/delete work together
+  const lineStateStore: Record<string, object> = {};
+
   const mockPrisma = {
     tenant: {
       findUnique: vi.fn().mockResolvedValue(mockTenant),
@@ -48,6 +51,23 @@ const { mockPrismaInstance, mockLineClientInstance } = vi.hoisted(() => {
     maintenanceAttachment: {
       create: vi.fn().mockResolvedValue({ id: 'att-1' }),
     },
+    lineMaintenanceState: {
+      findUnique: vi.fn().mockImplementation(async ({ where }: { where: { lineUserId: string } }) => {
+        return lineStateStore[where.lineUserId] ?? null;
+      }),
+      upsert: vi.fn().mockImplementation(async ({ where, create, update }: any) => {
+        lineStateStore[where.lineUserId] = create;
+        return create;
+      }),
+      delete: vi.fn().mockImplementation(async ({ where }: { where: { lineUserId: string } }) => {
+        delete lineStateStore[where.lineUserId];
+        return {};
+      }),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    adminUser: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     $transaction: vi.fn(async (fn: (tx: any) => Promise<unknown>) => fn(mockPrisma)),
   };
 
@@ -55,7 +75,7 @@ const { mockPrismaInstance, mockLineClientInstance } = vi.hoisted(() => {
     getMessageContent: vi.fn().mockResolvedValue(Buffer.from([0xff, 0xd8])),
   };
 
-  return { mockPrismaInstance: mockPrisma, mockLineClientInstance: mockLineClient };
+  return { mockPrismaInstance: mockPrisma, mockLineClientInstance: mockLineClient, lineStateStore };
 });
 
 vi.mock('@/lib/db/client', () => ({ prisma: mockPrismaInstance }));
@@ -113,9 +133,11 @@ describe('LINE Maintenance Request', () => {
       priority: data?.priority ?? 'MEDIUM',
     }));
     mockPrismaInstance.maintenanceAttachment.create.mockResolvedValue({ id: 'att-1' });
-    mockPrismaInstance.adminUser = {
-      findMany: vi.fn().mockResolvedValue([]),
-    } as any;
+    mockPrismaInstance.lineMaintenanceState.findUnique.mockResolvedValue(null);
+    mockPrismaInstance.lineMaintenanceState.upsert.mockImplementation(async ({ create }: any) => create);
+    mockPrismaInstance.lineMaintenanceState.delete.mockResolvedValue({});
+    mockPrismaInstance.lineMaintenanceState.deleteMany.mockResolvedValue({ count: 0 });
+    mockPrismaInstance.adminUser.findMany.mockResolvedValue([]);
   });
 
   // ── startMaintenanceRequest ───────────────────────────────────────────────

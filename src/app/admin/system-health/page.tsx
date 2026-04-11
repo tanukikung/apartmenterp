@@ -31,12 +31,24 @@ type HealthData = {
     env: ServiceStatus;
     app: ServiceStatus;
     redis?: ServiceStatus;
+    backup?: {
+      lastAttempt: string | null;
+      lastSuccess: string | null;
+      lastError: string | null;
+    };
   };
   servicesDetailed?: {
     database?: { status: ServiceStatus; latencyMs: number | null };
     redis?: { status: ServiceStatus; latencyMs: number | null };
     outbox?: { status: ServiceStatus; queueLength: number; failedCount: number };
     worker?: { status: ServiceStatus; lastHeartbeatAt: string | null; heartbeatSource?: 'redis' | 'in_memory' };
+    backup?: {
+      status: ServiceStatus;
+      lastAttempt: string | null;
+      lastSuccess: string | null;
+      lastError: string | null;
+      consecutiveFailures: number;
+    };
   };
   version: string;
   environment: string;
@@ -64,6 +76,14 @@ type BackgroundJob = {
   lastMessage: string | null;
   durationMs: number | null;
   status: JobStatus;
+};
+
+type Alert = {
+  id: string;
+  severity: 'critical' | 'warning' | 'info';
+  source: string;
+  message: string;
+  timestamp: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -234,6 +254,7 @@ type ServiceRow = {
 
 function buildServiceRows(data: HealthData): ServiceRow[] {
   const detailed = data.servicesDetailed;
+  const backupStatus: ServiceStatus = detailed?.backup?.status ?? 'not_configured';
   return [
     {
       name: 'เซิร์ฟเวอร์แอปพลิเคชัน',
@@ -270,6 +291,11 @@ function buildServiceRows(data: HealthData): ServiceRow[] {
       name: 'โปรแกรมทำงานเบื้องหลัง',
       status: detailed?.worker?.status ?? 'not_configured',
       lastHeartbeat: detailed?.worker?.lastHeartbeatAt ?? null,
+    },
+    {
+      name: 'การสำรองข้อมูล (Backup)',
+      status: backupStatus,
+      lastHeartbeat: detailed?.backup?.lastAttempt ?? null,
     },
     {
       name: 'การส่งข้อความ LINE',
@@ -340,6 +366,7 @@ export default function SystemHealthPage() {
   const [lastChecked, setLastChecked] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [jobEntries, setJobEntries] = useState<Record<string, { lastRun: string | null; lastMessage: string | null; durationMs: number | null; status: 'idle' | 'running' | 'error' }>>({});
+  const [alerts, setAlerts] = useState<Alert[]>([]);
 
   const load = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -380,16 +407,30 @@ export default function SystemHealthPage() {
     }
   }, []);
 
+  const loadAlerts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/system-health/alerts');
+      const json = await res.json();
+      if (json.success && json.data?.alerts) {
+        setAlerts(json.data.alerts as Alert[]);
+      }
+    } catch {
+      // Silently ignore
+    }
+  }, []);
+
   useEffect(() => {
     void load();
     void loadJobs();
+    void loadAlerts();
     // Auto-refresh every 30 seconds
     const interval = setInterval(() => {
       void load();
       void loadJobs();
+      void loadAlerts();
     }, 30_000);
     return () => clearInterval(interval);
-  }, [load, loadJobs]);
+  }, [load, loadJobs, loadAlerts]);
 
   // ---------------------------------------------------------------------------
   // Render — loading
@@ -475,6 +516,12 @@ export default function SystemHealthPage() {
             <span className={globalBadgeClass(data.status)}>
               {data.status?.toUpperCase() ?? 'UNKNOWN'}
             </span>
+            {alerts.filter((a) => a.severity === 'critical' || a.severity === 'warning').length > 0 ? (
+              <span className="inline-flex items-center gap-2 rounded-full bg-[var(--error-container)]/30 px-3 py-1 text-xs font-semibold text-[var(--color-danger)]">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {alerts.filter((a) => a.severity === 'critical' || a.severity === 'warning').length} การแจ้งเตือน
+              </span>
+            ) : null}
             <span className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface-variant)] shadow-sm">v{data.version}</span>
             <button
               onClick={() => void load(true)}
@@ -519,6 +566,51 @@ export default function SystemHealthPage() {
               </li>
             ))}
           </ul>
+        </section>
+      ) : null}
+
+      {/* ── Alerts panel ─────────────────────────────────────────────── */}
+      {alerts.length > 0 ? (
+        <section className="rounded-xl border border-[var(--color-danger)]/30 bg-[var(--error-container)]/10 px-4 py-3">
+          <div className="flex items-center gap-2 font-semibold text-[var(--color-danger)] text-sm mb-3">
+            <AlertTriangle className="h-4 w-4" />
+            การแจ้งเตือนล่าสุด ({alerts.length})
+          </div>
+          <div className="space-y-2">
+            {alerts.slice(0, 5).map((alert) => (
+              <div
+                key={alert.id}
+                className={[
+                  'flex items-start gap-3 rounded-lg px-3 py-2 text-sm',
+                  alert.severity === 'critical'
+                    ? 'bg-[var(--error-container)]/40 border border-[var(--color-danger)]/20'
+                    : alert.severity === 'warning'
+                      ? 'bg-[var(--warning-container)]/40 border border-[var(--color-warning)]/20'
+                      : 'bg-[var(--primary-container)]/30 border border-[var(--primary)]/20',
+                ].join(' ')}
+              >
+                {alert.severity === 'critical' ? (
+                  <XCircle className="h-4 w-4 text-[var(--color-danger)] mt-0.5 shrink-0" />
+                ) : alert.severity === 'warning' ? (
+                  <AlertTriangle className="h-4 w-4 text-[var(--color-warning)] mt-0.5 shrink-0" />
+                ) : (
+                  <Activity className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className={[
+                    'font-medium',
+                    alert.severity === 'critical' ? 'text-[var(--color-danger)]' :
+                    alert.severity === 'warning' ? 'text-[var(--color-warning)]' : 'text-blue-700',
+                  ].join(' ')}>
+                    {alert.message}
+                  </div>
+                  <div className="text-xs text-[var(--on-surface-variant)] mt-0.5">
+                    {alert.source} &middot; {fmtTs(alert.timestamp)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
       ) : null}
 

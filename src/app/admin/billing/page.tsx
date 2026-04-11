@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import React from 'react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -19,6 +19,7 @@ import {
   Send,
   Zap,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -223,11 +224,6 @@ type BatchState = 'idle' | 'locking' | 'generating' | 'done' | 'error';
 
 export default function AdminBillingPage() {
   const [activeTab, setActiveTab] = useState<'cycles' | 'invoices'>('cycles');
-  const [cycles, setCycles] = useState<BillingCycle[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [invoiceLoading, setInvoiceLoading] = useState(false);
-  const [apiAvailable, setApiAvailable] = useState(true);
 
   const [statusFilter, setStatusFilter] = useState<CycleStatus | 'ALL'>('ALL');
   const [monthFilter, setMonthFilter] = useState<string>('ALL');
@@ -245,50 +241,37 @@ export default function AdminBillingPage() {
   const [batchGenerateTarget, setBatchGenerateTarget] = useState<{ periodId: string; needsLock: boolean } | null>(null);
 
   const monthOptions = getMonthOptions();
-  const kpis = deriveKpis(cycles);
 
-  // ---------------------------------------------------------------------------
-  // Load cycles
-  // ---------------------------------------------------------------------------
+  // TanStack Query for billing cycles
+  const { data: cyclesData, isLoading: loading, isError: cyclesError, refetch: refetchCycles } = useQuery<{ data: { data: BillingCycle[] } }>({
+    queryKey: ['billing-cycles'],
+    queryFn: async () => {
+      const res = await fetch('/api/billing-cycles?pageSize=50&sortBy=year&sortOrder=desc', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Billing API unavailable: ${res.status}`);
+      return res.json();
+    },
+    staleTime: 0,
+  });
 
-  const loadCycles = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/billing-cycles?pageSize=50&sortBy=year&sortOrder=desc', {
-        cache: 'no-store',
-      });
-      if (!res.ok) { setApiAvailable(false); setCycles([]); setLoading(false); return; }
-      const json = await res.json();
-      const list: BillingCycle[] = json.data?.data ?? [];
-      setCycles(list);
-      setApiAvailable(true);
-    } catch {
-      setCycles([]); setApiAvailable(false);
-    } finally { setLoading(false); }
-  }, []);
+  const cycles: BillingCycle[] = cyclesData?.data?.data ?? [];
 
-  const loadInvoices = useCallback(async () => {
-    setInvoiceLoading(true);
-    try {
+  // TanStack Query for invoices (lazy — only runs when activeTab === 'invoices')
+  const { data: invoicesData, isLoading: invoiceLoading, isError: invoicesError, refetch: refetchInvoices } = useQuery<{ data: { data: Invoice[] } }>({
+    queryKey: ['billing-invoices'],
+    queryFn: async () => {
       const params = new URLSearchParams({ pageSize: '50', sortBy: 'createdAt', sortOrder: 'desc' });
       const res = await fetch(`/api/invoices?${params}`, { cache: 'no-store' });
-      if (!res.ok) {
-        setInvoiceLoading(false);
-        setSendError(`ไม่สามารถโหลดใบแจ้งหนี้: รหัส ${res.status}`);
-        return;
-      }
-      const json = await res.json();
-      setInvoices(json.data?.data ?? []);
-    } catch (err) {
-      setSendError(`ไม่สามารถโหลดใบแจ้งหนี้: ${err instanceof Error ? err.message : 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ'}`);
-    } finally { setInvoiceLoading(false); }
-  }, []);
+      if (!res.ok) throw new Error(`ไม่สามารถโหลดใบแจ้งหนี้: ${res.status}`);
+      return res.json();
+    },
+    enabled: activeTab === 'invoices',
+  });
 
-  useEffect(() => { void loadCycles(); }, [loadCycles]);
+  const invoices: Invoice[] = invoicesData?.data?.data ?? [];
+  const kpis = deriveKpis(cycles);
 
   const handleTabChange = (tab: 'cycles' | 'invoices') => {
     setActiveTab(tab);
-    if (tab === 'invoices' && invoices.length === 0) { void loadInvoices(); }
   };
 
   /**
@@ -343,8 +326,8 @@ export default function AdminBillingPage() {
       } else {
         setSendSuccess(`${summary} — สำเร็จ`);
       }
-      void loadCycles();
-      void loadInvoices();
+      void refetchCycles();
+      void refetchInvoices();
     } catch (err) {
       set('error');
       const m = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด';
@@ -363,7 +346,7 @@ export default function AdminBillingPage() {
         throw new Error(json.error?.message || `ส่งไม่สำเร็จ: รหัส ${res.status}`);
       }
       setSendSuccess(`ส่งใบแจ้งหนี้สำเร็จแล้ว`);
-      void loadInvoices();
+      void refetchInvoices();
     } catch (err) {
       setSendError(err instanceof Error ? err.message : 'ส่งไม่สำเร็จ');
     }
@@ -413,7 +396,7 @@ export default function AdminBillingPage() {
             นำเข้า Excel
           </Link>
           <button
-            onClick={() => { setActiveTab('invoices'); void loadInvoices(); }}
+            onClick={() => { setActiveTab('invoices'); void refetchInvoices(); }}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90"
           >
             <ReceiptText className="h-4 w-4" />
@@ -423,7 +406,7 @@ export default function AdminBillingPage() {
             )}
           </button>
           <button
-            onClick={() => void (activeTab === 'cycles' ? loadCycles() : loadInvoices())}
+            onClick={() => void (activeTab === 'cycles' ? refetchCycles() : refetchInvoices())}
             disabled={loading || invoiceLoading}
             className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
           >
@@ -479,7 +462,7 @@ export default function AdminBillingPage() {
       {activeTab === 'cycles' && (
         <>
           {/* API unavailable notice */}
-          {!loading && !apiAvailable && (
+          {!loading && cyclesError && (
             <div className="flex items-start gap-3 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 py-3 text-sm text-[var(--on-surface)]">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--primary)]" />
               <div>

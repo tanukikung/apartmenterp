@@ -117,6 +117,7 @@ function makeCookieStore(role: 'ADMIN' | 'STAFF') {
     displayName: `${role} User`,
     role,
     forcePasswordChange: false,
+    buildingId: null,
     exp: Math.floor(Date.now() / 1000) + 60 * 60,
   });
 

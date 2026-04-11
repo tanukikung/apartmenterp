@@ -12,6 +12,7 @@ import {
   UploadCloud,
   Calendar,
   FileText,
+  X,
 } from 'lucide-react';
 
 type PreviewGroup = {
@@ -93,6 +94,7 @@ export default function BillingImportPage() {
   const [importMode, setImportMode] = useState<ImportMode>('template');
   const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   const totals = useMemo(() => {
     if (!preview) return { rooms: 0, totalAmount: 0 };
@@ -526,7 +528,7 @@ export default function BillingImportPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => void handleExecute()}
+                  onClick={() => setConfirmDialogOpen(true)}
                   disabled={executing || preview.warnings.length > 0 || preview.batch.invalidRows > 0}
                   className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90"
                 >
@@ -563,6 +565,86 @@ export default function BillingImportPage() {
             </div>
           </div>
         </section>
+      ) : null}
+
+      {/* Confirmation Dialog */}
+      {confirmDialogOpen && preview ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setConfirmDialogOpen(false)}
+          />
+          {/* Dialog */}
+          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-6 shadow-2xl">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100">
+                <AlertTriangle className="h-6 w-6 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-[var(--on-surface)]">ยืนยันการนำเข้า?</h3>
+                <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+                  การดำเนินการนี้จะเขียนข้อมูล {preview.preview.length} ห้อง รวม {money(totals.totalAmount)} ลงในระบบบิลลิ่ง
+                  คุณยืนยันที่จะดำเนินการต่อหรือไม่?
+                </p>
+              </div>
+              <button
+                onClick={() => setConfirmDialogOpen(false)}
+                className="text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Summary */}
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="rounded-lg border border-[var(--outline-variant)]/10 bg-[var(--surface-container)] p-3 text-center">
+                <div className="text-xs text-[var(--on-surface-variant)]">ห้อง</div>
+                <div className="mt-1 text-lg font-semibold text-[var(--on-surface)]">{totals.rooms}</div>
+              </div>
+              <div className="rounded-lg border border-[var(--outline-variant)]/10 bg-[var(--surface-container)] p-3 text-center">
+                <div className="text-xs text-[var(--on-surface-variant)]">ยอดรวม</div>
+                <div className="mt-1 text-lg font-semibold text-[var(--on-surface)]">{money(totals.totalAmount)}</div>
+              </div>
+              <div className="rounded-lg border border-[var(--outline-variant)]/10 bg-[var(--surface-container)] p-3 text-center">
+                <div className="text-xs text-[var(--on-surface-variant)]">คำเตือน</div>
+                <div className={`mt-1 text-lg font-semibold ${preview.warnings.length > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                  {preview.warnings.length}
+                </div>
+              </div>
+            </div>
+
+            {preview.warnings.length > 0 && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs font-medium text-amber-800">
+                  {preview.warnings.length} room(s) have warnings (e.g. meter resets or total mismatches).
+                  Please review them before committing.
+                </p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDialogOpen(false)}
+                className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  setConfirmDialogOpen(false);
+                  void handleExecute();
+                }}
+                disabled={executing}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90"
+              >
+                {executing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                {executing ? 'กำลังนำเข้า...' : 'ยืนยันนำเข้า'}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </main>
   );

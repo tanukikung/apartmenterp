@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LayoutGrid, List, Plus, X, DoorOpen, Search, ExternalLink } from 'lucide-react';
 import { useApiData } from '@/hooks/useApi';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -64,7 +64,6 @@ const createDefaults = {
 type DrawerMode = 'create' | 'edit' | null;
 
 export default function AdminRoomsPage() {
-  const [data, setData] = useState<RoomList | null>(null);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [rules, setRules] = useState<BillingRule[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
@@ -96,30 +95,29 @@ export default function AdminRoomsPage() {
 
   const { data: roomsData, isLoading: loading, refetch } = useApiData<RoomList>(roomsQueryParams, ['rooms']);
 
-  const loadMeta = useCallback(async () => {
-    const [acctRes, rulesRes, floorsRes] = await Promise.all([
-      fetch('/api/bank-accounts', { cache: 'no-store' }).then((r) => r.json()),
-      fetch('/api/billing-rules', { cache: 'no-store' }).then((r) => r.json()),
-      fetch('/api/floors', { cache: 'no-store' }).then((r) => r.json()),
-    ]);
-    if (acctRes.success) {
-      setAccounts(acctRes.data);
-      setCreateForm((prev) => ({ ...prev, defaultAccountId: acctRes.data[0]?.id ?? '' }));
-    }
-    if (rulesRes.success) {
-      setRules(rulesRes.data);
-      setCreateForm((prev) => ({ ...prev, defaultRuleCode: rulesRes.data[0]?.code ?? '' }));
-    }
-    if (floorsRes.success) setFloors(floorsRes.data);
-  }, []);
+  // Meta queries for dropdowns
+  const { data: accountsData } = useApiData<BankAccount[]>('/api/bank-accounts', ['bank-accounts']);
+  const { data: rulesData } = useApiData<BillingRule[]>('/api/billing-rules', ['billing-rules']);
+  const { data: floorsData } = useApiData<Floor[]>('/api/floors', ['floors']);
 
-  useEffect(() => { void loadMeta(); }, [loadMeta]);
+  // Sync meta into form defaults when they load
+  useEffect(() => {
+    if (accountsData) {
+      setAccounts(accountsData);
+      setCreateForm((prev) => ({ ...prev, defaultAccountId: accountsData[0]?.id ?? '' }));
+    }
+  }, [accountsData]);
 
   useEffect(() => {
-    if (roomsData) {
-      setData(roomsData);
+    if (rulesData) {
+      setRules(rulesData);
+      setCreateForm((prev) => ({ ...prev, defaultRuleCode: rulesData[0]?.code ?? '' }));
     }
-  }, [roomsData]);
+  }, [rulesData]);
+
+  useEffect(() => {
+    if (floorsData) setFloors(floorsData);
+  }, [floorsData]);
 
   // Auto-open edit drawer when ?edit=<roomNo> is in the URL
   useEffect(() => {
@@ -147,22 +145,22 @@ export default function AdminRoomsPage() {
   }, [selectedRoom]);
 
   const stats = useMemo(() => ({
-    total: data?.total ?? 0,
-    occupied: data?.statusCounts?.OCCUPIED ?? 0,
-    available: (data?.statusCounts?.VACANT ?? 0) + (data?.statusCounts?.OCCUPIED ?? 0),
-    unavailable: (data?.statusCounts?.MAINTENANCE ?? 0) + (data?.statusCounts?.OWNER_USE ?? 0),
-  }), [data]);
+    total: roomsData?.total ?? 0,
+    occupied: roomsData?.statusCounts?.OCCUPIED ?? 0,
+    available: (roomsData?.statusCounts?.VACANT ?? 0) + (roomsData?.statusCounts?.OCCUPIED ?? 0),
+    unavailable: (roomsData?.statusCounts?.MAINTENANCE ?? 0) + (roomsData?.statusCounts?.OWNER_USE ?? 0),
+  }), [roomsData]);
 
   const filteredRooms = useMemo(() => {
-    if (!data?.data) return [];
-    const rooms = floorFilter === null ? data.data : data.data.filter(r => r.floorNo === floorFilter);
+    if (!roomsData?.data) return [];
+    const rooms = floorFilter === null ? roomsData.data : roomsData.data.filter(r => r.floorNo === floorFilter);
     return [...rooms].sort((a, b) => {
       if (a.floorNo !== b.floorNo) return a.floorNo - b.floorNo;
       const numA = parseInt(a.roomNo.replace(/.*\//, ''), 10);
       const numB = parseInt(b.roomNo.replace(/.*\//, ''), 10);
       return numA - numB;
     });
-  }, [data, floorFilter]);
+  }, [roomsData, floorFilter]);
 
   function closeDrawer() {
     setDrawerMode(null);
@@ -333,11 +331,11 @@ export default function AdminRoomsPage() {
         </div>
         <div className="bg-[var(--surface-container-lowest)] p-5 rounded-xl border border-[var(--outline-variant)]/10 hover:shadow-lg transition-all">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ว่าง</p>
-          <div className="text-2xl font-extrabold tracking-tight text-emerald-600">{data?.statusCounts?.VACANT ?? 0}</div>
+          <div className="text-2xl font-extrabold tracking-tight text-emerald-600">{roomsData?.statusCounts?.VACANT ?? 0}</div>
         </div>
         <div className="bg-[var(--surface-container-lowest)] p-5 rounded-xl border border-[var(--outline-variant)]/10 hover:shadow-lg transition-all">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">มีผู้เช่า</p>
-          <div className="text-2xl font-extrabold tracking-tight text-blue-600">{data?.statusCounts?.OCCUPIED ?? 0}</div>
+          <div className="text-2xl font-extrabold tracking-tight text-blue-600">{roomsData?.statusCounts?.OCCUPIED ?? 0}</div>
         </div>
         <div className="bg-[var(--surface-container-lowest)] p-5 rounded-xl border border-[var(--outline-variant)]/10 hover:shadow-lg transition-all">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ไม่ว่าง/ซ่อม</p>

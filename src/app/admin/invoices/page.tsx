@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
   Search,
   Send,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { exportToCsv } from '@/lib/utils/export-csv';
 import { formatDate } from '@/lib/utils';
 import { ModernTable } from '@/components/ui/modern-table';
@@ -126,8 +127,6 @@ function KpiCard({ label, value, icon, iconBg }: { label: string; value: number;
 // ---------------------------------------------------------------------------
 
 export default function AdminInvoicesPage() {
-  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [sending, setSending] = useState<string | null>(null);
@@ -137,33 +136,24 @@ export default function AdminInvoicesPage() {
 
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
 
-  const load = useCallback(async (pg = 1, status: StatusFilter = 'ALL') => {
-    setLoading(true);
-    setError(null);
-    try {
+  // TanStack Query for invoices
+  const { data: invoicePayload, isLoading: loading, refetch } = useQuery<{ data: InvoiceRow[]; total: number; page: number; totalPages: number }>({
+    queryKey: ['invoices', statusFilter, page],
+    queryFn: async () => {
       const params = new URLSearchParams({
-        page: String(pg), pageSize: String(PAGE_SIZE),
+        page: String(page), pageSize: String(PAGE_SIZE),
         sortBy: 'createdAt', sortOrder: 'desc',
       });
-      if (status !== 'ALL') params.set('status', status);
-
+      if (statusFilter !== 'ALL') params.set('status', statusFilter);
       const res = await fetch(`/api/invoices?${params.toString()}`, { cache: 'no-store' }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message ?? 'ไม่สามารถโหลดใบแจ้งหนี้');
+      return res.data as { data: InvoiceRow[]; total: number; page: number; totalPages: number };
+    },
+  });
 
-      const payload = res.data as { data: InvoiceRow[]; total: number; page: number; totalPages: number };
-      setInvoices(payload.data ?? []);
-      setTotal(payload.total ?? 0);
-      setPage(pg);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดใบแจ้งหนี้');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { void load(1, statusFilter); }, [load, statusFilter]);
+  const invoices = invoicePayload?.data ?? [];
+  const total = invoicePayload?.total ?? 0;
 
   async function sendInvoice(id: string) {
     // LINE configuration check is done server-side; proceed and let API return error if not configured
@@ -178,7 +168,7 @@ export default function AdminInvoicesPage() {
 
       if (!res.success) throw new Error(res.error?.message ?? 'ไม่สามารถส่งใบแจ้งหนี้');
       setMessage(`ส่งใบแจ้งหนี้ทาง LINE แล้ว`);
-      void load(page, statusFilter);
+      void refetch();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถส่งใบแจ้งหนี้');
     } finally {
@@ -253,7 +243,7 @@ export default function AdminInvoicesPage() {
             ส่งออก CSV
           </button>
           <button
-            onClick={() => void load(page, statusFilter)}
+            onClick={() => void refetch()}
             disabled={loading}
             className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
           >
@@ -289,7 +279,7 @@ export default function AdminInvoicesPage() {
           {STATUS_TABS.map((tab) => (
             <button
               key={tab.value}
-              onClick={() => { setStatusFilter(tab.value); setSearch(''); }}
+              onClick={() => { setStatusFilter(tab.value); setSearch(''); setPage(1); }}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
                 statusFilter === tab.value
                   ? 'bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-sm'
@@ -429,7 +419,7 @@ export default function AdminInvoicesPage() {
         ]}
         data={filtered}
         loading={loading}
-        pagination={totalPages > 1 ? { page, pageSize: PAGE_SIZE, total, onPageChange: (p) => void load(p, statusFilter) } : undefined}
+        pagination={totalPages > 1 ? { page, pageSize: PAGE_SIZE, total, onPageChange: (p) => setPage(p) } : undefined}
         empty={
           <EmptyState
             icon={<Inbox className="h-7 w-7" />}

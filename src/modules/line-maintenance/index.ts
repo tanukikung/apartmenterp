@@ -2,6 +2,7 @@ import { getLineClient } from '@/lib/line/client';
 import { sendLineMessage } from '@/lib/line/client';
 import { logger } from '@/lib/utils/logger';
 import { prisma } from '@/lib/db/client';
+import type { Prisma } from '@prisma/client';
 
 // ============================================================================
 // Types
@@ -24,7 +25,10 @@ export interface LineMaintenanceRequestData {
 }
 
 // In-memory store for LINE maintenance request conversations (keyed by lineUserId)
-const maintenanceRequestStore = new Map<string, LineMaintenanceRequestData>();
+// NOTE: This module now uses Prisma for persistence (see LineMaintenanceState model).
+// This Map is kept only as a cache to reduce Prisma reads for hot paths.
+// All mutations go through Prisma; cache is updated to stay in sync.
+const _maintenanceRequestCache = new Map<string, LineMaintenanceRequestData>();
 
 // How long to keep a pending maintenance request before expiring (30 minutes)
 const REQUEST_EXPIRY_MS = 30 * 60 * 1000;
@@ -248,21 +252,32 @@ async function notifyStaffOfNewTicket(ticket: { id: string; priority: string; ro
 }
 
 // ============================================================================
-// Helper: Clean up expired entries from the store
+// Helper: Prune expired entries from the database
 // ============================================================================
 
-function cleanupExpiredRequests() {
-  const now = Date.now();
-  for (const [key, data] of Array.from(maintenanceRequestStore.entries())) {
-    const age = now - data.createdAt;
-    if (age > REQUEST_EXPIRY_MS) {
-      maintenanceRequestStore.delete(key);
+async function pruneExpiredRequests() {
+  const cutoff = new Date(Date.now() - REQUEST_EXPIRY_MS);
+  try {
+    const result = await prisma.lineMaintenanceState.deleteMany({
+      where: { updatedAt: { lt: cutoff } },
+    });
+    // Clean up cache for deleted entries
+    for (const [key, data] of Array.from(_maintenanceRequestCache.entries())) {
+      const age = Date.now() - data.createdAt;
+      if (age > REQUEST_EXPIRY_MS) {
+        _maintenanceRequestCache.delete(key);
+      }
     }
+    if (result.count > 0) {
+      logger.info({ type: 'line_maintenance_pruned', count: result.count });
+    }
+  } catch (err) {
+    logger.warn({ type: 'line_maintenance_prune_failed', error: (err as Error).message });
   }
 }
 
 // Run cleanup every 10 minutes
-setInterval(cleanupExpiredRequests, 10 * 60 * 1000);
+setInterval(() => { pruneExpiredRequests().catch(() => {}); }, 10 * 60 * 1000);
 
 // ============================================================================
 // Public API
@@ -270,9 +285,30 @@ setInterval(cleanupExpiredRequests, 10 * 60 * 1000);
 
 /**
  * Check whether a LINE user has an in-progress maintenance request in progress.
+ * Reads from Prisma and updates the local cache.
  */
-export function getMaintenanceRequestState(lineUserId: string): LineMaintenanceRequestData | undefined {
-  return maintenanceRequestStore.get(lineUserId);
+export async function getMaintenanceRequestState(lineUserId: string): Promise<LineMaintenanceRequestData | undefined> {
+  const dbState = await prisma.lineMaintenanceState.findUnique({
+    where: { lineUserId },
+  });
+
+  if (!dbState) {
+    _maintenanceRequestCache.delete(lineUserId);
+    return undefined;
+  }
+
+  const data = dbState.requestData as unknown as LineMaintenanceRequestData;
+
+  // Prune if expired
+  const age = Date.now() - data.createdAt;
+  if (age > REQUEST_EXPIRY_MS) {
+    await prisma.lineMaintenanceState.delete({ where: { lineUserId } }).catch(() => {});
+    _maintenanceRequestCache.delete(lineUserId);
+    return undefined;
+  }
+
+  _maintenanceRequestCache.set(lineUserId, data);
+  return data;
 }
 
 /**
@@ -307,7 +343,12 @@ export async function startMaintenanceRequest(lineUserId: string): Promise<{ rep
     createdAt: Date.now(),
   };
 
-  maintenanceRequestStore.set(lineUserId, state);
+  await prisma.lineMaintenanceState.upsert({
+    where: { lineUserId },
+    create: { lineUserId, currentStep: 'AWAITING_DESCRIPTION', requestData: state as unknown as Prisma.InputJsonValue },
+    update: { currentStep: 'AWAITING_DESCRIPTION', requestData: state as unknown as Prisma.InputJsonValue },
+  });
+  _maintenanceRequestCache.set(lineUserId, state);
 
   return {
     replyText:
@@ -333,11 +374,12 @@ export async function handleMaintenanceRequestMessage(
 ): Promise<{ replyText: string } | null> {
   // Cancel command — always honoured
   if (text.trim() === 'ยกเลิก') {
-    maintenanceRequestStore.delete(lineUserId);
+    await prisma.lineMaintenanceState.delete({ where: { lineUserId } }).catch(() => {});
+    _maintenanceRequestCache.delete(lineUserId);
     return { replyText: '❌ การแจ้งซ่อมถูกยกเลิกแล้วค่ะ หากต้องการแจ้งซ่อมใหม่ กรุณาเลือก "แจ้งซ่อม" จากเมนูค่ะ' };
   }
 
-  const requestData = maintenanceRequestStore.get(lineUserId);
+  const requestData = await getMaintenanceRequestState(lineUserId);
   if (!requestData) return null;
 
   const currentStep = requestData.state.step;
@@ -357,7 +399,12 @@ export async function handleMaintenanceRequestMessage(
         imageMessageIds: [],
       },
     };
-    maintenanceRequestStore.set(lineUserId, updatedState);
+    await prisma.lineMaintenanceState.upsert({
+      where: { lineUserId },
+      create: { lineUserId, currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as unknown as Prisma.InputJsonValue },
+      update: { currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as unknown as Prisma.InputJsonValue },
+    });
+    _maintenanceRequestCache.set(lineUserId, updatedState);
 
     return {
       replyText:
@@ -387,7 +434,12 @@ export async function handleMaintenanceRequestMessage(
         imageMessageIds: existingImageIds,
       },
     };
-    maintenanceRequestStore.set(lineUserId, updatedState);
+    await prisma.lineMaintenanceState.upsert({
+      where: { lineUserId },
+      create: { lineUserId, currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as unknown as Prisma.InputJsonValue },
+      update: { currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as unknown as Prisma.InputJsonValue },
+    });
+    _maintenanceRequestCache.set(lineUserId, updatedState);
 
     return {
       replyText:
@@ -412,7 +464,7 @@ export async function handleMaintenanceRequestImage(
   lineUserId: string,
   imageMessageId: string
 ): Promise<{ replyText: string } | null> {
-  const requestData = maintenanceRequestStore.get(lineUserId);
+  const requestData = await getMaintenanceRequestState(lineUserId);
   if (!requestData) return null;
 
   const currentStep = requestData.state.step;
@@ -427,7 +479,12 @@ export async function handleMaintenanceRequestImage(
         imageMessageIds: [...existingImageIds, imageMessageId],
       },
     };
-    maintenanceRequestStore.set(lineUserId, updatedState);
+    await prisma.lineMaintenanceState.upsert({
+      where: { lineUserId },
+      create: { lineUserId, currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as unknown as Prisma.InputJsonValue },
+      update: { currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as unknown as Prisma.InputJsonValue },
+    });
+    _maintenanceRequestCache.set(lineUserId, updatedState);
 
     const count = (updatedState.state as { step: 'DESCRIPTION_PROVIDED'; description: string; imageMessageIds: string[] }).imageMessageIds.length;
     return {
@@ -451,7 +508,7 @@ export async function handleMaintenanceRequestImage(
  * Finalize the maintenance request: create the ticket, notify staff, and clear state.
  */
 export async function finalizeMaintenanceRequest(lineUserId: string): Promise<{ replyText: string }> {
-  const requestData = maintenanceRequestStore.get(lineUserId);
+  const requestData = await getMaintenanceRequestState(lineUserId);
   if (!requestData) {
     return { replyText: '❌ ไม่พบข้อมูลการแจ้งซ่อม กรุณาเริ่มใหม่จากเมนูค่ะ' };
   }
@@ -477,7 +534,8 @@ export async function finalizeMaintenanceRequest(lineUserId: string): Promise<{ 
   }
 
   // Clear the pending request state
-  maintenanceRequestStore.delete(lineUserId);
+  await prisma.lineMaintenanceState.delete({ where: { lineUserId } }).catch(() => {});
+  _maintenanceRequestCache.delete(lineUserId);
 
   // Notify staff
   await notifyStaffOfNewTicket(ticket, requestData.tenantName);
@@ -498,6 +556,7 @@ export async function finalizeMaintenanceRequest(lineUserId: string): Promise<{ 
  * Clear the pending maintenance request state for a LINE user.
  * Call this when the user cancels or when the request is completed.
  */
-export function clearMaintenanceRequest(lineUserId: string): void {
-  maintenanceRequestStore.delete(lineUserId);
+export async function clearMaintenanceRequest(lineUserId: string): Promise<void> {
+  await prisma.lineMaintenanceState.delete({ where: { lineUserId } }).catch(() => {});
+  _maintenanceRequestCache.delete(lineUserId);
 }

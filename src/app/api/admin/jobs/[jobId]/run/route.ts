@@ -3,6 +3,7 @@ import { asyncHandler, NotFoundError } from '@/lib/utils/errors';
 import { JOB_RUNNERS, isValidJobId } from '@/modules/jobs/job-runner';
 import { setJobStatus, getJobEntry } from '@/modules/jobs/job-store';
 import { requireRole } from '@/lib/auth/guards';
+import { recordAlert } from '@/lib/metrics/alerts';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,6 +66,13 @@ export const POST = asyncHandler(
         lastMessage: message,
         durationMs,
       });
+
+      recordAlert(
+        'critical',
+        `job:${jobId}`,
+        `Job "${jobId}" failed: ${message}`,
+        { jobId, durationMs }
+      );
 
       // Re-throw so asyncHandler wraps it in a proper error response
       throw err;

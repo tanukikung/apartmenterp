@@ -10,6 +10,7 @@ function createValidPayload(overrides: Partial<{
   displayName: string;
   role: AdminRole;
   forcePasswordChange: boolean;
+  buildingId: string | null;
   exp: number;
 }> = {}) {
   return {
@@ -18,6 +19,7 @@ function createValidPayload(overrides: Partial<{
     displayName: 'Test Owner',
     role: 'ADMIN' as AdminRole,
     forcePasswordChange: false,
+    buildingId: null,
     exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
     ...overrides,
   };

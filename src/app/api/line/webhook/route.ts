@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
-import { verifyLineSignature, sendReplyMessage, getLineClient, sendLineMessage, sendFlexMessage } from '@/lib/line/client';
+import { verifyLineSignature, sendReplyMessage, getLineClient, sendLineMessage, sendFlexMessage, getLineUserProfile } from '@/lib/line/client';
 import { prisma, logger, UnauthorizedError } from '@/lib';
 import { v4 as uuidv4 } from 'uuid';
 import type { WebhookEvent } from '@line/bot-sdk';
@@ -343,12 +343,25 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         continue;
       }
 
+      // Fetch real LINE profile and upsert LineUser with real data
+      let displayName = 'LINE User';
+      let pictureUrl: string | null = null;
+      let statusMessage: string | null = null;
+      try {
+        const profile = await getLineUserProfile(userId);
+        displayName = profile.displayName;
+        pictureUrl = profile.pictureUrl;
+        statusMessage = profile.statusMessage;
+      } catch (err) {
+        logger.warn({ type: 'line_profile_fetch_failed', userId, error: (err as Error).message });
+      }
+
       // Ensure LineUser record exists before creating Conversation (required FK).
       // Use upsert so this is idempotent — safe to call even if the record already exists.
       await prisma.lineUser.upsert({
         where: { lineUserId: userId },
-        create: { lineUserId: userId, displayName: 'LINE User' },
-        update: {},
+        create: { lineUserId: userId, displayName, pictureUrl, statusMessage },
+        update: { displayName, pictureUrl, statusMessage, lastFetchedAt: new Date() },
       });
 
       const conversation = existingConv
@@ -378,11 +391,22 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     const incoming = extractIncomingMessage(event);
     if (!incoming) continue;
 
-    // Ensure LineUser record exists before creating Conversation (required FK).
+    // Ensure LineUser record exists and has current profile data.
+    let displayName = 'LINE User';
+    let pictureUrl: string | null = null;
+    let statusMessage: string | null = null;
+    try {
+      const profile = await getLineUserProfile(userId);
+      displayName = profile.displayName;
+      pictureUrl = profile.pictureUrl;
+      statusMessage = profile.statusMessage;
+    } catch (err) {
+      logger.warn({ type: 'line_profile_fetch_failed', userId, error: (err as Error).message });
+    }
     await prisma.lineUser.upsert({
       where: { lineUserId: userId },
-      create: { lineUserId: userId, displayName: 'LINE User' },
-      update: {},
+      create: { lineUserId: userId, displayName, pictureUrl, statusMessage },
+      update: { displayName, pictureUrl, statusMessage, lastFetchedAt: new Date() },
     });
 
     let conversation = await prisma.conversation.findUnique({ where: { lineUserId: userId } });

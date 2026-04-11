@@ -24,6 +24,7 @@ function buildSessionPayload(
     displayName: overrides?.displayName || `${role} User`,
     role,
     forcePasswordChange: overrides?.forcePasswordChange ?? false,
+    buildingId: overrides?.buildingId ?? null,
     exp: overrides?.exp ?? Math.floor(Date.now() / 1000) + 60 * 60,
   };
 }

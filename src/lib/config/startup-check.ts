@@ -61,8 +61,6 @@ function checkEnv(): CheckResult {
 
   // ── Optional / integration variables ───────────────────────
   const optional: Array<{ key: string; feature: string }> = [
-    { key: 'LINE_CHANNEL_ID', feature: 'LINE messaging' },
-    { key: 'LINE_CHANNEL_SECRET', feature: 'LINE messaging' },
     { key: 'REDIS_URL', feature: 'Redis (rate-limiting / outbox worker)' },
     { key: 'CRON_SECRET', feature: 'Protected cron endpoints' },
     { key: 'APP_BASE_URL', feature: 'Absolute URL generation (emails, webhooks)' },
@@ -76,10 +74,26 @@ function checkEnv(): CheckResult {
     }
   }
 
-  // LINE access token — accept either name (empty string is falsy, falls through to fallback)
-  const hasLineToken = !!(process.env.LINE_ACCESS_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN);
-  if (!hasLineToken) {
-    warnings.push('Optional variable LINE_ACCESS_TOKEN (or LINE_CHANNEL_ACCESS_TOKEN) is not set — LINE messaging will be unavailable.');
+  // ── LINE credentials ────────────────────────────────────────
+  // LINE requires both channel ID and channel secret (or access token)
+  // to send messages. Partial configuration results in silent failures.
+  const hasLineChannelId = Boolean(process.env.LINE_CHANNEL_ID);
+  const hasLineChannelSecret = Boolean(process.env.LINE_CHANNEL_SECRET);
+  const hasLineAccessToken = Boolean(process.env.LINE_ACCESS_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN);
+
+  if (!hasLineChannelId && !hasLineAccessToken) {
+    warnings.push(
+      'LINE credentials not configured — LINE messaging will be unavailable. ' +
+        'Set LINE_CHANNEL_ID, LINE_CHANNEL_SECRET, and LINE_ACCESS_TOKEN (or LINE_CHANNEL_ACCESS_TOKEN) to enable.'
+    );
+  } else if (hasLineChannelId && !hasLineChannelSecret) {
+    warnings.push(
+      'LINE_CHANNEL_ID is set but LINE_CHANNEL_SECRET is missing — LINE long-lived webhook token will not work without both.'
+    );
+  } else if (hasLineChannelId && !hasLineAccessToken) {
+    warnings.push(
+      'LINE_CHANNEL_ID is set but LINE_ACCESS_TOKEN (or LINE_CHANNEL_ACCESS_TOKEN) is missing — LINE messaging will be unavailable.'
+    );
   }
 
   return {
@@ -89,6 +103,26 @@ function checkEnv(): CheckResult {
   };
 }
 
+/**
+ * Attempt to connect to the database and log the result.
+ * This is fire-and-forget — it does not block startup.
+ */
+async function verifyDatabaseConnection(): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
+
+  try {
+    // Dynamic import to avoid pulling in Prisma at module load time
+    const { prisma } = await import('@/lib/db/client');
+    const t0 = Date.now();
+    await prisma.$queryRaw`SELECT 1`;
+    const latencyMs = Date.now() - t0;
+    logger.info({ type: 'startup_db_check', latencyMs }, 'Database connection verified.');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    logger.error({ type: 'startup_db_check', error: msg }, 'Database connection failed. Check DATABASE_URL and network connectivity.');
+  }
+}
+
 let hasRun = false;
 
 /**
@@ -96,6 +130,7 @@ let hasRun = false;
  *
  * - Errors are logged for missing required vars or insecure secrets in production.
  * - Warnings are logged for missing optional vars.
+ * - Database connection is tested asynchronously (non-blocking).
  * - Safe to call multiple times — only runs once per process.
  */
 export function runStartupChecks(): void {
@@ -113,6 +148,9 @@ export function runStartupChecks(): void {
   for (const msg of errors) {
     logger.error({ type: 'startup_check', severity: 'error' }, msg);
   }
+
+  // Fire-and-forget DB connection verification
+  void verifyDatabaseConnection();
 
   if (passed && warnings.length === 0) {
     logger.info({ type: 'startup_check' }, 'Environment validation passed.');

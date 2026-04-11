@@ -22,6 +22,7 @@ import {
   XCircle,
   AlertTriangle,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { exportToCsv } from '@/lib/utils/export-csv';
 import { ModernTable } from '@/components/ui/modern-table';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -242,23 +243,22 @@ function LoadingState({ message }: { message: string }) {
 // ============================================================================
 
 function ReviewQueueTab() {
-  const [review, setReview] = useState<ReviewPayload | null>(null);
-  const [matched, setMatched] = useState<ReviewPayload | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: reviewData, isLoading: loading } = useQuery<{ review: ReviewPayload | null; matched: ReviewPayload | null }>({
+    queryKey: ['payments-review-queue'],
+    queryFn: async () => {
       const [reviewRes, matchedRes] = await Promise.all([
         fetch('/api/payments/review?limit=10&offset=0').then((r) => r.json()),
         fetch('/api/payments/matched?limit=10&offset=0').then((r) => r.json()),
       ]);
-      if (reviewRes.success) setReview(reviewRes.data);
-      if (matchedRes.success) setMatched(matchedRes.data);
-    } finally { setLoading(false); }
-  }, []);
+      return {
+        review: reviewRes.success ? reviewRes.data : null,
+        matched: matchedRes.success ? matchedRes.data : null,
+      };
+    },
+  });
 
-  useEffect(() => { void load(); }, [load]);
+  const review = reviewData?.review ?? null;
+  const matched = reviewData?.matched ?? null;
 
   const stats = useMemo(() => ({
     review: review?.total ?? 0,
@@ -639,28 +639,24 @@ function MatchPreviewPanel({ selectedPayment, selectedInvoice, matchedTodayCount
 function MatchWorkstationTab() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [paymentsLoading, setPaymentsLoading] = useState(true);
-  const [invoicesLoading, setInvoicesLoading] = useState(true);
-  const [paymentsError, setPaymentsError] = useState<string | null>(null);
-  const [invoicesError, setInvoicesError] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [matchedTodayCount, setMatchedTodayCount] = useState(0);
   const matchRef = useRef<(() => void) | null>(null);
 
-  const loadPayments = useCallback(async () => {
-    setPaymentsLoading(true); setPaymentsError(null);
-    try {
+  const { data: paymentsData, isLoading: paymentsLoading, isError: paymentsError, error: paymentsErr, refetch: refetchPayments } = useQuery<{ data: { transactions: Payment[] } }>({
+    queryKey: ['payments-for-match'],
+    queryFn: async () => {
       const res = await fetch('/api/payments/review?limit=50&offset=0');
       const json = await res.json();
-      setPayments(json.data?.transactions ?? []);
-    } catch (err) { setPaymentsError(err instanceof Error ? err.message : 'โหลดการชำระล้มเหลว'); }
-    finally { setPaymentsLoading(false); }
-  }, []);
+      if (!res.ok) throw new Error(`ไม่สามารถโหลดการชำระ: ${res.status}`);
+      return json;
+    },
+  });
 
-  const loadInvoices = useCallback(async () => {
-    setInvoicesLoading(true); setInvoicesError(null);
-    try {
+  const { data: invoicesData, isLoading: invoicesLoading, isError: invoicesError, error: invoicesErr, refetch: refetchInvoices } = useQuery<Invoice[]>({
+    queryKey: ['invoices-for-match'],
+    queryFn: async () => {
       const [sentRes, overdueRes] = await Promise.all([
         fetch('/api/invoices?status=SENT&pageSize=50').then((r) => r.json()),
         fetch('/api/invoices?status=OVERDUE&pageSize=50').then((r) => r.json()),
@@ -670,17 +666,23 @@ function MatchWorkstationTab() {
       const seen = new Set<string>();
       const merged: Invoice[] = [];
       for (const inv of [...sentRows, ...overdueRows]) { if (!seen.has(inv.id)) { seen.add(inv.id); merged.push(inv); } }
-      setInvoices(merged);
-    } catch (err) { setInvoicesError(err instanceof Error ? err.message : 'โหลดใบแจ้งหนี้ล้มเหลว'); }
-    finally { setInvoicesLoading(false); }
-  }, []);
+      return merged;
+    },
+  });
 
-  useEffect(() => { void loadPayments(); void loadInvoices(); }, [loadPayments, loadInvoices]);
+  // Sync query data into local state for panel rendering
+  useEffect(() => {
+    if (paymentsData?.data?.transactions) setPayments(paymentsData.data.transactions);
+  }, [paymentsData]);
+
+  useEffect(() => {
+    if (invoicesData) setInvoices(invoicesData);
+  }, [invoicesData]);
 
   const handleSelectPayment = (payment: Payment | null) => { setSelectedPayment(payment); setSelectedInvoice(null); };
   const handleMatchRequest = (invoice: Invoice) => { setSelectedInvoice(invoice); };
   const handleClear = () => { setSelectedPayment(null); setSelectedInvoice(null); };
-  const handleMatchAnother = () => { setSelectedPayment(null); setSelectedInvoice(null); void loadPayments(); void loadInvoices(); };
+  const handleMatchAnother = () => { setSelectedPayment(null); setSelectedInvoice(null); void refetchPayments(); void refetchInvoices(); };
 
   async function handleConfirm(): Promise<MatchResult | null> {
     if (!selectedPayment || !selectedInvoice) return null;
@@ -726,19 +728,19 @@ function MatchWorkstationTab() {
             <CheckCircle2 className="h-3.5 w-3.5" />{matchedTodayCount} จับคู่วันนี้
           </span>
         </div>
-        <button onClick={() => { void loadPayments(); void loadInvoices(); }} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]">
+        <button onClick={() => { void refetchPayments(); void refetchInvoices(); }} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]">
           <RefreshCw className="h-4 w-4" />รีเฟรชทั้งหมด
         </button>
       </div>
 
-      {paymentsError ? <div className="flex items-center gap-2 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-2.5 text-sm text-[var(--on-error-container)]"><AlertCircle className="h-4 w-4 shrink-0" />การชำระ: {paymentsError}</div> : null}
-      {invoicesError ? <div className="flex items-center gap-2 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-2.5 text-sm text-[var(--on-error-container)]"><AlertCircle className="h-4 w-4 shrink-0" />ใบแจ้งหนี้: {invoicesError}</div> : null}
+      {paymentsError ? <div className="flex items-center gap-2 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-2.5 text-sm text-[var(--on-error-container)]"><AlertCircle className="h-4 w-4 shrink-0" />การชำระ: {paymentsErr?.message}</div> : null}
+      {invoicesError ? <div className="flex items-center gap-2 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-2.5 text-sm text-[var(--on-error-container)]"><AlertCircle className="h-4 w-4 shrink-0" />ใบแจ้งหนี้: {invoicesErr?.message}</div> : null}
 
       <div className="grid min-h-[600px] gap-4 xl:grid-cols-3">
         <PaymentsPanel payments={payments} loading={paymentsLoading} selectedPaymentId={selectedPayment?.id ?? null}
-          onSelect={handleSelectPayment} onRefresh={() => void loadPayments()} />
+          onSelect={handleSelectPayment} onRefresh={() => void refetchPayments()} />
         <InvoicesPanel invoices={invoices} loading={invoicesLoading} selectedPayment={selectedPayment}
-          onMatchRequest={handleMatchRequest} onRefresh={() => void loadInvoices()} />
+          onMatchRequest={handleMatchRequest} onRefresh={() => void refetchInvoices()} />
         <MatchPreviewPanel selectedPayment={selectedPayment} selectedInvoice={selectedInvoice} matchedTodayCount={matchedTodayCount}
           onConfirm={handleConfirm} onClear={handleClear} onMatchAnother={handleMatchAnother} />
       </div>

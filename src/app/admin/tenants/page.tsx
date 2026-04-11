@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { X, Plus, Home, Search, Inbox, CheckCircle, MessageCircle, XCircle } from 'lucide-react';
+import { useApiData } from '@/hooks/useApi';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ModernTable } from '@/components/ui/modern-table';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -56,9 +57,6 @@ function initials(name: string): string {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function AdminTenantsPage() {
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,26 +76,13 @@ export default function AdminTenantsPage() {
   const [assignRoom, setAssignRoom] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; description?: string; onConfirm: () => void } | null>(null);
 
-  // ─── Load ──────────────────────────────────────────────────────────────────
+  // ─── Load via TanStack Query ───────────────────────────────────────────────
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [tenRes, roomRes] = await Promise.all([
-        fetch('/api/tenants', { cache: 'no-store' }).then(r => r.json()),
-        fetch('/api/rooms?pageSize=100', { cache: 'no-store' }).then(r => r.json()),
-      ]);
-      if (tenRes.success) setTenants(Array.isArray(tenRes.data) ? tenRes.data : (tenRes.data?.data ?? []));
-      if (roomRes.success) setRooms(Array.isArray(roomRes.data) ? roomRes.data : (roomRes.data?.data ?? []));
-    } catch {
-      setError('ไม่สามารถโหลดข้อมูลได้');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data: tenantsData, isLoading: loading, refetch: refetchTenants } = useApiData<{ data: Tenant[] }>('/api/tenants', ['tenants']);
+  const { data: roomsData } = useApiData<{ data: Room[] }>('/api/rooms?pageSize=100', ['rooms']);
 
-  useEffect(() => { void load(); }, [load]);
+  const tenants = tenantsData?.data ?? [];
+  const rooms = roomsData?.data ?? [];
 
   const filtered = useMemo(() => {
     if (!search.trim()) return tenants;
@@ -151,7 +136,7 @@ export default function AdminTenantsPage() {
       setMessage('เพิ่มผู้เช่าสำเร็จ');
       setCreateForm({ firstName: '', lastName: '', email: '', phone: '', emergencyContact: '', emergencyPhone: '' });
       closeDrawer();
-      await load();
+      await refetchTenants();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
     } finally {
@@ -172,7 +157,7 @@ export default function AdminTenantsPage() {
       if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถอัพเดทได้');
       setMessage('อัพเดทผู้เช่าสำเร็จ');
       closeDrawer();
-      await load();
+      await refetchTenants();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
     } finally {
@@ -197,7 +182,7 @@ export default function AdminTenantsPage() {
       if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถลิงก์ LINE ได้');
       setMessage('ลิงก์ LINE สำเร็จ');
       closeDrawer();
-      await load();
+      await refetchTenants();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
     } finally {
@@ -223,7 +208,7 @@ export default function AdminTenantsPage() {
       setMessage(`จัดสรรห้อง ${assignRoom} สำเร็จ`);
       setAssignRoom('');
       closeDrawer();
-      await load();
+      await refetchTenants();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
     } finally {
@@ -247,7 +232,7 @@ export default function AdminTenantsPage() {
           if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถถอนห้องได้');
           setMessage(`ถอนห้อง ${roomNo} สำเร็จ`);
           closeDrawer();
-          await load();
+          await refetchTenants();
         } catch (err) {
           setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
         } finally {

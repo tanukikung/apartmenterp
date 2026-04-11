@@ -343,6 +343,9 @@ export class PaymentMatchingService {
         matchedInvoiceId: invoiceId,
         confirmedAt: new Date(),
         confirmedBy: 'SYSTEM',
+        remark: matchType === 'OVERPAY'
+          ? `Overpayment credit: excess of ${(txAmount - (invoiceTotal ?? 0)).toFixed(2)} THB over invoice total. Requires admin review for refund/credit.`
+          : null,
       },
     });
 
@@ -651,6 +654,9 @@ export class PaymentMatchingService {
           matchedInvoiceId: invoiceId,
           confirmedAt: new Date(),
           confirmedBy,
+          remark: confirmedMatchType === 'OVERPAY'
+            ? `Overpayment credit: excess of ${(txAmount - invoiceTotal).toFixed(2)} THB over invoice total. Requires admin review for refund/credit.`
+            : null,
         },
       });
 

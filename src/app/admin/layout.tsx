@@ -41,6 +41,7 @@ import {
   X,
   Wrench,
   FileSignature,
+  Clock,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -60,6 +61,7 @@ const PAGE_TITLES: Array<{ prefix: string; label: string }> = [
   { prefix: '/admin/billing/import', label: 'นำเข้าข้อมูลบิล' },
   { prefix: '/admin/billing/batches', label: 'ชุดข้อมูลบิล' },
   { prefix: '/admin/invoices', label: 'ใบแจ้งหนี้' },
+  { prefix: '/admin/late-fees', label: 'ค่าปรับล่าช้า' },
   { prefix: '/admin/payments', label: 'ชำระเงิน' },
   { prefix: '/admin/payments/upload-statement', label: 'อัปโหลด Statement' },
   { prefix: '/admin/payments/review', label: 'ตรวจสอบการชำระเงิน' },
@@ -128,6 +130,7 @@ const nav: NavItem[] = [
     type: 'group', label: 'การเงิน', defaultOpen: false, items: [
       { type: 'link', href: '/admin/payments', label: 'ชำระเงิน', icon: CreditCard },
       { type: 'link', href: '/admin/overdue', label: 'ค้างชำระ', icon: AlertTriangle },
+      { type: 'link', href: '/admin/late-fees', label: 'ค่าปรับล่าช้า', icon: Clock },
       { type: 'link', href: '/admin/expenses', label: 'ค่าใช้จ่าย', icon: PieChart },
     ],
   },
