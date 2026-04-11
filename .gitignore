@@ -83,7 +83,6 @@ wait-*.ps1
 # E2E and stabilization tests (run locally only)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 **/billing-partial-success.test.ts
-**/env-secrets-not-in-git.test.ts
 **/backup-restore-drill.test.ts
 **/production-hardening.test.ts
 
