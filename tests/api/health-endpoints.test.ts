@@ -21,11 +21,13 @@ describe('Monitoring endpoints resilience', () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.success).toBe(true);
-    expect(json.data.version).toBeDefined();
-    expect(json.data.environment).toBeDefined();
+    expect(json.data.status).toBeDefined();
     expect(['ok','degraded','error']).toContain(json.data.status);
-    // Should include latencies object
-    expect(json.data.latencies).toBeDefined();
+    expect(json.data.services).toBeDefined();
+    expect(json.data.services.database).toBeDefined();
+    expect(json.data.services.env).toBeDefined();
+    expect(json.data.services.app).toBeDefined();
+    expect(json.data.timestamp).toBeDefined();
   });
 
   it('GET /api/health/deep handles redis/db failure and returns structured services', async () => {

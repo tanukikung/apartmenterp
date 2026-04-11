@@ -86,7 +86,20 @@ describe('Outbox worker env/config and behavior', () => {
     } as any;
 
     const bus = getEventBus();
-    vi.spyOn(bus, 'publish' as any).mockRejectedValue(new Error('always fail'));
+    // Replace bus.publish with a mock:
+    // - First call: rejects (simulating event handler failure)
+    // - Second call (OUTBOX_EVENT_FAILED): succeeds (dead letter alert)
+    const originalPublish = (bus as any).publish;
+    let callCount = 0;
+    const mockPublish = vi.fn(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.reject(new Error('always fail'));
+      }
+      // Second call is the OUTBOX_EVENT_FAILED event - it should succeed
+      return Promise.resolve();
+    });
+    (bus as any).publish = mockPublish;
 
     const proc = new OutboxProcessor(bus as any, mockPrisma, { maxRetries: 5, deadLetterThreshold: 4, batchSize: 10, pollInterval: 9999, enabled: false });
     const res = await proc.process();
@@ -94,5 +107,8 @@ describe('Outbox worker env/config and behavior', () => {
     expect(res.failed).toBe(1);
     expect(lastUpdateData.lastError).toMatch(/DEAD_LETTER/);
     expect(lastUpdateData.processedAt).toBeInstanceOf(Date);
+
+    // Restore original publish
+    (bus as any).publish = originalPublish;
   });
 });

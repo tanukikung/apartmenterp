@@ -1,11 +1,17 @@
 import { vi } from 'vitest';
 import { mockPrismaClient } from './mocks/prisma';
+import './helpers/line-mock';
 
 if (!(globalThis as any).__PRISMA_MOCK__) {
   (globalThis as any).__PRISMA_MOCK__ = mockPrismaClient();
 }
 
 const prisma = (globalThis as any).__PRISMA_MOCK__;
+
+// Ensure $queryRaw is available at the top level for health checks and other raw queries
+if (!prisma.$queryRaw) {
+  prisma.$queryRaw = vi.fn().mockResolvedValue([]);
+}
 
 vi.mock('@/lib/db/client', () => {
   const connectPrisma = async () => {};

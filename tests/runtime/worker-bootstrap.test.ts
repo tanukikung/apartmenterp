@@ -64,7 +64,8 @@ describe('instrumentation bootstrap', () => {
       }),
     }));
     vi.doMock('@/lib/utils/logger', () => ({
-      default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+      default: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
     }));
 
     vi.spyOn(global, 'setInterval').mockImplementation(() => 1 as unknown as NodeJS.Timeout);

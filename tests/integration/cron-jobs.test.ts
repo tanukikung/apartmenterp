@@ -39,12 +39,21 @@ describe('Cron jobs', () => {
   });
 
   it('reminder cron publishes reminder and creates outbox events', async () => {
-    const inv = { id: 'inv-1', dueDate: new Date() };
+    // Invoice needs status field for the query to match
+    const inv = { id: 'inv-1', dueDate: new Date(), status: 'SENT' };
+    // Ensure reminderConfig exists on prisma
+    if (!(prisma as any).reminderConfig) {
+      (prisma as any).reminderConfig = {};
+    }
+    (prisma as any).reminderConfig.findMany = vi.fn().mockResolvedValue([
+      { id: 'rc-1', periodDays: 0, isActive: true, messageTh: 'Test', messageEn: 'Test' } as any,
+    ]);
     vi.spyOn(prisma.invoice, 'findMany').mockResolvedValue([inv] as any);
     const createSpy = vi.spyOn(prisma.outboxEvent, 'create').mockResolvedValue({ id: 'e1' } as any);
     const svc = new ReminderService();
     const r = await svc.runDaily(new Date());
-    expect(r.outboxEvents).toBeGreaterThan(0);
+    // scheduled is the count of outbox events created
+    expect(r.scheduled).toBeGreaterThan(0);
     expect(createSpy).toHaveBeenCalled();
   });
 
