@@ -56,11 +56,8 @@ const { mockPrismaInstance, mockLineClientInstance } = vi.hoisted(() => {
         return lineStateStore[where.lineUserId] ?? null;
       }),
       upsert: vi.fn().mockImplementation(async ({ where, create, update }: any) => {
-        // On create (first time), store 'create' data
-        // On update (subsequent), store 'update' data
-        const existing = lineStateStore[where.lineUserId];
-        lineStateStore[where.lineUserId] = existing ? { ...lineStateStore[where.lineUserId], ...update } : create;
-        return lineStateStore[where.lineUserId];
+        lineStateStore[where.lineUserId] = create;
+        return create;
       }),
       delete: vi.fn().mockImplementation(async ({ where }: { where: { lineUserId: string } }) => {
         delete lineStateStore[where.lineUserId];
@@ -96,12 +93,12 @@ vi.mock('@/lib', () => ({
 // ─── Tests ──────────────────────────────────────────────────────────────────────
 
 describe('LINE Maintenance Request', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
 
     // Reset in-memory state for test users
-    clearMaintenanceRequest('U123');
-    clearMaintenanceRequest('U999');
+    await clearMaintenanceRequest('U123');
+    await clearMaintenanceRequest('U999');
 
     // Restore default resolved values for each test
     mockPrismaInstance.tenant.findUnique.mockResolvedValue({
@@ -136,18 +133,12 @@ describe('LINE Maintenance Request', () => {
       priority: data?.priority ?? 'MEDIUM',
     }));
     mockPrismaInstance.maintenanceAttachment.create.mockResolvedValue({ id: 'att-1' });
-    // Don't reset lineMaintenanceState.findUnique — upsert sets store, findUnique reads from it
-    mockPrismaInstance.lineMaintenanceState.upsert.mockImplementation(async ({ create }: any) => {
-      // On first call (create), store the initial state so findUnique can return it
-      lineStateStore[create.lineUserId] = create;
-      return create;
-    });
-    mockPrismaInstance.lineMaintenanceState.delete.mockImplementation(async ({ where }: any) => {
-      delete lineStateStore[where.lineUserId];
-      return {};
-    });
+    mockPrismaInstance.lineMaintenanceState.findUnique.mockResolvedValue(null);
+    mockPrismaInstance.lineMaintenanceState.upsert.mockImplementation(async ({ create }: any) => create);
+    mockPrismaInstance.lineMaintenanceState.delete.mockResolvedValue({});
     mockPrismaInstance.lineMaintenanceState.deleteMany.mockResolvedValue({ count: 0 });
     mockPrismaInstance.adminUser.findMany.mockResolvedValue([]);
+  });
 
   // ── startMaintenanceRequest ───────────────────────────────────────────────
 
@@ -298,7 +289,7 @@ describe('LINE Maintenance Request', () => {
       await handleMaintenanceRequestMessage('U123', 'หลอดไฟเสีย');
       await handleMaintenanceRequestMessage('U123', 'เสร็จสิ้น');
 
-      expect(getMaintenanceRequestState('U123')).toBeUndefined();
+      expect(await getMaintenanceRequestState('U123')).toBeUndefined();
     });
   });
 
