@@ -390,13 +390,72 @@ function TopBar({
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Mock search results
+  // Real global search
+  const [searchResults, setSearchResults] = useState<{
+    rooms: Array<{ roomNo: string; floorNo: number | null; roomStatus: string }>;
+    tenants: Array<{ id: string; firstName: string; lastName: string; phone: string | null; email: string | null }>;
+    invoices: Array<{ id: string; roomNo: string; year: number; month: number; status: string }>;
+  } | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleSearch = (q: string) => {
     setSearchQuery(q);
-    // In production, call an API. For now we simulate results.
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (q.trim().length < 2) {
+      setSearchResults(null);
+      return;
+    }
+    setSearchLoading(true);
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data.data ?? null);
+        }
+      } catch {
+        setSearchResults(null);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
   };
 
-  const notificationCount = 3;
+  const [notifLoading, setNotifLoading] = useState(true);
+  const [notifications, setNotifications] = useState<Array<{ id: string; content: string; type: string; roomNo: string; createdAt: string; status: string }>>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    async function fetchNotifications() {
+      try {
+        const res = await fetch('/api/notifications?limit=20&unreadOnly=true');
+        if (res.ok) {
+          const data = await res.json();
+          setNotifications(data.data?.notifications ?? []);
+          setUnreadCount(data.data?.unreadCount ?? 0);
+        }
+      } catch {
+        // silently fail
+      } finally {
+        setNotifLoading(false);
+      }
+    }
+    fetchNotifications();
+  }, []);
+
+  function formatNotifTime(dateStr: string) {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'เพิ่งจะ';
+    if (diffMin < 60) return `${diffMin} นาทีที่แล้ว`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr} ชั่วโมงที่แล้ว`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay} วันที่แล้ว`;
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-sm px-4 md:px-6 gap-4">
@@ -447,33 +506,66 @@ function TopBar({
         {/* Search results dropdown */}
         {showSearch && searchQuery.trim().length >= 2 && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-xl shadow-[var(--shadow-md)] overflow-hidden z-50">
-            {[
-              { type: 'room', id: '101', label: 'ห้อง 101', icon: '📦' },
-              { type: 'room', id: '202', label: 'ห้อง 202', icon: '📦' },
-              { type: 'tenant', id: 't1', label: 'นายสมชาย ใจดี', icon: '👤' },
-              { type: 'invoice', id: 'inv-001', label: 'ใบแจ้งหนี้ #INV-001', icon: '📄' },
-            ]
-              .filter((r) => r.label.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((r, i) => (
-                <button
-                  key={i}
-                  onMouseDown={() => {
-                    setSearchQuery('');
-                    setShowSearch(false);
-                    router.push(`/admin/${r.type === 'room' ? 'rooms' : r.type === 'tenant' ? 'tenants' : 'invoices'}/${r.id}`);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[var(--color-text)] hover:bg-[var(--color-bg)] transition-colors border-b border-[var(--color-border)] last:border-0"
-                >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">{r.icon}</span>
-                  <span>{r.label}</span>
-                  <span className="ml-auto text-xs text-[var(--color-text-3)] capitalize">{r.type === 'invoice' ? 'ใบแจ้งหนี้' : r.type}</span>
-                </button>
-              ))}
-          </div>
-        )}
-        {showSearch && searchQuery.trim().length >= 2 && !['ห้อง 101', 'ห้อง 202', 'นายสมชาย ใจดี', 'ใบแจ้งหนี้ #INV-001'].some((r) => r.includes(searchQuery)) && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-xl shadow-[var(--shadow-md)] p-4 text-center text-sm text-[var(--color-text-3)] z-50">
-            ไม่พบผลลัพธ์สำหรับ &quot;{searchQuery}&quot;
+            {searchLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+              </div>
+            ) : searchResults ? (
+              (searchResults.rooms.length === 0 && searchResults.tenants.length === 0 && searchResults.invoices.length === 0) ? (
+                <div className="py-6 text-center text-sm text-[var(--color-text-3)]">ไม่พบผลลัพธ์สำหรับ &quot;{searchQuery}&quot;</div>
+              ) : (
+                <>
+                  {searchResults.rooms.length > 0 && (
+                    <div>
+                      <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-3)] border-b border-[var(--color-border)]">ห้องพัก</div>
+                      {searchResults.rooms.map((r) => (
+                        <button
+                          key={r.roomNo}
+                          onMouseDown={() => { setSearchQuery(''); setShowSearch(false); router.push(`/admin/rooms?roomNo=${r.roomNo}`); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-bg)] transition-colors border-b border-[var(--color-border)] last:border-0"
+                        >
+                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600"><DoorOpen size={14} /></span>
+                          <span>ห้อง {r.roomNo}</span>
+                          <span className="ml-auto text-xs text-[var(--color-text-3)]">ชั้น {r.floorNo}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {searchResults.tenants.length > 0 && (
+                    <div>
+                      <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-3)] border-b border-[var(--color-border)]">ผู้เช่า</div>
+                      {searchResults.tenants.map((t) => (
+                        <button
+                          key={t.id}
+                          onMouseDown={() => { setSearchQuery(''); setShowSearch(false); router.push(`/admin/tenants/${t.id}`); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-bg)] transition-colors border-b border-[var(--color-border)] last:border-0"
+                        >
+                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-50 text-green-600"><Users size={14} /></span>
+                          <span>{t.firstName} {t.lastName}</span>
+                          <span className="ml-auto text-xs text-[var(--color-text-3)]">{t.phone ?? t.email ?? ''}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {searchResults.invoices.length > 0 && (
+                    <div>
+                      <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-3)] border-b border-[var(--color-border)]">ใบแจ้งหนี้</div>
+                      {searchResults.invoices.map((inv) => (
+                        <button
+                          key={inv.id}
+                          onMouseDown={() => { setSearchQuery(''); setShowSearch(false); router.push(`/admin/invoices/${inv.id}`); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-bg)] transition-colors border-b border-[var(--color-border)] last:border-0"
+                        >
+                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-50 text-red-600"><ScrollText size={14} /></span>
+                          <span>ห้อง {inv.roomNo} · {inv.month}/{inv.year}</span>
+                          <span className="ml-auto text-xs text-[var(--color-text-3)]">{inv.status}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            ) : null}
           </div>
         )}
       </div>
@@ -492,9 +584,9 @@ function TopBar({
             aria-label="Notifications"
           >
             <BellIcon size={20} />
-            {notificationCount > 0 && (
+            {unreadCount > 0 && (
               <span className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                {notificationCount}
+                {unreadCount}
               </span>
             )}
           </button>
@@ -506,25 +598,32 @@ function TopBar({
                 <button className="text-xs text-indigo-600 hover:text-indigo-700">ดูทั้งหมด</button>
               </div>
               <div className="max-h-64 overflow-y-auto divide-y divide-[var(--color-border)]">
-                {[
-                  { id: 1, title: 'มีผู้เช่าใหม่ลงทะเบียน', time: '5 นาทีที่แล้ว', read: false },
-                  { id: 2, title: 'ห้อง 305 ค้างชำระ 15 วัน', time: '1 ชั่วโมงที่แล้ว', read: false },
-                  { id: 3, title: 'สร้างเอกสารสำเร็จ', time: '2 ชั่วโมงที่แล้ว', read: true },
-                ].map((n) => (
-                  <div
-                    key={n.id}
-                    className={`flex items-start gap-3 px-4 py-3 hover:bg-[var(--color-bg)] transition-colors cursor-pointer ${!n.read ? 'bg-indigo-50/40' : ''}`}
-                  >
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0 ${n.read ? 'bg-[var(--color-bg)]' : 'bg-indigo-100'}`}>
-                      <BellIcon size={14} className={n.read ? 'text-[var(--color-text-3)]' : 'text-indigo-600'} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-[var(--color-text)]">{n.title}</p>
-                      <p className="text-xs text-[var(--color-text-3)] mt-0.5">{n.time}</p>
-                    </div>
-                    {!n.read && <div className="h-2 w-2 rounded-full bg-indigo-500 mt-2 flex-shrink-0" />}
+                {notifLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
                   </div>
-                ))}
+                ) : notifications.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2">
+                    <BellIcon size={24} className="text-[var(--color-text-3)]" />
+                    <p className="text-sm text-[var(--color-text-3)]">ไม่มีการแจ้งเตือน</p>
+                  </div>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`flex items-start gap-3 px-4 py-3 hover:bg-[var(--color-bg)] transition-colors cursor-pointer ${n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'bg-indigo-50/40' : ''}`}
+                    >
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0 ${n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'bg-indigo-100' : 'bg-[var(--color-bg)]'}`}>
+                        <BellIcon size={14} className={n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'text-indigo-600' : 'text-[var(--color-text-3)]'} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-[var(--color-text)]">{n.content}</p>
+                        <p className="text-xs text-[var(--color-text-3)] mt-0.5">{n.roomNo ? `ห้อง ${n.roomNo} · ` : ''}{formatNotifTime(n.createdAt)}</p>
+                      </div>
+                      {n.status !== 'SENT' && n.status !== 'CANCELLED' && <div className="h-2 w-2 rounded-full bg-indigo-500 mt-2 flex-shrink-0" />}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
