@@ -87,7 +87,7 @@ export function makeRequestLike(options: RequestLikeOptions) {
     },
     json: async () => {
       if (options.body !== undefined) {
-        return options.body;
+        return JSON.parse(bodyText);
       }
       return bodyText ? JSON.parse(bodyText) : {};
     },

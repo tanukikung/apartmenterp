@@ -171,13 +171,14 @@ describe('Reminder Config API', () => {
 
     // Delete it
     const delReq = makeRequestLike({
-      url: `http://localhost/api/reminders/config?id=${id}`,
+      url: 'http://localhost/api/reminders/config',
       method: 'DELETE',
       role: 'ADMIN',
+      body: { id },
     });
     const delRes = await (mod as any).DELETE(delReq);
     expect(delRes.status).toBe(200);
-    expect(delRes.json().success).toBe(true);
+    expect((await delRes.json()).success).toBe(true);
   });
 
   it('PUT /api/reminders/config updates a config', async () => {
