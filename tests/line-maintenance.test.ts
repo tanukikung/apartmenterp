@@ -56,8 +56,11 @@ const { mockPrismaInstance, mockLineClientInstance } = vi.hoisted(() => {
         return lineStateStore[where.lineUserId] ?? null;
       }),
       upsert: vi.fn().mockImplementation(async ({ where, create, update }: any) => {
-        lineStateStore[where.lineUserId] = create;
-        return create;
+        // On create (first time), store 'create' data
+        // On update (subsequent), store 'update' data
+        const existing = lineStateStore[where.lineUserId];
+        lineStateStore[where.lineUserId] = existing ? { ...lineStateStore[where.lineUserId], ...update } : create;
+        return lineStateStore[where.lineUserId];
       }),
       delete: vi.fn().mockImplementation(async ({ where }: { where: { lineUserId: string } }) => {
         delete lineStateStore[where.lineUserId];
@@ -133,12 +136,18 @@ describe('LINE Maintenance Request', () => {
       priority: data?.priority ?? 'MEDIUM',
     }));
     mockPrismaInstance.maintenanceAttachment.create.mockResolvedValue({ id: 'att-1' });
-    mockPrismaInstance.lineMaintenanceState.findUnique.mockResolvedValue(null);
-    mockPrismaInstance.lineMaintenanceState.upsert.mockImplementation(async ({ create }: any) => create);
-    mockPrismaInstance.lineMaintenanceState.delete.mockResolvedValue({});
+    // Don't reset lineMaintenanceState.findUnique — upsert sets store, findUnique reads from it
+    mockPrismaInstance.lineMaintenanceState.upsert.mockImplementation(async ({ create }: any) => {
+      // On first call (create), store the initial state so findUnique can return it
+      lineStateStore[create.lineUserId] = create;
+      return create;
+    });
+    mockPrismaInstance.lineMaintenanceState.delete.mockImplementation(async ({ where }: any) => {
+      delete lineStateStore[where.lineUserId];
+      return {};
+    });
     mockPrismaInstance.lineMaintenanceState.deleteMany.mockResolvedValue({ count: 0 });
     mockPrismaInstance.adminUser.findMany.mockResolvedValue([]);
-  });
 
   // ── startMaintenanceRequest ───────────────────────────────────────────────
 
@@ -149,7 +158,7 @@ describe('LINE Maintenance Request', () => {
       expect(replyText).toContain('ห้อง: 101');
       expect(replyText).toContain('สมชาย');
       expect(replyText).toContain('แจ้งซ่อม');
-      expect(getMaintenanceRequestState('U123')).toBeDefined();
+      expect(await getMaintenanceRequestState('U123')).toBeDefined();
     });
 
     it('returns error when LINE user is not a registered tenant', async () => {
@@ -158,7 +167,7 @@ describe('LINE Maintenance Request', () => {
       const { replyText } = await startMaintenanceRequest('U999');
 
       expect(replyText).toContain('ไม่พบข้อมูลผู้เช่า');
-      expect(getMaintenanceRequestState('U999')).toBeUndefined();
+      expect(await getMaintenanceRequestState('U999')).toBeUndefined();
     });
 
     it('returns error when tenant has no active room assignment', async () => {
@@ -186,7 +195,7 @@ describe('LINE Maintenance Request', () => {
 
       expect(result).not.toBeNull();
       expect(result!.replyText).toContain('ได้รับรายละเอียดแล้ว');
-      expect(getMaintenanceRequestState('U123')!.state.step).toBe('DESCRIPTION_PROVIDED');
+      expect((await getMaintenanceRequestState('U123'))!.state.step).toBe('DESCRIPTION_PROVIDED');
     });
 
     it('handles cancel command at any step and clears state', async () => {
@@ -197,7 +206,7 @@ describe('LINE Maintenance Request', () => {
 
       expect(result).not.toBeNull();
       expect(result!.replyText).toContain('ยกเลิก');
-      expect(getMaintenanceRequestState('U123')).toBeUndefined();
+      expect(await getMaintenanceRequestState('U123')).toBeUndefined();
     });
 
     it('returns null for normal messages when no request is in progress', async () => {
@@ -213,7 +222,7 @@ describe('LINE Maintenance Request', () => {
 
       expect(result).not.toBeNull();
       expect(result!.replyText).toContain('อัปเดตรายละเอียด');
-      expect(getMaintenanceRequestState('U123')!.state.description).toBe('อัปเดตรายละเอียดใหม่');
+      expect((await getMaintenanceRequestState('U123'))!.state.description).toBe('อัปเดตรายละเอียดใหม่');
     });
 
     it('finalizes ticket creation when user sends completion signal', async () => {
@@ -223,7 +232,7 @@ describe('LINE Maintenance Request', () => {
 
       expect(result).not.toBeNull();
       expect(result!.replyText).toContain('รับคำขอแจ้งซ่อมแล้ว');
-      expect(getMaintenanceRequestState('U123')).toBeUndefined();
+      expect(await getMaintenanceRequestState('U123')).toBeUndefined();
     });
   });
 
@@ -243,7 +252,7 @@ describe('LINE Maintenance Request', () => {
 
       expect(result).not.toBeNull();
       expect(result!.replyText).toContain('ได้รับรูปภาพแล้ว');
-      expect(getMaintenanceRequestState('U123')!.state.imageMessageIds).toContain('img-001');
+      expect((await getMaintenanceRequestState('U123'))!.state.imageMessageIds).toContain('img-001');
     });
 
     it('acknowledges image but asks for description in AWAITING_DESCRIPTION state', async () => {
@@ -299,9 +308,9 @@ describe('LINE Maintenance Request', () => {
     it('removes stored state for user', async () => {
       await startMaintenanceRequest('U123');
 
-      clearMaintenanceRequest('U123');
+      await clearMaintenanceRequest('U123');
 
-      expect(getMaintenanceRequestState('U123')).toBeUndefined();
+      expect(await getMaintenanceRequestState('U123')).toBeUndefined();
     });
   });
 });
