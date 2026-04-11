@@ -57,38 +57,28 @@ describe('Monitoring endpoints resilience', () => {
     expect(['ok','degraded','error']).toContain(json.data.status);
   });
 
-  it('GET /api/metrics includes invoices and payments fields with graceful fallbacks', async () => {
-    vi.mock('@/lib/db', () => {
+  it('GET /api/metrics returns Prometheus text format with outbox metrics', async () => {
+    vi.mock('@/lib/db/client', () => {
       return {
         prisma: {
-          $queryRaw: vi.fn().mockResolvedValue(1),
-          outboxEvent: { count: vi.fn().mockResolvedValue(0) },
-          invoice: { count: vi.fn()
-            .mockResolvedValueOnce(10) // total
-            .mockResolvedValueOnce(6)  // paid
-            .mockResolvedValueOnce(2)  // overdue
-          },
-          payment: { count: vi.fn().mockResolvedValueOnce(4) },
-          paymentTransaction: { count: vi.fn()
-            .mockResolvedValueOnce(1)  // NEED_REVIEW
-            .mockResolvedValueOnce(8)  // total
-            .mockResolvedValueOnce(3)  // AUTO_MATCHED
-          },
+          $queryRaw: vi.fn().mockResolvedValue([{ count: 1 }]),
+          $transaction: vi.fn((fn: (tx: any) => Promise<unknown>) => fn({ $queryRaw: vi.fn().mockResolvedValue([{ count: 1 }]) })),
         },
       } as any;
     });
+    vi.mock('@/lib/outbox', () => ({
+      getOutboxProcessor: vi.fn(() => ({
+        getPendingCount: vi.fn().mockResolvedValue(0),
+        getFailedCount: vi.fn().mockResolvedValue(0),
+      })),
+    }));
     const mod = await import('@/app/api/metrics/route');
     const res: Response = await (mod as any).GET();
     expect(res.ok).toBe(true);
-    const json = await res.json();
-    expect(json.success).toBe(true);
-    expect(json.data.invoices).toBeDefined();
-    expect(typeof json.data.invoices.total).toBe('number');
-    expect(typeof json.data.invoices.paid).toBe('number');
-    expect(typeof json.data.invoices.overdue).toBe('number');
-    expect(json.data.payments).toBeDefined();
-    expect(typeof json.data.payments.manualReviewCount).toBe('number');
-    expect(typeof json.data.payments.confirmedCount).toBe('number');
-    expect(typeof json.data.payments.matchRate).toBe('number');
+    expect(res.headers.get('content-type')).toContain('text/plain');
+    const text = await res.text();
+    expect(text).toContain('outbox_queue_length');
+    expect(text).toContain('outbox_failed_count');
+    expect(text).toContain('db_connections_active');
   });
 });
