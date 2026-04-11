@@ -4,6 +4,7 @@ export interface EdgeSessionPayload {
   displayName: string;
   role: 'ADMIN' | 'STAFF';
   forcePasswordChange: boolean;
+  buildingId: string | null; // Reserved for multi-building isolation (not yet enforced at API layer)
   exp: number;
 }
 
@@ -46,4 +47,29 @@ export async function verifySessionTokenEdge(token: string, secret: string): Pro
   } catch {
     return null;
   }
+}
+
+export function refreshSessionEdgeIfNeeded(payload: EdgeSessionPayload, refreshBeforeSecs = 60 * 5): EdgeSessionPayload | null {
+  const nowMs = Date.now();
+  const expMs = payload.exp * 1000;
+  if (expMs <= nowMs) return null;
+  if (expMs - nowMs > refreshBeforeSecs * 1000) return null;
+  return { ...payload, exp: Math.floor(nowMs / 1000) + 60 * 60 * 12 };
+}
+
+// Edge-compatible session token signing using Web Crypto API
+export function signSessionTokenEdge(payload: EdgeSessionPayload, secret: string): Promise<string> {
+  const encodedPayload = encodeBase64Url(new Uint8Array(new TextEncoder().encode(JSON.stringify(payload))).buffer as ArrayBuffer);
+  return crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  ).then((key) =>
+    crypto.subtle.sign('HMAC', key, new TextEncoder().encode(encodedPayload))
+  ).then((signatureBuffer) => {
+    const signature = encodeBase64Url(signatureBuffer as ArrayBuffer);
+    return `${encodedPayload}.${signature}`;
+  });
 }

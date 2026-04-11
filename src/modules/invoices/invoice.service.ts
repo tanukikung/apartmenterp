@@ -28,9 +28,7 @@ import {
 } from '@/lib/utils/errors';
 
 // ============================================================================
-// Invoice Service
-//
-// Aligned with new schema: Invoice.roomNo, Invoice.roomBillingId, Invoice.totalAmount
+// Invoice Creation / Calculation
 // ============================================================================
 
 export interface InvoiceSendResult {
@@ -123,6 +121,10 @@ type LockedPrimaryRecipientRow = {
   phone: string;
 };
 
+// ============================================================================
+// Invoice Creation / Calculation
+// ============================================================================
+
 export class InvoiceService {
   private eventBus: EventBus;
 
@@ -130,15 +132,27 @@ export class InvoiceService {
     this.eventBus = eventBus || EventBus.getInstance();
   }
 
+  /**
+   * Convenience wrapper that creates an invoice from a RoomBilling ID.
+   * All authoritative logic lives in generateInvoice().
+   *
+   * @param roomBillingId - The locked RoomBilling record ID
+   * @returns The generated invoice response
+   */
   async generateInvoiceFromBilling(roomBillingId: string): Promise<InvoiceResponse> {
-    // All validation (existence, LOCKED status, duplicate-invoice check) is now
-    // inside generateInvoice's $transaction, which is the single authoritative
-    // source — no TOCTOU window remains.
     return this.generateInvoice({ billingRecordId: roomBillingId });
   }
 
   /**
-   * Generate invoice from locked RoomBilling
+   * Generates an invoice from a locked RoomBilling record.
+   * Validation (existence, LOCKED status, duplicate check) runs inside the
+   * generating $transaction to eliminate any TOCTOU window.
+   *
+   * @param input - Contains billingRecordId pointing to the locked RoomBilling
+   * @param generatedBy - Optional actor ID for audit logging
+   * @returns The generated invoice response
+   * @throws NotFoundError if RoomBilling does not exist
+   * @throws BadRequestError if billing is not LOCKED or invoice already exists
    */
   async generateInvoice(
     input: GenerateInvoiceInput,
@@ -235,7 +249,11 @@ export class InvoiceService {
   }
 
   /**
-   * Get invoice by ID
+   * Retrieves an invoice by its unique ID.
+   *
+   * @param id - The invoice UUID
+   * @returns The formatted invoice response
+   * @throws NotFoundError if no invoice matches the ID
    */
   async getInvoiceById(id: string): Promise<InvoiceResponse> {
     const invoice = await prisma.invoice.findUnique({
@@ -264,6 +282,14 @@ export class InvoiceService {
     return this.formatInvoiceResponse(invoice);
   }
 
+  /**
+   * Returns a full invoice preview including line items and meter readings,
+   * derived from the associated RoomBilling record.
+   *
+   * @param id - The invoice UUID
+   * @returns The invoice preview with item snapshots and meter readings
+   * @throws NotFoundError if no invoice matches the ID
+   */
   async getInvoicePreview(id: string) {
     const invoice = await prisma.invoice.findUnique({
       where: { id },
@@ -360,7 +386,13 @@ export class InvoiceService {
   }
 
   /**
-   * Get invoice by room/year/month
+   * Looks up a single invoice by room number, year, and month.
+   * Returns null if no matching invoice exists.
+   *
+   * @param roomNo   - The room identifier
+   * @param year     - Billing year
+   * @param month    - Billing month (1-12)
+   * @returns The invoice response, or null if not found
    */
   async getInvoice(
     roomNo: string,
@@ -389,7 +421,10 @@ export class InvoiceService {
   }
 
   /**
-   * List invoices
+   * Lists invoices with optional filters and pagination.
+   *
+   * @param query - Filter keys: roomNo, year, month, status, page, pageSize, sortBy, sortOrder
+   * @returns Paginated list of invoice responses
    */
   async listInvoices(query: ListInvoicesQuery): Promise<InvoicesListResponse> {
     const { roomNo, year, month, status, page, pageSize, sortBy, sortOrder } = query;
@@ -439,8 +474,22 @@ export class InvoiceService {
     };
   }
 
+  // ============================================================================
+  // Invoice Delivery
+  // ============================================================================
+
   /**
-   * Canonical invoice send flow.
+   * Sends an invoice to the tenant via LINE (only supported channel).
+   * Acquires a row-level lock on the invoice before updating to prevent
+   * concurrent send conflicts. Queues an outbox event for async delivery.
+   *
+   * @param id      - The invoice UUID
+   * @param input   - Send options (channel, templateId, sendToLine flag)
+   * @param sentBy  - Optional actor ID for audit logging
+   * @returns Send result with delivery status, PDF URL, and template info
+   * @throws NotFoundError    if invoice does not exist
+   * @throws ValidationError  if invoice is already SENT/PAID or channel unsupported
+   * @throws ConflictError     if invoice state changed beneath the lock
    */
   async sendInvoice(
     id: string,
@@ -662,8 +711,18 @@ export class InvoiceService {
     };
   }
 
+  // ============================================================================
+  // Invoice Status Transitions
+  // ============================================================================
+
   /**
-   * Mark invoice as viewed
+   * Records that a tenant has viewed the invoice link.
+   * Idempotent: already-paid invoices return the current state without update.
+   *
+   * @param id        - The invoice UUID
+   * @param tenantId  - Optional tenant ID for event payload
+   * @returns The updated invoice response
+   * @throws NotFoundError if invoice does not exist
    */
   async markInvoiceViewed(id: string, tenantId?: string): Promise<InvoiceResponse> {
     const invoice = await prisma.invoice.findUnique({ where: { id } });
@@ -710,10 +769,20 @@ export class InvoiceService {
     return this.formatInvoiceResponse(updated);
   }
 
+  // ============================================================================
+  // Invoice Cancellation
+  // ============================================================================
+
   /**
-   * Cancel an invoice and revert the associated RoomBilling to LOCKED
+   * Cancels an invoice and reverts the associated RoomBilling to LOCKED
    * so it can be re-invoiced after corrections.
-   * Only GENERATED/overdue invoices can be cancelled; SENT/PAID cannot.
+   * Only GENERATED or OVERDUE invoices can be cancelled; SENT or PAID cannot.
+   *
+   * @param id          - The invoice UUID
+   * @param cancelledBy - Actor ID performing the cancellation
+   * @returns The cancelled invoice response
+   * @throws NotFoundError  if invoice does not exist
+   * @throws BadRequestError if invoice is already cancelled, SENT, or PAID
    */
   async cancelInvoice(id: string, cancelledBy: string): Promise<InvoiceResponse> {
     const invoice = await prisma.invoice.findUnique({ where: { id } });
@@ -793,8 +862,14 @@ export class InvoiceService {
     return this.formatInvoiceResponse(updated);
   }
 
+  // ============================================================================
+  // Overdue Handling
+  // ============================================================================
+
   /**
-   * Check for overdue invoices
+   * Scans all SENT/VIEWED invoices with a past due date and transitions them
+   * to OVERDUE status, publishing an INVOICE_MARKED_OVERDUE event for each.
+   * Called by the nightly cron job.
    */
   async checkOverdueInvoices(): Promise<void> {
     const today = new Date();

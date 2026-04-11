@@ -140,6 +140,7 @@ model RoomBilling {
   note                     String?
   checkNotes               String?
   status                   RoomBillingStatus @default(DRAFT)
+  calculatedAt             DateTime? @db.Timestamptz(6)
   createdAt                DateTime @default(now()) @db.Timestamptz(6)
   updatedAt                DateTime @updatedAt @db.Timestamptz(6)
   invoice                  Invoice?
@@ -152,6 +153,7 @@ model RoomBilling {
   @@index([roomNo])
   @@index([status])
   @@index([ruleCode])
+  @@index([calculatedAt])
   @@map("room_billings")
 }
 
@@ -463,6 +465,7 @@ model Notification {
   @@index([status])
   @@index([scheduledAt])
   @@index([contractId])
+  @@index([roomNo, status])
   @@map("notifications")
 }
 
@@ -494,6 +497,7 @@ model UploadedFile {
   templateVersions             DocumentTemplateVersion[] @relation("TemplateVersionSourceFile")
   generatedDocumentFiles       GeneratedDocumentFile[]
 
+  @@index([mimeType])
   @@index([createdAt])
   @@index([status])
   @@map("uploaded_files")

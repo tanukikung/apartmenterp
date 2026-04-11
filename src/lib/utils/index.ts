@@ -16,9 +16,9 @@ export function formatCurrency(amount: number | string, currency: string = 'THB'
 }
 
 // Format date
-export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOptions): string {
+export function formatDate(date: Date | string, locale?: string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('th-TH', options || {
+  return d.toLocaleDateString(locale || 'th-TH', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -26,15 +26,38 @@ export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOpt
 }
 
 // Format datetime
-export function formatDateTime(date: Date | string): string {
+export function formatDateTime(date: Date | string, locale?: string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleString('th-TH', {
+  return d.toLocaleString(locale || 'th-TH', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+// Format relative time in Thai (e.g. "5 นาทีที่แล้ว", "2 ชั่วโมงที่แล้ว")
+export function formatRelativeTime(date: Date | string, locale?: string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+
+  const rtf = new Intl.RelativeTimeFormat(locale || 'th-TH', { numeric: 'auto' });
+
+  if (diffSec < 60) {
+    return rtf.format(-diffSec, 'second');
+  } else if (diffMin < 60) {
+    return rtf.format(-diffMin, 'minute');
+  } else if (diffHr < 24) {
+    return rtf.format(-diffHr, 'hour');
+  } else {
+    return rtf.format(-diffDay, 'day');
+  }
 }
 
 // Get month name

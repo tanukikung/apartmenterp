@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifySessionTokenEdge } from '@/lib/auth/session-edge';
+import { verifySessionTokenEdge, refreshSessionEdgeIfNeeded, signSessionTokenEdge } from '@/lib/auth/session-edge';
 import { resolveAuthSecret } from '@/lib/config/env';
 import { isCsrfExemptApiRoute } from '@/lib/auth/api-policy';
 import { logger } from '@/lib/utils/logger';
@@ -104,7 +104,27 @@ export async function middleware(req: NextRequest) {
     if (process.env.NODE_ENV !== 'test') {
       const sessionToken = req.cookies.get('auth_session')?.value;
       const secret = resolveAuthSecret();
-      const session = sessionToken && secret ? await verifySessionTokenEdge(sessionToken, secret) : null;
+      let session = sessionToken && secret ? await verifySessionTokenEdge(sessionToken, secret) : null;
+      // Sliding expiration: refresh session if within 5-minute window
+      if (session) {
+        const refreshed = refreshSessionEdgeIfNeeded(session, 60 * 5);
+        if (refreshed) {
+          // Re-sign the token and set refreshed cookie using edge-compatible signing
+          const newToken = await signSessionTokenEdge(refreshed, secret!);
+          const res = NextResponse.next();
+          res.cookies.set('auth_session', newToken, {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: process.env.COOKIE_SECURE === 'true',
+            path: '/',
+            expires: new Date(refreshed.exp * 1000),
+          });
+          res.headers.set('x-request-id', requestId);
+          res.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+          res.headers.set('X-Content-Type-Options', 'nosniff');
+          return res;
+        }
+      }
       const isAdmin = session?.role === 'ADMIN' || session?.role === 'STAFF';
       const mustChangePassword = Boolean(session?.forcePasswordChange);
 
@@ -168,6 +188,27 @@ export async function middleware(req: NextRequest) {
   res.headers.set('x-request-id', requestId);
   res.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   res.headers.set('X-Content-Type-Options', 'nosniff');
+  // CORS: restrict allowed origins based on environment.
+  // Development: permissive (localhost allowed). Production: use ALLOWED_ORIGINS env var.
+  const origin = req.headers.get('origin');
+  const allowedOrigins = (() => {
+    if (process.env.NODE_ENV !== 'production') {
+      // Dev/test: allow any origin (Next.js dev server accepts all)
+      return true;
+    }
+    const configured = process.env.ALLOWED_ORIGINS;
+    if (!configured) {
+      // Fallback to APP_BASE_URL if ALLOWED_ORIGINS not set
+      return process.env.APP_BASE_URL ? new URL(process.env.APP_BASE_URL).origin === origin : false;
+    }
+    return configured.split(',').map((s) => s.trim()).includes(origin || '');
+  })();
+  if (allowedOrigins && origin) {
+    res.headers.set('Access-Control-Allow-Origin', origin);
+    res.headers.set('Access-Control-Allow-Credentials', 'true');
+    res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id');
+  }
   if (!isEmbeddableRoute) {
     res.headers.set('X-Frame-Options', 'DENY');
   }

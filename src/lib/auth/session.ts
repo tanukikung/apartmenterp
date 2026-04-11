@@ -56,6 +56,19 @@ export function verifySessionToken(token: string, secret: string | null = resolv
   }
 }
 
+// Sliding expiration: refresh session if valid and within the early refresh window.
+// Returns the refreshed payload if renewed, otherwise returns null (no refresh needed or session invalid).
+export function refreshSessionIfNeeded(payload: AuthSessionPayload, refreshBeforeSecs = 60 * 5): AuthSessionPayload | null {
+  const nowMs = Date.now();
+  const expMs = payload.exp * 1000;
+  // Only refresh if: (a) not yet expired, and (b) expiring within the early refresh window
+  if (expMs <= nowMs) return null;
+  if (expMs - nowMs > refreshBeforeSecs * 1000) return null; // Not yet near expiry
+  // Refresh: bump expiry by another 12 hours from now
+  const refreshed: AuthSessionPayload = { ...payload, exp: Math.floor(nowMs / 1000) + 60 * 60 * 12 };
+  return refreshed;
+}
+
 export function getSessionFromRequest(req: NextRequest): AuthSessionPayload | null {
   const cookieStore = (req as { cookies?: { get?: (name: string) => { value?: string } | undefined } }).cookies;
   if (!cookieStore || typeof cookieStore.get !== 'function') {

@@ -51,6 +51,21 @@ export interface MatchCandidate {
   };
 }
 
+// ============================================================================
+// Bank Statement Import
+// ============================================================================
+
+/**
+ * Imports a batch of bank statement entries, creating a PaymentTransaction
+ * record for each and attempting to auto-match them to unpaid invoices.
+ * HIGH confidence matches are auto-confirmed immediately; MEDIUM/LOW confidence
+ * matches are placed in NEED_REVIEW for admin action.
+ *
+ * @param entries  - Array of bank statement line items
+ * @param sourceFile - Originating file name for audit traceability
+ * @param actor    - Optional actor performing the import
+ * @returns Counts of imported and matched transactions
+ */
 export class PaymentMatchingService {
   async importBankStatement(
     entries: BankStatementEntry[],
@@ -123,6 +138,25 @@ export class PaymentMatchingService {
     return { imported, matched };
   }
 
+  // ============================================================================
+  // Invoice Matching
+  // ============================================================================
+
+  /**
+   * Attempts to match a pending PaymentTransaction to an unpaid invoice.
+   * Searches invoices within a ±30/45 day window around the transaction date,
+   * evaluating multiple confidence criteria (invoice number, reference, room,
+   * resident name, amount-only).
+   *
+   * When autoConfirmHighConfidence is true, HIGH confidence matches are
+   * immediately confirmed and a Payment record is created.
+   *
+   * @param transactionId                   - UUID of the PaymentTransaction
+   * @param tx                               - Optional existing transaction client
+   * @param options.autoConfirmHighConfidence - Auto-confirm HIGH confidence matches
+   * @returns MatchCandidate | 'CONFIRMED' | null
+   * @throws NotFoundError if the transaction does not exist
+   */
   async attemptMatch(
     transactionId: string,
     tx?: Prisma.TransactionClient,
@@ -482,6 +516,24 @@ export class PaymentMatchingService {
     }
   }
 
+  // ============================================================================
+  // Match Confirmation / Rejection
+  // ============================================================================
+
+  /**
+   * Manually confirms a payment match selected by an admin.
+   * All validations (transaction exists, not already confirmed, invoice not paid)
+   * and writes are performed inside a $transaction.
+   * Amount-only (LOW confidence) matches are rejected unless a room/invoice/resident
+   * signal is present.
+   *
+   * @param transactionId - UUID of the PaymentTransaction to confirm
+   * @param invoiceId     - UUID of the Invoice to associate
+   * @param confirmedBy   - Actor ID performing the confirmation
+   * @throws NotFoundError    if transaction or invoice does not exist
+   * @throws BadRequestError  if invoice is already PAID or confidence is LOW
+   * @throws ConflictError     if invoice already has a confirmed payment
+   */
   async confirmMatch(
     transactionId: string,
     invoiceId: string,
@@ -641,6 +693,17 @@ export class PaymentMatchingService {
     });
   }
 
+  /**
+   * Rejects a payment transaction that could not be matched automatically.
+   * Sets its status to REJECTED with an optional reason.
+   * Idempotent: already-rejected transactions are a no-op.
+   *
+   * @param transactionId - UUID of the PaymentTransaction to reject
+   * @param rejectedBy   - Actor ID performing the rejection
+   * @param rejectReason - Optional free-text reason for the rejection
+   * @throws NotFoundError  if transaction does not exist
+   * @throws BadRequestError if transaction is already CONFIRMED
+   */
   async rejectMatch(
     transactionId: string,
     rejectedBy: string,
@@ -696,6 +759,18 @@ export class PaymentMatchingService {
     });
   }
 
+  // ============================================================================
+  // Review Queues
+  // ============================================================================
+
+  /**
+   * Returns transactions in NEED_REVIEW status that require admin resolution.
+   * These are LOW confidence matches or unmatched entries from bank statement import.
+   *
+   * @param limit  - Max records to return (default 50)
+   * @param offset - Pagination offset
+   * @returns Paginated list of transactions and total count
+   */
   async getMatchesForReview(limit = 50, offset = 0) {
     const [transactions, total] = await Promise.all([
       prisma.paymentTransaction.findMany({
@@ -726,6 +801,14 @@ export class PaymentMatchingService {
     return { transactions, total };
   }
 
+  /**
+   * Returns transactions that were auto-matched at import time (AUTO_MATCHED).
+   * These are MEDIUM confidence matches that require admin verification.
+   *
+   * @param limit  - Max records to return (default 50)
+   * @param offset - Pagination offset
+   * @returns Paginated list of transactions and total count
+   */
   async getAutoMatchedPayments(limit = 50, offset = 0) {
     const [transactions, total] = await Promise.all([
       prisma.paymentTransaction.findMany({

@@ -59,16 +59,24 @@ export async function register() {
   const inFlightJobs = new Set<Promise<unknown>>();
 
   // ── Graceful shutdown ─────────────────────────────────────────────────────
+  // Maximum time to wait for in-flight jobs before forcing shutdown.
+  const SHUTDOWN_TIMEOUT_MS = 30_000;
+
   const shutdown = async (signal: string) => {
     logger.info({ signal }, '🛑 Shutdown signal received — clearing intervals');
     for (const id of intervals) clearInterval(id);
     intervals.length = 0;
 
-    // Wait for in-flight jobs to finish before exiting.
+    // Wait for in-flight jobs to finish before exiting, but do not wait forever.
     if (inFlightJobs.size > 0) {
-      logger.info({ count: inFlightJobs.size }, '⏳ Waiting for in-flight jobs to complete');
-      await Promise.all(inFlightJobs);
-      logger.info('✅ All in-flight jobs completed');
+      logger.info({ count: inFlightJobs.size }, '⏳ Waiting for in-flight jobs to complete (max 30s)');
+      const timeout = new Promise<void>((resolve) => setTimeout(resolve, SHUTDOWN_TIMEOUT_MS));
+      await Promise.race([Promise.all(inFlightJobs), timeout]);
+      if (inFlightJobs.size > 0) {
+        logger.warn({ remaining: inFlightJobs.size }, '⚠️  Shutdown timeout reached — forcing exit with jobs still in flight');
+      } else {
+        logger.info('✅ All in-flight jobs completed');
+      }
     }
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));

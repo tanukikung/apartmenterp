@@ -164,6 +164,13 @@ export async function runBackup(): Promise<{ s3Uri?: string }> {
     gzip.on('error', reject);
   });
 
+  // Verify backup file was created and has non-zero size before considering success
+  const stat = await fs.stat(filePath).catch(() => null);
+  if (!stat || stat.size === 0) {
+    throw new Error(`Backup verification failed: file ${filePath} is missing or empty`);
+  }
+  logger.info({ type: 'backup_file_verified', filePath, sizeBytes: stat.size });
+
   const retention = parseInt(process.env.BACKUP_RETENTION_DAYS || '7', 10);
   const deleted = await cleanOldBackups(dir, retention);
 

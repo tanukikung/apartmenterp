@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { logger } from './logger';
 import { redisRateLimit } from '@/infrastructure/redis';
 import { mapPrismaError } from '@/lib/errors/prismaErrorMapper';
-import { getSessionFromRequest } from '@/lib/auth/session';
+import { getSessionFromRequest, refreshSessionIfNeeded, type AuthSessionPayload } from '@/lib/auth/session';
 import { hasValidCronSecret, resolveApiRoutePolicy, isForcePasswordChangeExemptRoute } from '@/lib/auth/api-policy';
 
 // ============================================================================
@@ -345,6 +345,12 @@ export function asyncHandler<
             const session = getSessionFromRequest(r);
             if (!session) {
               throw new UnauthorizedError('Authentication required');
+            }
+
+            // Sliding expiration: if session is within 5-minute refresh window, mark it refreshed
+            const refreshed = refreshSessionIfNeeded(session, 60 * 5);
+            if (refreshed) {
+              (r as { _sessionRefreshed?: AuthSessionPayload })._sessionRefreshed = refreshed;
             }
 
             if (

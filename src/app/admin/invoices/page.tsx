@@ -15,6 +15,7 @@ import {
   Send,
 } from 'lucide-react';
 import { exportToCsv } from '@/lib/utils/export-csv';
+import { formatDate } from '@/lib/utils';
 import { ModernTable } from '@/components/ui/modern-table';
 import { StatusBadge, invoiceStatusVariant } from '@/components/ui/status-badge';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -88,9 +89,7 @@ function fmtPeriod(year: number, month: number): string {
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('th-TH', {
-    day: '2-digit', month: 'short', year: 'numeric',
-  });
+  return formatDate(iso, 'th-TH');
 }
 
 function roomNum(inv: InvoiceRow): string {
