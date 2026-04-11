@@ -55,44 +55,39 @@ const PAGE_TITLES: Array<{ prefix: string; label: string }> = [
   { prefix: '/admin/tenants', label: 'ผู้เช่า' },
   { prefix: '/admin/tenant-registrations', label: 'ลงทะเบียนผู้เช่า' },
   { prefix: '/admin/contracts', label: 'สัญญาเช่า' },
+  { prefix: '/admin/moveouts', label: 'ย้ายออก' },
+  { prefix: '/admin/billing', label: 'รอบบิล' },
   { prefix: '/admin/billing/import', label: 'นำเข้าข้อมูลบิล' },
   { prefix: '/admin/billing/batches', label: 'ชุดข้อมูลบิล' },
-  { prefix: '/admin/billing', label: 'รอบบิล' },
   { prefix: '/admin/invoices', label: 'ใบแจ้งหนี้' },
-  { prefix: '/admin/payments/upload-statement', label: 'อัปโหลด Statement' },
-  { prefix: '/admin/payments/review-match', label: 'ตรวจสอบการจับคู่' },
-  { prefix: '/admin/payments/review', label: 'ตรวจสอบการชำระเงิน' },
   { prefix: '/admin/payments', label: 'ชำระเงิน' },
+  { prefix: '/admin/payments/upload-statement', label: 'อัปโหลด Statement' },
+  { prefix: '/admin/payments/review', label: 'ตรวจสอบการชำระเงิน' },
+  { prefix: '/admin/payments/review-match', label: 'ตรวจสอบการจับคู่' },
   { prefix: '/admin/overdue', label: 'ค้างชำระ' },
+  { prefix: '/admin/expenses', label: 'ค่าใช้จ่าย' },
+  { prefix: '/admin/chat', label: 'แชท' },
+  { prefix: '/admin/message-templates', label: 'เทมเพลตข้อความ' },
+  { prefix: '/admin/broadcast', label: 'ประกาศ' },
+  { prefix: '/admin/maintenance', label: 'แจ้งซ่อม' },
   { prefix: '/admin/templates', label: 'เทมเพลต' },
   { prefix: '/admin/documents/generate', label: 'สร้างเอกสาร' },
   { prefix: '/admin/documents', label: 'เอกสาร' },
   { prefix: '/admin/deliveries', label: 'ส่ง LINE' },
-  { prefix: '/admin/chat', label: 'แชท LINE' },
-  { prefix: '/admin/message-templates', label: 'เทมเพลตข้อความ' },
-  { prefix: '/admin/broadcast', label: 'ประกาศ' },
   { prefix: '/admin/analytics', label: 'Analytics' },
-  { prefix: '/admin/reports/revenue', label: 'รายงานรายรับ' },
-  { prefix: '/admin/reports/occupancy', label: 'รายงานการเข้าพัก' },
-  { prefix: '/admin/reports/collections', label: 'รายงานการชำระเงิน' },
-  { prefix: '/admin/reports/profit-loss', label: 'รายงานกำไร/ขาดทุน' },
   { prefix: '/admin/reports', label: 'รายงาน' },
+  { prefix: '/admin/reports/profit-loss', label: 'รายงานกำไร/ขาดทุน' },
   { prefix: '/admin/audit-logs', label: 'ประวัติกิจกรรม' },
+  { prefix: '/admin/settings', label: 'ตั้งค่า' },
   { prefix: '/admin/settings/users', label: 'ตั้งค่า — ผู้ใช้' },
   { prefix: '/admin/settings/roles', label: 'ตั้งค่า — บทบาท' },
   { prefix: '/admin/settings/building', label: 'ตั้งค่า — อาคาร' },
   { prefix: '/admin/settings/billing-policy', label: 'ตั้งค่า — บิลลิ่ง' },
   { prefix: '/admin/settings/bank-accounts', label: 'ตั้งค่า — บัญชีธนาคาร' },
   { prefix: '/admin/settings/automation', label: 'ตั้งค่า — อัตโนมัติ' },
-  { prefix: '/admin/settings/integrations', label: 'ตั้งค่า — Integrations' },
-  { prefix: '/admin/settings', label: 'ตั้งค่า' },
+  { prefix: '/admin/settings/integrations', label: 'ตั้งค่า — LINE' },
   { prefix: '/admin/system-health', label: 'สถานะระบบ' },
   { prefix: '/admin/system-jobs', label: 'งานเบื้องหลัง' },
-  { prefix: '/admin/system', label: 'ระบบ' },
-  { prefix: '/admin/users', label: 'ผู้ดูแลระบบ' },
-  { prefix: '/admin/maintenance', label: 'แจ้งซ่อม' },
-  { prefix: '/admin/moveouts', label: 'ย้ายออก' },
-  { prefix: '/admin/floors', label: 'จัดการชั้น' },
 ];
 
 function getPageTitle(pathname: string | null): string {
@@ -106,6 +101,7 @@ function getPageTitle(pathname: string | null): string {
 }
 
 // ── Icon-only nav items ────────────────────────────────────────────────────
+// 7 groups — กระชับพอดี: ห้องพัก | บิล | การเงิน | เอกสาร | สื่อสาร | รายงาน | ตั้งค่า
 const nav: NavItem[] = [
   { type: 'link', href: '/admin/dashboard', label: 'แดชบอร์ด', icon: LayoutDashboard },
 
@@ -120,18 +116,19 @@ const nav: NavItem[] = [
   },
 
   {
-    type: 'group', label: 'บิล', defaultOpen: true, items: [
+    type: 'group', label: 'บิล', defaultOpen: false, items: [
       { type: 'link', href: '/admin/billing', label: 'รอบบิล', icon: Receipt },
       { type: 'link', href: '/admin/invoices', label: 'ใบแจ้งหนี้', icon: ScrollText },
       { type: 'link', href: '/admin/billing/import', label: 'นำเข้าข้อมูล', icon: Upload },
+      { type: 'link', href: '/admin/billing/batches', label: 'ชุดข้อมูล', icon: Layers },
     ],
   },
 
   {
-    type: 'group', label: 'การเงิน', defaultOpen: true, items: [
+    type: 'group', label: 'การเงิน', defaultOpen: false, items: [
       { type: 'link', href: '/admin/payments', label: 'ชำระเงิน', icon: CreditCard },
       { type: 'link', href: '/admin/overdue', label: 'ค้างชำระ', icon: AlertTriangle },
-      { type: 'link', href: '/admin/payments/upload-statement', label: 'อัปโหลดสเตตเมนต์', icon: Upload },
+      { type: 'link', href: '/admin/expenses', label: 'ค่าใช้จ่าย', icon: PieChart },
     ],
   },
 
@@ -140,13 +137,13 @@ const nav: NavItem[] = [
       { type: 'link', href: '/admin/templates', label: 'เทมเพลต', icon: FilePlus },
       { type: 'link', href: '/admin/documents', label: 'เอกสารที่สร้าง', icon: Layers, exact: true },
       { type: 'link', href: '/admin/documents/generate', label: 'สร้างเอกสาร', icon: FileText },
-      { type: 'link', href: '/admin/deliveries', label: 'LINE ส่ง', icon: Send },
+      { type: 'link', href: '/admin/deliveries', label: 'ส่ง LINE', icon: Send },
     ],
   },
 
   {
-    type: 'group', label: 'ปฏิบัติการ', defaultOpen: false, items: [
-      { type: 'link', href: '/admin/chat', label: 'แชท LINE', icon: MessageSquare },
+    type: 'group', label: 'สื่อสาร', defaultOpen: false, items: [
+      { type: 'link', href: '/admin/chat', label: 'แชท', icon: MessageSquare },
       { type: 'link', href: '/admin/message-templates', label: 'เทมเพลตข้อความ', icon: FileEdit },
       { type: 'link', href: '/admin/broadcast', label: 'ประกาศ', icon: Bell },
       { type: 'link', href: '/admin/maintenance', label: 'แจ้งซ่อม', icon: Wrench },
@@ -154,7 +151,7 @@ const nav: NavItem[] = [
   },
 
   {
-    type: 'group', label: 'ข้อมูลเชิงลึก', defaultOpen: false, items: [
+    type: 'group', label: 'รายงาน', defaultOpen: false, items: [
       { type: 'link', href: '/admin/analytics', label: 'Analytics', icon: PieChart },
       { type: 'link', href: '/admin/reports', label: 'รายงาน', icon: FileBarChart },
       { type: 'link', href: '/admin/audit-logs', label: 'ประวัติกิจกรรม', icon: ClipboardList },
@@ -162,11 +159,15 @@ const nav: NavItem[] = [
   },
 
   {
-    type: 'group', label: 'ระบบ', defaultOpen: false, items: [
-      { type: 'link', href: '/admin/settings', label: 'ตั้งค่า', icon: Settings },
-      { type: 'link', href: '/admin/system', label: 'ระบบ', icon: Server, exact: true },
-      { type: 'link', href: '/admin/system-health', label: 'สถานะ', icon: FileText },
-      { type: 'link', href: '/admin/system-jobs', label: 'งานเบื้องหลัง', icon: Cpu },
+    type: 'group', label: 'ตั้งค่า', defaultOpen: false, items: [
+      { type: 'link', href: '/admin/settings', label: 'ภาพรวม', icon: Settings, exact: true },
+      { type: 'link', href: '/admin/settings/users', label: 'ผู้ใช้', icon: Users },
+      { type: 'link', href: '/admin/settings/building', label: 'อาคาร', icon: Building2 },
+      { type: 'link', href: '/admin/settings/billing-policy', label: 'บิลลิ่ง', icon: Receipt },
+      { type: 'link', href: '/admin/settings/bank-accounts', label: 'บัญชีธนาคาร', icon: CreditCard },
+      { type: 'link', href: '/admin/settings/automation', label: 'อัตโนมัติ', icon: Cpu },
+      { type: 'link', href: '/admin/settings/integrations', label: 'LINE', icon: MessageSquare },
+      { type: 'link', href: '/admin/system-health', label: 'สถานะระบบ', icon: Server },
     ],
   },
 ];
