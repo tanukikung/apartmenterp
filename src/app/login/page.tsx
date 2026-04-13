@@ -11,6 +11,15 @@ export default async function LoginPage({
   const firstUserSetup = (await prisma.adminUser.count()) === 0;
   const requiresOwnerApproval = !firstUserSetup;
   const error = searchParams?.error ? decodeURIComponent(searchParams.error) : null;
+  const helperItems = firstUserSetup
+    ? [
+        'เริ่มต้นระบบด้วยการสร้างบัญชีเจ้าของคนแรก',
+        'หลังจากนั้นเจ้าของสามารถอนุมัติพนักงานและจัดการสิทธิ์ได้',
+      ]
+    : [
+        'รองรับเฉพาะบัญชีเจ้าของและพนักงานที่ได้รับอนุมัติแล้ว',
+        'หากลืมรหัสผ่าน สามารถเริ่มกระบวนการรีเซ็ตได้จากลิงก์ด้านล่าง',
+      ];
 
   return (
     <main className="auth-shell">
@@ -23,22 +32,26 @@ export default async function LoginPage({
           </div>
           <div>
             <div className="auth-brand-title">Apartment ERP</div>
-            <div className="auth-brand-subtitle">Admin Access · v2</div>
+            <div className="auth-brand-subtitle">Operations Console</div>
           </div>
         </div>
 
         <div className="auth-header">
-          <h1>Sign in</h1>
-          <p>Access the operations console with your owner or approved staff account.</p>
+          <h1>เข้าสู่ระบบผู้ดูแล</h1>
+          <p>
+            {firstUserSetup
+              ? 'เริ่มตั้งค่าระบบครั้งแรกสำหรับเจ้าของอาคาร'
+              : 'ใช้บัญชีเจ้าของหรือพนักงานที่ได้รับอนุมัติเพื่อเข้าสู่ระบบหลังบ้าน'}
+          </p>
         </div>
 
         <form action="/api/auth/login" method="post" className="auth-form">
           <label className="auth-label">
-            <span>Username or Email</span>
+            <span>ชื่อผู้ใช้หรืออีเมล</span>
             <input
               className="auth-input"
               name="username"
-              placeholder="Enter your username"
+              placeholder="กรอกชื่อผู้ใช้"
               autoComplete="username"
               required
               minLength={1}
@@ -46,12 +59,12 @@ export default async function LoginPage({
           </label>
 
           <label className="auth-label">
-            <span>Password</span>
+            <span>รหัสผ่าน</span>
             <input
               className="auth-input"
               name="password"
               type="password"
-              placeholder="Enter your password"
+              placeholder="กรอกรหัสผ่าน"
               autoComplete="current-password"
               required
               minLength={1}
@@ -61,18 +74,27 @@ export default async function LoginPage({
           {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
 
           <button type="submit" className="auth-button auth-button-primary">
-            Sign In
+            เข้าสู่ระบบ
           </button>
         </form>
 
+        <div className="auth-helper">
+          <div className="auth-helper-title">ก่อนเริ่มใช้งาน</div>
+          <ul className="auth-helper-list">
+            {helperItems.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
         <div className="auth-links">
-          <Link href="/forgot-password">Forgot password?</Link>
+          <Link href="/forgot-password">ลืมรหัสผ่าน?</Link>
           {firstUserSetup ? (
-            <Link href="/sign-up">Create first owner</Link>
+            <Link href="/sign-up">สร้างเจ้าของคนแรก</Link>
           ) : requiresOwnerApproval ? (
-            <Link href="/sign-up">Register as staff</Link>
+            <Link href="/sign-up">ลงทะเบียนพนักงาน</Link>
           ) : (
-            <span>Accounts are created by owners</span>
+            <span>บัญชีใหม่ต้องได้รับอนุมัติจากเจ้าของ</span>
           )}
         </div>
       </section>

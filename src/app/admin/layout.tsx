@@ -219,10 +219,10 @@ function IconNavItem({
     <div className="relative group">
       <Link
         href={item.href}
-        className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200
+        className={`relative flex items-center justify-center w-11 h-11 rounded-xl border transition-all duration-200
           ${active
-            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
-            : 'text-[var(--color-text-3)] hover:bg-[var(--color-surface)]/10 hover:text-[var(--color-text-2)]'
+            ? 'border-indigo-500/30 bg-gradient-to-br from-[var(--primary)] to-indigo-600 text-white shadow-lg shadow-indigo-500/35'
+            : 'border-transparent text-[var(--color-text-3)] hover:border-white/8 hover:bg-white/6 hover:text-[var(--color-text-2)]'
           }`}
         title={item.label}
       >
@@ -249,8 +249,10 @@ function IconNavGroup({
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200
-          ${hasActiveChild ? 'text-indigo-400' : 'text-[var(--color-text-3)] hover:bg-[var(--color-surface)]/10 hover:text-[var(--color-text-2)]'}`}
+        className={`relative flex items-center justify-center w-11 h-11 rounded-xl border transition-all duration-200
+          ${hasActiveChild
+            ? 'border-indigo-500/20 bg-indigo-500/12 text-indigo-300 shadow-inner shadow-indigo-500/10'
+            : 'border-transparent text-[var(--color-text-3)] hover:border-white/8 hover:bg-white/6 hover:text-[var(--color-text-2)]'}`}
         title={group.label}
       >
         {activeItem ? (
@@ -279,7 +281,7 @@ function IconNavGroup({
                 href={item.href}
                 className={`flex items-center gap-2.5 px-3 py-2.5 text-[13px] font-medium transition-colors
                   ${active
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-gradient-to-r from-[var(--primary)] to-indigo-600 text-white'
                     : 'text-[var(--color-text-3)] hover:bg-[var(--color-surface)]/5 hover:text-[var(--color-text-2)]'
                   }`}
               >

@@ -192,28 +192,54 @@ function KpiCard({
 
 function ActionButton({
   label,
+  description,
   icon: Icon,
   color,
   href,
 }: {
   label: string;
+  description?: string;
   icon: React.ElementType;
   color: 'blue' | 'green' | 'red';
   href: string;
 }) {
   const colors = {
-    blue: 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200',
-    green: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200',
-    red: 'bg-red-600 hover:bg-red-700 text-white shadow-red-200',
+    blue: {
+      container: 'border border-indigo-500/25 bg-gradient-to-br from-[var(--primary)] via-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/35',
+      icon: 'bg-white/15 text-white ring-1 ring-white/20',
+      sub: 'text-white/75',
+      arrow: 'text-white/75',
+    },
+    green: {
+      container: 'border border-emerald-200 bg-emerald-50 text-emerald-900 shadow-sm hover:border-emerald-300 hover:bg-emerald-100',
+      icon: 'bg-white text-emerald-700 ring-1 ring-emerald-100',
+      sub: 'text-emerald-700/80',
+      arrow: 'text-emerald-700/70',
+    },
+    red: {
+      container: 'border border-rose-200 bg-rose-50 text-rose-900 shadow-sm hover:border-rose-300 hover:bg-rose-100',
+      icon: 'bg-white text-rose-700 ring-1 ring-rose-100',
+      sub: 'text-rose-700/80',
+      arrow: 'text-rose-700/70',
+    },
   }[color];
 
   return (
     <Link
       href={href}
-      className={`flex flex-col items-center justify-center gap-2 rounded-xl py-4 px-6 font-bold text-sm shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${colors}`}
+      className={`group flex min-h-[112px] flex-col justify-between rounded-2xl px-5 py-4 transition-all duration-200 hover:-translate-y-0.5 ${colors.container}`}
     >
-      <Icon size={22} strokeWidth={2} />
-      {label}
+      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${colors.icon}`}>
+        <Icon size={20} strokeWidth={2.1} />
+      </div>
+      <div className="space-y-1">
+        <div className="text-sm font-bold">{label}</div>
+        {description ? <div className={`text-xs ${colors.sub}`}>{description}</div> : null}
+      </div>
+      <div className={`ml-auto flex items-center gap-1 text-xs font-semibold ${colors.arrow}`}>
+        เปิด
+        <ArrowRight size={12} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+      </div>
     </Link>
   );
 }
@@ -513,25 +539,36 @@ export default function AdminDashboardPage() {
         </section>
 
         {/* ── 3 Big Action Buttons ────────────────────────────────── */}
-        <section className="grid grid-cols-3 gap-4">
+        <section className="space-y-3">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-[var(--on-surface)]">งานด่วนประจำวัน</h2>
+              <p className="text-xs text-[var(--on-surface-variant)]">ทางลัดสำหรับงานที่ใช้บ่อยที่สุดในรอบปฏิบัติการประจำวัน</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <ActionButton
             label="ตรวจสลิป"
+            description="เปิดรายการรอจับคู่และตรวจสอบการโอนล่าสุด"
             icon={ClipboardCheck}
             color="blue"
             href="/admin/payments/review"
           />
           <ActionButton
             label="วางบิล"
+            description="เข้าสู่รอบบิลและจัดการชุดข้อมูลก่อนออกใบแจ้งหนี้"
             icon={Receipt}
             color="green"
             href="/admin/billing"
           />
           <ActionButton
             label="ดูค้างชำระ"
+            description="ติดตามยอดเกินกำหนดและเตรียมส่งเตือนผู้เช่า"
             icon={FileText}
             color="red"
             href="/admin/overdue"
           />
+          </div>
         </section>
 
         {/* ── Task Cards + Recent Activity ─────────────────────────── */}

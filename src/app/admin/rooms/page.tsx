@@ -6,7 +6,7 @@ import { LayoutGrid, List, Plus, X, DoorOpen, Search, ExternalLink } from 'lucid
 import { useApiData } from '@/hooks/useApi';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CardGrid } from '@/components/ui/card-grid';
-import { ModernTable, ColumnDef } from '@/components/ui/modern-table';
+import { ModernTable } from '@/components/ui/modern-table';
 import { StatusBadge, roomStatusVariant } from '@/components/ui/status-badge';
 
 type Room = {
@@ -62,6 +62,13 @@ const createDefaults = {
 };
 
 type DrawerMode = 'create' | 'edit' | null;
+
+const ROOM_STATUS_LABELS: Record<Room['roomStatus'], string> = {
+  VACANT: 'ว่าง',
+  OCCUPIED: 'มีผู้เช่า',
+  MAINTENANCE: 'ซ่อมบำรุง',
+  OWNER_USE: 'ใช้เอง',
+};
 
 export default function AdminRoomsPage() {
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
@@ -144,12 +151,20 @@ export default function AdminRoomsPage() {
     }
   }, [selectedRoom]);
 
-  const stats = useMemo(() => ({
-    total: roomsData?.total ?? 0,
-    occupied: roomsData?.statusCounts?.OCCUPIED ?? 0,
-    available: (roomsData?.statusCounts?.VACANT ?? 0) + (roomsData?.statusCounts?.OCCUPIED ?? 0),
-    unavailable: (roomsData?.statusCounts?.MAINTENANCE ?? 0) + (roomsData?.statusCounts?.OWNER_USE ?? 0),
-  }), [roomsData]);
+  const stats = useMemo(() => {
+    const total = roomsData?.total ?? 0;
+    const occupied = roomsData?.statusCounts?.OCCUPIED ?? 0;
+    const vacant = roomsData?.statusCounts?.VACANT ?? 0;
+    const blocked = (roomsData?.statusCounts?.MAINTENANCE ?? 0) + (roomsData?.statusCounts?.OWNER_USE ?? 0);
+
+    return {
+      total,
+      occupied,
+      vacant,
+      blocked,
+      occupancyRate: total > 0 ? Math.round((occupied / total) * 100) : 0,
+    };
+  }, [roomsData]);
 
   const filteredRooms = useMemo(() => {
     if (!roomsData?.data) return [];
@@ -306,56 +321,106 @@ export default function AdminRoomsPage() {
   }
 
   return (
-    <main className="p-8 max-w-7xl mx-auto w-full space-y-6">
+    <main className="mx-auto w-full max-w-[1480px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
 
       {/* ── Header ── */}
-      <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
+      <section className="rounded-3xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div className="space-y-3">
           <h1 className="text-2xl font-extrabold tracking-tight text-[var(--primary)]">ห้องพัก</h1>
           <p className="mt-1 text-sm text-[var(--on-surface-variant)]">จัดการห้องพัก สร้าง แก้ไข และเปลี่ยนสถานะ</p>
-        </div>
-        <button
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full bg-[var(--surface-container-low)] px-3 py-1 font-semibold text-[var(--on-surface)]">
+                ห้องทั้งหมด {stats.total.toLocaleString()}
+              </span>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
+                ว่าง {stats.vacant.toLocaleString()}
+              </span>
+              <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700">
+                มีผู้เช่า {stats.occupied.toLocaleString()}
+              </span>
+              <span className="rounded-full bg-amber-50 px-3 py-1 font-semibold text-amber-700">
+                ระงับใช้งาน {stats.blocked.toLocaleString()}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 self-start xl:self-auto">
+            <div className="rounded-2xl border border-[var(--outline-variant)]/25 bg-[var(--surface-container-low)] p-1">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className={`rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
+                    viewMode === 'grid'
+                      ? 'bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-sm'
+                      : 'text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]'
+                  }`}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <LayoutGrid size={16} />
+                    การ์ด
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('table')}
+                  className={`rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
+                    viewMode === 'table'
+                      ? 'bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-sm'
+                      : 'text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]'
+                  }`}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <List size={16} />
+                    ตาราง
+                  </span>
+                </button>
+              </div>
+            </div>
+            <button
           onClick={() => { setDrawerMode('create'); setSelectedRoom(null); }}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all"
+          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-4 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:opacity-90"
         >
           <Plus size={14} strokeWidth={2.5} />
           เพิ่มห้อง
-        </button>
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* ── KPI Stats ── */}
-      <section className="grid gap-4 sm:grid-cols-4">
-        <div className="bg-[var(--surface-container-lowest)] p-5 rounded-xl border border-[var(--outline-variant)]/10 hover:shadow-lg transition-all">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-[var(--outline-variant)]/15 bg-[var(--surface-container-lowest)] p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ทั้งหมด</p>
-          <div className="text-2xl font-extrabold tracking-tight text-[var(--primary)]">{stats.total}</div>
+          <div className="text-3xl font-extrabold tracking-tight text-[var(--primary)]">{stats.total.toLocaleString()}</div>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] p-5 rounded-xl border border-[var(--outline-variant)]/10 hover:shadow-lg transition-all">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ว่าง</p>
-          <div className="text-2xl font-extrabold tracking-tight text-emerald-600">{roomsData?.statusCounts?.VACANT ?? 0}</div>
+          <div className="text-3xl font-extrabold tracking-tight text-emerald-700">{stats.vacant.toLocaleString()}</div>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] p-5 rounded-xl border border-[var(--outline-variant)]/10 hover:shadow-lg transition-all">
+        <div className="rounded-2xl border border-blue-200 bg-blue-50/75 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">มีผู้เช่า</p>
-          <div className="text-2xl font-extrabold tracking-tight text-blue-600">{roomsData?.statusCounts?.OCCUPIED ?? 0}</div>
+          <div className="text-3xl font-extrabold tracking-tight text-blue-700">{stats.occupied.toLocaleString()}</div>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] p-5 rounded-xl border border-[var(--outline-variant)]/10 hover:shadow-lg transition-all">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/75 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ไม่ว่าง/ซ่อม</p>
-          <div className="text-2xl font-extrabold tracking-tight text-amber-600">{stats.unavailable}</div>
+          <div className="text-3xl font-extrabold tracking-tight text-amber-700">{stats.blocked.toLocaleString()}</div>
         </div>
       </section>
 
       {/* ── Toolbar ── */}
-      <section className="flex flex-wrap items-center gap-3">
+      <section className="flex flex-wrap items-center gap-3 rounded-3xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-4 shadow-sm sm:p-5">
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)]" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-[var(--surface-container-lowest)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all"
+            className="w-full rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-low)] py-2.5 pl-10 pr-4 text-sm transition-all focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]"
             placeholder="ค้นหาเลขห้อง..."
           />
         </div>
         <select
-          className="px-3 py-2 bg-[var(--surface-container-lowest)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]"
+          className="rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-low)] px-3 py-2.5 text-sm focus:ring-2 focus:ring-[var(--primary)]"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
@@ -365,20 +430,6 @@ export default function AdminRoomsPage() {
           <option value="MAINTENANCE">ซ่อมบำรุง</option>
           <option value="OWNER_USE">ใช้เอง</option>
         </select>
-        <div className="flex items-center gap-1 bg-[var(--surface-container-low)] rounded-lg p-1">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-1.5 rounded transition-all ${viewMode === 'grid' ? 'bg-[var(--surface-container-lowest)] shadow-sm text-[var(--primary)]' : 'text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]'}`}
-          >
-            <LayoutGrid size={16} />
-          </button>
-          <button
-            onClick={() => setViewMode('table')}
-            className={`p-1.5 rounded transition-all ${viewMode === 'table' ? 'bg-[var(--surface-container-lowest)] shadow-sm text-[var(--primary)]' : 'text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]'}`}
-          >
-            <List size={16} />
-          </button>
-        </div>
       </section>
 
       {/* ── Floor Filter Pills ── */}
@@ -430,7 +481,7 @@ export default function AdminRoomsPage() {
       ) : viewMode === 'grid' ? (
         <CardGrid
           items={filteredRooms}
-          columns={4}
+          columns={3}
           idKey="roomNo"
           getCardMeta={(room) => ({
             title: room.roomNo,

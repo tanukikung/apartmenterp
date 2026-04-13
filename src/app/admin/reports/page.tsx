@@ -940,6 +940,24 @@ export default function AdminReportsPage() {
   const validTabs: Tab[] = ['overview', 'revenue', 'occupancy', 'collections'];
   const initialTab = validTabs.includes(tabParam as Tab) ? (tabParam as Tab) : 'overview';
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const activeTabMeta = {
+    overview: {
+      eyebrow: 'ภาพรวมผู้บริหาร',
+      description: 'ดูภาพรวมรายได้ สถานะห้อง และกิจกรรมล่าสุดในมุมมองเดียว',
+    },
+    revenue: {
+      eyebrow: 'รายได้และใบแจ้งหนี้',
+      description: 'ติดตามแนวโน้มรายได้ มูลค่าเรียกเก็บ และยอดค้างชำระรายเดือน',
+    },
+    occupancy: {
+      eyebrow: 'อัตราเข้าพัก',
+      description: 'ตรวจความหนาแน่นของผู้เช่าและกระจายสถานะห้องในแต่ละชั้น',
+    },
+    collections: {
+      eyebrow: 'ประสิทธิภาพการเก็บเงิน',
+      description: 'วิเคราะห์อัตราเก็บเงินและโครงสร้างหนี้ค้างตามช่วงเวลา',
+    },
+  }[activeTab];
 
   // Sync tab changes to URL without full navigation
   const handleTabChange = useCallback((tab: Tab) => {
@@ -956,37 +974,49 @@ export default function AdminReportsPage() {
   return (
     <main className="space-y-6">
       {/* Page header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
-        <div className="relative flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--primary-container)] via-[var(--primary)] to-indigo-500 px-6 py-6 shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.18),_transparent_58%)]" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/20 ring-1 ring-white/30">
               <BarChart2 className="h-5 w-5 text-[var(--on-primary)]" strokeWidth={1.75} />
             </div>
             <div>
               <h1 className="text-base font-semibold text-[var(--on-primary)]">รายงาน</h1>
               <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">ภาพรวมรายงานทางการเงิน สถานะห้อง และกิจกรรมระบบ</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--on-primary)]/86">
+                <span className="rounded-full bg-white/14 px-3 py-1 font-semibold">{activeTabMeta.eyebrow}</span>
+                <span className="rounded-full bg-black/10 px-3 py-1">{activeTabMeta.description}</span>
+              </div>
             </div>
           </div>
-          <button onClick={() => window.location.reload()} className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30">
+          <button onClick={() => window.location.reload()} className="inline-flex items-center gap-2 rounded-xl bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30">
             <RefreshCw className="h-4 w-4" />รีเฟรช
           </button>
         </div>
       </div>
 
       {/* Tab Switcher */}
-      <div className="inline-flex items-center gap-1 rounded-xl bg-[var(--surface-container)] p-1">
-        {TABS.map((tab) => (
-          <button key={tab.id} onClick={() => handleTabChange(tab.id)}
-            className={['px-4 py-2 rounded-lg text-sm font-medium transition-all',
-              activeTab === tab.id ? 'bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-sm' : 'text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] hover:text-[var(--on-surface)]'].join(' ')}>
-            {tab.label}
-          </button>
-        ))}
+      <div className="rounded-2xl border border-[var(--outline-variant)]/25 bg-[var(--surface-container-lowest)] p-3 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">มุมมองรายงาน</div>
+            <p className="mt-1 text-sm text-[var(--on-surface-variant)]">{activeTabMeta.description}</p>
+          </div>
+          <div className="inline-flex flex-wrap items-center gap-1 rounded-xl bg-[var(--surface-container)] p-1">
+            {TABS.map((tab) => (
+              <button key={tab.id} onClick={() => handleTabChange(tab.id)}
+                className={['px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                  activeTab === tab.id ? 'bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-sm' : 'text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] hover:text-[var(--on-surface)]'].join(' ')}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Tab Content */}
-      <div>
+      <div className="rounded-2xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-4 shadow-sm sm:p-5">
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'revenue' && <RevenueTab />}
         {activeTab === 'occupancy' && <OccupancyTab />}
