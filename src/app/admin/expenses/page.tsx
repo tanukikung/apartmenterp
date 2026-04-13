@@ -44,6 +44,12 @@ interface ExpenseListResponse {
   totalPages: number;
 }
 
+interface ExpenseListApiResponse {
+  success: boolean;
+  data?: ExpenseListResponse;
+  error?: { message?: string };
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -165,9 +171,11 @@ export default function AdminExpensesPage() {
     }
 
     const res = await fetch(`/api/expenses?${params}`, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`Failed to load: ${res.status}`);
-    const json: ExpenseListResponse = await res.json();
-    return json;
+    const json: ExpenseListApiResponse = await res.json();
+    if (!res.ok || !json.success || !json.data) {
+      throw new Error(json.error?.message ?? `Failed to load: ${res.status}`);
+    }
+    return json.data;
   }, [categoryFilter, monthFilter]);
 
   const { data: expensesData, isLoading, refetch } = useQuery<ExpenseListResponse>({

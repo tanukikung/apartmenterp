@@ -1,11 +1,33 @@
 import { createClient, type RedisClientType } from 'redis';
+import { mkdir, readFile, writeFile } from 'fs/promises';
+import { dirname, join } from 'path';
 
 let client: RedisClientType | null = null;
+const HEARTBEAT_FILE = join(process.cwd(), '.runtime', 'worker-heartbeat.txt');
 
 // In-memory heartbeat fallback for when Redis is not configured.
 // NOTE: This only works when the worker and API share a process (single-process mode).
 // In multi-process deployments, Redis is required for cross-process heartbeat.
 let inMemoryHeartbeat: number | null = null;
+
+async function writeHeartbeatFallback(value: number): Promise<void> {
+  try {
+    await mkdir(dirname(HEARTBEAT_FILE), { recursive: true });
+    await writeFile(HEARTBEAT_FILE, value.toString(), 'utf8');
+  } catch {
+    // Best effort only.
+  }
+}
+
+async function readHeartbeatFallback(): Promise<number | null> {
+  try {
+    const raw = await readFile(HEARTBEAT_FILE, 'utf8');
+    const value = Number(raw.trim());
+    return Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
 
 export function isRedisConfigured(): boolean {
   return Boolean(process.env.REDIS_URL);
@@ -82,29 +104,36 @@ export async function redisPing(): Promise<boolean> {
 export async function setWorkerHeartbeat(ttlSeconds: number = 30): Promise<void> {
   const c = await ensureRedisConnected();
   if (!c) {
-    // In-memory fallback when Redis is not configured
+    // Cross-process fallback when Redis is unavailable.
     inMemoryHeartbeat = Date.now();
+    await writeHeartbeatFallback(inMemoryHeartbeat);
     return;
   }
   try {
-    await c.set('worker:heartbeat', Date.now().toString(), { EX: ttlSeconds });
+    const now = Date.now();
+    await c.set('worker:heartbeat', now.toString(), { EX: ttlSeconds });
+    inMemoryHeartbeat = now;
+    await writeHeartbeatFallback(now);
   } catch {
-    // ignore
+    inMemoryHeartbeat = Date.now();
+    await writeHeartbeatFallback(inMemoryHeartbeat);
   }
 }
 
 export async function getWorkerHeartbeat(): Promise<number | null> {
   const c = await ensureRedisConnected();
   if (!c) {
-    // In-memory fallback when Redis is not configured
-    return inMemoryHeartbeat;
+    const fileHeartbeat = await readHeartbeatFallback();
+    return fileHeartbeat ?? inMemoryHeartbeat;
   }
   try {
     const val = await c.get('worker:heartbeat');
-    if (!val) return null;
-    const n = Number(val);
-    return Number.isFinite(n) ? n : null;
+    const redisHeartbeat = val ? Number(val) : null;
+    if (redisHeartbeat != null && Number.isFinite(redisHeartbeat)) {
+      return redisHeartbeat;
+    }
+    return (await readHeartbeatFallback()) ?? inMemoryHeartbeat;
   } catch {
-    return null;
+    return (await readHeartbeatFallback()) ?? inMemoryHeartbeat;
   }
 }

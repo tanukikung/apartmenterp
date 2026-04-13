@@ -374,7 +374,7 @@ export default function AdminDashboardPage() {
           safe('/api/analytics/occupancy'),
           safe('/api/analytics/summary'),
           safe('/api/admin/maintenance?status=OPEN&pageSize=5'),
-          safe('/api/admin/payments/review?limit=1'),
+          safe('/api/payments/review?limit=1'),
           safe('/api/invoices?status=OVERDUE&pageSize=5'),
           safe('/api/admin/dashboard-alerts'),
           safe('/api/audit-logs?limit=10'),

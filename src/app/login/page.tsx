@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/db/client';
 
+export const dynamic = 'force-dynamic';
+
 export default async function LoginPage({
   searchParams,
 }: {

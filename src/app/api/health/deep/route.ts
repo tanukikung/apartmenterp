@@ -4,10 +4,12 @@ import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { redisPing, getWorkerHeartbeat, isRedisConfigured } from '@/infrastructure/redis';
 import { requireRole } from '@/lib/auth/guards';
 import { getBackupStatus } from '../../../../../scripts/backup-scheduler';
+import { envHealth } from '@/lib/config/env';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   // Operator-only: deep health exposes sensitive internal state
   requireRole(req, ['ADMIN']);
+  const envStatus = envHealth();
   let database: 'connected' | 'error' = 'connected';
   let dbLatencyMs: number | null = null;
   try {
@@ -73,10 +75,20 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
         ? 'error'
         : 'ok';
 
+  const hasLineChannelId = Boolean(process.env.LINE_CHANNEL_ID);
+  const hasLineChannelSecret = Boolean(process.env.LINE_CHANNEL_SECRET);
+  const hasLineAccessToken = Boolean(process.env.LINE_ACCESS_TOKEN || process.env.LINE_CHANNEL_ACCESS_TOKEN);
+  const missingEnv = [...envStatus.missing];
+  if (!hasLineChannelId) missingEnv.push('LINE_CHANNEL_ID');
+  if (!hasLineChannelSecret) missingEnv.push('LINE_CHANNEL_SECRET');
+  if (!hasLineAccessToken) missingEnv.push('LINE_ACCESS_TOKEN');
+
   const value = {
     status: overallStatus,
     services: {
       database,
+      env: envStatus.status,
+      app: 'ok' as const,
       redis: redisStatus === 'ok' ? 'connected' : redisStatus,
       outbox: {
         queueLength: outboxPending,
@@ -93,6 +105,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
         lastError: backupStatus.lastError,
       },
     },
+    missingEnv,
     servicesDetailed: {
       database: { status: database === 'connected' ? 'ok' : 'error', latencyMs: dbLatencyMs },
       redis: { status: redisStatus, latencyMs: redisConfigured ? redisLatencyMs : null },

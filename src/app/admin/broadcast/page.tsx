@@ -33,6 +33,42 @@ type BroadcastResult = {
   errors: number;
 };
 
+type InvoiceApiResponse = {
+  success: boolean;
+  data?: {
+    data?: Record<string, unknown>[];
+    totalPages?: number;
+  } | Record<string, unknown>[];
+  error?: { message?: string };
+};
+
+async function fetchAllOverdueInvoices(): Promise<Record<string, unknown>[]> {
+  const pageSize = 100;
+  const invoices: Record<string, unknown>[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const res = await fetch(`/api/invoices?status=OVERDUE&page=${page}&pageSize=${pageSize}`, { cache: 'no-store' });
+    const json: InvoiceApiResponse = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error?.message ?? 'Failed to load invoices');
+    }
+
+    const pageItems = Array.isArray(json.data)
+      ? json.data
+      : Array.isArray(json.data?.data)
+        ? json.data.data
+        : [];
+
+    invoices.push(...pageItems);
+    totalPages = Array.isArray(json.data) ? 1 : json.data?.totalPages ?? 1;
+    page += 1;
+  } while (page <= totalPages);
+
+  return invoices;
+}
+
 function money(amount: string): string {
   return new Intl.NumberFormat('th-TH', {
     style: 'currency',
@@ -57,25 +93,36 @@ export default function BroadcastPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/invoices?status=OVERDUE&pageSize=200', { cache: 'no-store' });
-      const json = await res.json();
+      const res = await fetch('/api/invoices?status=OVERDUE&pageSize=100', { cache: 'no-store' });
+      const json: InvoiceApiResponse = await res.json();
       if (!json.success) throw new Error(json.error?.message ?? 'ไม่สามารถโหลดข้อมูล');
       const now = new Date();
-      const items = (json.data?.items ?? json.data ?? []).map((inv: Record<string, unknown>) => {
+      const initialInvoices = Array.isArray(json.data)
+        ? json.data
+        : Array.isArray(json.data?.data)
+          ? json.data.data
+          : [];
+      void initialInvoices;
+      const invoices = await fetchAllOverdueInvoices();
+      const items = invoices.map((inv) => {
         const dueDate = new Date(inv.dueDate as string);
         const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-        const tenant = (inv as Record<string, unknown>).tenant as { firstName?: string; lastName?: string; lineUserId?: string | null } | null;
+        const tenant = (inv.tenant as { firstName?: string; lastName?: string; fullName?: string; lineUserId?: string | null } | null) ?? null;
+        const room = (inv.room as { floorNo?: number } | null) ?? null;
+        const tenantName = typeof inv.tenantName === 'string' && inv.tenantName.trim()
+          ? inv.tenantName.trim()
+          : tenant?.fullName?.trim() || `${tenant?.firstName ?? ''} ${tenant?.lastName ?? ''}`.trim() || null;
         return {
           id: inv.id as string,
           invoiceNumber: inv.invoiceNumber as string ?? `INV-${inv.year}-${inv.month}-${inv.roomNo}`,
           roomNo: inv.roomNo as string,
-          floorNo: (inv as Record<string, unknown>).room ? ((inv as Record<string, unknown>).room as { floorNo?: number }).floorNo ?? 0 : 0,
+          floorNo: room?.floorNo ?? 0,
           totalAmount: (inv.totalAmount as { toString(): string }).toString(),
           dueDate: inv.dueDate as string,
           daysOverdue: Math.max(0, daysOverdue),
           lastReminderAt: null,
-          tenantName: tenant ? `${tenant.firstName ?? ''} ${tenant.lastName ?? ''}`.trim() : null,
-          lineUserId: tenant?.lineUserId ?? null,
+          tenantName,
+          lineUserId: (typeof inv.lineUserId === 'string' ? inv.lineUserId : tenant?.lineUserId) ?? null,
         };
       });
       setOverdueInvoices(items);

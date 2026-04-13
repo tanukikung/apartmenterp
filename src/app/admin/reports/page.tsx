@@ -66,11 +66,13 @@ type Summary = {
   overdueInvoices: number;
 };
 
-type RoomStatus = 'VACANT' | 'OCCUPIED' | 'MAINTENANCE' | 'SELF_USE' | 'UNAVAILABLE';
+type RoomStatus = 'VACANT' | 'OCCUPIED' | 'MAINTENANCE' | 'OWNER_USE';
 
 type Room = {
-  id: string; roomNumber: string; status: RoomStatus;
-  floor?: { id: string; floorNumber: number } | null;
+  roomNo: string;
+  roomNumber: string;
+  floorNo: number;
+  roomStatus: RoomStatus;
 };
 
 type FloorOccupancy = { floorNumber: number; total: number; occupied: number; vacant: number; maintenance?: number; occupancyRate?: number };
@@ -78,9 +80,8 @@ type OccupancyData = {
   totalRooms: number;
   occupiedRooms: number;
   vacantRooms: number;
-  maintenance?: number;
-  selfUse?: number;
-  unavailable?: number;
+  maintenanceRooms?: number;
+  ownerUseRooms?: number;
   occupancyRate?: number;
   byFloor?: FloorOccupancy[];
 };
@@ -156,12 +157,12 @@ function buildAging(overdueInvoices: Invoice[]): AgingBucket[] {
 }
 
 function deriveFromRooms(rooms: Room[]) {
-  const counts: Record<RoomStatus, number> = { OCCUPIED: 0, VACANT: 0, MAINTENANCE: 0, SELF_USE: 0, UNAVAILABLE: 0 };
+  const counts: Record<RoomStatus, number> = { OCCUPIED: 0, VACANT: 0, MAINTENANCE: 0, OWNER_USE: 0 };
   const floorMap = new Map<number, { floorNumber: number; total: number; occupied: number; vacant: number; maintenance: number }>();
   for (const room of rooms) {
-    const s = room.status;
+    const s = room.roomStatus;
     if (s in counts) counts[s]++;
-    const fn = room.floor?.floorNumber ?? 0;
+    const fn = room.floorNo;
     if (!floorMap.has(fn)) floorMap.set(fn, { floorNumber: fn, total: 0, occupied: 0, vacant: 0, maintenance: 0 });
     const fl = floorMap.get(fn)!;
     fl.total++;
@@ -190,8 +191,37 @@ const STATUS_COLORS: Record<string, { bar: string; label: string; text: string }
   MAINTENANCE: { bar: 'bg-amber-400', label: 'ซ่อมบำรุง', text: 'text-amber-700' },
   SELF_USE: { bar: 'bg-slate-400', label: 'ใช้งานส่วนตัว', text: 'text-slate-600' },
   UNAVAILABLE: { bar: 'bg-red-400', label: 'ไม่พร้อม', text: 'text-red-700' },
+  OWNER_USE: { bar: 'bg-slate-400', label: 'เจ้าของใช้เอง', text: 'text-slate-600' },
 };
-const STATUS_ORDER: RoomStatus[] = ['OCCUPIED', 'VACANT', 'MAINTENANCE', 'SELF_USE', 'UNAVAILABLE'];
+const STATUS_ORDER: RoomStatus[] = ['OCCUPIED', 'VACANT', 'MAINTENANCE', 'OWNER_USE'];
+
+async function fetchAllRooms(): Promise<Room[]> {
+  const pageSize = 300;
+  const rooms: Room[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const res = await fetch(`/api/rooms?page=${page}&pageSize=${pageSize}&sortBy=roomNo&sortOrder=asc`, { cache: 'no-store' });
+    const json = await res.json();
+
+    if (!json.success) {
+      throw new Error(json.error?.message ?? 'Failed to load rooms');
+    }
+
+    const batch = Array.isArray(json.data?.data) ? json.data.data as Room[] : [];
+    rooms.push(...batch);
+
+    totalPages = typeof json.data?.totalPages === 'number'
+      ? json.data.totalPages
+      : batch.length < pageSize
+        ? page
+        : page + 1;
+    page += 1;
+  } while (page <= totalPages);
+
+  return rooms;
+}
 
 // ============================================================================
 // Tabs
@@ -561,11 +591,10 @@ function OccupancyTab() {
     try {
       const [occRes, roomsRes] = await Promise.all([
         fetch('/api/analytics/occupancy', { cache: 'no-store' }).then((r) => r.json()),
-        fetch('/api/rooms?pageSize=100', { cache: 'no-store' }).then((r) => r.json()),
+        fetchAllRooms(),
       ]);
       if (occRes.success) setOccupancy(occRes.data);
-      if (roomsRes.success) setRooms(roomsRes.data?.data ?? roomsRes.data ?? []);
-      else if (roomsRes.error) throw new Error(roomsRes.error.message);
+      setRooms(roomsRes);
     } catch (err) { setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูล'); }
     finally { setLoading(false); }
   }, []);
@@ -577,9 +606,8 @@ function OccupancyTab() {
   const totalRooms = occupancy?.totalRooms ?? derived.total;
   const occupied = occupancy?.occupiedRooms ?? derived.counts.OCCUPIED;
   const vacant = occupancy?.vacantRooms ?? derived.counts.VACANT;
-  const maintenance = occupancy?.maintenance ?? derived.counts.MAINTENANCE;
-  const selfUse = occupancy?.selfUse ?? derived.counts.SELF_USE;
-  const unavailable = occupancy?.unavailable ?? derived.counts.UNAVAILABLE;
+  const maintenance = Math.max(occupancy?.maintenanceRooms ?? 0, derived.counts.MAINTENANCE);
+  const ownerUse = occupancy?.ownerUseRooms ?? derived.counts.OWNER_USE;
   const occupancyRate = occupancy?.occupancyRate ?? pct(occupied, totalRooms);
   const byFloor: FloorOccupancy[] = (occupancy?.byFloor && occupancy.byFloor.length > 0) ? occupancy.byFloor : derived.byFloor;
 
@@ -587,8 +615,7 @@ function OccupancyTab() {
     { status: 'OCCUPIED' as RoomStatus, count: occupied },
     { status: 'VACANT' as RoomStatus, count: vacant },
     { status: 'MAINTENANCE' as RoomStatus, count: maintenance },
-    { status: 'SELF_USE' as RoomStatus, count: selfUse },
-    { status: 'UNAVAILABLE' as RoomStatus, count: unavailable },
+    { status: 'OWNER_USE' as RoomStatus, count: ownerUse },
   ];
 
   return (

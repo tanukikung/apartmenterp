@@ -12,6 +12,7 @@ const envSchema = z.object({
   LINE_CHANNEL_ID: z.string().min(1).optional(),
   LINE_CHANNEL_SECRET: z.string().min(1).optional(),
   LINE_ACCESS_TOKEN: z.string().min(1).optional(),
+  LINE_CHANNEL_ACCESS_TOKEN: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -32,6 +33,7 @@ export function getEnv(): Env {
       LINE_CHANNEL_ID: process.env.LINE_CHANNEL_ID,
       LINE_CHANNEL_SECRET: process.env.LINE_CHANNEL_SECRET,
       LINE_ACCESS_TOKEN: process.env.LINE_ACCESS_TOKEN,
+      LINE_CHANNEL_ACCESS_TOKEN: process.env.LINE_CHANNEL_ACCESS_TOKEN,
     };
     return partial;
   }

@@ -1,3 +1,8 @@
+@import "@fontsource/noto-sans-thai/400.css";
+@import "@fontsource/noto-sans-thai/500.css";
+@import "@fontsource/noto-sans-thai/600.css";
+@import "@fontsource/noto-sans-thai/700.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,7 +10,7 @@
 @layer base {
   :root {
     /* ── Tailwind/shadcn compatibility tokens ── */
-    --background: 220 20% 97%;
+    --background: 220 20% 96%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
@@ -13,16 +18,16 @@
     --popover-foreground: 222 47% 11%;
     --primary: 243 75% 59%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 215 25% 35%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 215 20% 55%;
-    --accent: 220 14% 96%;
+    --secondary: 220 14% 95%;
+    --secondary-foreground: 215 25% 30%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 215 20% 48%;
+    --accent: 220 14% 95%;
     --accent-foreground: 222 47% 11%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
+    --border: 220 13% 86%;
+    --input: 220 13% 86%;
     --ring: 243 75% 59%;
     --radius: 0.5rem;
 
@@ -31,14 +36,14 @@
     --color-primary-dark:  243 75% 50%;
     --color-primary-light: 243 75% 97%;
 
-    --color-bg:            220 20% 97%;
+    --color-bg:            220 20% 96%;
     --color-surface:       0 0% 100%;
-    --color-border:        220 13% 91%;
-    --color-border-strong: 220 13% 82%;
+    --color-border:        220 13% 86%;
+    --color-border-strong: 220 13% 76%;
 
     --color-text:          222 47% 11%;
-    --color-text-2:        215 25% 35%;
-    --color-text-3:        215 20% 55%;
+    --color-text-2:        215 25% 30%;
+    --color-text-3:        215 20% 48%;
 
     --color-success:       158 64% 38%;
     --color-warning:       35 92% 45%;
@@ -76,8 +81,8 @@
     --surface-container:         220 13% 95%;
     --surface-container-high:    220 13% 93%;
     --surface-container-highest:  220 13% 90%;
-    --outline:              220 9% 47%;
-    --outline-variant:      240 4% 82%;
+    --outline:              220 9% 42%;
+    --outline-variant:      240 4% 78%;
     --tertiary:             158 64% 38%;
     --tertiary-container:   158 64% 25%;
     --on-tertiary:          0 0% 100%;
@@ -101,15 +106,15 @@
     --primary:     239 84% 67%;      /* blue-500 — lighter for dark bg */
     --primary-foreground: 0 0% 100%;
     --secondary:   240 5% 14%;       /* gray-800 */
-    --secondary-foreground: 240 5% 65%;
+    --secondary-foreground: 240 5% 72%;
     --muted:       240 5% 14%;
-    --muted-foreground: 240 5% 55%;
+    --muted-foreground: 240 5% 62%;
     --accent:      240 5% 14%;
     --accent-foreground: 240 5% 96%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border:      240 5% 18%;       /* gray-800 */
-    --input:       240 5% 18%;
+    --border:      240 5% 20%;       /* gray-800 */
+    --input:       240 5% 20%;
     --ring:        239 84% 67%;
 
     --color-primary:       239 84% 67%;
@@ -118,12 +123,12 @@
 
     --color-bg:            240 6% 4%;
     --color-surface:       240 6% 7%;        /* gray-900 */
-    --color-border:        240 5% 18%;
-    --color-border-strong: 240 5% 26%;
+    --color-border:        240 5% 20%;
+    --color-border-strong: 240 5% 28%;
 
     --color-text:          240 5% 96%;
-    --color-text-2:        240 5% 65%;
-    --color-text-3:        240 5% 50%;
+    --color-text-2:        240 5% 72%;
+    --color-text-3:        240 5% 60%;
 
     --color-success:       158 64% 45%;
     --color-warning:       35 92% 52%;
@@ -152,8 +157,8 @@
     --on-surface-variant: 240 5% 65%;
     --primary-container:   239 84% 20%;
     --on-primary-container: 239 84% 90%;
-    --outline:             240 5% 30%;
-    --outline-variant:     240 5% 20%;
+    --outline:             240 5% 34%;
+    --outline-variant:     240 5% 24%;
     --secondary-container: 240 5% 14%;
     --tertiary:            158 64% 48%;
     --tertiary-container:   158 64% 12%;
@@ -174,7 +179,7 @@
   }
 
   html {
-    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-family: "Noto Sans Thai", "Segoe UI", system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -190,7 +195,7 @@
 
   ::selection {
     background: hsl(243 75% 59% / 0.15);
-    color: hsl(243 75% 35%);
+    color: hsl(243 75% 28%);
   }
 
   ::-webkit-scrollbar {

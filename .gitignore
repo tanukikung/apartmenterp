@@ -45,6 +45,7 @@ playwright-report/
 .data/
 deploy/
 tmp/
+.runtime/
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Temp / debug scripts (ลบแล้ว — gitignore เผื่อมีหลงเหลือ)

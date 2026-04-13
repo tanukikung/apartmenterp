@@ -565,7 +565,13 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
 export default function RoomDetailPage() {
   const params = useParams<{ roomId: string }>();
   const router = useRouter();
-  const roomNo = params.roomId;
+  const roomNo = (() => {
+    try {
+      return decodeURIComponent(params.roomId);
+    } catch {
+      return params.roomId;
+    }
+  })();
 
   const [room, setRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState(true);

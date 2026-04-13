@@ -245,11 +245,14 @@ export function ModernTable<T extends object>({
                 {selectable && (
                   <td className="px-4 py-3"><div className="skeleton h-4 w-4 rounded" /></td>
                 )}
-                {columns.map((col) => (
-                  <td key={col.key} className="px-4 py-3">
-                    <div className="skeleton h-4 rounded" style={{ width: `${Math.random() * 40 + 40}%` }} />
-                  </td>
-                ))}
+                {columns.map((col, colIdx) => {
+                  const width = ['44%', '58%', '66%', '52%', '72%'][(i + colIdx) % 5];
+                  return (
+                    <td key={col.key} className="px-4 py-3">
+                      <div className="skeleton h-4 rounded" style={{ width }} />
+                    </td>
+                  );
+                })}
                 {actions && <td />}
               </tr>
             ))}
