@@ -3,8 +3,11 @@ import type { NextRequest } from 'next/server';
 import { verifySessionTokenEdge, refreshSessionEdgeIfNeeded, signSessionTokenEdge } from '@/lib/auth/session-edge';
 import { resolveAuthSecret } from '@/lib/config/env';
 import { isCsrfExemptApiRoute } from '@/lib/auth/api-policy';
-import { logger } from '@/lib/utils/logger';
 // Edge runtime: avoid Node-only imports here (no node-cron or fs/net)
+
+function logMiddlewareError(event: string, details: Record<string, unknown>): void {
+  console.error(JSON.stringify({ type: event, ...details }));
+}
 
 
 function getIp(req: NextRequest): string {
@@ -56,7 +59,10 @@ function sameOrigin(req: NextRequest): boolean {
     }
     return false;
   } catch (err) {
-    logger.error({ type: 'isAllowedOrigin_parse_failed', source, err });
+    logMiddlewareError('isAllowedOrigin_parse_failed', {
+      source,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return false;
   }
 }
@@ -222,7 +228,7 @@ export async function middleware(req: NextRequest) {
   }
   // Only log in development — avoid performance overhead on every production request
   if (process.env.NODE_ENV === 'development') {
-    logger.info({
+    console.info(JSON.stringify({
       type: 'api_request',
       method: req.method,
       path: url.pathname,
@@ -230,7 +236,7 @@ export async function middleware(req: NextRequest) {
       duration: `${Date.now() - start}ms`,
       requestId,
       ip,
-    });
+    }));
   }
   return res;
 }

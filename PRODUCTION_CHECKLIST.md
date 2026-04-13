@@ -62,6 +62,7 @@ Notes:
 - Single-instance deployment can run without Redis. The app falls back safely.
 - Multi-instance deployment should use Redis.
 - Production should not ship with placeholder values from `.env.production`.
+- Validate that `.env.production` or injected runtime env points to the intended production database. A mismatched `DATABASE_URL` will make `/login` fail with a DB auth error even if local dev still works.
 
 ---
 
@@ -100,6 +101,9 @@ pg_dump -U postgres apartment_erp | gzip > pg_backup_premigration_$(date +%F).sq
 - [ ] Pull the intended release commit
 - [ ] Install dependencies
 - [ ] Build the app
+- [ ] If using `output: standalone`, start with `node .next/standalone/server.js` instead of `next start`
+- [ ] If using `output: standalone`, copy `.next/static` into `.next/standalone/.next/static`
+- [ ] If using `output: standalone`, copy `public/` into `.next/standalone/public`
 - [ ] Run `npx prisma migrate deploy`
 - [ ] Restart app services
 - [ ] Confirm the app serves traffic from the intended release
