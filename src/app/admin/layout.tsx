@@ -219,10 +219,10 @@ function IconNavItem({
     <div className="relative group">
       <Link
         href={item.href}
-        className={`relative flex items-center justify-center w-11 h-11 rounded-xl border transition-all duration-200
+        className={`pressable relative flex items-center justify-center h-11 w-11 rounded-2xl border transition-all duration-200
           ${active
-            ? 'border-indigo-500/30 bg-gradient-to-br from-[var(--primary)] to-indigo-600 text-white shadow-lg shadow-indigo-500/35'
-            : 'border-transparent text-[var(--color-text-3)] hover:border-white/8 hover:bg-white/6 hover:text-[var(--color-text-2)]'
+            ? 'border-white/12 bg-[linear-gradient(135deg,rgba(99,102,241,0.96),rgba(34,211,238,0.74))] text-white shadow-[var(--shadow-indigo)]'
+            : 'border-white/6 bg-white/[0.03] text-[var(--sidebar-text)] hover:border-white/12 hover:bg-white/[0.08] hover:text-white'
           }`}
         title={item.label}
       >
@@ -249,10 +249,10 @@ function IconNavGroup({
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`relative flex items-center justify-center w-11 h-11 rounded-xl border transition-all duration-200
+        className={`pressable relative flex items-center justify-center h-11 w-11 rounded-2xl border transition-all duration-200
           ${hasActiveChild
-            ? 'border-indigo-500/20 bg-indigo-500/12 text-indigo-300 shadow-inner shadow-indigo-500/10'
-            : 'border-transparent text-[var(--color-text-3)] hover:border-white/8 hover:bg-white/6 hover:text-[var(--color-text-2)]'}`}
+            ? 'border-white/10 bg-white/[0.08] text-white shadow-[var(--shadow-indigo)]'
+            : 'border-white/6 bg-white/[0.03] text-[var(--sidebar-text)] hover:border-white/12 hover:bg-white/[0.08] hover:text-white'}`}
         title={group.label}
       >
         {activeItem ? (
@@ -269,9 +269,9 @@ function IconNavGroup({
 
       {/* Desktop: floating dropdown panel */}
       {open && (
-        <div className="absolute left-full top-0 ml-2 z-50 bg-[var(--sidebar-bg)] rounded-xl border border-[var(--color-border)] shadow-2xl shadow-black/30 overflow-hidden min-w-[180px] animate-fade-in">
-          <div className="px-3 py-2.5 border-b border-[var(--color-border)]">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-3)]">{group.label}</span>
+        <div className="absolute left-full top-0 z-50 ml-3 min-w-[196px] overflow-hidden rounded-2xl border border-white/10 bg-slate-950/90 shadow-[0_30px_70px_-32px_rgba(2,6,23,0.92)] backdrop-blur-xl animate-fade-in">
+          <div className="border-b border-white/8 px-3 py-3">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">{group.label}</span>
           </div>
           {group.items.map((item) => {
             const active = isActive(pathname, item);
@@ -281,11 +281,11 @@ function IconNavGroup({
                 href={item.href}
                 className={`flex items-center gap-2.5 px-3 py-2.5 text-[13px] font-medium transition-colors
                   ${active
-                    ? 'bg-gradient-to-r from-[var(--primary)] to-indigo-600 text-white'
-                    : 'text-[var(--color-text-3)] hover:bg-[var(--color-surface)]/5 hover:text-[var(--color-text-2)]'
+                    ? 'bg-[linear-gradient(135deg,rgba(99,102,241,0.98),rgba(34,211,238,0.72))] text-white'
+                    : 'text-slate-300 hover:bg-white/[0.06] hover:text-white'
                   }`}
               >
-                <IconComponent icon={item.icon} size={15} strokeWidth={active ? 2.2 : 1.8} className={active ? 'text-white' : 'text-[var(--color-text-3)]'} />
+                <IconComponent icon={item.icon} size={15} strokeWidth={active ? 2.2 : 1.8} className={active ? 'text-white' : 'text-slate-400'} />
                 {item.label}
               </Link>
             );
@@ -312,7 +312,7 @@ function MobileNavGroup({
     <div>
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-3)] hover:text-[var(--color-text-2)] transition-colors"
+        className="flex w-full items-center justify-between px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400 transition-colors hover:text-white"
       >
         <span>{group.label}</span>
         <span className={`transition-transform duration-200 ${open ? 'rotate-0' : '-rotate-90'}`}>▾</span>
@@ -326,10 +326,10 @@ function MobileNavGroup({
                 key={subItem.href}
                 href={subItem.href}
                 onClick={onClose}
-                className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors
+                className={`pressable flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors
                   ${active
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-[var(--color-text-3)] hover:bg-[var(--color-surface)]/5 hover:text-[var(--color-text-2)]'
+                    ? 'bg-[linear-gradient(135deg,rgba(99,102,241,0.98),rgba(34,211,238,0.72))] text-white'
+                    : 'border border-white/6 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white'
                   }`}
               >
                 <subItem.icon size={16} strokeWidth={active ? 2.2 : 1.8} />
@@ -346,16 +346,16 @@ function MobileNavGroup({
 // ── Icon-only Sidebar ────────────────────────────────────────────────────
 function IconSidebar({ pathname }: { pathname: string | null }) {
   return (
-    <div className="w-16 flex flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text-active)] h-full">
+    <div className="app-sidebar flex h-full w-16 flex-col text-[var(--sidebar-text-active)]">
       {/* Logo */}
-      <div className="flex items-center justify-center h-16 border-b border-[var(--color-border)]">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/30">
+      <div className="flex h-20 items-center justify-center border-b border-white/8">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/12 bg-[linear-gradient(135deg,rgba(99,102,241,0.96),rgba(34,211,238,0.72))] shadow-[var(--shadow-indigo)]">
           <Building2 size={18} className="text-white" strokeWidth={2.5} />
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2 flex flex-col items-center space-y-1">
+      <nav className="flex flex-1 flex-col items-center space-y-1 overflow-y-auto px-2 py-5">
         {nav.map((item, idx) => {
           if (item.type === 'link') {
             return <IconNavItem key={item.href} item={item} pathname={pathname} />;
@@ -463,34 +463,37 @@ function TopBar({
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-sm px-4 md:px-6 gap-4">
+    <header className="app-topbar sticky top-0 z-30 flex h-20 items-center justify-between gap-4 px-4 md:px-6">
       {/* Left: hamburger + logo + page title */}
       <div className="flex items-center gap-3 min-w-0">
         {/* Mobile hamburger */}
         <button
           onClick={onMobileMenuToggle}
-          className="flex items-center justify-center w-10 h-10 rounded-xl text-[var(--color-text-2)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors md:hidden flex-shrink-0"
+          className="pressable flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-white/65 bg-white/75 text-[var(--color-text-2)] shadow-sm transition-colors hover:text-[var(--color-text)] md:hidden"
           aria-label="Open menu"
         >
           <Menu size={20} />
         </button>
 
         {/* Brand */}
-        <Link href="/admin/dashboard" className="flex items-center gap-2.5 flex-shrink-0">
-          <div className="hidden sm:flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/30">
+        <Link href="/admin/dashboard" className="pressable flex flex-shrink-0 items-center gap-2.5">
+          <div className="hidden h-10 w-10 items-center justify-center rounded-2xl border border-white/70 bg-[linear-gradient(135deg,rgba(99,102,241,0.96),rgba(34,211,238,0.72))] shadow-[var(--shadow-indigo)] sm:flex">
             <Building2 size={16} className="text-white" strokeWidth={2.5} />
           </div>
           <div className="hidden lg:block">
-            <div className="text-sm font-semibold text-[var(--color-text)] leading-tight tracking-tight">Apartment ERP</div>
-            <div className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-3)]">Admin Center</div>
+            <div className="text-sm font-semibold leading-tight tracking-tight text-[var(--color-text)]">Apartment ERP</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-text-3)]">Operations Console</div>
           </div>
         </Link>
 
         {/* Divider */}
-        <div className="h-5 w-px bg-[var(--color-border)] hidden md:block" />
+        <div className="hidden h-6 w-px bg-[var(--color-border)] md:block" />
 
         {/* Page title */}
-        <span className="text-sm font-medium text-[var(--color-text)] truncate">{getPageTitle(pathname)}</span>
+        <div className="min-w-0">
+          <div className="hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-3)] sm:block">กำลังใช้งาน</div>
+          <span className="truncate text-sm font-semibold text-[var(--color-text)]">{getPageTitle(pathname)}</span>
+        </div>
       </div>
 
       {/* Center: Global Search */}
@@ -504,13 +507,16 @@ function TopBar({
             onChange={(e) => handleSearch(e.target.value)}
             onFocus={() => setShowSearch(true)}
             onBlur={() => setTimeout(() => setShowSearch(false), 150)}
-            className="w-full h-9 pl-9 pr-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-3)] focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            className="h-11 w-full rounded-2xl border border-white/70 bg-white/82 pl-9 pr-16 text-sm text-[var(--color-text)] shadow-sm backdrop-blur-xl transition-all placeholder:text-[var(--color-text-3)] focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/12"
           />
+          <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.14em] text-slate-500 md:inline-flex">
+            SEARCH
+          </span>
         </div>
 
         {/* Search results dropdown */}
         {showSearch && searchQuery.trim().length >= 2 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-xl shadow-[var(--shadow-md)] overflow-hidden z-50">
+          <div className="absolute left-0 right-0 top-full z-50 mt-3 overflow-hidden rounded-2xl border border-white/80 bg-white/92 shadow-[0_28px_70px_-40px_rgba(15,23,42,0.52)] backdrop-blur-xl">
             {searchLoading ? (
               <div className="flex items-center justify-center py-6">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
@@ -577,7 +583,7 @@ function TopBar({
 
       {/* Right: theme toggle + notifications + user */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        <ThemeToggle className="flex items-center justify-center w-9 h-9 rounded-xl text-[var(--color-text-3)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors" />
+        <ThemeToggle className="pressable flex h-10 w-10 items-center justify-center rounded-2xl border border-white/70 bg-white/72 text-[var(--color-text-3)] shadow-sm transition-colors hover:text-[var(--color-text)]" />
 
         <div className="h-4 w-px bg-[var(--color-border)] hidden sm:block" />
 
@@ -585,7 +591,7 @@ function TopBar({
         <div ref={notifRef} className="relative">
           <button
             onClick={() => setShowNotifs(!showNotifs)}
-            className="relative flex items-center justify-center w-9 h-9 rounded-xl text-[var(--color-text-3)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors"
+            className="pressable relative flex h-10 w-10 items-center justify-center rounded-2xl border border-white/70 bg-white/72 text-[var(--color-text-3)] shadow-sm transition-colors hover:text-[var(--color-text)]"
             aria-label="Notifications"
           >
             <BellIcon size={20} />
@@ -597,8 +603,8 @@ function TopBar({
           </button>
 
           {showNotifs && (
-            <div className="absolute top-full right-0 mt-2 w-80 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-xl shadow-[var(--shadow-md)] overflow-hidden z-50">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
+            <div className="absolute right-0 top-full z-50 mt-3 w-80 overflow-hidden rounded-2xl border border-white/80 bg-white/92 shadow-[0_28px_70px_-40px_rgba(15,23,42,0.52)] backdrop-blur-xl">
+              <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
                 <span className="text-sm font-semibold text-[var(--color-text)]">การแจ้งเตือน</span>
                 <button className="text-xs text-indigo-600 hover:text-indigo-700">ดูทั้งหมด</button>
               </div>
@@ -638,9 +644,9 @@ function TopBar({
         <div ref={userMenuRef} className="relative">
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-[var(--color-surface)] transition-colors"
+            className="pressable flex items-center gap-2 rounded-2xl border border-white/70 bg-white/72 p-1.5 shadow-sm transition-colors hover:bg-white/85"
           >
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(99,102,241,0.96),rgba(34,211,238,0.72))] shadow-[var(--shadow-indigo)]">
               <span className="text-xs font-semibold text-white">O</span>
             </div>
             <div className="hidden md:block text-left">
@@ -651,7 +657,7 @@ function TopBar({
           </button>
 
           {showUserMenu && (
-            <div className="absolute top-full right-0 mt-2 w-56 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-xl shadow-[var(--shadow-md)] overflow-hidden z-50">
+            <div className="absolute right-0 top-full z-50 mt-3 w-56 overflow-hidden rounded-2xl border border-white/80 bg-white/92 shadow-[0_28px_70px_-40px_rgba(15,23,42,0.52)] backdrop-blur-xl">
               <div className="px-4 py-3 border-b border-[var(--color-border)]">
                 <p className="text-sm font-medium text-[var(--color-text)]">ผู้ดูแลระบบ</p>
                 <p className="text-xs text-[var(--color-text-3)]">owner@apartment.com</p>
@@ -681,9 +687,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] flex">
+    <div className="app-shell flex min-h-screen">
       {/* ── Desktop Icon-only Sidebar (fixed, doesn't push content) ── */}
-      <aside className="hidden md:flex fixed left-0 top-0 bottom-0 z-20 w-16 flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text-active)]">
+      <aside className="app-sidebar fixed bottom-0 left-0 top-0 z-20 hidden w-16 flex-col text-[var(--sidebar-text-active)] md:flex">
         <IconSidebar pathname={pathname} />
       </aside>
 
@@ -704,22 +710,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', damping: 25, stiffness: 250 }}
-              className="fixed inset-y-0 left-0 z-50 w-72 flex flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text-active)] md:hidden"
+              className="app-sidebar fixed inset-y-0 left-0 z-50 flex w-72 flex-col text-[var(--sidebar-text-active)] md:hidden"
             >
               {/* Mobile drawer header */}
-              <div className="flex items-center justify-between px-4 h-16 border-b border-[var(--color-border)]">
+              <div className="flex h-20 items-center justify-between border-b border-white/8 px-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/30">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/12 bg-[linear-gradient(135deg,rgba(99,102,241,0.96),rgba(34,211,238,0.72))] shadow-[var(--shadow-indigo)]">
                     <Building2 size={18} className="text-white" strokeWidth={2.5} />
                   </div>
                   <div>
                     <div className="text-sm font-semibold text-[var(--sidebar-text-active)] leading-tight tracking-tight">Apartment ERP</div>
-                    <div className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-3)]">Admin Center</div>
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Operations Console</div>
                   </div>
                 </div>
                 <button
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center justify-center w-9 h-9 rounded-xl text-[var(--color-text-3)] hover:text-[var(--sidebar-text-active)] hover:bg-[var(--color-surface)]/10 transition-colors"
+                  className="pressable flex h-10 w-10 items-center justify-center rounded-2xl border border-white/8 bg-white/[0.03] text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
                   aria-label="Close menu"
                 >
                   <X size={18} />
@@ -736,10 +742,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         key={(item as NavLink).href}
                         href={(item as NavLink).href}
                         onClick={() => setMobileOpen(false)}
-                        className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors
+                        className={`pressable flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors
                           ${active
-                            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
-                            : 'text-[var(--color-text-3)] hover:bg-[var(--color-surface)]/5 hover:text-[var(--color-text-2)]'
+                            ? 'bg-[linear-gradient(135deg,rgba(99,102,241,0.98),rgba(34,211,238,0.72))] text-white shadow-[var(--shadow-indigo)]'
+                            : 'border border-white/6 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white'
                           }`}
                       >
                         <IconComponent icon={(item as NavLink).icon} size={18} strokeWidth={active ? 2.2 : 1.8} />
@@ -764,7 +770,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </AnimatePresence>
 
       {/* ── Main Content Area (flex-1, sidebar doesn't push) ── */}
-      <div className="relative flex min-w-0 flex-col flex-1 md:ml-16">
+      <div className="app-content relative flex min-w-0 flex-1 flex-col md:ml-16">
         {/* Top Bar */}
         <TopBar pathname={pathname} onMobileMenuToggle={() => setMobileOpen(true)} />
 
@@ -780,7 +786,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -8 }}
-                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                      transition={{ duration: 0.26, ease: 'easeOut' }}
                     >
                       {children}
                     </motion.div>

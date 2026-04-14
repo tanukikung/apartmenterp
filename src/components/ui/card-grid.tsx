@@ -58,7 +58,7 @@ function CardSkeleton({ columns = 4 }: { columns?: 1 | 2 | 3 | 4 }) {
   return (
     <div className={`grid gap-4 ${gridClass}`}>
       {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div key={i} className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div key={i} className="premium-surface overflow-hidden rounded-[24px]">
           <div className="p-5 space-y-3">
             <div className="skeleton h-4 w-24 rounded" />
             <div className="skeleton h-3 w-16 rounded" />
@@ -89,16 +89,15 @@ function Card<T extends object>({ item, meta, onCardClick, hoverable = true }: S
     <div
       onClick={onCardClick ? () => onCardClick(item) : undefined}
       className={
-        `group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden` +
-        ` transition-all duration-200` +
-        (hoverable ? ' hover:shadow-xl hover:-translate-y-0.5 hover:border-primary/20 cursor-pointer' : '')
+        `group premium-surface overflow-hidden rounded-[24px] transition-all duration-200` +
+        (hoverable ? ' premium-hover cursor-pointer' : '')
       }
     >
       <div className="p-5">
         {/* Header: title + badge */}
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-bold text-primary truncate">{meta.title}</h3>
+            <h3 className="text-lg font-bold tracking-tight text-primary truncate">{meta.title}</h3>
             {meta.subtitle && (
               <p className="text-xs text-on-surface-variant mt-0.5 truncate">{meta.subtitle}</p>
             )}

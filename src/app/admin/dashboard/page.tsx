@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   Home,
   AlertTriangle,
@@ -143,6 +144,14 @@ function auditLabel(action: string): string {
   return AUDIT_LABELS[action] ?? action;
 }
 
+function riseIn(delay = 0) {
+  return {
+    initial: { opacity: 0, y: 18 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.38, ease: [0.16, 1, 0.3, 1] as const, delay },
+  };
+}
+
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function SkeletonCard({ className = '' }: { className?: string }) {
@@ -167,23 +176,28 @@ function KpiCard({
   href?: string;
 }) {
   const colors = {
-    green: { bg: 'bg-[var(--surface-container-lowest)]', border: 'border-emerald-200', icon: 'bg-emerald-50 text-emerald-600', text: 'text-emerald-700' },
-    red: { bg: 'bg-[var(--surface-container-lowest)]', border: 'border-red-200', icon: 'bg-red-50 text-red-600', text: 'text-red-700' },
-    yellow: { bg: 'bg-[var(--surface-container-lowest)]', border: 'border-amber-200', icon: 'bg-amber-50 text-amber-600', text: 'text-amber-700' },
-    blue: { bg: 'bg-[var(--surface-container-lowest)]', border: 'border-blue-200', icon: 'bg-blue-50 text-blue-600', text: 'text-blue-700' },
+    green: { border: 'border-emerald-200/80', glow: 'from-emerald-100/90 via-white to-emerald-50/80', icon: 'bg-emerald-100 text-emerald-700', text: 'text-emerald-700', sub: 'text-emerald-900/70' },
+    red: { border: 'border-rose-200/80', glow: 'from-rose-100/90 via-white to-rose-50/80', icon: 'bg-rose-100 text-rose-700', text: 'text-rose-700', sub: 'text-rose-900/70' },
+    yellow: { border: 'border-amber-200/80', glow: 'from-amber-100/90 via-white to-amber-50/80', icon: 'bg-amber-100 text-amber-700', text: 'text-amber-700', sub: 'text-amber-900/70' },
+    blue: { border: 'border-sky-200/80', glow: 'from-sky-100/90 via-white to-indigo-50/80', icon: 'bg-sky-100 text-sky-700', text: 'text-sky-700', sub: 'text-slate-900/70' },
   }[accent];
 
   const card = (
-    <div className={`${colors.bg} ${colors.border} border rounded-2xl p-5 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer`}>
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--on-surface-variant)]">{label}</span>
-        <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${colors.icon}`}>
+    <motion.div
+      whileHover={{ y: -4, scale: 1.01 }}
+      whileTap={{ scale: 0.985 }}
+      className={`premium-surface group relative overflow-hidden rounded-[28px] border p-5 ${colors.border}`}
+    >
+      <div className={`pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-br ${colors.glow} opacity-90`} />
+      <div className="relative flex items-start justify-between gap-2 mb-4">
+        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">{label}</span>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl shadow-sm ${colors.icon}`}>
           <Icon size={16} strokeWidth={2} />
         </div>
       </div>
-      <div className={`text-2xl font-extrabold tracking-tight ${colors.text} leading-none mb-1`}>{value}</div>
-      {sub && <div className="text-xs text-[var(--on-surface-variant)] mt-1">{sub}</div>}
-    </div>
+      <div className={`relative text-[2rem] font-extrabold leading-none tracking-[-0.05em] ${colors.text} mb-1`}>{value}</div>
+      {sub && <div className={`relative mt-2 text-xs ${colors.sub}`}>{sub}</div>}
+    </motion.div>
   );
 
   if (href) {
@@ -209,29 +223,29 @@ function ActionButton({
 }) {
   const colors = {
     blue: {
-      container: 'border border-indigo-200 bg-indigo-50 text-indigo-950 shadow-sm hover:border-indigo-300 hover:bg-indigo-100',
-      icon: 'bg-white text-indigo-700 ring-1 ring-indigo-100',
-      sub: 'text-indigo-700/80',
-      arrow: 'text-indigo-700/75',
+      container: 'border-indigo-200/80 bg-[linear-gradient(160deg,rgba(238,242,255,0.96),rgba(224,231,255,0.82))] text-indigo-950',
+      icon: 'bg-white text-indigo-700 ring-1 ring-indigo-100 shadow-sm',
+      sub: 'text-indigo-800/75',
+      arrow: 'text-indigo-700/80',
     },
     green: {
-      container: 'border border-emerald-200 bg-emerald-50 text-emerald-900 shadow-sm hover:border-emerald-300 hover:bg-emerald-100',
-      icon: 'bg-white text-emerald-700 ring-1 ring-emerald-100',
-      sub: 'text-emerald-700/80',
-      arrow: 'text-emerald-700/70',
+      container: 'border-emerald-200/80 bg-[linear-gradient(160deg,rgba(236,253,245,0.96),rgba(209,250,229,0.82))] text-emerald-950',
+      icon: 'bg-white text-emerald-700 ring-1 ring-emerald-100 shadow-sm',
+      sub: 'text-emerald-800/75',
+      arrow: 'text-emerald-700/75',
     },
     red: {
-      container: 'border border-rose-200 bg-rose-50 text-rose-900 shadow-sm hover:border-rose-300 hover:bg-rose-100',
-      icon: 'bg-white text-rose-700 ring-1 ring-rose-100',
-      sub: 'text-rose-700/80',
-      arrow: 'text-rose-700/70',
+      container: 'border-rose-200/80 bg-[linear-gradient(160deg,rgba(255,241,242,0.96),rgba(255,228,230,0.82))] text-rose-950',
+      icon: 'bg-white text-rose-700 ring-1 ring-rose-100 shadow-sm',
+      sub: 'text-rose-800/75',
+      arrow: 'text-rose-700/75',
     },
   }[color];
 
   return (
     <Link
       href={href}
-      className={`group flex min-h-[112px] flex-col justify-between rounded-2xl px-5 py-4 transition-all duration-200 hover:-translate-y-0.5 ${colors.container}`}
+      className={`pressable group flex min-h-[132px] flex-col justify-between rounded-[28px] border px-5 py-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[var(--shadow-md)] ${colors.container}`}
     >
       <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${colors.icon}`}>
         <Icon size={20} strokeWidth={2.1} />
@@ -274,15 +288,19 @@ function TaskCard({
   icon: React.ElementType;
 }) {
   const colors = {
-    green: { bg: 'bg-white', border: 'border-emerald-200', header: 'bg-emerald-50 text-emerald-700', count: 'bg-emerald-100 text-emerald-700', icon: 'text-emerald-500' },
-    red: { bg: 'bg-white', border: 'border-red-200', header: 'bg-red-50 text-red-700', count: 'bg-red-100 text-red-700', icon: 'text-red-500' },
-    yellow: { bg: 'bg-white', border: 'border-amber-200', header: 'bg-amber-50 text-amber-700', count: 'bg-amber-100 text-amber-700', icon: 'text-amber-500' },
-    blue: { bg: 'bg-white', border: 'border-blue-200', header: 'bg-blue-50 text-blue-700', count: 'bg-blue-100 text-blue-700', icon: 'text-blue-500' },
+    green: { border: 'border-emerald-200/80', wash: 'from-emerald-50 via-white to-white', count: 'bg-emerald-100 text-emerald-700', icon: 'text-emerald-500' },
+    red: { border: 'border-rose-200/80', wash: 'from-rose-50 via-white to-white', count: 'bg-rose-100 text-rose-700', icon: 'text-rose-500' },
+    yellow: { border: 'border-amber-200/80', wash: 'from-amber-50 via-white to-white', count: 'bg-amber-100 text-amber-700', icon: 'text-amber-500' },
+    blue: { border: 'border-sky-200/80', wash: 'from-sky-50 via-white to-white', count: 'bg-sky-100 text-sky-700', icon: 'text-sky-500' },
   }[accent];
 
   return (
-    <div className={`${colors.bg} ${colors.border} border rounded-xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200`}>
-      <div className={`px-4 py-3 border-b border-[var(--outline-variant)]/30 flex items-center justify-between`}>
+    <motion.div
+      whileHover={{ y: -4, scale: 1.005 }}
+      className={`premium-surface relative overflow-hidden rounded-[28px] border ${colors.border}`}
+    >
+      <div className={`pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-br ${colors.wash} opacity-95`} />
+      <div className="relative flex items-center justify-between border-b border-[var(--outline-variant)]/10 px-5 py-4">
         <div className="flex items-center gap-2">
           <Icon size={14} className={colors.icon} />
           <span className="text-sm font-bold text-[var(--on-surface)]">{title}</span>
@@ -294,7 +312,7 @@ function TaskCard({
         )}
       </div>
 
-      <div className="p-4">
+      <div className="relative p-5">
         {items && items.length > 0 && (
           <ul className="space-y-1.5 mb-3">
             {items.slice(0, 3).map((item, i) => (
@@ -316,7 +334,7 @@ function TaskCard({
           {actionLabel && actionHref && (
             <Link
               href={actionHref}
-              className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+              className={`pressable inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
                 accent === 'green'
                   ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                   : accent === 'red'
@@ -332,14 +350,14 @@ function TaskCard({
           {secondaryActionLabel && secondaryActionHref && (
             <Link
               href={secondaryActionHref}
-              className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface-variant)] hover:bg-[var(--surface-container)] transition-colors"
+              className="pressable inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-[var(--on-surface-variant)] hover:bg-slate-50 transition-colors"
             >
               {secondaryActionLabel}
             </Link>
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -379,6 +397,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   const { greeting, date } = todayThai();
+  const occupancyRate = occupancy?.totalRooms ? Math.round((occupancy.occupiedRooms / occupancy.totalRooms) * 100) : 0;
 
   useEffect(() => {
     async function load() {
@@ -483,27 +502,90 @@ export default function AdminDashboardPage() {
   }));
 
   return (
-    <main className="min-h-screen bg-gray-50/50">
-      {/* ── Page Header ─────────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-primary to-[var(--primary)]/80 px-6 py-6 shadow-lg">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-extrabold tracking-tight text-white">
-            {greeting} 👋
-          </h1>
-          <p className="text-sm text-white/80 font-medium">{date}</p>
-        </div>
-      </div>
+    <main className="mx-auto w-full max-w-[1380px] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="space-y-6">
+        <motion.section
+          {...riseIn(0)}
+          className="premium-surface relative overflow-hidden rounded-[36px] px-6 py-6 sm:px-8 sm:py-7"
+        >
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-[42%] bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.18),transparent_58%)]" />
+          <div className="pointer-events-none absolute -left-16 top-6 h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(34,211,238,0.16),transparent_68%)] blur-2xl" />
 
-      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+          <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_360px] xl:items-center">
+            <div className="space-y-5">
+              <span className="section-kicker">Daily Control Room</span>
+              <div className="space-y-2">
+                <h1 className="text-3xl font-extrabold tracking-[-0.05em] text-[var(--on-surface)] sm:text-[2.45rem]">
+                  {greeting} วันนี้
+                </h1>
+                <p className="max-w-2xl text-sm leading-7 text-[var(--on-surface-variant)] sm:text-[0.95rem]">
+                  ภาพรวมงานสำคัญของอาคารในวันนี้ ทั้งห้องพัก รายได้ ค้างชำระ และงานที่ทีมต้องติดตามต่อทันที
+                </p>
+              </div>
 
-        {/* ── KPI Row ─────────────────────────────────────────────── */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="flex flex-wrap gap-2.5 text-sm">
+                <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 font-semibold text-indigo-700">
+                  {date}
+                </span>
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700">
+                  อัตราเข้าพัก {occupancyRate}%
+                </span>
+                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-700">
+                  ห้องว่าง {occupancy?.vacantRooms ?? 0}
+                </span>
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 font-semibold text-amber-700">
+                  งานซ่อมรอทำ {pendingMaintenanceCount}
+                </span>
+              </div>
+            </div>
+
+            <div className="premium-surface-muted rounded-[30px] p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">สถานะวันนี้</div>
+                  <div className="mt-1 text-lg font-bold tracking-tight text-[var(--on-surface)]">อาคารกำลังดำเนินงานปกติ</div>
+                </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(99,102,241,0.96),rgba(34,211,238,0.72))] text-white shadow-[var(--shadow-indigo)]">
+                  <CheckCircle2 size={18} strokeWidth={2.2} />
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                <div>
+                  <div className="flex items-center justify-between text-sm font-medium text-[var(--on-surface)]">
+                    <span>อัตราเข้าพัก</span>
+                    <span>{occupancyRate}%</span>
+                  </div>
+                  <div className="mt-2 h-2.5 rounded-full bg-slate-200/80">
+                    <div
+                      className="h-full rounded-full bg-[linear-gradient(90deg,rgba(99,102,241,0.96),rgba(34,211,238,0.82))]"
+                      style={{ width: `${Math.max(occupancyRate, 6)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
+                  <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--on-surface-variant)]">ใบแจ้งหนี้ชำระแล้ว</div>
+                    <div className="mt-2 text-2xl font-extrabold tracking-[-0.05em] text-emerald-700">{summary?.paidInvoices ?? 0}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--on-surface-variant)]">รอจัดการ</div>
+                    <div className="mt-2 text-2xl font-extrabold tracking-[-0.05em] text-slate-800">{summary?.unpaidInvoices ?? 0}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.section>
+
+        <motion.section {...riseIn(0.05)} className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {loading ? (
             <>
-              <SkeletonCard className="h-28" />
-              <SkeletonCard className="h-28" />
-              <SkeletonCard className="h-28" />
-              <SkeletonCard className="h-28" />
+              <SkeletonCard className="h-32 rounded-[28px]" />
+              <SkeletonCard className="h-32 rounded-[28px]" />
+              <SkeletonCard className="h-32 rounded-[28px]" />
+              <SkeletonCard className="h-32 rounded-[28px]" />
             </>
           ) : (
             <>
@@ -540,48 +622,42 @@ export default function AdminDashboardPage() {
               />
             </>
           )}
-        </section>
+        </motion.section>
 
-        {/* ── 3 Big Action Buttons ────────────────────────────────── */}
-        <section className="space-y-3 rounded-3xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-5 shadow-sm">
+        <motion.section {...riseIn(0.1)} className="premium-surface rounded-[32px] p-5 sm:p-6">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-sm font-bold text-[var(--on-surface)]">งานด่วนประจำวัน</h2>
-              <p className="text-xs text-[var(--on-surface-variant)]">ทางลัดสำหรับงานที่ใช้บ่อยที่สุดในรอบปฏิบัติการประจำวัน</p>
+              <p className="text-xs text-[var(--on-surface-variant)]">ทางลัดสำหรับงานที่ทีมใช้งานบ่อยที่สุดในรอบปฏิบัติการประจำวัน</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <ActionButton
-            label="ตรวจสลิป"
-            description="เปิดรายการรอจับคู่และตรวจสอบการโอนล่าสุด"
-            icon={ClipboardCheck}
-            color="blue"
-            href="/admin/payments/review"
-          />
-          <ActionButton
-            label="วางบิล"
-            description="เข้าสู่รอบบิลและจัดการชุดข้อมูลก่อนออกใบแจ้งหนี้"
-            icon={Receipt}
-            color="green"
-            href="/admin/billing"
-          />
-          <ActionButton
-            label="ดูค้างชำระ"
-            description="ติดตามยอดเกินกำหนดและเตรียมส่งเตือนผู้เช่า"
-            icon={FileText}
-            color="red"
-            href="/admin/overdue"
-          />
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <ActionButton
+              label="ตรวจสลิป"
+              description="เปิดรายการรอจับคู่และตรวจสอบการโอนล่าสุด"
+              icon={ClipboardCheck}
+              color="blue"
+              href="/admin/payments/review"
+            />
+            <ActionButton
+              label="วางบิล"
+              description="เข้าสู่รอบบิลและจัดการชุดข้อมูลก่อนออกใบแจ้งหนี้"
+              icon={Receipt}
+              color="green"
+              href="/admin/billing"
+            />
+            <ActionButton
+              label="ดูค้างชำระ"
+              description="ติดตามยอดเกินกำหนดและเตรียมส่งเตือนผู้เช่า"
+              icon={FileText}
+              color="red"
+              href="/admin/overdue"
+            />
           </div>
-        </section>
+        </motion.section>
 
-        {/* ── Task Cards + Recent Activity ─────────────────────────── */}
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-          {/* Left: Task Cards Grid */}
-          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-            {/* รอตรวจสลิป */}
+        <motion.section {...riseIn(0.15)} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-2">
             <TaskCard
               title="รอตรวจสลิป"
               count={unmatchedPayments}
@@ -591,7 +667,6 @@ export default function AdminDashboardPage() {
               actionHref="/admin/payments/review"
             />
 
-            {/* ค้างชำระ 3+ วัน */}
             <TaskCard
               title="ค้างชำระ"
               count={overdueCount}
@@ -602,7 +677,6 @@ export default function AdminDashboardPage() {
               actionHref="/admin/overdue"
             />
 
-            {/* แจ้งซ่อมใหม่ */}
             <TaskCard
               title="แจ้งซ่อมใหม่"
               count={pendingMaintenanceCount}
@@ -613,7 +687,6 @@ export default function AdminDashboardPage() {
               actionHref="/admin/maintenance"
             />
 
-            {/* สัญญาใกล้หมด */}
             <TaskCard
               title="สัญญาใกล้หมด"
               count={expiringContracts.length}
@@ -624,27 +697,25 @@ export default function AdminDashboardPage() {
               actionHref="/admin/contracts"
             />
 
-            {/* ประกาศ */}
             <TaskCard
               title="ประกาศ"
               icon={Megaphone}
               accent="blue"
+              sub="เตรียมประกาศข่าวสารหรือแจ้งเตือนลูกบ้านจากศูนย์ประกาศได้ทันที"
               actionLabel="ส่งประกาศ"
               actionHref="/admin/broadcast"
             />
-
           </div>
 
-          {/* Right: Recent Activity */}
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="premium-surface overflow-hidden rounded-[30px]">
+            <div className="flex items-center justify-between border-b border-[var(--outline-variant)]/10 px-5 py-4">
               <div className="flex items-center gap-2">
-                <Clock size={14} className="text-gray-400" />
+                <Clock size={14} className="text-[var(--color-text-3)]" />
                 <span className="text-sm font-bold text-[var(--on-surface)]">กิจกรรมล่าสุด</span>
               </div>
               <Link
                 href="/admin/audit-logs"
-                className="flex items-center gap-1 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary)]/80 transition-colors"
+                className="pressable flex items-center gap-1 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-[var(--primary)] transition-colors hover:bg-slate-50"
               >
                 ดูทั้งหมด <ArrowRight size={10} />
               </Link>
@@ -654,16 +725,16 @@ export default function AdminDashboardPage() {
               {loading ? (
                 <div className="space-y-3">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="skeleton h-10 rounded-lg" />
+                    <div key={i} className="skeleton h-12 rounded-2xl" />
                   ))}
                 </div>
               ) : auditLogs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <CheckCircle2 size={28} className="text-gray-300 mb-2" />
-                  <p className="text-sm font-medium text-gray-400">ไม่มีกิจกรรมล่าสุด</p>
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <CheckCircle2 size={28} className="mb-2 text-slate-300" />
+                  <p className="text-sm font-medium text-slate-400">ไม่มีกิจกรรมล่าสุด</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-slate-100">
                   {auditLogs.map((log) => (
                     <ActivityItem key={log.id} log={log} />
                   ))}
@@ -671,9 +742,7 @@ export default function AdminDashboardPage() {
               )}
             </div>
           </div>
-
-        </section>
-
+        </motion.section>
       </div>
     </main>
   );

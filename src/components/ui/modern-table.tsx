@@ -103,7 +103,7 @@ function Th<T>({ column, sorted, onSort }: ThProps<T>) {
   return (
     <th
       className={cn(
-        'px-4 py-3 text-xs font-semibold uppercase tracking-wide text-on-surface-variant whitespace-nowrap',
+        'px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-on-surface-variant whitespace-nowrap',
         alignClass,
         column.sortable && 'cursor-pointer select-none hover:text-on-surface group',
       )}
@@ -223,10 +223,10 @@ export function ModernTable<T extends object>({
   const totalPages = pagination ? Math.ceil(pagination.total / pagination.pageSize) : 0;
 
   return (
-    <div className={cn('bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden', className)}>
+    <div className={cn('premium-surface overflow-hidden rounded-[26px]', className)}>
       {/* Optional header bar */}
       {header && (
-        <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
+        <div className="flex items-center justify-between border-b border-outline-variant/10 px-5 py-4">
           {header}
         </div>
       )}
@@ -234,7 +234,7 @@ export function ModernTable<T extends object>({
       <div className="overflow-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="border-b border-outline-variant bg-surface-container-low/50">
+            <tr className="border-b border-outline-variant/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(241,245,249,0.88))]">
               {selectable && (
                 <th className="px-4 py-3 w-10">
                   <Checkbox checked={allSelected} onChange={toggleAll} indeterminate={!allSelected && someSelected} />
@@ -277,7 +277,7 @@ export function ModernTable<T extends object>({
             {/* Empty state */}
             {!loading && data.length === 0 && (
               <tr>
-                <td colSpan={columns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)} className="px-4 py-12">
+                <td colSpan={columns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)} className="px-4 py-14">
                   {empty ?? (
                     <div className="flex flex-col items-center gap-2 text-center text-sm text-on-surface-variant">
                       <svg className="h-8 w-8 opacity-40" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -298,9 +298,9 @@ export function ModernTable<T extends object>({
                 <tr
                   key={rowId}
                   className={cn(
-                    'border-b border-outline-variant/5 transition-colors',
-                    rowIdx % 2 === 1 ? 'bg-surface-container-low/30' : '',
-                    isSelected ? 'bg-primary-container/10' : 'hover:bg-surface-container/50',
+                    'border-b border-outline-variant/5 transition-[background-color,transform]',
+                    rowIdx % 2 === 1 ? 'bg-slate-50/48' : 'bg-white/30',
+                    isSelected ? 'bg-primary-container/10' : 'hover:bg-slate-50/86',
                     onRowClick && 'cursor-pointer',
                   )}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
@@ -332,12 +332,12 @@ export function ModernTable<T extends object>({
                             disabled={action.disabled}
                             title={action.label}
                             className={cn(
-                              'inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                              'pressable inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
                               action.variant === 'primary'
-                                ? 'border-primary/20 bg-primary-container/10 text-primary hover:bg-primary-container/20'
+                                ? 'border-indigo-200 bg-indigo-50/90 text-indigo-700 hover:bg-indigo-100'
                                 : action.variant === 'danger'
-                                ? 'border-error-container/30 bg-error-container/10 text-error hover:bg-error-container/20'
-                                : 'border-outline bg-surface-container-lowest text-on-surface hover:bg-surface-container',
+                                ? 'border-rose-200 bg-rose-50/90 text-rose-700 hover:bg-rose-100'
+                                : 'border-slate-200 bg-white/90 text-slate-700 hover:bg-slate-50',
                               action.disabled && 'opacity-40 cursor-not-allowed',
                             )}
                           >
@@ -357,7 +357,7 @@ export function ModernTable<T extends object>({
 
       {/* Pagination */}
       {pagination && totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-outline-variant px-4 py-3">
+        <div className="flex items-center justify-between border-t border-outline-variant/10 px-4 py-4">
           <span className="text-xs text-on-surface-variant">
             หน้า {pagination.page} จาก {totalPages} &middot; {pagination.total} รายการ
           </span>
@@ -365,14 +365,14 @@ export function ModernTable<T extends object>({
             <button
               onClick={() => pagination.onPageChange(pagination.page - 1)}
               disabled={pagination.page <= 1}
-              className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container disabled:opacity-40"
+              className="pressable rounded-full border border-slate-200 bg-white/90 px-3.5 py-1.5 text-xs font-semibold text-on-surface transition-colors hover:bg-slate-50 disabled:opacity-40"
             >
               ← ก่อนหน้า
             </button>
             <button
               onClick={() => pagination.onPageChange(pagination.page + 1)}
               disabled={pagination.page >= totalPages}
-              className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container disabled:opacity-40"
+              className="pressable rounded-full border border-slate-200 bg-white/90 px-3.5 py-1.5 text-xs font-semibold text-on-surface transition-colors hover:bg-slate-50 disabled:opacity-40"
             >
               ถัดไป →
             </button>

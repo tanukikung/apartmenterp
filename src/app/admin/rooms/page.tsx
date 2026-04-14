@@ -349,10 +349,12 @@ export default function AdminRoomsPage() {
     <main className="mx-auto w-full max-w-[1480px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
 
       {/* ── Header ── */}
-      <section className="rounded-3xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-5 shadow-sm sm:p-6">
+      <section className="premium-surface relative overflow-hidden rounded-[34px] p-5 sm:p-6">
+        <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.16),transparent_68%)] blur-2xl" />
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="space-y-3">
-            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--primary)]">ห้องพัก</h1>
+            <span className="section-kicker">Room Operations</span>
+            <h1 className="text-2xl font-extrabold tracking-[-0.05em] text-[var(--primary)] sm:text-[2rem]">ห้องพัก</h1>
             <p className="mt-1 max-w-2xl text-sm text-[var(--on-surface-variant)]">
               จัดการห้องพัก ค้นหาเลขห้อง เปลี่ยนสถานะ และติดตามภาพรวมการเข้าพักได้จากหน้าเดียว
             </p>
@@ -372,7 +374,7 @@ export default function AdminRoomsPage() {
             </div>
           </div>
           <div className="flex items-center gap-3 self-start xl:self-auto">
-            <div className="rounded-2xl border border-[var(--outline-variant)]/25 bg-[var(--surface-container-low)] p-1">
+            <div className="rounded-2xl border border-white/70 bg-white/75 p-1 shadow-sm">
               <div className="flex items-center gap-1">
                 <button
                   type="button"
@@ -380,9 +382,9 @@ export default function AdminRoomsPage() {
                     setHasChangedViewMode(true);
                     setViewMode('grid');
                   }}
-                  className={`rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
+                  className={`pressable rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
                     viewMode === 'grid'
-                      ? 'bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-sm'
+                      ? 'bg-white text-[var(--primary)] shadow-sm'
                       : 'text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]'
                   }`}
                 >
@@ -397,9 +399,9 @@ export default function AdminRoomsPage() {
                     setHasChangedViewMode(true);
                     setViewMode('table');
                   }}
-                  className={`rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
+                  className={`pressable rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
                     viewMode === 'table'
-                      ? 'bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-sm'
+                      ? 'bg-white text-[var(--primary)] shadow-sm'
                       : 'text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]'
                   }`}
                 >
@@ -412,7 +414,7 @@ export default function AdminRoomsPage() {
             </div>
             <button
               onClick={() => { setDrawerMode('create'); setSelectedRoom(null); }}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-4 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:opacity-90"
+              className="pressable inline-flex items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,rgba(99,102,241,0.98),rgba(34,211,238,0.74))] px-4 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-indigo)] transition-all hover:-translate-y-0.5"
             >
               <Plus size={14} strokeWidth={2.5} />
               เพิ่มห้อง
@@ -423,22 +425,22 @@ export default function AdminRoomsPage() {
 
       {/* ── KPI Stats ── */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-[var(--outline-variant)]/15 bg-[var(--surface-container-lowest)] p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+        <div className="premium-surface premium-hover rounded-[26px] p-5">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ทั้งหมด</p>
           <div className="text-3xl font-extrabold tracking-tight text-[var(--primary)]">{stats.total.toLocaleString()}</div>
           <p className="mt-2 text-sm text-[var(--on-surface-variant)]">ห้องทั้งหมดที่เปิดใช้งานในอาคาร</p>
         </div>
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+        <div className="premium-hover rounded-[26px] border border-emerald-200 bg-[linear-gradient(180deg,rgba(236,253,245,0.96),rgba(209,250,229,0.82))] p-5 shadow-[var(--shadow-card)]">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ว่าง</p>
           <div className="text-3xl font-extrabold tracking-tight text-emerald-700">{stats.vacant.toLocaleString()}</div>
           <p className="mt-2 text-sm text-emerald-800/80">พร้อมปล่อยเช่าทันที</p>
         </div>
-        <div className="rounded-2xl border border-blue-200 bg-blue-50/75 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+        <div className="premium-hover rounded-[26px] border border-sky-200 bg-[linear-gradient(180deg,rgba(240,249,255,0.96),rgba(224,242,254,0.84))] p-5 shadow-[var(--shadow-card)]">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">มีผู้เช่า</p>
           <div className="text-3xl font-extrabold tracking-tight text-blue-700">{stats.occupied.toLocaleString()}</div>
           <p className="mt-2 text-sm text-blue-800/80">อัตราเข้าพัก {stats.occupancyRate}% ของอาคาร</p>
         </div>
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/75 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+        <div className="premium-hover rounded-[26px] border border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.96),rgba(254,243,199,0.84))] p-5 shadow-[var(--shadow-card)]">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ไม่ว่าง/ซ่อม</p>
           <div className="text-3xl font-extrabold tracking-tight text-amber-700">{stats.blocked.toLocaleString()}</div>
           <p className="mt-2 text-sm text-amber-800/80">รวมห้องซ่อมบำรุงและห้องใช้เอง</p>
@@ -446,7 +448,7 @@ export default function AdminRoomsPage() {
       </section>
 
       {/* ── Toolbar ── */}
-      <section className="rounded-3xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-4 shadow-sm sm:p-5">
+        <section className="premium-surface rounded-[32px] p-4 sm:p-5">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -467,12 +469,12 @@ export default function AdminRoomsPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-low)] py-2.5 pl-10 pr-4 text-sm transition-all focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]"
+                className="w-full rounded-2xl border border-slate-200 bg-white/85 py-2.5 pl-10 pr-4 text-sm shadow-sm transition-all focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary)]/12"
                 placeholder="ค้นหาเลขห้อง เช่น 205 หรือ 798/1"
               />
             </div>
             <select
-              className="rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-low)] px-3 py-2.5 text-sm focus:ring-2 focus:ring-[var(--primary)]"
+              className="rounded-2xl border border-slate-200 bg-white/85 px-3 py-2.5 text-sm shadow-sm focus:ring-4 focus:ring-[var(--primary)]/12"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -486,7 +488,7 @@ export default function AdminRoomsPage() {
           {floors.length > 0 && (
             <div className="flex flex-wrap gap-2">
               <button
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${floorFilter === null ? 'bg-primary text-white shadow-md' : 'bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]'}`}
+                className={`pressable rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${floorFilter === null ? 'bg-primary text-white shadow-md' : 'bg-white/85 text-[var(--on-surface-variant)] hover:bg-slate-50'}`}
                 onClick={() => setFloorFilter(null)}
               >
                 ทุกชั้น
@@ -494,7 +496,7 @@ export default function AdminRoomsPage() {
               {floors.map((f) => (
                 <button
                   key={f.floorNo}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${floorFilter === f.floorNo ? 'bg-primary text-white shadow-md' : 'bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]'}`}
+                  className={`pressable rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${floorFilter === f.floorNo ? 'bg-primary text-white shadow-md' : 'bg-white/85 text-[var(--on-surface-variant)] hover:bg-slate-50'}`}
                   onClick={() => setFloorFilter(f.floorNo)}
                 >
                   ชั้น {f.floorNo}
@@ -521,11 +523,11 @@ export default function AdminRoomsPage() {
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="skeleton h-32 rounded-xl" />
+            <div key={i} className="skeleton h-32 rounded-[24px]" />
           ))}
         </div>
       ) : !filteredRooms.length ? (
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-12 text-center">
+        <div className="premium-surface rounded-[28px] p-12 text-center">
           <DoorOpen size={40} className="mx-auto text-[var(--on-surface-variant)] mb-4" />
           <div className="text-sm font-semibold text-[var(--on-surface-variant)]">ไม่พบห้อง</div>
           <div className="text-xs text-[var(--on-surface-variant)] mt-1">ลองเปลี่ยนตัวกรองหรือเพิ่มห้องใหม่</div>
@@ -565,7 +567,7 @@ export default function AdminRoomsPage() {
           onCardClick={(room) => setSelectedRoom(room)}
           loading={loading}
           empty={
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-12 text-center">
+            <div className="premium-surface rounded-[28px] p-12 text-center">
               <DoorOpen size={40} className="mx-auto text-[var(--on-surface-variant)] mb-4" />
               <div className="text-sm font-semibold text-[var(--on-surface-variant)]">ไม่พบห้อง</div>
               <div className="text-xs text-[var(--on-surface-variant)] mt-1">ลองเปลี่ยนตัวกรองหรือเพิ่มห้องใหม่</div>
@@ -617,7 +619,7 @@ export default function AdminRoomsPage() {
           ]}
           loading={loading}
           empty={
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-12 text-center">
+            <div className="premium-surface rounded-[28px] p-12 text-center">
               <DoorOpen size={40} className="mx-auto text-[var(--on-surface-variant)] mb-4" />
               <div className="text-sm font-semibold text-[var(--on-surface-variant)]">ไม่พบห้อง</div>
             </div>
@@ -626,7 +628,7 @@ export default function AdminRoomsPage() {
       )}
 
       {roomsData && roomsData.totalPages > 1 && (
-        <section className="flex flex-col gap-3 rounded-2xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <section className="premium-surface flex flex-col gap-3 rounded-[28px] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-sm font-semibold text-[var(--on-surface)]">
               หน้า {page} จาก {roomsData.totalPages}
@@ -640,7 +642,7 @@ export default function AdminRoomsPage() {
               type="button"
               onClick={() => setPage((current) => Math.max(1, current - 1))}
               disabled={page <= 1}
-              className="inline-flex items-center gap-2 rounded-xl border border-[var(--outline-variant)]/30 px-3 py-2 text-sm font-semibold text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container-low)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="pressable inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3.5 py-2 text-sm font-semibold text-[var(--on-surface)] transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ChevronLeft size={16} />
               ก่อนหน้า
@@ -649,7 +651,7 @@ export default function AdminRoomsPage() {
               type="button"
               onClick={() => setPage((current) => Math.min(roomsData.totalPages, current + 1))}
               disabled={page >= roomsData.totalPages}
-              className="inline-flex items-center gap-2 rounded-xl border border-[var(--outline-variant)]/30 px-3 py-2 text-sm font-semibold text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container-low)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="pressable inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3.5 py-2 text-sm font-semibold text-[var(--on-surface)] transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               ถัดไป
               <ChevronRight size={16} />
