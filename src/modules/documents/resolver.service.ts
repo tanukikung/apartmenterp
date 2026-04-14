@@ -139,7 +139,7 @@ export interface ResolvedDocumentTarget {
 
 const BILLING_TEMPLATE_TYPES = new Set<DocumentTemplateType>([
   DocumentTemplateType.INVOICE,
-  DocumentTemplateType.NOTICE,
+  DocumentTemplateType.PAYMENT_NOTICE,
   DocumentTemplateType.RECEIPT,
 ]);
 

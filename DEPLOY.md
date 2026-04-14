@@ -1,217 +1,109 @@
 # Deployment Guide
 
-## Prerequisites
+เอกสารนี้สรุป deployment path ที่รองรับทั้งหมด โดยเรียงจากง่ายที่สุดไปยืดหยุ่นที่สุด
 
-| Requirement | Version | Notes |
-|------------|---------|-------|
-| Node.js | 20 LTS | 18 minimum; 22 works |
-| PostgreSQL | 15+ | 16 recommended; tested on 18 |
-| npm | 9+ | bundled with Node 20 |
-| Docker + Compose | 24+ | optional; for containerised deploy |
-| OpenSSL | any | for generating secrets |
+## ทางที่แนะนำ
 
-Redis is optional. The outbox processor falls back to in-process queue without it. No functionality is lost in single-instance deployments.
+ถ้าจะส่งระบบให้ลูกค้าหรือทีมปลายทางใช้งานเอง ให้ใช้ [CUSTOMER_DEPLOY.md](./CUSTOMER_DEPLOY.md) และ `docker-compose.customer.yml`
 
----
+จุดเด่นของ path นี้:
+- มี PostgreSQL มาให้ในชุดเดียว
+- start ครั้งแรกแล้ว migrate + seed อัตโนมัติ
+- มีสคริปต์ `customer-stack` สำหรับ Windows และ Linux/macOS
+- ไม่ต้องให้ลูกค้าจำหลายคำสั่ง
 
-## Environment Setup
+## Path 1: Customer Stack
 
-1. Copy the example env file and fill in values (see `ENV_REQUIRED.md` for every variable):
+Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\customer-stack.ps1 init
+powershell -ExecutionPolicy Bypass -File .\scripts\customer-stack.ps1 up
+```
+
+Linux / macOS:
 
 ```bash
-cd apps/erp
-cp .env.example .env.production.local
+chmod +x scripts/customer-stack.sh
+./scripts/customer-stack.sh init
+./scripts/customer-stack.sh up
 ```
 
-2. Mandatory minimum for the app to start:
+ไฟล์ที่ใช้:
+- `docker-compose.customer.yml`
+- `.env.customer`
+- `.env.customer.example`
 
-```
-DATABASE_URL=postgresql://user:pass@host:5432/dbname
-NEXTAUTH_SECRET=<32-char random hex>
-APP_BASE_URL=https://your-domain.com
-```
+เหมาะสำหรับ:
+- ส่งให้ลูกค้าเป็น zip หรือ git checkout
+- deploy บน PC, mini server, NAS, หรือ VPS ที่มี Docker อยู่แล้ว
+- single-instance deployment
 
-Generate secrets:
-```bash
-openssl rand -hex 32   # use for NEXTAUTH_SECRET and CRON_SECRET
-```
+## Path 2: Production Compose
 
----
-
-## Database Migration Steps
-
-Run once per deployment, in order. Safe to re-run (idempotent):
+ใช้ `docker-compose.prod.yml` ถ้าทีม deploy ต้องการควบคุม environment เองมากขึ้น เช่น domain จริง, external secret management, หรือการแยก volume/backup ชัดเจนกว่า customer stack
 
 ```bash
-# 1. Apply all migrations
-npx prisma migrate deploy
-
-# 2. Regenerate Prisma client (required after schema changes)
-npx prisma generate
+cp .env.example .env.production
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 ```
 
-**Fresh install:** migrations are applied in order `0001` → `0007`. All 7 migrations apply cleanly on a blank database.
+เหมาะสำหรับ:
+- ทีมเทคนิคที่ดูแลระบบเอง
+- production ที่ต้องการแก้ค่า env แบบละเอียด
+- deployment ที่มี checklist และ sign-off ชัดเจน
 
-**Existing install / upgrade:** `prisma migrate deploy` applies only unapplied migrations. No manual SQL needed.
+## Path 3: Standalone Node
 
-Do not run `prisma migrate dev` in production — it generates new migration files.
-
----
-
-## Seed / Init Steps
-
-Seed creates: 1 building, 8 floors, 239 rooms, 2 admin users (owner + staff).
+ใช้เมื่อเครื่องปลายทางมี PostgreSQL พร้อมอยู่แล้ว และไม่ต้องการ Docker
 
 ```bash
-npx tsx prisma/seed.ts
-```
-
-Default credentials created by seed (change immediately after first login):
-- Admin: `owner` / `Owner@12345`
-- Staff: `staff` / `Staff@12345`
-
-Override passwords at seed time:
-```bash
-SEED_OWNER_PASSWORD=MyStrong1 SEED_STAFF_PASSWORD=MyStrong2 npx tsx prisma/seed.ts
-```
-
-**Production note:** seed is safe to re-run (uses upsert). It will not duplicate rooms. It will not overwrite an existing owner password if the user was modified after seeding.
-
-First-user bootstrap: if the database has zero admin users, the `/sign-up` route creates the first account without requiring a signup code.
-
----
-
-## Build and Start Commands
-
-### Node (bare metal / VPS)
-
-```bash
-cd apps/erp
-
-# Install dependencies
 npm ci
-
-# Generate Prisma client
 npx prisma generate
-
-# Build Next.js app + background workers
-npm run build
-npm run build:worker
-npm run build:scheduler
-
-# Run database migrations
 npx prisma migrate deploy
-
-# Start production server (port 3000)
-npm run start
+npx next build --no-lint
+cp -r .next/static .next/standalone/.next/static
+cp -r public .next/standalone/public
+node .next/standalone/server.js
 ```
 
-### Docker Compose (recommended)
+เหมาะสำหรับ:
+- managed hosting ที่มี Node.js พร้อม
+- ทีม ops ที่ไม่ต้องการรัน container
 
-```bash
-cd apps/erp
+หมายเหตุ:
+- path นี้ต้องจัดการ `DATABASE_URL`, process manager, reverse proxy, และ restart policy เอง
+- ถ้าใช้ `output: standalone` ต้อง copy `.next/static` และ `public/` ทุกครั้ง
 
-# Build and start all services (app + postgres + redis)
-docker compose build --no-cache
-docker compose up -d
+## ค่าขั้นต่ำที่ระบบต้องมี
 
-# Run migrations inside the running app container
-docker compose exec app npx prisma migrate deploy
+ดูรายการเต็มที่ [ENV_REQUIRED.md](./ENV_REQUIRED.md)
 
-# (First deploy only) Seed the database
-docker compose exec app npx tsx prisma/seed.ts
-```
+ขั้นต่ำสุดสำหรับระบบจริง:
+- `DATABASE_URL`
+- `NEXTAUTH_SECRET`
+- `APP_BASE_URL`
+- `NODE_ENV=production`
 
-App listens on port `3000`. Place Nginx or a load balancer in front for TLS termination.
+เพิ่มตาม feature ที่เปิดใช้:
+- `CRON_SECRET`
+- `LINE_*`
+- `AWS_*` และ `BACKUP_S3_BUCKET`
+- `REDIS_URL` ถ้า deploy หลาย instance
 
-### Environment variable for Docker
+## หลัง deploy ต้องเช็คอะไร
 
-Pass env vars via `.env.production` file (referenced by `env_file` in `docker-compose.yml`) or by setting them directly in the shell before running `docker compose`.
+- [PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md)
+- [SMOKE_TEST_CHECKLIST.md](./SMOKE_TEST_CHECKLIST.md)
 
----
+ขั้นต่ำสุดที่ต้องผ่าน:
+- `/login` เข้าได้
+- `/admin/dashboard` โหลดไม่มี runtime error
+- `/api/health` ตอบ `status: ok`
+- `/api/health/deep` ตอบได้
 
-## Vercel Deployment Notes
+## Rollback
 
-The app uses `output: 'standalone'` in `next.config.js` and is compatible with Vercel.
-
-1. Set all environment variables in the Vercel project dashboard (`Settings → Environment Variables`). Do not commit `.env` files.
-2. Vercel does not run `prisma migrate deploy` automatically. Use a Vercel deploy hook or CI pipeline step to run migrations against the database before traffic is cut over:
-   ```bash
-   DATABASE_URL=<prod_url> npx prisma migrate deploy
-   ```
-3. Background cron jobs (`/api/cron/*`) must be scheduled externally (e.g., Vercel Cron, GitHub Actions, or an uptime service hitting the endpoints with the `x-cron-secret` header).
-4. File uploads with `STORAGE_DRIVER=local` will not persist on Vercel (ephemeral filesystem). Set `STORAGE_DRIVER=s3` and configure S3 credentials for persistent file storage.
-
----
-
-## Rollback Notes
-
-### Application rollback
-
-```bash
-# Deploy the previous image tag
-docker compose down
-docker compose up -d --image <previous-tag>
-docker compose exec app npx prisma migrate deploy   # no-op if no new migrations
-```
-
-Or with git:
-```bash
-git checkout <previous-commit>
-npm ci && npm run build
-npm run start
-```
-
-### Database rollback
-
-Prisma does not generate automatic down migrations. To roll back a schema change:
-
-1. Restore from a pre-migration database backup (see backup commands below).
-2. Or write a manual SQL script that reverses the migration and apply it with `psql` directly.
-
-Always take a backup immediately before running `prisma migrate deploy` in production:
-
-```bash
-pg_dump -U postgres apartment_erp | gzip > pg_backup_premigration_$(date +%F).sql.gz
-```
-
-### Backup and restore
-
-```bash
-# Backup
-docker compose exec -T postgres pg_dump -U postgres apartment_erp | gzip > pg_backup_$(date +%F).sql.gz
-
-# Restore
-gunzip -c pg_backup_YYYY-MM-DD.sql.gz | docker compose exec -T postgres psql -U postgres apartment_erp
-
-# Or via the built-in restore script (requires DATABASE_URL in env)
-node dist/restore-db.js /path/to/pg_backup_YYYYMMDD_HHMMSSZ.sql.gz
-```
-
----
-
-## Health Checks
-
-| Endpoint | Purpose |
-|----------|---------|
-| `GET /api/health` | DB connectivity + env check; returns `{ status: "ok" }` |
-| `GET /api/health/deep` | Extended check including outbox and storage |
-| `GET /api/metrics` | Memory, uptime, DB pool stats |
-
----
-
-## Background Jobs
-
-Enable with `CRON_ENABLED=true`. Jobs fire in-process on the Next.js server:
-
-| Job | Schedule | Action |
-|-----|----------|--------|
-| Billing generation | Day 1 of month, 03:00 | Creates invoices for all active rooms |
-| Overdue check | Daily 04:00 | Marks overdue invoices |
-| Reminder sender | Daily 08:00 | Sends LINE payment reminders |
-
-Jobs can also be triggered manually (ADMIN role or `x-cron-secret` header):
-```bash
-curl -X POST https://your-domain.com/api/system/backup/run \
-  -H "x-cron-secret: $CRON_SECRET"
-```
+rollback reference:
+- [docs/ROLLBACK_PROCEDURE.md](./docs/ROLLBACK_PROCEDURE.md)
+- [docs/BACKUP_PROCEDURE.md](./docs/BACKUP_PROCEDURE.md)

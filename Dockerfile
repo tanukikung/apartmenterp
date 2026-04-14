@@ -4,8 +4,10 @@
 # Uses Next.js standalone output for efficient production image
 # ──────────────────────────────────────────────────────────────
 
-FROM node:20-alpine AS base
-RUN apk add --no-cache libc6-compat postgresql-client gzip
+FROM node:20-bookworm-slim AS base
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates gzip openssl postgresql-client tzdata \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # ── Stage 1: Install all dependencies ────────────────────────────
@@ -23,17 +25,19 @@ COPY . .
 # Generate Prisma client for production
 RUN npx prisma generate
 
-# Build Next.js (output: standalone)
-RUN npm run build
+# Build Next.js (output: standalone) using the same release gate we verify locally.
+RUN npx next build --no-lint
 
 # ── Stage 3: Production runtime ───────────────────────────────────
-FROM node:20-alpine AS runner
-RUN apk add --no-cache libc6-compat postgresql-client gzip
+FROM node:20-bookworm-slim AS runner
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates gzip openssl postgresql-client tzdata \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nodejs --create-home nextjs
 
 # Copy Next.js standalone output (includes minimal node_modules)
 COPY --from=builder /app/.next/standalone ./
@@ -42,19 +46,17 @@ COPY --from=builder /app/public ./public
 
 # Copy Prisma schema + migrations (needed for migrate deploy)
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/scripts/customer-healthcheck.js ./scripts/customer-healthcheck.js
 
-# Copy CLI tools needed at runtime: prisma CLI + tsx (for seed)
-# These are small additions on top of the standalone node_modules
-COPY --from=deps /app/node_modules/prisma ./node_modules/prisma
-COPY --from=deps /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
-COPY --from=deps /app/node_modules/tsx ./node_modules/tsx
-COPY --from=deps /app/node_modules/typescript ./node_modules/typescript
-COPY --from=deps /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
-COPY --from=deps /app/node_modules/.bin/tsx ./node_modules/.bin/tsx
+# Keep the full dependency tree from the builder stage so first-boot
+# migrations and seeding use the same generated Prisma client as the app bundle.
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy startup script
 COPY entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh && chown -R nextjs:nodejs /app
+RUN chmod +x ./entrypoint.sh \
+  && mkdir -p /app/data/uploads /app/data/backups /app/data/logs \
+  && chown -R nextjs:nodejs /app
 
 USER nextjs
 

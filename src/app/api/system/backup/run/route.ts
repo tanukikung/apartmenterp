@@ -3,6 +3,7 @@ import { getVerifiedActor } from '@/lib/auth/guards';
 import { AppError, asyncHandler, type ApiResponse, formatError } from '@/lib/utils/errors';
 import { getBackupPrerequisiteFailure, runBackup } from '@/lib/ops/backup';
 import { logger } from '@/lib/utils/logger';
+import { recordBackupFailure, recordBackupStart, recordBackupSuccess } from '../../../../../../scripts/backup-scheduler';
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   getVerifiedActor(req, { allowSystem: true });
@@ -17,7 +18,9 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   }
   const start = Date.now();
   try {
+    recordBackupStart();
     await runBackup();
+    recordBackupSuccess();
     const data = {
       triggered: true,
       durationMs: Date.now() - start,
@@ -27,6 +30,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     return NextResponse.json({ success: true, data } as ApiResponse<typeof data>);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    recordBackupFailure(message);
     logger.error({ type: 'backup_manual_failed', message });
     const response = formatError(e);
     return NextResponse.json(response, { status: response.error.statusCode });

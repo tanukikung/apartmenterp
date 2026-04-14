@@ -21,14 +21,16 @@ function resolveLevel(): LogLevel {
 const isProduction = process.env.NODE_ENV === 'production';
 let destination: pino.DestinationStream | undefined;
 if (isProduction) {
-  const dir = process.env.LOG_DIR || '/logs';
-  try {
-    fs.mkdirSync(dir, { recursive: true });
-  } catch (err) {
-    console.error('Failed to create log directory:', err);
+  const dir = process.env.LOG_DIR;
+  if (dir) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      const file = path.join(dir, 'app.log');
+      destination = pino.destination({ dest: file, sync: false });
+    } catch (err) {
+      console.warn('Falling back to stdout logging because the log directory is unavailable:', err);
+    }
   }
-  const file = path.join(dir, 'app.log');
-  destination = pino.destination({ dest: file, sync: false });
 }
 
 export const logger = pino({

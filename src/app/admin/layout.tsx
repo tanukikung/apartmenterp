@@ -76,7 +76,7 @@ const PAGE_TITLES: Array<{ prefix: string; label: string }> = [
   { prefix: '/admin/documents/generate', label: 'สร้างเอกสาร' },
   { prefix: '/admin/documents', label: 'เอกสาร' },
   { prefix: '/admin/deliveries', label: 'ส่ง LINE' },
-  { prefix: '/admin/analytics', label: 'Analytics' },
+  { prefix: '/admin/analytics', label: 'ภาพวิเคราะห์' },
   { prefix: '/admin/reports', label: 'รายงาน' },
   { prefix: '/admin/reports/profit-loss', label: 'รายงานกำไร/ขาดทุน' },
   { prefix: '/admin/audit-logs', label: 'ประวัติกิจกรรม' },
@@ -155,7 +155,7 @@ const nav: NavItem[] = [
 
   {
     type: 'group', label: 'รายงาน', defaultOpen: false, items: [
-      { type: 'link', href: '/admin/analytics', label: 'Analytics', icon: PieChart },
+      { type: 'link', href: '/admin/analytics', label: 'ภาพวิเคราะห์', icon: PieChart },
       { type: 'link', href: '/admin/reports', label: 'รายงาน', icon: FileBarChart },
       { type: 'link', href: '/admin/audit-logs', label: 'ประวัติกิจกรรม', icon: ClipboardList },
     ],
@@ -482,7 +482,7 @@ function TopBar({
           </div>
           <div className="hidden lg:block">
             <div className="text-sm font-semibold text-[var(--color-text)] leading-tight tracking-tight">Apartment ERP</div>
-            <div className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-3)]">Console</div>
+            <div className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-3)]">Admin Center</div>
           </div>
         </Link>
 
@@ -714,7 +714,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   </div>
                   <div>
                     <div className="text-sm font-semibold text-[var(--sidebar-text-active)] leading-tight tracking-tight">Apartment ERP</div>
-                    <div className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-3)]">Console</div>
+                    <div className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-3)]">Admin Center</div>
                   </div>
                 </div>
                 <button

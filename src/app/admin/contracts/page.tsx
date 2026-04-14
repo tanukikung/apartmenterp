@@ -16,6 +16,7 @@ import {
   Pencil,
   RefreshCw,
 } from 'lucide-react';
+import { fetchAllRooms } from '@/lib/api/fetch-all-rooms';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -216,12 +217,7 @@ export default function AdminContractsPage() {
 
   const { data: roomsData } = useQuery({
     queryKey: ['rooms-vacant'],
-    queryFn: async () => {
-      const res = await fetch('/api/rooms?pageSize=300&roomStatus=VACANT');
-      if (!res.ok) return [];
-      const json = await res.json();
-      return json.success ? (json.data.data ?? []) : [];
-    },
+    queryFn: () => fetchAllRooms<RoomOption>({ roomStatus: 'VACANT' }),
     enabled: panelMode === 'new',
   });
 

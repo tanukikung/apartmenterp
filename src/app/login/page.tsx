@@ -32,7 +32,7 @@ export default async function LoginPage({
           </div>
           <div>
             <div className="auth-brand-title">Apartment ERP</div>
-            <div className="auth-brand-subtitle">Operations Console</div>
+            <div className="auth-brand-subtitle">ศูนย์ควบคุมหลังบ้าน</div>
           </div>
         </div>
 

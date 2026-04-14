@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FileOutput, Layers3, Search, Wand2 } from 'lucide-react';
+import { fetchAllRooms } from '@/lib/api/fetch-all-rooms';
 
 type TemplateOption = {
   id: string;
@@ -74,7 +75,7 @@ async function fetchTemplates(): Promise<{ data: TemplateOption[] }> {
   return json.data;
 }
 
-async function fetchFloors(): Promise<{ data: FloorOption[] }> {
+async function fetchFloors(): Promise<FloorOption[]> {
   const res = await fetch('/api/floors', { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch floors');
   const json = await res.json();
@@ -83,11 +84,7 @@ async function fetchFloors(): Promise<{ data: FloorOption[] }> {
 }
 
 async function fetchRooms(): Promise<{ data: RoomOption[] }> {
-  const res = await fetch('/api/rooms?pageSize=100&page=1', { cache: 'no-store' });
-  if (!res.ok) throw new Error('Failed to fetch rooms');
-  const json = await res.json();
-  if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
-  return json.data;
+  return { data: await fetchAllRooms<RoomOption>() };
 }
 
 export default function GenerateDocumentsPage() {
@@ -113,7 +110,7 @@ export default function GenerateDocumentsPage() {
     queryKey: ['templates-for-generate'],
     queryFn: fetchTemplates,
   });
-  const { data: floorsRaw, isLoading: floorsLoading } = useQuery<{ data: FloorOption[] }>({
+  const { data: floorsRaw, isLoading: floorsLoading } = useQuery<FloorOption[]>({
     queryKey: ['floors-for-generate'],
     queryFn: fetchFloors,
   });
@@ -123,9 +120,10 @@ export default function GenerateDocumentsPage() {
   });
 
   const templates: TemplateOption[] = (templatesRaw?.data ?? []).filter((t: TemplateOption) => t.activeVersionId);
-  const floors: FloorOption[] = floorsRaw?.data ?? [];
+  const floors: FloorOption[] = floorsRaw ?? [];
   const rooms: RoomOption[] = roomsRaw?.data ?? [];
   const isLoading = templatesLoading || floorsLoading || roomsLoading;
+  const hasActiveTemplates = templates.length > 0;
 
   if (!initRef.current && templates.length > 0 && !selectedTemplateId) {
     initRef.current = true;
@@ -242,12 +240,18 @@ export default function GenerateDocumentsPage() {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">เทมเพลต</label>
                 <select className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20" value={selectedTemplateId} onChange={(event) => setSelectedTemplateId(event.target.value)}>
+                  {!hasActiveTemplates ? <option value="">à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¡à¸µà¹€à¸—à¸¡à¹€à¸žà¸¥à¸•à¸—à¸µà¹ˆà¸žà¸£à¹‰à¸­à¸¡à¹ƒà¸Šà¹‰à¸‡à¸²à¸™</option> : null}
                   {templates.map((template) => (
                     <option key={template.id} value={template.id}>
                       {template.name} · {template.type.replace(/_/g, ' ')}
                     </option>
                   ))}
                 </select>
+                {!hasActiveTemplates ? (
+                  <p className="mt-2 text-xs text-amber-700">
+                    à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¡à¸µà¹€à¸—à¸¡à¹€à¸žà¸¥à¸•à¹€à¸­à¸à¸ªà¸²à¸£à¸—à¸µà¹ˆà¹€à¸›à¸´à¸”à¹ƒà¸Šà¹‰à¸‡à¸²à¸™ à¹„à¸›à¸—à¸µà¹ˆà¸«à¸™à¹‰à¸²à¸ˆà¸±à¸”à¸à¸²à¸£à¹€à¸—à¸¡à¹€à¸žà¸¥à¸•à¹€à¸žà¸·à¹ˆà¸­à¸ªà¸£à¹‰à¸²à¸‡à¸«à¸£à¸·à¸­à¹€à¸›à¸´à¸”à¹ƒà¸Šà¹‰à¸‡à¸²à¸™à¹€à¸—à¸¡à¹€à¸žà¸¥à¸•à¸à¹ˆà¸­à¸™
+                  </p>
+                ) : null}
               </div>
 
               <div>

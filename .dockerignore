@@ -1,38 +1,56 @@
-# ── Dependencies ─────────────────────────────────────────────
+# Dependencies
 node_modules
 .npm
 
-# ── Next.js build output ─────────────────────────────────────
+# Next.js and build outputs
 .next
 out
-
-# ── Compiled worker/scheduler ────────────────────────────────
 dist
+coverage
 
-# ── Environment files (injected via Coolify UI) ──────────────
+# Environment files
 .env
 .env.*
 !.env.example
 
-# ── Git ──────────────────────────────────────────────────────
+# Git and local tooling
 .git
 .gitignore
-
-# ── Logs ─────────────────────────────────────────────────────
-*.log
-logs/
-
-# ── Test files ───────────────────────────────────────────────
-tests/
-*.test.ts
-*.spec.ts
-coverage/
-
-# ── Editor & OS ──────────────────────────────────────────────
+.claude
+.minimax
+.cursor
+.windsurf
 .vscode
 .idea
-*.DS_Store
-Thumbs.db
 
-# ── TypeScript source maps (not needed in image) ─────────────
+# Logs
+*.log
+logs/
+.codex-*.log
+.next-dev.*
+
+# Tests and generated reports
+tests/
+playwright-report/
+test-results/
+screenshots/
+uat-screenshots/
+stitch_apartment_erp_admin_prd/
+
+# Local runtime data
+.data/
+.runtime/
+deploy/
+memory/
+tmp/
+
+# Unneeded local artifacts
+cookies.txt
+thai_test.pdf
+sample-invoice.pdf
+invoice_thai_test.pdf
+xlsx_structure.json
+tsconfig.tsbuildinfo
 *.map
+Thumbs.db
+*.DS_Store

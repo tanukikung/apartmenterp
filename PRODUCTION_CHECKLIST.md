@@ -3,6 +3,7 @@
 Use this as the final go-live gate for Apartment ERP.
 
 Reference documents:
+- `CUSTOMER_DEPLOY.md` for the simplest customer handoff path
 - `DEPLOY.md` for deployment steps
 - `ENV_REQUIRED.md` for environment variables
 - `SMOKE_TEST_CHECKLIST.md` for post-deploy UI testing

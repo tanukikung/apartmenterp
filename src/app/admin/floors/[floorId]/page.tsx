@@ -1,30 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Building2, DoorOpen, Users, AlertTriangle, ArrowLeft, ChevronRight } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Building2,
+  ChevronRight,
+  DoorOpen,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { fetchAllRooms } from '@/lib/api/fetch-all-rooms';
 
-type RoomStatus = 'VACANT' | 'OCCUPIED' | 'MAINTENANCE' | 'SELF_USE' | 'UNAVAILABLE';
+type RoomStatus = 'VACANT' | 'OCCUPIED' | 'MAINTENANCE' | 'OWNER_USE';
 
 type Room = {
-  id?: string;
   roomNo: string;
   roomNumber: string;
   roomStatus: string;
-  status?: RoomStatus;
-  capacity?: number;
-  usageType?: string;
-  billingStatus?: string;
-  isActive?: boolean;
-  floorNo?: number;
-  floor?: { floorNumber: number };
-};
-
-type Floor = {
-  id: string;
-  floorNumber: number;
-  buildingId: string;
+  floorNo: number;
 };
 
 type FilterTab = 'ALL' | RoomStatus;
@@ -33,32 +28,28 @@ const STATUS_LABELS: Record<RoomStatus, string> = {
   VACANT: 'ว่าง',
   OCCUPIED: 'มีผู้เช่า',
   MAINTENANCE: 'ซ่อมบำรุง',
-  SELF_USE: 'ใช้งานส่วนตัว',
-  UNAVAILABLE: 'ไม่พร้อม',
+  OWNER_USE: 'ใช้งานส่วนตัว',
 };
 
 const STATUS_CARD_STYLE: Record<RoomStatus, string> = {
   VACANT: 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100',
   OCCUPIED: 'border-indigo-200 bg-indigo-50 hover:bg-indigo-100',
   MAINTENANCE: 'border-amber-200 bg-amber-50 hover:bg-amber-100',
-  SELF_USE: 'border-slate-200 bg-slate-50 hover:bg-slate-100',
-  UNAVAILABLE: 'border-red-200 bg-red-50 hover:bg-red-100',
+  OWNER_USE: 'border-slate-200 bg-slate-50 hover:bg-slate-100',
 };
 
 const STATUS_BADGE_STYLE: Record<RoomStatus, string> = {
   VACANT: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   OCCUPIED: 'bg-indigo-100 text-indigo-700 border-indigo-200',
   MAINTENANCE: 'bg-amber-100 text-amber-700 border-amber-200',
-  SELF_USE: 'bg-slate-100 text-slate-600 border-slate-200',
-  UNAVAILABLE: 'bg-red-100 text-red-700 border-red-200',
+  OWNER_USE: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
 const STATUS_NUMBER_COLOR: Record<RoomStatus, string> = {
   VACANT: 'text-emerald-800',
   OCCUPIED: 'text-indigo-800',
   MAINTENANCE: 'text-amber-800',
-  SELF_USE: 'text-slate-700',
-  UNAVAILABLE: 'text-red-800',
+  OWNER_USE: 'text-slate-700',
 };
 
 const FILTER_TABS: { key: FilterTab; label: string }[] = [
@@ -71,72 +62,92 @@ const FILTER_TABS: { key: FilterTab; label: string }[] = [
 function SkeletonRoomCard() {
   return (
     <div className="animate-pulse rounded-2xl border border-slate-200 bg-slate-50 p-3">
-      <div className="mb-2 h-5 w-12 rounded-full bg-slate-200" />
-      <div className="mb-1 h-3 w-16 rounded-full bg-slate-200" />
-      <div className="h-3 w-10 rounded-full bg-slate-200" />
+      <div className="mb-2 h-5 w-16 rounded-full bg-slate-200" />
+      <div className="mb-3 h-6 w-14 rounded-xl bg-slate-200" />
+      <div className="h-3 w-20 rounded-full bg-slate-200" />
     </div>
   );
+}
+
+function normalizeRoomStatus(status: string): RoomStatus {
+  if (status === 'OCCUPIED' || status === 'MAINTENANCE' || status === 'OWNER_USE') {
+    return status;
+  }
+  return 'VACANT';
 }
 
 export default function FloorDetailPage() {
   const params = useParams();
   const floorId = params?.floorId as string;
+  const floorNumber = Number(floorId);
 
-  const [floor, setFloor] = useState<Floor | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>('ALL');
 
   useEffect(() => {
-    if (!floorId) return;
+    if (!floorId) {
+      return;
+    }
 
     async function load() {
       setLoading(true);
       setError(null);
+
       try {
-        const [floorsRes, roomsRes] = await Promise.all([
-          fetch('/api/floors', { cache: 'no-store' }).then((r) => r.json()),
-          fetch(`/api/rooms?floorNo=${floorId}&pageSize=100`, { cache: 'no-store' }).then((r) => r.json()),
-        ]);
-
-        if (floorsRes.success) {
-          const found = (floorsRes.data as Floor[]).find((f) => f.id === floorId);
-          if (found) setFloor(found);
+        if (!Number.isInteger(floorNumber) || floorNumber < 1) {
+          throw new Error('รหัสชั้นไม่ถูกต้อง');
         }
 
-        if (roomsRes.success) {
-          const roomList: Room[] = roomsRes.data?.data ?? roomsRes.data ?? [];
-          roomList.sort((a, b) => a.roomNumber.localeCompare(b.roomNumber, undefined, { numeric: true }));
-          setRooms(roomList);
-        } else {
-          throw new Error(roomsRes.error?.message || 'ไม่สามารถโหลดห้อง');
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลชั้น');
+        const roomList = await fetchAllRooms<Room>({ floorNo: floorNumber });
+        roomList.sort((left, right) =>
+          (left.roomNumber ?? left.roomNo).localeCompare(
+            right.roomNumber ?? right.roomNo,
+            undefined,
+            { numeric: true },
+          ),
+        );
+        setRooms(roomList);
+      } catch (nextError) {
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : 'ไม่สามารถโหลดข้อมูลชั้นได้',
+        );
       } finally {
         setLoading(false);
       }
     }
 
     void load();
-  }, [floorId]);
+  }, [floorId, floorNumber]);
 
-  const stats = {
-    total: rooms.length,
-    occupied: rooms.filter((r) => r.roomStatus === 'OCCUPIED').length,
-    vacant: rooms.filter((r) => r.roomStatus === 'VACANT').length,
-    maintenance: rooms.filter((r) => r.roomStatus === 'MAINTENANCE').length,
-  };
+  const floorLabel =
+    Number.isInteger(floorNumber) && floorNumber > 0
+      ? `ชั้น ${floorNumber}`
+      : 'ชั้น';
+
+  const stats = useMemo(
+    () => ({
+      total: rooms.length,
+      occupied: rooms.filter((room) => normalizeRoomStatus(room.roomStatus) === 'OCCUPIED')
+        .length,
+      vacant: rooms.filter((room) => normalizeRoomStatus(room.roomStatus) === 'VACANT').length,
+      maintenance: rooms.filter(
+        (room) => normalizeRoomStatus(room.roomStatus) === 'MAINTENANCE',
+      ).length,
+    }),
+    [rooms],
+  );
 
   const filteredRooms =
-    activeFilter === 'ALL' ? rooms : rooms.filter((r) => r.roomStatus === activeFilter);
-
-  const floorLabel = floor ? `ชั้น ${floor.floorNumber}` : `ชั้น ...`;
+    activeFilter === 'ALL'
+      ? rooms
+      : rooms.filter((room) => normalizeRoomStatus(room.roomStatus) === activeFilter);
 
   return (
     <main className="space-y-6">
-      {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
         <Link href="/admin/dashboard" className="hover:text-[var(--primary)]">
           แดชบอร์ด
@@ -149,7 +160,6 @@ export default function FloorDetailPage() {
         <span className="font-medium text-[var(--on-surface)]">{floorLabel}</span>
       </nav>
 
-      {/* Page header */}
       <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
         <div className="flex items-center gap-4">
           <Link
@@ -167,17 +177,18 @@ export default function FloorDetailPage() {
         </div>
       </section>
 
-      {error ? (
-        <div className="auth-alert auth-alert-error">{error}</div>
-      ) : null}
+      {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
 
-      {/* Stats row */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้องทั้งหมด</div>
-              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : stats.total}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">
+                ห้องทั้งหมด
+              </div>
+              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">
+                {loading ? '...' : stats.total}
+              </div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--primary)]/20 bg-primary/10 shadow-sm">
               <DoorOpen className="h-5 w-5 text-[var(--primary)]" />
@@ -188,8 +199,12 @@ export default function FloorDetailPage() {
         <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">มีผู้เช่า</div>
-              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : stats.occupied}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">
+                มีผู้เช่า
+              </div>
+              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">
+                {loading ? '...' : stats.occupied}
+              </div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm">
               <Users className="h-5 w-5 text-emerald-600" />
@@ -200,8 +215,12 @@ export default function FloorDetailPage() {
         <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ว่าง</div>
-              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : stats.vacant}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">
+                ว่าง
+              </div>
+              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">
+                {loading ? '...' : stats.vacant}
+              </div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 shadow-sm">
               <Building2 className="h-5 w-5 text-sky-500" />
@@ -212,8 +231,12 @@ export default function FloorDetailPage() {
         <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ซ่อมบำรุง</div>
-              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : stats.maintenance}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">
+                ซ่อมบำรุง
+              </div>
+              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">
+                {loading ? '...' : stats.maintenance}
+              </div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 shadow-sm">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -222,14 +245,14 @@ export default function FloorDetailPage() {
         </div>
       </section>
 
-      {/* Filter tabs */}
       <div className="flex flex-wrap gap-2">
         {FILTER_TABS.map((tab) => {
           const count =
             tab.key === 'ALL'
               ? rooms.length
-              : rooms.filter((r) => r.roomStatus === tab.key).length;
+              : rooms.filter((room) => normalizeRoomStatus(room.roomStatus) === tab.key).length;
           const isActive = activeFilter === tab.key;
+
           return (
             <button
               key={tab.key}
@@ -253,40 +276,39 @@ export default function FloorDetailPage() {
         })}
       </div>
 
-      {/* Room grid */}
       <section className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
         {loading ? (
-          Array.from({ length: 20 }).map((_, i) => <SkeletonRoomCard key={i} />)
+          Array.from({ length: 20 }).map((_, index) => <SkeletonRoomCard key={index} />)
         ) : filteredRooms.length === 0 ? (
           <div className="col-span-5 rounded-3xl border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-sm">
             ไม่มีห้องที่ตรงกับตัวกรองที่เลือก
           </div>
         ) : (
-          filteredRooms.map((room) => (
-            <Link
-              key={room.id}
-              href={`/admin/rooms/${room.id}`}
-              className={`group flex flex-col rounded-2xl border p-3 shadow-sm transition-all hover:shadow-md ${STATUS_CARD_STYLE[room.roomStatus as RoomStatus]}`}
-            >
-              {/* Room number */}
-              <div className={`mb-1.5 text-lg font-bold leading-tight ${STATUS_NUMBER_COLOR[room.roomStatus as RoomStatus]}`}>
-                {room.roomNumber}
-              </div>
+          filteredRooms.map((room) => {
+            const roomStatus = normalizeRoomStatus(room.roomStatus);
 
-              {/* Status badge */}
-              <span
-                className={`mb-2 inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_STYLE[room.roomStatus as RoomStatus]}`}
+            return (
+              <Link
+                key={room.roomNo}
+                href={`/admin/rooms/${encodeURIComponent(room.roomNo)}`}
+                className={`group flex flex-col rounded-2xl border p-3 shadow-sm transition-all hover:shadow-md ${STATUS_CARD_STYLE[roomStatus]}`}
               >
-                {STATUS_LABELS[room.roomStatus as RoomStatus]}
-              </span>
+                <div
+                  className={`mb-1.5 text-lg font-bold leading-tight ${STATUS_NUMBER_COLOR[roomStatus]}`}
+                >
+                  {room.roomNumber}
+                </div>
 
-              {/* Capacity */}
-              <div className="mt-auto flex items-center gap-1 text-xs text-slate-500">
-                <Users className="h-3 w-3 flex-shrink-0" />
-                <span>ความจุ {room.capacity}</span>
-              </div>
-            </Link>
-          ))
+                <span
+                  className={`mb-2 inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_STYLE[roomStatus]}`}
+                >
+                  {STATUS_LABELS[roomStatus]}
+                </span>
+
+                <div className="mt-auto text-xs text-slate-500">เปิดดูรายละเอียดห้อง</div>
+              </Link>
+            );
+          })
         )}
       </section>
     </main>

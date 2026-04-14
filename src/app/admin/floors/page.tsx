@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, DoorOpen, Users, AlertTriangle, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import { fetchAllRooms } from '@/lib/api/fetch-all-rooms';
 
 type FloorOption = {
   floorNo: number;
@@ -57,7 +58,7 @@ function SkeletonCard() {
   );
 }
 
-async function fetchFloors(): Promise<{ data: FloorOption[] }> {
+async function fetchFloors(): Promise<FloorOption[]> {
   const res = await fetch('/api/floors', { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch floors');
   const json = await res.json();
@@ -66,15 +67,11 @@ async function fetchFloors(): Promise<{ data: FloorOption[] }> {
 }
 
 async function fetchRooms(): Promise<{ data: Room[] }> {
-  const res = await fetch('/api/rooms?pageSize=1000', { cache: 'no-store' });
-  if (!res.ok) throw new Error('Failed to fetch rooms');
-  const json = await res.json();
-  if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
-  return json.data;
+  return { data: await fetchAllRooms<Room>() };
 }
 
 export default function AdminFloorsPage() {
-  const { data: floorsData, isLoading: floorsLoading, error: floorsError } = useQuery<{ data: FloorOption[] }>({
+  const { data: floorsData, isLoading: floorsLoading, error: floorsError } = useQuery<FloorOption[]>({
     queryKey: ['floors'],
     queryFn: fetchFloors,
   });
@@ -86,7 +83,7 @@ export default function AdminFloorsPage() {
   const isLoading = floorsLoading || roomsLoading;
   const error = floorsError || roomsError;
 
-  const floors: FloorOption[] = floorsData?.data ?? [];
+  const floors: FloorOption[] = floorsData ?? [];
   const allRooms: Room[] = roomsData?.data ?? [];
 
   const floorStats = useMemo((): FloorStats[] => {
@@ -102,7 +99,7 @@ export default function AdminFloorsPage() {
         floor,
         total: rooms.length,
         active: rooms.filter((r) => r.roomStatus === 'OCCUPIED').length,
-        inactive: rooms.filter((r) => r.roomStatus === 'VACANT').length,
+        inactive: rooms.filter((r) => r.roomStatus !== 'OCCUPIED').length,
       };
     });
   }, [floors, allRooms]);
@@ -242,10 +239,10 @@ export default function AdminFloorsPage() {
 
                 {/* View Rooms button */}
                 <Link
-                  href={`/admin/rooms?floorNo=${fs.floor.floorNo}`}
+                  href={`/admin/floors/${fs.floor.floorNo}`}
                   className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/60 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-white hover:text-indigo-700"
                 >
-                  View Rooms
+                  {'\u0e14\u0e39\u0e23\u0e32\u0e22\u0e25\u0e30\u0e40\u0e2d\u0e35\u0e22\u0e14\u0e0a\u0e31\u0e49\u0e19'}
                   <ChevronRight className="h-4 w-4" />
                 </Link>
               </div>

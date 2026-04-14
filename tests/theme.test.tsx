@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 /**
  * Theme System Tests
  *
@@ -23,6 +25,20 @@ function getStoredTheme(): string | null {
 describe('Theme system', () => {
   beforeEach(() => {
     localStorage.removeItem(LOCAL_STORAGE_KEY);
+    document.documentElement.classList.remove('dark');
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
   });
 
   // ── localStorage helper tests ────────────────────────────────────────────
@@ -201,7 +217,7 @@ describe('ThemeToggle component', () => {
   });
 
   it('removes dark class from documentElement when light mode is active', async () => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, 'dark');
+    localStorage.setItem(LOCAL_STORAGE_KEY, 'light');
     document.documentElement.classList.add('dark');
 
     render(
@@ -218,11 +234,11 @@ describe('ThemeToggle component', () => {
 
 describe('Tailwind dark: class integration', () => {
   it('tailwind config has darkMode set to class', async () => {
-    // Verify the tailwind.config.ts has darkMode: 'class'
+    // Verify the tailwind config has darkMode: 'class'
     const fs = require('fs');
     const path = require('path');
     const config = fs.readFileSync(
-      path.join(__dirname, '..', 'tailwind.config.ts'),
+      path.join(__dirname, '..', 'tailwind.config.js'),
       'utf8'
     );
     expect(config).toContain("darkMode: 'class'");

@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { X, Plus, Home, Search, Inbox, CheckCircle, MessageCircle, XCircle } from 'lucide-react';
 import { useApiData } from '@/hooks/useApi';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ModernTable } from '@/components/ui/modern-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { EmptyState } from '@/components/ui/empty-state';
+import { fetchAllRooms } from '@/lib/api/fetch-all-rooms';
 import Link from 'next/link';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -79,10 +81,13 @@ export default function AdminTenantsPage() {
   // ─── Load via TanStack Query ───────────────────────────────────────────────
 
   const { data: tenantsData, isLoading: loading, refetch: refetchTenants } = useApiData<{ data: Tenant[] }>('/api/tenants', ['tenants']);
-  const { data: roomsData } = useApiData<{ data: Room[] }>('/api/rooms?pageSize=100', ['rooms']);
+  const { data: roomsData } = useQuery<Room[]>({
+    queryKey: ['rooms-for-tenant-assignment'],
+    queryFn: () => fetchAllRooms<Room>(),
+  });
 
   const tenants = tenantsData?.data ?? [];
-  const rooms = roomsData?.data ?? [];
+  const rooms = roomsData ?? [];
 
   const filtered = useMemo(() => {
     if (!search.trim()) return tenants;

@@ -54,6 +54,12 @@ interface ModernTableProps<T extends object> {
     total: number;
     onPageChange: (page: number) => void;
   };
+  /** Controlled/manual sorting for server-side lists */
+  sorting?: {
+    sortKey: string | null;
+    sortDir: SortDirection;
+    onSortChange: (key: string, direction: Exclude<SortDirection, undefined>) => void;
+  };
   /** Property name to use as row key (default: 'id') */
   idKey?: string;
   /** Optional header bar inside the card (e.g. title + badge) */
@@ -139,6 +145,7 @@ export function ModernTable<T extends object>({
   onSelectionChange,
   actions,
   pagination,
+  sorting,
   idKey = 'id',
   header,
   empty,
@@ -146,6 +153,8 @@ export function ModernTable<T extends object>({
 }: ModernTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDirection>(undefined);
+  const activeSortKey = sorting ? sorting.sortKey : sortKey;
+  const activeSortDir = sorting ? sorting.sortDir : sortDir;
 
   // Helper to get row ID
   function getRowId(row: T): string {
@@ -154,6 +163,13 @@ export function ModernTable<T extends object>({
 
   // Sort handling
   function handleSort(key: string) {
+    if (sorting) {
+      const nextDirection: Exclude<SortDirection, undefined> =
+        sorting.sortKey === key && sorting.sortDir === 'asc' ? 'desc' : 'asc';
+      sorting.onSortChange(key, nextDirection);
+      return;
+    }
+
     if (sortKey !== key) {
       setSortKey(key);
       setSortDir('asc');
@@ -191,6 +207,7 @@ export function ModernTable<T extends object>({
 
   // Sort data
   const sortedData = React.useMemo(() => {
+    if (sorting) return data;
     if (!sortKey || !sortDir) return data;
     return [...data].sort((a, b) => {
       const aVal = (a as Record<string, unknown>)[sortKey];
@@ -201,7 +218,7 @@ export function ModernTable<T extends object>({
       const cmp = String(aVal).localeCompare(String(bVal), 'th-TH', { numeric: true });
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [data, sortKey, sortDir]);
+  }, [data, sortKey, sortDir, sorting]);
 
   const totalPages = pagination ? Math.ceil(pagination.total / pagination.pageSize) : 0;
 
@@ -227,7 +244,7 @@ export function ModernTable<T extends object>({
                 <Th
                   key={col.key}
                   column={col}
-                  sorted={sortKey === col.key ? sortDir : undefined}
+                  sorted={activeSortKey === col.key ? activeSortDir : undefined}
                   onSort={col.sortable ? () => handleSort(col.key) : undefined}
                 />
               ))}

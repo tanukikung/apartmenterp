@@ -9,8 +9,21 @@ export function backupDir(): string {
   return resolveBackupDir();
 }
 
+function sanitizeDatabaseUrlForPgDump(databaseUrl: string): string {
+  try {
+    const parsed = new URL(databaseUrl);
+    parsed.searchParams.delete('schema');
+    return parsed.toString();
+  } catch {
+    return databaseUrl.replace(/([?&])schema=[^&]*(&|$)/, (_, prefix: string, suffix: string) => {
+      if (prefix === '?' && suffix === '&') return '?';
+      return prefix === '?' && !suffix ? '' : prefix === '&' && !suffix ? '' : prefix;
+    }).replace(/[?&]$/, '');
+  }
+}
+
 export function buildPgDumpArgs(databaseUrl: string): string[] {
-  return ['-d', databaseUrl, '-F', 'p'];
+  return ['-d', sanitizeDatabaseUrlForPgDump(databaseUrl), '-F', 'p'];
 }
 
 export async function ensureDir(dir: string): Promise<void> {
@@ -144,25 +157,63 @@ export async function runBackup(): Promise<{ s3Uri?: string }> {
   logger.info({ type: 'backup_start', filePath, dir });
   const args = buildPgDumpArgs(url);
 
-  await new Promise<void>((resolve, reject) => {
-    const pgDump = spawn('pg_dump', args, { stdio: ['ignore', 'pipe', 'inherit'] });
-    const gzip = spawn(process.platform === 'win32' ? 'gzip.exe' : 'gzip', ['-c'], { stdio: ['pipe', 'pipe', 'inherit'] });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      let pgDumpExited = false;
+      let gzipExited = false;
+      let pgDumpCode: number | null = null;
+      let gzipCode: number | null = null;
+      let settled = false;
 
-    pgDump.stdout.pipe(gzip.stdin);
+      const finish = (error?: Error) => {
+        if (settled) return;
+        settled = true;
+        if (error) reject(error);
+        else resolve();
+      };
 
-    const out = fs.open(filePath, 'w').then((fh) => fh.createWriteStream());
-    out.then((stream) => {
-      gzip.stdout.pipe(stream);
+      const maybeResolve = () => {
+        if (!pgDumpExited || !gzipExited) return;
+        if (pgDumpCode !== 0) {
+          finish(new Error(`pg_dump exited with code ${pgDumpCode}`));
+          return;
+        }
+        if (gzipCode !== 0) {
+          finish(new Error(`gzip exited with code ${gzipCode}`));
+          return;
+        }
+        finish();
+      };
+
+      const pgDump = spawn('pg_dump', args, { stdio: ['ignore', 'pipe', 'inherit'] });
+      const gzip = spawn(process.platform === 'win32' ? 'gzip.exe' : 'gzip', ['-c'], { stdio: ['pipe', 'pipe', 'inherit'] });
+
+      pgDump.stdout.pipe(gzip.stdin);
+
+      const out = fs.open(filePath, 'w').then((fh) => fh.createWriteStream());
+      out.then((stream) => {
+        gzip.stdout.pipe(stream);
+      }).catch((error) => finish(error instanceof Error ? error : new Error(String(error))));
+
+      pgDump.on('close', (code) => {
+        pgDumpExited = true;
+        pgDumpCode = code ?? 1;
+        maybeResolve();
+      });
+
+      gzip.on('close', (code) => {
+        gzipExited = true;
+        gzipCode = code ?? 1;
+        maybeResolve();
+      });
+
+      pgDump.on('error', (error) => finish(error));
+      gzip.on('error', (error) => finish(error));
     });
-
-    gzip.on('close', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`gzip exited with code ${code}`));
-    });
-
-    pgDump.on('error', reject);
-    gzip.on('error', reject);
-  });
+  } catch (error) {
+    await fs.rm(filePath, { force: true }).catch(() => undefined);
+    throw error;
+  }
 
   // Verify backup file was created and has non-zero size before considering success
   const stat = await fs.stat(filePath).catch(() => null);

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { LayoutGrid, List, Plus, X, DoorOpen, Search, ExternalLink } from 'lucide-react';
+import { LayoutGrid, List, Plus, X, DoorOpen, Search, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useApiData } from '@/hooks/useApi';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CardGrid } from '@/components/ui/card-grid';
@@ -48,6 +48,9 @@ type RoomStatusCounts = {
 type RoomList = {
   data: Room[];
   total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
   statusCounts?: RoomStatusCounts;
 };
 
@@ -62,6 +65,7 @@ const createDefaults = {
 };
 
 type DrawerMode = 'create' | 'edit' | null;
+type RoomSortKey = 'roomNo' | 'floorNo' | 'roomStatus';
 
 const ROOM_STATUS_LABELS: Record<Room['roomStatus'], string> = {
   VACANT: 'ว่าง',
@@ -83,7 +87,11 @@ export default function AdminRoomsPage() {
   const [working, setWorking] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+  const [hasChangedViewMode, setHasChangedViewMode] = useState(false);
+  const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<RoomSortKey>('roomNo');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [drawerMode, setDrawerMode] = useState<DrawerMode>(null);
 
   // Confirm dialogs
@@ -92,13 +100,16 @@ export default function AdminRoomsPage() {
   // React Query for rooms data
   const roomsQueryParams = useMemo(() => {
     const params = new URLSearchParams({
-      page: '1',
-      pageSize: '300',
+      page: String(page),
+      pageSize: viewMode === 'grid' ? '60' : '40',
       ...(search.trim() ? { search: search.trim() } : {}),
       ...(statusFilter ? { roomStatus: statusFilter } : {}),
+      ...(floorFilter !== null ? { floorNo: String(floorFilter) } : {}),
+      sortBy,
+      sortOrder,
     });
     return `/api/rooms?${params.toString()}`;
-  }, [search, statusFilter]);
+  }, [floorFilter, page, search, sortBy, sortOrder, statusFilter, viewMode]);
 
   const { data: roomsData, isLoading: loading, refetch } = useApiData<RoomList>(roomsQueryParams, ['rooms']);
 
@@ -126,6 +137,24 @@ export default function AdminRoomsPage() {
     if (floorsData) setFloors(floorsData);
   }, [floorsData]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [floorFilter, search, sortBy, sortOrder, statusFilter, viewMode]);
+
+  useEffect(() => {
+    if (hasChangedViewMode || typeof window === 'undefined') return;
+    if (window.innerWidth < 768) {
+      setViewMode('grid');
+    }
+  }, [hasChangedViewMode]);
+
+  useEffect(() => {
+    if (!roomsData?.totalPages) return;
+    if (page > roomsData.totalPages) {
+      setPage(roomsData.totalPages);
+    }
+  }, [page, roomsData?.totalPages]);
+
   // Auto-open edit drawer when ?edit=<roomNo> is in the URL
   useEffect(() => {
     if (!roomsData?.data) return;
@@ -152,10 +181,13 @@ export default function AdminRoomsPage() {
   }, [selectedRoom]);
 
   const stats = useMemo(() => {
-    const total = roomsData?.total ?? 0;
-    const occupied = roomsData?.statusCounts?.OCCUPIED ?? 0;
-    const vacant = roomsData?.statusCounts?.VACANT ?? 0;
-    const blocked = (roomsData?.statusCounts?.MAINTENANCE ?? 0) + (roomsData?.statusCounts?.OWNER_USE ?? 0);
+    const globalCounts = roomsData?.statusCounts;
+    const total = globalCounts
+      ? globalCounts.VACANT + globalCounts.OCCUPIED + globalCounts.MAINTENANCE + globalCounts.OWNER_USE
+      : roomsData?.total ?? 0;
+    const occupied = globalCounts?.OCCUPIED ?? 0;
+    const vacant = globalCounts?.VACANT ?? 0;
+    const blocked = (globalCounts?.MAINTENANCE ?? 0) + (globalCounts?.OWNER_USE ?? 0);
 
     return {
       total,
@@ -167,15 +199,8 @@ export default function AdminRoomsPage() {
   }, [roomsData]);
 
   const filteredRooms = useMemo(() => {
-    if (!roomsData?.data) return [];
-    const rooms = floorFilter === null ? roomsData.data : roomsData.data.filter(r => r.floorNo === floorFilter);
-    return [...rooms].sort((a, b) => {
-      if (a.floorNo !== b.floorNo) return a.floorNo - b.floorNo;
-      const numA = parseInt(a.roomNo.replace(/.*\//, ''), 10);
-      const numB = parseInt(b.roomNo.replace(/.*\//, ''), 10);
-      return numA - numB;
-    });
-  }, [roomsData, floorFilter]);
+    return roomsData?.data ?? [];
+  }, [roomsData]);
 
   function closeDrawer() {
     setDrawerMode(null);
@@ -327,8 +352,10 @@ export default function AdminRoomsPage() {
       <section className="rounded-3xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="space-y-3">
-          <h1 className="text-2xl font-extrabold tracking-tight text-[var(--primary)]">ห้องพัก</h1>
-          <p className="mt-1 text-sm text-[var(--on-surface-variant)]">จัดการห้องพัก สร้าง แก้ไข และเปลี่ยนสถานะ</p>
+            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--primary)]">ห้องพัก</h1>
+            <p className="mt-1 max-w-2xl text-sm text-[var(--on-surface-variant)]">
+              จัดการห้องพัก ค้นหาเลขห้อง เปลี่ยนสถานะ และติดตามภาพรวมการเข้าพักได้จากหน้าเดียว
+            </p>
             <div className="flex flex-wrap gap-2 text-xs">
               <span className="rounded-full bg-[var(--surface-container-low)] px-3 py-1 font-semibold text-[var(--on-surface)]">
                 ห้องทั้งหมด {stats.total.toLocaleString()}
@@ -349,7 +376,10 @@ export default function AdminRoomsPage() {
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => setViewMode('grid')}
+                  onClick={() => {
+                    setHasChangedViewMode(true);
+                    setViewMode('grid');
+                  }}
                   className={`rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
                     viewMode === 'grid'
                       ? 'bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-sm'
@@ -363,7 +393,10 @@ export default function AdminRoomsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setViewMode('table')}
+                  onClick={() => {
+                    setHasChangedViewMode(true);
+                    setViewMode('table');
+                  }}
                   className={`rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
                     viewMode === 'table'
                       ? 'bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-sm'
@@ -378,11 +411,11 @@ export default function AdminRoomsPage() {
               </div>
             </div>
             <button
-          onClick={() => { setDrawerMode('create'); setSelectedRoom(null); }}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-4 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:opacity-90"
-        >
-          <Plus size={14} strokeWidth={2.5} />
-          เพิ่มห้อง
+              onClick={() => { setDrawerMode('create'); setSelectedRoom(null); }}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-4 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:opacity-90"
+            >
+              <Plus size={14} strokeWidth={2.5} />
+              เพิ่มห้อง
             </button>
           </div>
         </div>
@@ -393,65 +426,84 @@ export default function AdminRoomsPage() {
         <div className="rounded-2xl border border-[var(--outline-variant)]/15 bg-[var(--surface-container-lowest)] p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ทั้งหมด</p>
           <div className="text-3xl font-extrabold tracking-tight text-[var(--primary)]">{stats.total.toLocaleString()}</div>
+          <p className="mt-2 text-sm text-[var(--on-surface-variant)]">ห้องทั้งหมดที่เปิดใช้งานในอาคาร</p>
         </div>
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ว่าง</p>
           <div className="text-3xl font-extrabold tracking-tight text-emerald-700">{stats.vacant.toLocaleString()}</div>
+          <p className="mt-2 text-sm text-emerald-800/80">พร้อมปล่อยเช่าทันที</p>
         </div>
         <div className="rounded-2xl border border-blue-200 bg-blue-50/75 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">มีผู้เช่า</p>
           <div className="text-3xl font-extrabold tracking-tight text-blue-700">{stats.occupied.toLocaleString()}</div>
+          <p className="mt-2 text-sm text-blue-800/80">อัตราเข้าพัก {stats.occupancyRate}% ของอาคาร</p>
         </div>
         <div className="rounded-2xl border border-amber-200 bg-amber-50/75 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ไม่ว่าง/ซ่อม</p>
           <div className="text-3xl font-extrabold tracking-tight text-amber-700">{stats.blocked.toLocaleString()}</div>
+          <p className="mt-2 text-sm text-amber-800/80">รวมห้องซ่อมบำรุงและห้องใช้เอง</p>
         </div>
       </section>
 
       {/* ── Toolbar ── */}
-      <section className="flex flex-wrap items-center gap-3 rounded-3xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-4 shadow-sm sm:p-5">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)]" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-low)] py-2.5 pl-10 pr-4 text-sm transition-all focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]"
-            placeholder="ค้นหาเลขห้อง..."
-          />
-        </div>
-        <select
-          className="rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-low)] px-3 py-2.5 text-sm focus:ring-2 focus:ring-[var(--primary)]"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="">ทุกสถานะ</option>
-          <option value="VACANT">ว่าง</option>
-          <option value="OCCUPIED">มีผู้เช่า</option>
-          <option value="MAINTENANCE">ซ่อมบำรุง</option>
-          <option value="OWNER_USE">ใช้เอง</option>
-        </select>
-      </section>
-
-      {/* ── Floor Filter Pills ── */}
-      {floors.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          <button
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${floorFilter === null ? 'bg-primary text-white shadow-md' : 'bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]'}`}
-            onClick={() => setFloorFilter(null)}
-          >
-            ทุกชั้น
-          </button>
-          {floors.map(f => (
-            <button
-              key={f.floorNo}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${floorFilter === f.floorNo ? 'bg-primary text-white shadow-md' : 'bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]'}`}
-              onClick={() => setFloorFilter(f.floorNo)}
+      <section className="rounded-3xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">ตัวกรองห้องพัก</div>
+              <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+                แสดง {filteredRooms.length.toLocaleString()} ห้องในหน้านี้ จากผลลัพธ์ทั้งหมด {roomsData?.total?.toLocaleString() ?? 0} ห้อง
+              </p>
+            </div>
+            {roomsData && roomsData.totalPages > 1 ? (
+              <div className="rounded-full bg-[var(--surface-container-low)] px-3 py-1 text-xs font-semibold text-[var(--on-surface)]">
+                หน้า {page} / {roomsData.totalPages}
+              </div>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+            <div className="relative flex-1 min-w-[200px] max-w-md">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)]" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-low)] py-2.5 pl-10 pr-4 text-sm transition-all focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]"
+                placeholder="ค้นหาเลขห้อง เช่น 205 หรือ 798/1"
+              />
+            </div>
+            <select
+              className="rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-low)] px-3 py-2.5 text-sm focus:ring-2 focus:ring-[var(--primary)]"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
             >
-              ชั้น {f.floorNo}
-            </button>
-          ))}
+              <option value="">ทุกสถานะ</option>
+              <option value="VACANT">ว่าง</option>
+              <option value="OCCUPIED">มีผู้เช่า</option>
+              <option value="MAINTENANCE">ซ่อมบำรุง</option>
+              <option value="OWNER_USE">ใช้เอง</option>
+            </select>
+          </div>
+          {floors.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${floorFilter === null ? 'bg-primary text-white shadow-md' : 'bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]'}`}
+                onClick={() => setFloorFilter(null)}
+              >
+                ทุกชั้น
+              </button>
+              {floors.map((f) => (
+                <button
+                  key={f.floorNo}
+                  className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${floorFilter === f.floorNo ? 'bg-primary text-white shadow-md' : 'bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]'}`}
+                  onClick={() => setFloorFilter(f.floorNo)}
+                >
+                  ชั้น {f.floorNo}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </section>
 
       {/* ── Alerts ── */}
       {message && (
@@ -488,17 +540,18 @@ export default function AdminRoomsPage() {
             subtitle: `ชั้น ${room.floorNo}`,
             badge: (
               <StatusBadge variant={roomStatusVariant(room.roomStatus)} dot>
-                {room.roomStatus === 'VACANT' ? 'ว่าง' :
-                 room.roomStatus === 'OCCUPIED' ? 'มีผู้เช่า' :
-                 room.roomStatus === 'MAINTENANCE' ? 'ซ่อมบำรุง' : 'ใช้เอง'}
+                {ROOM_STATUS_LABELS[room.roomStatus]}
               </StatusBadge>
             ),
             stats: [
               { label: 'ค่าเช่า', value: `฿${Number(room.defaultRentAmount).toLocaleString()}` },
+              { label: 'เฟอร์นิเจอร์', value: room.hasFurniture ? 'มี' : 'ไม่มี' },
             ],
             footer: (
               <div className="flex items-center justify-between">
-                <span className="text-xs text-[var(--on-surface-variant)]">ค่าเช่าเริ่มต้น</span>
+                <span className="text-xs text-[var(--on-surface-variant)]">
+                  {room.hasFurniture ? `เฟอร์นิเจอร์ ฿${Number(room.defaultFurnitureAmount).toLocaleString()}` : 'ไม่มีค่าเฟอร์นิเจอร์'}
+                </span>
                 <Link
                   href={`/admin/rooms/${encodeURIComponent(room.roomNo)}`}
                   className="text-xs font-semibold text-[var(--primary)] hover:text-indigo-800 transition-colors flex items-center gap-1"
@@ -529,16 +582,31 @@ export default function AdminRoomsPage() {
               key: 'roomStatus', header: 'สถานะ', sortable: true,
               render: (r) => (
                 <StatusBadge variant={roomStatusVariant(r.roomStatus)} dot>
-                  {r.roomStatus === 'VACANT' ? 'ว่าง' :
-                   r.roomStatus === 'OCCUPIED' ? 'มีผู้เช่า' :
-                   r.roomStatus === 'MAINTENANCE' ? 'ซ่อมบำรุง' : 'ใช้เอง'}
+                  {ROOM_STATUS_LABELS[r.roomStatus]}
                 </StatusBadge>
               ),
             },
-            { key: 'defaultRentAmount', header: 'ค่าเช่า', sortable: true, align: 'right', render: (r) => `฿${Number(r.defaultRentAmount).toLocaleString()}` },
+            {
+              key: 'hasFurniture',
+              header: 'เฟอร์นิเจอร์',
+              render: (r) => (
+                <span className="text-sm text-[var(--on-surface)]">
+                  {r.hasFurniture ? `มี (฿${Number(r.defaultFurnitureAmount).toLocaleString()})` : 'ไม่มี'}
+                </span>
+              ),
+            },
+            { key: 'defaultRentAmount', header: 'ค่าเช่า', align: 'right', render: (r) => `฿${Number(r.defaultRentAmount).toLocaleString()}` },
           ]}
           data={filteredRooms}
           onRowClick={(room) => setSelectedRoom(room)}
+          sorting={{
+            sortKey: sortBy,
+            sortDir: sortOrder,
+            onSortChange: (key, direction) => {
+              setSortBy(key as RoomSortKey);
+              setSortOrder(direction);
+            },
+          }}
           actions={[
             {
               label: 'ดู →',
@@ -555,6 +623,39 @@ export default function AdminRoomsPage() {
             </div>
           }
         />
+      )}
+
+      {roomsData && roomsData.totalPages > 1 && (
+        <section className="flex flex-col gap-3 rounded-2xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-sm font-semibold text-[var(--on-surface)]">
+              หน้า {page} จาก {roomsData.totalPages}
+            </div>
+            <p className="mt-1 text-xs text-[var(--on-surface-variant)]">
+              แสดง {filteredRooms.length.toLocaleString()} ห้องในหน้านี้ จากทั้งหมด {roomsData.total.toLocaleString()} ห้อง
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              disabled={page <= 1}
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--outline-variant)]/30 px-3 py-2 text-sm font-semibold text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container-low)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ChevronLeft size={16} />
+              ก่อนหน้า
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((current) => Math.min(roomsData.totalPages, current + 1))}
+              disabled={page >= roomsData.totalPages}
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--outline-variant)]/30 px-3 py-2 text-sm font-semibold text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container-low)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              ถัดไป
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </section>
       )}
 
       {/* ── Drawer ── */}

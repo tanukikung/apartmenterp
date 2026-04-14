@@ -85,15 +85,19 @@ function moneyCompact(amount: number): string {
   return `฿${amount.toFixed(0)}`;
 }
 
+const dashboardDateFormatter = new Intl.DateTimeFormat('th-TH-u-ca-buddhist', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'Asia/Bangkok',
+});
+
 function todayThai(): { greeting: string; date: string } {
   const now = new Date();
-  const weekday = now.toLocaleDateString('th-TH', { weekday: 'long' });
-  const day = now.getDate();
-  const month = now.toLocaleDateString('th-TH', { month: 'long' });
-  const year = now.getFullYear() + 543;
   return {
     greeting: 'สวัสดี',
-    date: `${weekday} ${day} ${month} ${year}`,
+    date: dashboardDateFormatter.format(now),
   };
 }
 
@@ -163,14 +167,14 @@ function KpiCard({
   href?: string;
 }) {
   const colors = {
-    green: { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: 'bg-emerald-100 text-emerald-600', text: 'text-emerald-600' },
-    red: { bg: 'bg-red-50', border: 'border-red-200', icon: 'bg-red-100 text-red-600', text: 'text-red-600' },
-    yellow: { bg: 'bg-amber-50', border: 'border-amber-200', icon: 'bg-amber-100 text-amber-600', text: 'text-amber-600' },
-    blue: { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'bg-blue-100 text-blue-600', text: 'text-blue-600' },
+    green: { bg: 'bg-[var(--surface-container-lowest)]', border: 'border-emerald-200', icon: 'bg-emerald-50 text-emerald-600', text: 'text-emerald-700' },
+    red: { bg: 'bg-[var(--surface-container-lowest)]', border: 'border-red-200', icon: 'bg-red-50 text-red-600', text: 'text-red-700' },
+    yellow: { bg: 'bg-[var(--surface-container-lowest)]', border: 'border-amber-200', icon: 'bg-amber-50 text-amber-600', text: 'text-amber-700' },
+    blue: { bg: 'bg-[var(--surface-container-lowest)]', border: 'border-blue-200', icon: 'bg-blue-50 text-blue-600', text: 'text-blue-700' },
   }[accent];
 
   const card = (
-    <div className={`${colors.bg} ${colors.border} border rounded-xl p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer`}>
+    <div className={`${colors.bg} ${colors.border} border rounded-2xl p-5 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer`}>
       <div className="flex items-start justify-between gap-2 mb-3">
         <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--on-surface-variant)]">{label}</span>
         <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${colors.icon}`}>
@@ -205,10 +209,10 @@ function ActionButton({
 }) {
   const colors = {
     blue: {
-      container: 'border border-indigo-500/25 bg-gradient-to-br from-[var(--primary)] via-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/35',
-      icon: 'bg-white/15 text-white ring-1 ring-white/20',
-      sub: 'text-white/75',
-      arrow: 'text-white/75',
+      container: 'border border-indigo-200 bg-indigo-50 text-indigo-950 shadow-sm hover:border-indigo-300 hover:bg-indigo-100',
+      icon: 'bg-white text-indigo-700 ring-1 ring-indigo-100',
+      sub: 'text-indigo-700/80',
+      arrow: 'text-indigo-700/75',
     },
     green: {
       container: 'border border-emerald-200 bg-emerald-50 text-emerald-900 shadow-sm hover:border-emerald-300 hover:bg-emerald-100',
@@ -539,7 +543,7 @@ export default function AdminDashboardPage() {
         </section>
 
         {/* ── 3 Big Action Buttons ────────────────────────────────── */}
-        <section className="space-y-3">
+        <section className="space-y-3 rounded-3xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-5 shadow-sm">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-sm font-bold text-[var(--on-surface)]">งานด่วนประจำวัน</h2>

@@ -19,6 +19,7 @@ import { NotFoundError } from '@/lib/utils/errors';
 import * as QRCode from 'qrcode';
 import { config } from '@/config';
 import { PDF_CONFIG } from './pdf-config';
+import { resolveAppDataDir } from '@/lib/runtime-paths';
 
 interface InvoicePDFData {
   apartmentName: string;
@@ -42,8 +43,8 @@ interface PDFGenerationOptions {
 }
 
 export class InvoicePDFService {
-  private readonly storagePath = '/storage/invoices';
-  private readonly cachePath = '/storage/cache/invoices';
+  private readonly storagePath = path.join(resolveAppDataDir(), 'invoice-pdfs');
+  private readonly cachePath = path.join(resolveAppDataDir(), 'cache', 'invoice-pdfs');
 
   constructor() {
     this.ensureDirectories();

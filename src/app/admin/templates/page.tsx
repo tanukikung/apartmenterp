@@ -11,6 +11,9 @@ const TEMPLATE_TYPE_LABELS: Record<string, string> = {
   PAYMENT_NOTICE: 'แจ้งชำระ',
   RECEIPT: 'ใบเสร็จ',
   CONTRACT: 'สัญญาเช่า',
+  GENERAL_NOTICE: '\u0e1b\u0e23\u0e30\u0e01\u0e32\u0e28\u0e17\u0e31\u0e48\u0e27\u0e44\u0e1b',
+  NOTICE: '\u0e43\u0e1a\u0e41\u0e08\u0e49\u0e07',
+  OTHER: '\u0e2d\u0e37\u0e48\u0e19\u0e46',
 };
 
 const TEMPLATE_STATUS_LABELS: Record<string, string> = {
@@ -44,9 +47,9 @@ type TemplateRow = {
 };
 
 export default function TemplatesPage() {
-  const { data: templatesData, isLoading, error: fetchError, refetch } = useApiData<{ success: boolean; data?: { data: TemplateRow[] } }>('/api/templates?pageSize=100', ['templates']);
+  const { data: templatesData, isLoading, error: fetchError, refetch } = useApiData<{ data: TemplateRow[] }>('/api/templates?pageSize=100', ['templates']);
 
-  const templates: TemplateRow[] = templatesData?.data?.data ?? [];
+  const templates: TemplateRow[] = templatesData?.data ?? [];
 
   return (
     <main className="space-y-6">

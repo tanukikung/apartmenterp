@@ -1,6 +1,9 @@
 # Environment Variables Reference
 
-All variables are consumed by the app at `apps/erp`. Set them in `.env` (development) or `.env.production` / platform dashboard (production).
+All variables are consumed by the app at the project root. Set them in:
+- `.env` for development
+- `.env.customer` for the simplified customer Docker stack
+- `.env.production` or your platform dashboard for production deployments
 
 ---
 
