@@ -20,6 +20,10 @@ function guessWorkbookMimeType(name: string, fallback: string): string {
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   requireRole(req, ['ADMIN', 'STAFF']);
 
+  const ct = req.headers.get('content-type') || '';
+  if (!ct.includes('multipart/form-data') && !ct.includes('application/x-www-form-urlencoded')) {
+    return NextResponse.json({ success: false, error: { name: 'BadRequest', message: 'Content-Type must be multipart/form-data', code: 'BAD_REQUEST', statusCode: 400 } }, { status: 400 });
+  }
   const form = await req.formData();
   const file = form.get('file');
   if (!(file instanceof File)) {

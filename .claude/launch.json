@@ -2,19 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-<<<<<<< Updated upstream
       "name": "erp",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["next", "dev", "-p", "3001"],
+      "runtimeExecutable": "cmd.exe",
+      "runtimeArgs": ["/c", "npm", "run", "dev"],
       "port": 3001
-=======
-      "name": "Apartment ERP",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js", "run", "dev"],
-      "cwd": "apps/erp",
-      "port": 3001,
-      "autoPort": false
->>>>>>> Stashed changes
     }
   ]
 }

@@ -86,11 +86,17 @@ export class PaymentService {
       // FOR UPDATE prevents concurrent transactions from reading stale invoice state.
       // Without this lock, two simultaneous settleOutstandingBalance calls on the same
       // invoice could both pass the "PAID" check before either commits a payment.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $transaction client type doesn't expose for:'update'
-      const invoice = await (tx as any).invoice.findUnique({
+      // Prisma's findUnique does not accept `for: 'update'`; use raw SQL to acquire the
+      // row-level lock, then hydrate the full relation via findUnique.
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "invoices" WHERE id = ${invoiceId} FOR UPDATE
+      `;
+      if (locked.length === 0) {
+        throw new NotFoundError('Invoice', invoiceId);
+      }
+      const invoice = await tx.invoice.findUnique({
         where: { id: invoiceId },
         include: { room: true },
-        for: 'update',
       });
 
       if (!invoice) {
