@@ -83,8 +83,10 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   });
 
   // ── 4. Count unmatched payments ────────────────────────────────────────────
+  // Mirror the /admin/payments review tab exactly: only NEED_REVIEW transactions
+  // are shown to the user there, so the dashboard alert count must agree.
   const unmatchedPayments = await prisma.paymentTransaction.count({
-    where: { status: { in: ['PENDING', 'NEED_REVIEW'] } },
+    where: { status: 'NEED_REVIEW' },
   });
 
   // ── 5. Overdue invoices ─────────────────────────────────────────────────────

@@ -80,12 +80,37 @@ export default function AdminTenantsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [tenRes, roomRes] = await Promise.all([
-        fetch('/api/tenants', { cache: 'no-store' }).then(r => r.json()),
-        fetch('/api/rooms?pageSize=100', { cache: 'no-store' }).then(r => r.json()),
-      ]);
-      if (tenRes.success) setTenants(Array.isArray(tenRes.data) ? tenRes.data : (tenRes.data?.data ?? []));
-      if (roomRes.success) setRooms(Array.isArray(roomRes.data) ? roomRes.data : (roomRes.data?.data ?? []));
+      // Fetch ALL tenants by paginating through the list endpoint (max pageSize=100).
+      const PAGE_SIZE = 100;
+      const allTenants: Tenant[] = [];
+      let page = 1;
+      while (true) {
+        const res = await fetch(`/api/tenants?page=${page}&pageSize=${PAGE_SIZE}`, { cache: 'no-store' }).then(r => r.json());
+        if (!res.success) break;
+        const chunk: Tenant[] = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+        allTenants.push(...chunk);
+        const total: number = (res.data?.total as number | undefined) ?? chunk.length;
+        if (allTenants.length >= total || chunk.length === 0) break;
+        page += 1;
+        if (page > 100) break; // safety stop (>10k tenants)
+      }
+
+      // Rooms: fetch all pages too (max pageSize=300 per request)
+      const allRooms: Room[] = [];
+      let rp = 1;
+      while (true) {
+        const res = await fetch(`/api/rooms?page=${rp}&pageSize=300`, { cache: 'no-store' }).then(r => r.json());
+        if (!res.success) break;
+        const chunk: Room[] = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+        allRooms.push(...chunk);
+        const total: number = (res.data?.total as number | undefined) ?? chunk.length;
+        if (allRooms.length >= total || chunk.length === 0) break;
+        rp += 1;
+        if (rp > 50) break;
+      }
+
+      setTenants(allTenants);
+      setRooms(allRooms);
     } catch {
       setError('ไม่สามารถโหลดข้อมูลได้');
     } finally {

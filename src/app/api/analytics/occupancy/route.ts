@@ -3,11 +3,27 @@ import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { prisma } from '@/lib';
 import { requireRole } from '@/lib/auth/guards';
 
+type FloorOccupancy = {
+  floorNumber: number;
+  total: number;
+  occupied: number;
+  vacant: number;
+  maintenance: number;
+  occupancyRate: number;
+};
+
 type OccupancyData = {
   totalRooms: number;
   occupiedRooms: number;
   vacantRooms: number;
+  // New canonical key used by the Reports page. Kept alongside maintenanceRooms
+  // for backwards compatibility with any existing consumers.
+  maintenance: number;
   maintenanceRooms: number;
+  selfUse: number;
+  unavailable: number;
+  occupancyRate: number;
+  byFloor: FloorOccupancy[];
 };
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -20,76 +36,51 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     return NextResponse.json({ success: true, data: cache.value } as ApiResponse<OccupancyData>);
   }
 
-  const totalRooms = await prisma.room.count();
+  // Use roomStatus as source of truth — matches what the /admin/rooms page displays
+  // so all counters across the UI stay consistent.
+  // We fetch every room in a single query (no pagination cap) so the by-floor
+  // breakdown is complete for all 363 rooms, not just the first page.
+  const [totalRooms, occupiedRooms, vacantRooms, maintenanceRooms, ownerUseRooms, allRooms] = await Promise.all([
+    prisma.room.count(),
+    prisma.room.count({ where: { roomStatus: 'OCCUPIED' } }),
+    prisma.room.count({ where: { roomStatus: 'VACANT' } }),
+    prisma.room.count({ where: { roomStatus: 'MAINTENANCE' } }),
+    prisma.room.count({ where: { roomStatus: 'OWNER_USE' } }).catch(() => 0),
+    prisma.room.findMany({
+      select: { roomStatus: true, floorNo: true },
+    }),
+  ]);
 
-  // Primary: count rooms with current tenants
-  const occupiedByTenant = await prisma.room.count({
-    where: { roomStatus: 'OCCUPIED', tenants: { some: { moveOutDate: null } } },
-  });
-
-  let occupiedRooms = occupiedByTenant;
-
-  // Fallback: if no tenant data, derive occupancy from current billing period
-  if (occupiedRooms === 0) {
-    const today = new Date();
-    const year = today.getUTCFullYear();
-    const month = today.getUTCMonth() + 1;
-
-    // Try current month, then most recent billing period with substantial data
-    let period = await prisma.billingPeriod.findUnique({
-      where: { year_month: { year, month } },
-    });
-
-    // If current month has very few records, use the most recent period with many records
-    if (period) {
-      const currentCount = await prisma.roomBilling.count({
-        where: { billingPeriodId: period.id, rentAmount: { gt: 0 } },
-      });
-      if (currentCount < totalRooms * 0.1) {
-        // Less than 10% of rooms — likely incomplete, find a better period
-        period = null;
-      }
+  // Group rooms by floor for the Reports → Occupancy tab.
+  const floorMap = new Map<number, FloorOccupancy>();
+  for (const room of allRooms) {
+    const floorNumber = room.floorNo ?? 0;
+    if (!floorMap.has(floorNumber)) {
+      floorMap.set(floorNumber, { floorNumber, total: 0, occupied: 0, vacant: 0, maintenance: 0, occupancyRate: 0 });
     }
-
-    if (!period) {
-      // Find the most recent period with substantial billing records
-      const recentPeriods = await prisma.billingPeriod.findMany({
-        orderBy: [{ year: 'desc' }, { month: 'desc' }],
-        take: 12,
-      });
-      for (const p of recentPeriods) {
-        const cnt = await prisma.roomBilling.count({
-          where: { billingPeriodId: p.id, rentAmount: { gt: 0 } },
-        });
-        if (cnt >= Math.floor(totalRooms * 0.5)) {
-          period = p;
-          break;
-        }
-      }
-    }
-
-    if (!period) {
-      period = await prisma.billingPeriod.findFirst({
-        orderBy: [{ year: 'desc' }, { month: 'desc' }],
-      });
-    }
-
-    if (period) {
-      occupiedRooms = await prisma.roomBilling.count({
-        where: {
-          billingPeriodId: period.id,
-          rentAmount: { gt: 0 },
-        },
-      });
-    }
+    const entry = floorMap.get(floorNumber)!;
+    entry.total++;
+    if (room.roomStatus === 'OCCUPIED') entry.occupied++;
+    else if (room.roomStatus === 'VACANT') entry.vacant++;
+    else if (room.roomStatus === 'MAINTENANCE') entry.maintenance++;
   }
+  const byFloor: FloorOccupancy[] = Array.from(floorMap.values())
+    .sort((a, b) => a.floorNumber - b.floorNumber)
+    .map((f) => ({ ...f, occupancyRate: f.total > 0 ? Math.round((f.occupied / f.total) * 100) : 0 }));
 
-  const vacantRooms = totalRooms - occupiedRooms;
+  const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
 
-  // Maintenance rooms: count rooms flagged for maintenance (currently ACTIVE/INACTIVE only in DB, default to 0)
-  const maintenanceRooms = 0;
-
-  const value: OccupancyData = { totalRooms, occupiedRooms, vacantRooms, maintenanceRooms };
+  const value: OccupancyData = {
+    totalRooms,
+    occupiedRooms,
+    vacantRooms,
+    maintenance: maintenanceRooms,
+    maintenanceRooms,
+    selfUse: ownerUseRooms,
+    unavailable: 0,
+    occupancyRate,
+    byFloor,
+  };
   cache = { value, expiry: now + CACHE_TTL_MS };
   return NextResponse.json({ success: true, data: value } as ApiResponse<OccupancyData>);
 });

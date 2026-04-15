@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/guards';
 import { getServiceContainer } from '@/lib/service-container';
 import { updateTenantSchema } from '@/modules/tenants/types';
-import { asyncHandler, ApiResponse, formatError, AppError } from '@/lib/utils/errors';
+import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
+import { logAudit } from '@/modules/audit';
 
 // ============================================================================
 // GET /api/tenants/[id] - Get tenant by ID
@@ -60,19 +61,25 @@ export const PATCH = asyncHandler(
 export const DELETE = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
     const { id } = params;
-    requireRole(req, ['ADMIN']);
+    const session = requireRole(req, ['ADMIN']);
 
     const { tenantService } = getServiceContainer();
-    
-    // Check if tenant exists first
-    await tenantService.getTenantById(id);
+    await tenantService.deleteTenant(id, session.sub);
 
-    // Delete is not implemented to prevent accidental data loss.
-    // Tenants have active relationships (RoomTenants, Invoices, Payments).
-    // If deletion is needed, implement soft-delete or proper relationship cleanup first.
-    return NextResponse.json(
-      formatError(new AppError('Delete not implemented', 'NOT_IMPLEMENTED', 501)),
-      { status: 501 }
-    );
+    await logAudit({
+      actorId: session.sub,
+      actorRole: session.role,
+      action: 'TENANT_DELETED',
+      entityType: 'TENANT',
+      entityId: id,
+    });
+
+    logger.info({ type: 'tenant_deleted_api', tenantId: id, actorId: session.sub });
+
+    return NextResponse.json({
+      success: true,
+      data: { id },
+      message: 'Tenant deleted successfully',
+    } as ApiResponse<{ id: string }>);
   }
 );

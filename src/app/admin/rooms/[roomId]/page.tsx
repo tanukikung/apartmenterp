@@ -565,7 +565,12 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
 export default function RoomDetailPage() {
   const params = useParams<{ roomId: string }>();
   const router = useRouter();
-  const roomNo = params.roomId;
+  // Next.js returns the raw URL-encoded segment; decode it so we have the real room number
+  // (e.g. "798/1"). When building API URLs we re-encode with encodeURIComponent.
+  const roomNo = (() => {
+    try { return decodeURIComponent(params.roomId ?? ''); }
+    catch { return params.roomId ?? ''; }
+  })();
 
   const [room, setRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState(true);

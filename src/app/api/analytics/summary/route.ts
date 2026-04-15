@@ -21,18 +21,21 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   }
 
   const today = new Date();
-  const year = today.getUTCFullYear();
-  const month = today.getUTCMonth() + 1;
+  // Cash-basis: revenue for "this month" = invoices paid during this month (paidAt).
+  // This matches the revenue trend chart so the KPI and chart always agree.
+  const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const nextMonthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1));
 
-  // Try paid invoices first
   const revenueAgg = await prisma.invoice.aggregate({
-    where: { status: 'PAID', year, month },
+    where: { status: 'PAID', paidAt: { gte: monthStart, lt: nextMonthStart } },
     _sum: { totalAmount: true },
   });
   let monthlyRevenue = Number(revenueAgg._sum.totalAmount ?? 0);
 
-  // Fallback: if no paid invoices, use billed amount from RoomBilling
+  // Fallback: if no paid invoices yet this month, show the amount billed for the current billing period.
   if (monthlyRevenue === 0) {
+    const year = today.getUTCFullYear();
+    const month = today.getUTCMonth() + 1;
     const billedAgg = await prisma.roomBilling.aggregate({
       where: { billingPeriod: { year, month } },
       _sum: { totalDue: true },

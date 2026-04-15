@@ -228,7 +228,17 @@ export default function TemplateDetailPage() {
             <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
               <div className="px-5 py-4 border-b border-outline-variant flex items-center justify-between">
                 <div className="text-sm font-semibold text-on-surface">เวอร์ชัน</div>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{template.versions?.length ?? 0}</span>
+                <div className="flex items-center gap-2">
+                  {(template.versions?.length ?? 0) >= 2 ? (
+                    <Link
+                      href={`/admin/templates/${params.id}/diff`}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-primary-container px-2.5 py-0.5 text-xs font-semibold text-on-primary-container hover:bg-primary-container/80"
+                    >
+                      เปรียบเทียบ
+                    </Link>
+                  ) : null}
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">{template.versions?.length ?? 0}</span>
+                </div>
               </div>
               <div className="overflow-auto">
                 <table className="w-full text-sm">

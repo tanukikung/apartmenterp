@@ -137,6 +137,8 @@ export default function AdminInvoicesPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
+  const [statusTotals, setStatusTotals] = useState<Partial<Record<InvoiceStatus, number>>>({});
+
   const load = useCallback(async (pg = 1, status: StatusFilter = 'ALL') => {
     setLoading(true);
     setError(null);
@@ -147,13 +149,28 @@ export default function AdminInvoicesPage() {
       });
       if (status !== 'ALL') params.set('status', status);
 
-      const res = await fetch(`/api/invoices?${params.toString()}`, { cache: 'no-store' }).then((r) => r.json());
-      if (!res.success) throw new Error(res.error?.message ?? 'ไม่สามารถโหลดใบแจ้งหนี้');
+      // Fetch the list page AND the per-status totals (for KPI cards) in parallel.
+      const STATUSES: InvoiceStatus[] = ['GENERATED', 'SENT', 'VIEWED', 'PAID', 'OVERDUE'];
+      const [listRes, ...statusRes] = await Promise.all([
+        fetch(`/api/invoices?${params.toString()}`, { cache: 'no-store' }).then((r) => r.json()),
+        ...STATUSES.map((s) =>
+          fetch(`/api/invoices?status=${s}&pageSize=1&page=1`, { cache: 'no-store' }).then((r) => r.json()),
+        ),
+      ]);
 
-      const payload = res.data as { data: InvoiceRow[]; total: number; page: number; totalPages: number };
+      if (!listRes.success) throw new Error(listRes.error?.message ?? 'ไม่สามารถโหลดใบแจ้งหนี้');
+
+      const payload = listRes.data as { data: InvoiceRow[]; total: number; page: number; totalPages: number };
       setInvoices(payload.data ?? []);
       setTotal(payload.total ?? 0);
       setPage(pg);
+
+      const totals: Partial<Record<InvoiceStatus, number>> = {};
+      STATUSES.forEach((s, idx) => {
+        const r = statusRes[idx];
+        if (r?.success) totals[s] = (r.data?.total as number | undefined) ?? 0;
+      });
+      setStatusTotals(totals);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดใบแจ้งหนี้');
     } finally {
@@ -195,13 +212,8 @@ export default function AdminInvoicesPage() {
     );
   }, [invoices, search]);
 
-  const kpi = useMemo(() => {
-    const counts: Partial<Record<InvoiceStatus, number>> = {};
-    for (const inv of invoices) {
-      counts[inv.status] = (counts[inv.status] ?? 0) + 1;
-    }
-    return counts;
-  }, [invoices]);
+  // KPI cards show totals across the entire dataset, not just the current page.
+  const kpi = statusTotals;
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 

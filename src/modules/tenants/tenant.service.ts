@@ -319,6 +319,70 @@ export class TenantService {
   }
 
   /**
+   * Delete a tenant. Only permitted when the tenant has no contract history
+   * and no active room assignment — this is a "created by mistake" cleanup,
+   * not a way to erase a real ex-tenant. Active room assignments (tenants
+   * currently living in a unit) are blocked; historical RoomTenant rows are
+   * wiped by cascade on delete. Nullable foreign keys on conversations,
+   * generated documents, document generation targets, and maintenance
+   * tickets are nulled out inside the transaction before the tenant row is
+   * removed.
+   */
+  async deleteTenant(id: string, deletedBy?: string): Promise<void> {
+    logger.info({ type: 'tenant_delete', id, deletedBy });
+
+    const tenant = await prisma.tenant.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            contracts: true,
+            roomTenants: { where: { moveOutDate: null } },
+          },
+        },
+      },
+    });
+
+    if (!tenant) {
+      throw new NotFoundError('Tenant', id);
+    }
+
+    if (tenant._count.contracts > 0) {
+      throw new ConflictError(
+        'Cannot delete tenant: contract history exists. Deactivate the tenant instead.',
+      );
+    }
+    if (tenant._count.roomTenants > 0) {
+      throw new ConflictError(
+        'Cannot delete tenant: tenant is currently assigned to a room.',
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Detach nullable references so the hard-delete isn't blocked by FKs.
+      await tx.conversation.updateMany({
+        where: { tenantId: id },
+        data: { tenantId: null },
+      });
+      await tx.documentGenerationTarget.updateMany({
+        where: { tenantId: id },
+        data: { tenantId: null },
+      });
+      await tx.generatedDocument.updateMany({
+        where: { tenantId: id },
+        data: { tenantId: null },
+      });
+      await tx.maintenanceTicket.updateMany({
+        where: { tenantId: id },
+        data: { tenantId: null },
+      });
+
+      // Cascade deletes: RoomTenant, DeliveryOrderItem.
+      await tx.tenant.delete({ where: { id } });
+    });
+  }
+
+  /**
    * Assign tenant to a room
    */
   async assignTenantToRoom(

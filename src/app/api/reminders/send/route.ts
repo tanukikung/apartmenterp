@@ -8,6 +8,7 @@ import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
 import { prisma } from '@/lib/db/client';
 import { isLineConfigured } from '@/lib/line';
+import { applyPlainTextTemplateVariables } from '@/lib/templates/document-template';
 
 // ── POST /api/reminders/send ───────────────────────────────────────────────
 // Enqueues a manual reminder outbox event for the given conversation.
@@ -62,6 +63,29 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   } catch {
     // Non-blocking
   }
+
+  // Resolve tenant + room for variable interpolation. Conversation is linked
+  // to a room (roomNo); from there we find the primary tenant.
+  let tenantFullName = '';
+  const roomNumber = conversation.roomNo ?? '';
+  if (conversation.roomNo) {
+    try {
+      const primary = await prisma.roomTenant.findFirst({
+        where: { roomNo: conversation.roomNo, role: 'PRIMARY', moveOutDate: null },
+        include: { tenant: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (primary?.tenant) {
+        tenantFullName = `${primary.tenant.firstName ?? ''} ${primary.tenant.lastName ?? ''}`.trim();
+      }
+    } catch {
+      // Non-blocking
+    }
+  }
+  resolvedBody = applyPlainTextTemplateVariables(resolvedBody, {
+    tenantName: tenantFullName,
+    roomNumber,
+  });
 
   const processor = getOutboxProcessor();
   await processor.writeOne(
