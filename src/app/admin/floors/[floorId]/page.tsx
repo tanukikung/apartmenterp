@@ -137,30 +137,30 @@ export default function FloorDetailPage() {
   return (
     <main className="space-y-6">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
-        <Link href="/admin/dashboard" className="hover:text-[var(--primary)]">
+      <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
+        <Link href="/admin/dashboard" className="hover:text-primary">
           แดชบอร์ด
         </Link>
         <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
-        <Link href="/admin/floors" className="hover:text-[var(--primary)]">
+        <Link href="/admin/floors" className="hover:text-primary">
           ชั้น
         </Link>
         <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
-        <span className="font-medium text-[var(--on-surface)]">{floorLabel}</span>
+        <span className="font-medium text-on-surface">{floorLabel}</span>
       </nav>
 
       {/* Page header */}
-      <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div className="flex items-center gap-4">
           <Link
             href="/admin/floors"
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] shadow-sm transition-colors hover:border-[var(--primary)]/30 hover:bg-[var(--surface-container)]"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-colors hover:border-primary/30 hover:bg-surface-container"
           >
-            <ArrowLeft className="h-4 w-4 text-[var(--on-primary)]" />
+            <ArrowLeft className="h-4 w-4 text-on-primary" />
           </Link>
           <div>
-            <h1 className="text-xl font-semibold text-[var(--on-primary)]">{floorLabel}</h1>
-            <p className="text-sm text-[var(--on-primary)]/80">
+            <h1 className="text-xl font-semibold text-on-primary">{floorLabel}</h1>
+            <p className="text-sm text-on-primary/80">
               {loading ? 'กำลังโหลดห้อง...' : `ห้องทั้งหมด ${stats.total} ห้อง`}
             </p>
           </div>
@@ -173,23 +173,23 @@ export default function FloorDetailPage() {
 
       {/* Stats row */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้องทั้งหมด</div>
-              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : stats.total}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้องทั้งหมด</div>
+              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : stats.total}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--primary)]/20 bg-primary/10 shadow-sm">
-              <DoorOpen className="h-5 w-5 text-[var(--primary)]" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 shadow-sm">
+              <DoorOpen className="h-5 w-5 text-primary" />
             </div>
           </div>
         </div>
 
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">มีผู้เช่า</div>
-              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : stats.occupied}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">มีผู้เช่า</div>
+              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : stats.occupied}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm">
               <Users className="h-5 w-5 text-emerald-600" />
@@ -197,11 +197,11 @@ export default function FloorDetailPage() {
           </div>
         </div>
 
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ว่าง</div>
-              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : stats.vacant}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ว่าง</div>
+              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : stats.vacant}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 shadow-sm">
               <Building2 className="h-5 w-5 text-sky-500" />
@@ -209,11 +209,11 @@ export default function FloorDetailPage() {
           </div>
         </div>
 
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ซ่อมบำรุง</div>
-              <div className="text-xl font-semibold text-[var(--on-surface)] mt-0.5">{loading ? '...' : stats.maintenance}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ซ่อมบำรุง</div>
+              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : stats.maintenance}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 shadow-sm">
               <AlertTriangle className="h-5 w-5 text-amber-500" />

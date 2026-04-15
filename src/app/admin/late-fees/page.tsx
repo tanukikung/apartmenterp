@@ -216,19 +216,19 @@ export default function LateFeesPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between">
           <div>
-            <h1 className="text-base font-semibold text-[var(--on-primary)]">Late Fee Review</h1>
-            <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">
+            <h1 className="text-base font-semibold text-on-primary">Late Fee Review</h1>
+            <p className="text-xs text-on-primary/80 mt-0.5">
               Review and approve late fee amounts calculated by the nightly job
             </p>
           </div>
           <button
             onClick={() => void refetch()}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
+            className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
@@ -253,36 +253,36 @@ export default function LateFeesPage() {
       {/* Stats */}
       {stats ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">Overdue Invoices</div>
-            <div className="mt-2 text-2xl font-semibold text-[var(--on-surface)]">{stats.overdue}</div>
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Overdue Invoices</div>
+            <div className="mt-2 text-2xl font-semibold text-on-surface">{stats.overdue}</div>
           </div>
-          <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">Paid Invoices</div>
-            <div className="mt-2 text-2xl font-semibold text-[var(--on-surface)]">{stats.paid}</div>
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Paid Invoices</div>
+            <div className="mt-2 text-2xl font-semibold text-on-surface">{stats.paid}</div>
           </div>
-          <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">Total Late Fees</div>
-            <div className="mt-2 text-2xl font-semibold text-[var(--on-surface)]">{money(stats.totalLateFees)}</div>
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Total Late Fees</div>
+            <div className="mt-2 text-2xl font-semibold text-on-surface">{money(stats.totalLateFees)}</div>
           </div>
-          <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">Rooms Affected</div>
-            <div className="mt-2 text-2xl font-semibold text-[var(--on-surface)]">{stats.totalRooms}</div>
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Rooms Affected</div>
+            <div className="mt-2 text-2xl font-semibold text-on-surface">{stats.totalRooms}</div>
           </div>
         </div>
       ) : null}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] p-1">
+        <div className="flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest p-1">
           {(['OVERDUE', 'PAID', 'all'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                 filter === f
-                  ? 'bg-primary text-[var(--on-primary)]'
-                  : 'text-[var(--on-surface-variant)] hover:bg-[var(--surface-container)]'
+                  ? 'bg-primary text-on-primary'
+                  : 'text-on-surface-variant hover:bg-surface-container'
               }`}
             >
               {f === 'all' ? 'ทั้งหมด' : f === 'OVERDUE' ? 'ค้างชำระ' : 'ชำระแล้ว'}
@@ -290,17 +290,17 @@ export default function LateFeesPage() {
           ))}
         </div>
         <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)] pointer-events-none" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
           <input
             type="text"
             placeholder="ค้นหาห้อง..."
             value={roomSearch}
             onChange={(e) => setRoomSearch(e.target.value)}
-            className="h-9 w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] pl-9 pr-4 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none"
+            className="h-9 w-full rounded-lg border border-outline bg-surface-container-lowest pl-9 pr-4 text-sm text-on-surface focus:border-primary focus:outline-none"
           />
         </div>
         {roomSearch && (
-          <button onClick={() => setRoomSearch('')} className="text-sm text-[var(--primary)] hover:underline">
+          <button onClick={() => setRoomSearch('')} className="text-sm text-primary hover:underline">
             Clear
           </button>
         )}
@@ -308,11 +308,11 @@ export default function LateFeesPage() {
         {/* Bulk actions */}
         {selectedIds.size > 0 && (
           <div className="ml-auto flex items-center gap-2">
-            <span className="text-sm text-[var(--on-surface-variant)]">{selectedIds.size} selected</span>
+            <span className="text-sm text-on-surface-variant">{selectedIds.size} selected</span>
             <button
               onClick={() => void handleBulkApprove()}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsUp className="h-4 w-4" />}
               Approve Selected
@@ -326,7 +326,7 @@ export default function LateFeesPage() {
             <button
               onClick={() => void handleSaveAll()}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               Save All Changes
@@ -336,40 +336,40 @@ export default function LateFeesPage() {
       </div>
 
       {/* Table */}
-      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : data && data.invoices.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <CheckCircle2 className="h-10 w-10 text-green-500" />
-            <p className="text-[var(--on-surface-variant)]">No overdue invoices with late fees</p>
+            <p className="text-on-surface-variant">No overdue invoices with late fees</p>
           </div>
         ) : (
           <div className="overflow-auto">
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="bg-[var(--surface-container)]">
+                <tr className="bg-surface-container">
                   <th className="px-4 py-3">
                     <input
                       type="checkbox"
                       checked={data ? selectedIds.size === data.invoices.length && data.invoices.length > 0 : false}
                       onChange={toggleSelectAll}
-                      className="h-4 w-4 rounded border-[var(--outline)]"
+                      className="h-4 w-4 rounded border-outline"
                     />
                   </th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้อง</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">รอบบิล</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">สถานะ</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">วันครบกำหนด</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ค่าค้างชำระ</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ค่าปรับล่าช้า</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">Late Fee Rule</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">Ajdust</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รอบบิล</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">วันครบกำหนด</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ค่าค้างชำระ</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ค่าปรับล่าช้า</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Late Fee Rule</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Ajdust</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--outline-variant)]/10">
+              <tbody className="divide-y divide-outline-variant/10">
                 {data?.invoices.map((inv) => {
                   const isEdited = editState[inv.id]?.lateFeeAmount !== inv.lateFeeAmount;
                   const daysOverdue = Math.floor(
@@ -378,7 +378,7 @@ export default function LateFeesPage() {
                   return (
                     <tr
                       key={inv.id}
-                      className={`hover:bg-[var(--surface-container-lowest)] transition-colors ${
+                      className={`hover:bg-surface-container-lowest transition-colors ${
                         isEdited ? 'bg-amber-50/50' : ''
                       }`}
                     >
@@ -387,16 +387,16 @@ export default function LateFeesPage() {
                           type="checkbox"
                           checked={selectedIds.has(inv.id)}
                           onChange={() => toggleSelect(inv.id)}
-                          className="h-4 w-4 rounded border-[var(--outline)]"
+                          className="h-4 w-4 rounded border-outline"
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="font-semibold text-[var(--on-surface)]">{inv.roomNo}</div>
-                        <div className="text-xs text-[var(--on-surface-variant)]">
+                        <div className="font-semibold text-on-surface">{inv.roomNo}</div>
+                        <div className="text-xs text-on-surface-variant">
                           {inv.tenants.map((t) => `${t.firstName} ${t.lastName}`).join(', ') || '—'}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-[var(--on-surface)]">
+                      <td className="px-4 py-3 text-on-surface">
                         {monthLabel(inv.year, inv.month)}
                       </td>
                       <td className="px-4 py-3">
@@ -414,14 +414,14 @@ export default function LateFeesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="text-[var(--on-surface)]">{formatDate(inv.dueDate)}</div>
-                        <div className={`text-xs ${daysOverdue > 0 ? 'text-red-600 font-medium' : 'text-[var(--on-surface-variant)]'}`}>
+                        <div className="text-on-surface">{formatDate(inv.dueDate)}</div>
+                        <div className={`text-xs ${daysOverdue > 0 ? 'text-red-600 font-medium' : 'text-on-surface-variant'}`}>
                           {daysOverdue > 0 ? `${daysOverdue} วัน` : '—'}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-[var(--on-surface)]">{money(inv.totalAmount)}</td>
+                      <td className="px-4 py-3 text-on-surface">{money(inv.totalAmount)}</td>
                       <td className="px-4 py-3">
-                        <div className={`font-semibold ${isEdited ? 'text-amber-700' : 'text-[var(--on-surface)]'}`}>
+                        <div className={`font-semibold ${isEdited ? 'text-amber-700' : 'text-on-surface'}`}>
                           {money(editState[inv.id]?.lateFeeAmount ?? inv.lateFeeAmount)}
                         </div>
                         {isEdited && (
@@ -430,7 +430,7 @@ export default function LateFeesPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-xs text-[var(--on-surface-variant)]">
+                      <td className="px-4 py-3 text-xs text-on-surface-variant">
                         {inv.rule ? (
                           <div>
                             <div>{inv.rule.penaltyPerDay}/วัน</div>
@@ -452,7 +452,7 @@ export default function LateFeesPage() {
                             className={`w-24 rounded-lg border px-2 py-1 text-sm focus:outline-none focus:ring-1 ${
                               isEdited
                                 ? 'border-amber-400 bg-amber-50 focus:border-amber-500 focus:ring-amber-500/30'
-                                : 'border-[var(--outline)] bg-[var(--surface-container-lowest)] focus:border-[var(--primary)] focus:ring-[var(--primary)]/30'
+                                : 'border-outline bg-surface-container-lowest focus:border-primary focus:ring-primary/30'
                             }`}
                           />
                           {isEdited && (
@@ -463,7 +463,7 @@ export default function LateFeesPage() {
                                   [inv.id]: { lateFeeAmount: inv.lateFeeAmount },
                                 }));
                               }}
-                              className="text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]"
+                              className="text-on-surface-variant hover:text-on-surface"
                               title="Reset"
                             >
                               <X className="h-4 w-4" />
@@ -481,7 +481,7 @@ export default function LateFeesPage() {
       </section>
 
       {data && data.total > data.pageSize && (
-        <div className="text-center text-sm text-[var(--on-surface-variant)]">
+        <div className="text-center text-sm text-on-surface-variant">
           Showing {data.invoices.length} of {data.total} — paginate if needed
         </div>
       )}

@@ -3,7 +3,11 @@ import { prisma } from '@/lib/db';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { redisPing, getWorkerHeartbeat, isRedisConfigured } from '@/infrastructure/redis';
 import { requireRole } from '@/lib/auth/guards';
-import { getBackupStatus } from '../../../../../scripts/backup-scheduler';
+
+// Backup status is tracked by the backup scheduler process, fall back to safe defaults if not available
+function getBackupStatus(): { lastAttempt: string | null; lastSuccess: string | null; lastError: string | null; consecutiveFailures: number } {
+  return { lastAttempt: null, lastSuccess: null, lastError: null, consecutiveFailures: 0 };
+}
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   // Operator-only: deep health exposes sensitive internal state

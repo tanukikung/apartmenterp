@@ -122,7 +122,7 @@ function StatusBadge({ status }: { status: ReturnType<typeof resolveDisplayStatu
     ACTIVE:        { label: 'ใช้งาน',         cls: 'bg-emerald-100 text-emerald-800 border border-emerald-200',  Icon: CheckCircle2 },
     EXPIRING_SOON: { label: 'ใกล้หมดอายุ',  cls: 'bg-amber-100 text-amber-800 border border-amber-200',       Icon: Clock },
     EXPIRED:       { label: 'หมดอายุ',        cls: 'bg-red-100 text-red-700 border border-red-200',             Icon: XCircle },
-    TERMINATED:    { label: 'ยกเลิก',     cls: 'bg-[var(--surface-container)] text-[var(--on-surface)] border border-[var(--outline-variant)]',       Icon: XCircle },
+    TERMINATED:    { label: 'ยกเลิก',     cls: 'bg-surface-container text-on-surface border border-outline-variant',       Icon: XCircle },
   }[status];
 
   return (
@@ -149,14 +149,14 @@ function KpiCard({
   icon: React.ElementType;
 }) {
   return (
-    <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 flex items-center gap-4 py-4 px-5">
+    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 flex items-center gap-4 py-4 px-5">
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${color}`}>
         <Icon size={20} className="text-white" strokeWidth={2} />
       </div>
       <div className="min-w-0">
-        <div className="text-[11px] font-medium uppercase tracking-wider text-[var(--on-surface-variant)]">{label}</div>
-        <div className="text-2xl font-bold text-[var(--on-surface)] leading-tight">{value}</div>
-        {sub && <div className="text-[11px] text-[var(--on-surface-variant)] mt-0.5">{sub}</div>}
+        <div className="text-[11px] font-medium uppercase tracking-wider text-on-surface-variant">{label}</div>
+        <div className="text-2xl font-bold text-on-surface leading-tight">{value}</div>
+        {sub && <div className="text-[11px] text-on-surface-variant mt-0.5">{sub}</div>}
       </div>
     </div>
   );
@@ -405,7 +405,7 @@ export default function AdminContractsPage() {
         }`}
       >
         {/* Header */}
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -413,13 +413,13 @@ export default function AdminContractsPage() {
                 <FileSignature size={20} className="text-white" strokeWidth={2} />
               </div>
               <div>
-                <h1 className="text-base font-semibold text-[var(--on-primary)]">สัญญาเช่า</h1>
-                <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">จัดการสัญญาเช่าสำหรับทุกห้องที่มีผู้เช่า</p>
+                <h1 className="text-base font-semibold text-on-primary">สัญญาเช่า</h1>
+                <p className="text-xs text-on-primary/80 mt-0.5">จัดการสัญญาเช่าสำหรับทุกห้องที่มีผู้เช่า</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <button
-                className="inline-flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30"
                 onClick={() => void refetchContracts()}
                 title="Refresh"
               >
@@ -427,7 +427,7 @@ export default function AdminContractsPage() {
                 รีเฟรช
               </button>
               <button
-                className="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30"
                 onClick={openNew}
               >
                 <Plus size={14} strokeWidth={2.5} />
@@ -472,16 +472,16 @@ export default function AdminContractsPage() {
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2 mb-4 mt-4">
           <div className="relative flex-1 min-w-[200px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)]" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
             <input
-              className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 pl-8 w-full"
+              className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 pl-8 w-full"
               placeholder="ค้นหาหมายเลขห้องหรือชื่อผู้เช่า..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <select
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             value={filterStatus}
             onChange={(e) => {
               setFilterStatus(e.target.value);
@@ -498,26 +498,26 @@ export default function AdminContractsPage() {
 
         {/* Error banner */}
         {error && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm font-medium text-[var(--on-error-container)]">
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-error-container bg-error-container/20 px-4 py-3 text-sm font-medium text-on-error-container">
             <AlertCircle size={15} />
             {error}
           </div>
         )}
 
         {/* Table */}
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden p-0">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="bg-[var(--surface-container)]">
-                  <th className="pl-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">หมายเลขห้อง</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ชื่อผู้เช่า</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">วันที่เริ่ม</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">วันที่สิ้นสุด</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ค่าเช่ารายเดือน</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">เงินมัดจำ</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">สถานะ</th>
-                  <th className="pr-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] text-right">การดำเนินการ</th>
+                <tr className="bg-surface-container">
+                  <th className="pl-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">หมายเลขห้อง</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ชื่อผู้เช่า</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">วันที่เริ่ม</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">วันที่สิ้นสุด</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ค่าเช่ารายเดือน</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เงินมัดจำ</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
+                  <th className="pr-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-right">การดำเนินการ</th>
                 </tr>
               </thead>
               <tbody>
@@ -526,7 +526,7 @@ export default function AdminContractsPage() {
                     <tr key={i}>
                       {Array.from({ length: 8 }).map((__, j) => (
                         <td key={j}>
-                          <div className="h-4 rounded bg-[var(--surface-container)] animate-pulse" style={{ width: `${70 + (i * 13 + j * 17) % 25}%` }} />
+                          <div className="h-4 rounded bg-surface-container animate-pulse" style={{ width: `${70 + (i * 13 + j * 17) % 25}%` }} />
                         </td>
                       ))}
                     </tr>
@@ -546,28 +546,28 @@ export default function AdminContractsPage() {
                         : displayStatus === 'EXPIRED'
                         ? 'bg-red-50/40'
                         : displayStatus === 'TERMINATED'
-                        ? 'bg-[var(--surface-container-lowest)]/80'
+                        ? 'bg-surface-container-lowest/80'
                         : '';
                     const isSelected = selectedContract?.id === c.id && panelMode === 'edit';
                     return (
                       <tr
                         key={c.id}
-                        className={`${rowCls} ${isSelected ? 'ring-2 ring-inset ring-primary' : ''} cursor-pointer hover:bg-[var(--surface-container-lowest)]`}
+                        className={`${rowCls} ${isSelected ? 'ring-2 ring-inset ring-primary' : ''} cursor-pointer hover:bg-surface-container-lowest`}
                         onClick={() => openEdit(c)}
                       >
-                        <td className="pl-4 font-semibold text-[var(--on-surface)]">
+                        <td className="pl-4 font-semibold text-on-surface">
                           {c.roomNo}
                         </td>
                         <td>
-                          <div className="font-medium text-[var(--on-surface)]">
+                          <div className="font-medium text-on-surface">
                             {c.primaryTenant?.fullName ?? '—'}
                           </div>
                           {c.primaryTenant?.phone && (
-                            <div className="text-[11px] text-[var(--on-surface-variant)]">{c.primaryTenant.phone}</div>
+                            <div className="text-[11px] text-on-surface-variant">{c.primaryTenant.phone}</div>
                           )}
                         </td>
-                        <td className="text-[var(--on-surface)]">{fmtDate(c.startDate)}</td>
-                        <td className="text-[var(--on-surface)]">
+                        <td className="text-on-surface">{fmtDate(c.startDate)}</td>
+                        <td className="text-on-surface">
                           <span>{fmtDate(c.endDate)}</span>
                           {displayStatus === 'EXPIRING_SOON' && (
                             <span className="ml-1.5 text-[11px] font-semibold text-amber-600">
@@ -575,14 +575,14 @@ export default function AdminContractsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="font-medium text-[var(--on-surface)]">{fmtMoney(c.rentAmount)}</td>
-                        <td className="text-[var(--on-surface)]">{fmtMoney(c.depositAmount)}</td>
+                        <td className="font-medium text-on-surface">{fmtMoney(c.rentAmount)}</td>
+                        <td className="text-on-surface">{fmtMoney(c.depositAmount)}</td>
                         <td>
                           <StatusBadge status={displayStatus} />
                         </td>
                         <td className="pr-4 text-right">
                           <button
-                            className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] flex items-center gap-1 text-xs"
+                            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container flex items-center gap-1 text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
                               openEdit(c);
@@ -602,21 +602,21 @@ export default function AdminContractsPage() {
 
           {/* Pagination footer */}
           {!loading && filteredContracts.length > 0 && (
-            <div className="flex items-center justify-between border-t border-[var(--outline-variant)] px-4 py-2.5">
-              <span className="text-xs text-[var(--on-surface-variant)]">
+            <div className="flex items-center justify-between border-t border-outline-variant px-4 py-2.5">
+              <span className="text-xs text-on-surface-variant">
                 แสดง {filteredContracts.length} จาก {total} สัญญา
               </span>
               <div className="flex items-center gap-1">
                 <button
-                  className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   ก่อนหน้า
                 </button>
-                <span className="px-2 text-xs text-[var(--on-surface-variant)]">หน้า {page}</span>
+                <span className="px-2 text-xs text-on-surface-variant">หน้า {page}</span>
                 <button
-                  className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed"
                   disabled={page >= Math.ceil(total / 50)}
                   onClick={() => setPage((p) => p + 1)}
                 >
@@ -630,22 +630,22 @@ export default function AdminContractsPage() {
 
       {/* ── Side Panel ───────────────────────────────────────────── */}
       {panelMode !== 'none' && (
-        <aside className="fixed right-0 top-0 z-30 flex h-full w-full flex-col border-l border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] shadow-2xl xl:w-[420px]">
+        <aside className="fixed right-0 top-0 z-30 flex h-full w-full flex-col border-l border-outline-variant bg-surface-container-lowest shadow-2xl xl:w-[420px]">
           {/* Panel header */}
-          <div className="flex items-center justify-between border-b border-[var(--outline-variant)] px-5 py-4">
+          <div className="flex items-center justify-between border-b border-outline-variant px-5 py-4">
             <div className="flex items-center gap-2">
               {panelMode === 'new' ? (
-                <Plus size={16} className="text-[var(--primary)]" />
+                <Plus size={16} className="text-primary" />
               ) : (
-                <Pencil size={15} className="text-[var(--primary)]" />
+                <Pencil size={15} className="text-primary" />
               )}
-              <span className="text-[15px] font-semibold text-[var(--on-surface)]">
+              <span className="text-[15px] font-semibold text-on-surface">
                 {panelMode === 'new' ? 'สัญญาใหม่' : `แก้ไข — ห้อง ${selectedContract?.roomNo}`}
               </span>
             </div>
             <button
               onClick={closePanel}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--surface-container)] hover:text-[var(--on-surface)]"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
             >
               <X size={15} />
             </button>
@@ -725,18 +725,18 @@ function NewContractForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <p className="text-[12px] text-[var(--on-surface-variant)] leading-relaxed">
+      <p className="text-[12px] text-on-surface-variant leading-relaxed">
         สร้างสัญญาเช่าใหม่ ผู้เช่าที่เลือกต้องเป็น<strong>ผู้เช่าหลัก</strong>ของห้องที่เลือก
         และต้องไม่มีสัญญาใช้งานอยู่สำหรับห้องนั้น
       </p>
 
       {/* Room select */}
       <div>
-        <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">
+        <label className="mb-1 block text-[12px] font-semibold text-on-surface">
           หมายเลขห้อง <span className="text-red-500">*</span>
         </label>
         <select
-          className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 w-full"
+          className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
           required
           value={form.roomId}
           onChange={(e) => onRoomChange(e.target.value)}
@@ -752,16 +752,16 @@ function NewContractForm({
 
       {/* Tenant select */}
       <div>
-        <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">
+        <label className="mb-1 block text-[12px] font-semibold text-on-surface">
           ผู้เช่าหลัก <span className="text-red-500">*</span>
         </label>
         {tenantsLoading ? (
-          <div className="flex h-9 items-center rounded-md border border-[var(--outline-variant)] px-3 text-xs text-[var(--on-surface-variant)] animate-pulse">
+          <div className="flex h-9 items-center rounded-md border border-outline-variant px-3 text-xs text-on-surface-variant animate-pulse">
             กำลังโหลดผู้เช่า…
           </div>
         ) : (
           <select
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             required
             disabled={!form.roomId}
             value={form.primaryTenantId}
@@ -785,24 +785,24 @@ function NewContractForm({
       {/* Date range */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">
             วันที่เริ่ม <span className="text-red-500">*</span>
           </label>
           <input
             type="date"
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             required
             value={form.startDate}
             onChange={(e) => patch('startDate', e.target.value)}
           />
         </div>
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">
             วันที่สิ้นสุด <span className="text-red-500">*</span>
           </label>
           <input
             type="date"
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             required
             value={form.endDate}
             onChange={(e) => patch('endDate', e.target.value)}
@@ -813,7 +813,7 @@ function NewContractForm({
       {/* Rent & Deposit */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">
             ค่าเช่ารายเดือน (฿) <span className="text-red-500">*</span>
           </label>
           <input
@@ -821,7 +821,7 @@ function NewContractForm({
             min="1"
             max="999999"
             step="0.01"
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             required
             placeholder="e.g. 8000"
             value={form.rentAmount}
@@ -829,7 +829,7 @@ function NewContractForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">
             เงินมัดจำ (฿)
           </label>
           <input
@@ -837,7 +837,7 @@ function NewContractForm({
             min="0"
             max="999999"
             step="0.01"
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             placeholder="e.g. 16000"
             value={form.depositAmount}
             onChange={(e) => patch('depositAmount', e.target.value)}
@@ -847,9 +847,9 @@ function NewContractForm({
 
       {/* Notes */}
       <div>
-        <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">หมายเหตุ</label>
+        <label className="mb-1 block text-[12px] font-semibold text-on-surface">หมายเหตุ</label>
         <textarea
-          className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 w-full resize-none"
+          className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full resize-none"
           rows={3}
           placeholder="หมายเหตุเพิ่มเติมเกี่ยวกับสัญญานี้…"
           value={form.notes}
@@ -859,7 +859,7 @@ function NewContractForm({
 
       {/* Error */}
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)]/20 px-3 py-2.5 text-xs font-medium text-[var(--on-error-container)]">
+        <div className="flex items-start gap-2 rounded-lg border border-error-container bg-error-container/20 px-3 py-2.5 text-xs font-medium text-on-error-container">
           <AlertCircle size={13} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -867,13 +867,13 @@ function NewContractForm({
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-1">
-        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]" onClick={onCancel}>
+        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={onCancel}>
           ยกเลิก
         </button>
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
         >
           {saving ? (
             <>
@@ -921,23 +921,23 @@ function EditContractForm({
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       {/* Contract summary card */}
-      <div className="rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 py-3 space-y-1">
+      <div className="rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-3 space-y-1">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">รหัสสัญญา</span>
-          <span className="font-mono text-[11px] text-[var(--on-surface)]">{contract.id.slice(0, 8)}…</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">รหัสสัญญา</span>
+          <span className="font-mono text-[11px] text-on-surface">{contract.id.slice(0, 8)}…</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">ผู้เช่า</span>
-          <span className="text-[12px] font-medium text-[var(--on-surface)]">{contract.primaryTenant?.fullName ?? '—'}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">ผู้เช่า</span>
+          <span className="text-[12px] font-medium text-on-surface">{contract.primaryTenant?.fullName ?? '—'}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">สถานะ</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">สถานะ</span>
           <StatusBadge status={displayStatus} />
         </div>
         {contract.terminationReason && (
           <div className="flex items-start justify-between gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)] shrink-0">เหตุผล</span>
-            <span className="text-[11px] text-[var(--on-surface)] text-right">{contract.terminationReason}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant shrink-0">เหตุผล</span>
+            <span className="text-[11px] text-on-surface text-right">{contract.terminationReason}</span>
           </div>
         )}
       </div>
@@ -952,20 +952,20 @@ function EditContractForm({
       {/* Dates */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">วันที่เริ่ม</label>
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">วันที่เริ่ม</label>
           <input
             type="date"
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             disabled={contract.status !== 'ACTIVE'}
             value={form.startDate}
             onChange={(e) => patch('startDate', e.target.value)}
           />
         </div>
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">วันที่สิ้นสุด</label>
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">วันที่สิ้นสุด</label>
           <input
             type="date"
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             disabled={contract.status !== 'ACTIVE'}
             value={form.endDate}
             onChange={(e) => patch('endDate', e.target.value)}
@@ -976,26 +976,26 @@ function EditContractForm({
       {/* Rent & Deposit */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">ค่าเช่ารายเดือน (฿)</label>
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">ค่าเช่ารายเดือน (฿)</label>
           <input
             type="number"
             min="1"
             max="999999"
             step="0.01"
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             disabled={contract.status !== 'ACTIVE'}
             value={form.rentAmount}
             onChange={(e) => patch('rentAmount', e.target.value)}
           />
         </div>
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-[var(--on-surface)]">เงินมัดจำ (฿)</label>
+          <label className="mb-1 block text-[12px] font-semibold text-on-surface">เงินมัดจำ (฿)</label>
           <input
             type="number"
             min="0"
             max="999999"
             step="0.01"
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 w-full"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
             disabled={contract.status !== 'ACTIVE'}
             value={form.depositAmount}
             onChange={(e) => patch('depositAmount', e.target.value)}
@@ -1005,13 +1005,13 @@ function EditContractForm({
 
       {/* Error / success */}
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)]/20 px-3 py-2.5 text-xs font-medium text-[var(--on-error-container)]">
+        <div className="flex items-start gap-2 rounded-lg border border-error-container bg-error-container/20 px-3 py-2.5 text-xs font-medium text-on-error-container">
           <AlertCircle size={13} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 rounded-lg border border-[var(--tertiary-container)] bg-[var(--tertiary-container)]/20 px-3 py-2.5 text-xs font-medium text-[var(--on-tertiary-container)]">
+        <div className="flex items-center gap-2 rounded-lg border border-tertiary-container bg-tertiary-container/20 px-3 py-2.5 text-xs font-medium text-on-tertiary-container">
           <CheckCircle2 size={13} />
           {success}
         </div>
@@ -1019,13 +1019,13 @@ function EditContractForm({
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-1">
-        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]" onClick={onCancel}>
+        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={onCancel}>
           ยกเลิก
         </button>
         <button
           type="submit"
           disabled={saving || contract.status !== 'ACTIVE'}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
         >
           {saving ? (
             <>
@@ -1049,13 +1049,13 @@ function EditContractForm({
 function EmptyState({ onNew, hasFilter }: { onNew: () => void; hasFilter: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--surface-container)]">
-        <FileSignature size={28} className="text-[var(--on-surface-variant)]" strokeWidth={1.5} />
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-container">
+        <FileSignature size={28} className="text-on-surface-variant" strokeWidth={1.5} />
       </div>
-      <h3 className="text-[15px] font-semibold text-[var(--on-surface)]">
+      <h3 className="text-[15px] font-semibold text-on-surface">
         {hasFilter ? 'ไม่พบสัญญาที่ตรงกับตัวกรอง' : 'ยังไม่มีสัญญา'}
       </h3>
-      <p className="mt-1 max-w-xs text-[13px] text-[var(--on-surface-variant)]">
+      <p className="mt-1 max-w-xs text-[13px] text-on-surface-variant">
         {hasFilter
           ? 'ลองล้างการค้นหาหรือเปลี่ยนตัวกรองสถานะ'
           : 'สร้างสัญญาเช่าแรกของคุณโดยคลิกปุ่มด้านล่าง'}
@@ -1063,7 +1063,7 @@ function EmptyState({ onNew, hasFilter }: { onNew: () => void; hasFilter: boolea
       {!hasFilter && (
         <button
           onClick={onNew}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 mt-5"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 mt-5"
         >
           <Plus size={14} strokeWidth={2.5} />
           สร้างสัญญาใหม่

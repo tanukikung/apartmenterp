@@ -45,8 +45,8 @@ export function ReviewStep({
   const summaryItems: SummaryItem[] = [
     {
       icon: <Shield className="h-4 w-4" />,
-      iconBg: 'bg-[var(--primary-container)]',
-      iconColor: 'text-[var(--primary)]',
+      iconBg: 'bg-primary-container',
+      iconColor: 'text-primary',
       label: 'ผู้ดูแลระบบ',
       value: `${admin.displayName} (@${admin.username})`,
     },
@@ -94,14 +94,14 @@ export function ReviewStep({
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
             <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
-          <h2 className="text-xl font-semibold text-[var(--on-surface)]">ตั้งค่าระบบเสร็จสิ้น!</h2>
-          <p className="mt-2 text-sm text-[var(--on-surface-variant)]">
+          <h2 className="text-xl font-semibold text-on-surface">ตั้งค่าระบบเสร็จสิ้น!</h2>
+          <p className="mt-2 text-sm text-on-surface-variant">
             ระบบได้ถูกตั้งค่าเรียบร้อยแล้ว คุณสามารถเข้าสู่ระบบด้วยบัญชีผู้ดูแลที่สร้างไว้
           </p>
         </div>
 
-        <div className="rounded-xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)] p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-[var(--on-surface-variant)] uppercase tracking-wide">สรุปการตั้งค่า</h3>
+        <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wide">สรุปการตั้งค่า</h3>
 
           {summaryItems.map((item, idx) => (
             <div key={idx} className="flex items-center gap-3">
@@ -109,22 +109,22 @@ export function ReviewStep({
                 <span className={item.iconColor}>{item.icon}</span>
               </div>
               <div className="flex-1">
-                <p className="text-xs text-[var(--on-surface-variant)]">{item.label}</p>
-                <p className="text-sm font-medium text-[var(--on-surface)]">{item.value}</p>
+                <p className="text-xs text-on-surface-variant">{item.label}</p>
+                <p className="text-sm font-medium text-on-surface">{item.value}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="rounded-lg bg-[var(--primary-container)] p-4 text-center">
-          <p className="text-sm font-medium text-[var(--on-primary-container)]">
+        <div className="rounded-lg bg-primary-container p-4 text-center">
+          <p className="text-sm font-medium text-on-primary-container">
             สร้างห้องพักแล้ว <span className="text-lg font-bold">{submitResult.roomsCreated}</span> ห้อง
           </p>
         </div>
 
         <a
           href="/admin/dashboard"
-          className="flex items-center justify-center gap-2 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-[var(--on-primary)] hover:bg-primary/90 transition-colors"
+          className="flex items-center justify-center gap-2 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-on-primary hover:bg-primary/90 transition-colors"
         >
           ไปยังหน้าหลัก
         </a>
@@ -135,17 +135,17 @@ export function ReviewStep({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--primary-container)]">
-          <CheckCircle className="h-5 w-5 text-[var(--primary)]" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-container">
+          <CheckCircle className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-[var(--on-surface)]">สรุปและเริ่มตั้งค่าระบบ</h2>
-          <p className="text-sm text-[var(--on-surface-variant)]">ตรวจสอบข้อมูลก่อนเริ่มตั้งค่า</p>
+          <h2 className="text-lg font-semibold text-on-surface">สรุปและเริ่มตั้งค่าระบบ</h2>
+          <p className="text-sm text-on-surface-variant">ตรวจสอบข้อมูลก่อนเริ่มตั้งค่า</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)] p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-[var(--on-surface-variant)] uppercase tracking-wide">รายการที่จะสร้าง</h3>
+      <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wide">รายการที่จะสร้าง</h3>
 
         {summaryItems.map((item, idx) => (
           <div key={idx} className="flex items-center gap-3">
@@ -153,8 +153,8 @@ export function ReviewStep({
               <span className={item.iconColor}>{item.icon}</span>
             </div>
             <div className="flex-1">
-              <p className="text-xs text-[var(--on-surface-variant)]">{item.label}</p>
-              <p className="text-sm font-medium text-[var(--on-surface)]">{item.value}</p>
+              <p className="text-xs text-on-surface-variant">{item.label}</p>
+              <p className="text-sm font-medium text-on-surface">{item.value}</p>
             </div>
           </div>
         ))}
@@ -163,16 +163,16 @@ export function ReviewStep({
       {isSubmitting && (
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-[var(--on-surface-variant)]">กำลังสร้างข้อมูล...</span>
-            <span className="font-medium text-[var(--primary)]">{progress}%</span>
+            <span className="text-on-surface-variant">กำลังสร้างข้อมูล...</span>
+            <span className="font-medium text-primary">{progress}%</span>
           </div>
-          <div className="h-2 w-full rounded-full bg-[var(--surface-container)]">
+          <div className="h-2 w-full rounded-full bg-surface-container">
             <div
               className="h-full rounded-full bg-primary transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-[var(--on-surface-variant)] text-center">{statusText}</p>
+          <p className="text-xs text-on-surface-variant text-center">{statusText}</p>
         </div>
       )}
 
@@ -205,7 +205,7 @@ export function ReviewStep({
           }
         }}
         disabled={isSubmitting}
-        className="flex items-center justify-center gap-2 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-[var(--on-primary)] hover:bg-primary/90 transition-colors disabled:opacity-50"
+        className="flex items-center justify-center gap-2 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-on-primary hover:bg-primary/90 transition-colors disabled:opacity-50"
       >
         {isSubmitting ? (
           <>
@@ -217,7 +217,7 @@ export function ReviewStep({
         )}
       </button>
 
-      <p className="text-xs text-[var(--on-surface-variant)] text-center">
+      <p className="text-xs text-on-surface-variant text-center">
         การตั้งค่านี้จะสร้างข้อมูลเริ่มต้นทั้งหมดในครั้งเดียว ไม่สามารถย้อนกลับได้
       </p>
     </div>

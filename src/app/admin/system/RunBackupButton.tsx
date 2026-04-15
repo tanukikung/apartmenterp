@@ -55,10 +55,10 @@ export function RunBackupButton() {
 
   return (
     <div className="flex items-center gap-2">
-      <button disabled={loading} onClick={handleClick} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50">
+      <button disabled={loading} onClick={handleClick} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50">
         {loading ? 'กำลังรัน...' : 'สำรองข้อมูลตอนนี้'}
       </button>
-      {message ? <span className="text-xs text-[var(--on-surface-variant)]">{message}</span> : null}
+      {message ? <span className="text-xs text-on-surface-variant">{message}</span> : null}
     </div>
   );
 }

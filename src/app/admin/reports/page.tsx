@@ -235,53 +235,53 @@ function OverviewTab() {
     <div className="space-y-4">
       {/* Quick stats */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">รายได้ต่อเดือน</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{summaryLoading ? '...' : money(summary?.monthlyRevenue ?? 0)}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">รายได้ต่อเดือน</p>
+              <p className="mt-1 text-2xl font-bold text-on-surface">{summaryLoading ? '...' : money(summary?.monthlyRevenue ?? 0)}</p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 shadow-sm"><Wallet className="h-5 w-5 text-blue-600" /></div>
           </div>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">ใบแจ้งหนี้ชำระแล้ว</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{summaryLoading ? '...' : (summary?.paidInvoices ?? 0)}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">ใบแจ้งหนี้ชำระแล้ว</p>
+              <p className="mt-1 text-2xl font-bold text-on-surface">{summaryLoading ? '...' : (summary?.paidInvoices ?? 0)}</p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 shadow-sm"><CreditCard className="h-5 w-5 text-emerald-600" /></div>
           </div>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">ใบแจ้งหนี้ค้างชำระ</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{summaryLoading ? '...' : (summary?.unpaidInvoices ?? 0)}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">ใบแจ้งหนี้ค้างชำระ</p>
+              <p className="mt-1 text-2xl font-bold text-on-surface">{summaryLoading ? '...' : (summary?.unpaidInvoices ?? 0)}</p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 shadow-sm"><AlertCircle className="h-5 w-5 text-amber-600" /></div>
           </div>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">เกินกำหนด</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">เกินกำหนด</p>
               <p className="mt-1 text-2xl font-bold text-red-700">{summaryLoading ? '...' : (summary?.overdueInvoices ?? 0)}</p>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--error-container)]/30 bg-[var(--error-container)]/10 shadow-sm"><AlertCircle className="h-5 w-5 text-[var(--on-error-container)]" /></div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-error-container/30 bg-error-container/10 shadow-sm"><AlertCircle className="h-5 w-5 text-on-error-container" /></div>
           </div>
         </div>
       </div>
 
       {/* Report shortcut cards */}
       <div>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--on-surface-variant)]">รายงานทั้งหมด</h2>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-on-surface-variant">รายงานทั้งหมด</h2>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[
             { title: 'รายงานรายได้', desc: 'รายได้ ใบแจ้งหนี้ และค้างชำระรายเดือน', icon: <BarChart2 className="h-6 w-6" />, color: 'bg-blue-50 border-blue-200 text-blue-700', href: null },
             { title: 'รายงานความครอบคลุม', desc: 'อัตราการเข้าพักและสถานะห้อง', icon: <Building2 className="h-6 w-6" />, color: 'bg-emerald-50 border-emerald-200 text-emerald-700', href: null },
-            { title: 'รายงานการเก็บเงิน', desc: 'อัตราการเก็บและวิเคราะห์หนี้ค้าง', icon: <CreditCard className="h-6 w-6" />, color: 'bg-[var(--primary-container)] border-[var(--primary)]/20 text-[var(--primary)]', href: null },
-            { title: 'ประวัติกิจกรรม', desc: 'บันทึกการเปลี่ยนแปลงระบบทั้งหมด', icon: <ClipboardList className="h-6 w-6" />, color: 'bg-[var(--surface-container)] border-[var(--outline)] text-[var(--on-surface-variant)]', href: '/admin/audit-logs' },
+            { title: 'รายงานการเก็บเงิน', desc: 'อัตราการเก็บและวิเคราะห์หนี้ค้าง', icon: <CreditCard className="h-6 w-6" />, color: 'bg-primary-container border-primary/20 text-primary', href: null },
+            { title: 'ประวัติกิจกรรม', desc: 'บันทึกการเปลี่ยนแปลงระบบทั้งหมด', icon: <ClipboardList className="h-6 w-6" />, color: 'bg-surface-container border-outline text-on-surface-variant', href: '/admin/audit-logs' },
             { title: 'สถานะระบบ', desc: 'สุขภาพและล็อกการทำงาน', icon: <Server className="h-6 w-6" />, color: 'bg-purple-50 border-purple-200 text-purple-700', href: '/admin/system' },
           ].map((card) => (
             card.href ? (
@@ -307,15 +307,15 @@ function OverviewTab() {
       </div>
 
       {/* Recent activity */}
-      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-[var(--outline-variant)] px-4 py-3">
-          <span className="text-sm font-semibold text-[var(--on-surface)]">กิจกรรมล่าสุด</span>
-          <Link href="/admin/audit-logs" className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]">ดูทั้งหมด</Link>
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
+          <span className="text-sm font-semibold text-on-surface">กิจกรรมล่าสุด</span>
+          <Link href="/admin/audit-logs" className="inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container">ดูทั้งหมด</Link>
         </div>
         {auditLoading ? (
-          <div className="px-6 py-8 text-center text-sm text-[var(--on-surface-variant)]">กำลังโหลด...</div>
+          <div className="px-6 py-8 text-center text-sm text-on-surface-variant">กำลังโหลด...</div>
         ) : auditRows.length === 0 ? (
-          <div className="px-6 py-8 text-center text-sm text-[var(--on-surface-variant)]">ไม่พบกิจกรรม</div>
+          <div className="px-6 py-8 text-center text-sm text-on-surface-variant">ไม่พบกิจกรรม</div>
         ) : (
           <ul className="divide-y divide-outline-variant/10">
             {auditRows.map((row, i) => (
@@ -326,10 +326,10 @@ function OverviewTab() {
                 </div>
                 <div className="min-w-0 flex-1 pb-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-[var(--on-surface)]">{row.action}</span>
-                    <span className="inline-flex items-center rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-medium text-[var(--on-surface-variant)]">{row.entityType}</span>
+                    <span className="font-medium text-on-surface">{row.action}</span>
+                    <span className="inline-flex items-center rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-medium text-on-surface-variant">{row.entityType}</span>
                   </div>
-                  <p className="mt-0.5 text-xs text-[var(--on-surface-variant)]/70">โดย {row.userName || row.userId} · {timeAgo(row.createdAt)}</p>
+                  <p className="mt-0.5 text-xs text-on-surface-variant/70">โดย {row.userName || row.userId} · {timeAgo(row.createdAt)}</p>
                 </div>
               </li>
             ))}
@@ -403,66 +403,66 @@ function RevenueTab() {
 
   return (
     <div className="space-y-4">
-      {error && <div className="flex items-center gap-3 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm text-[var(--on-error-container)]"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
+      {error && <div className="flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
 
       {/* Date filter */}
-      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-4">
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
         <div className="flex flex-wrap items-center gap-4">
-          <span className="text-sm font-medium text-[var(--on-surface)]">ช่วงวันที่:</span>
+          <span className="text-sm font-medium text-on-surface">ช่วงวันที่:</span>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-[var(--on-surface-variant)]">จาก</span>
+            <span className="text-sm text-on-surface-variant">จาก</span>
             <select value={fromMonth} onChange={(e) => setFromMonth(Number(e.target.value))}
-              className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20">
+              className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
               {MONTHS.map((m) => <option key={m} value={m}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1]}</option>)}
             </select>
             <select value={fromYear} onChange={(e) => setFromYear(Number(e.target.value))}
-              className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20">
+              className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-[var(--on-surface-variant)]">ถึง</span>
+            <span className="text-sm text-on-surface-variant">ถึง</span>
             <select value={toMonth} onChange={(e) => setToMonth(Number(e.target.value))}
-              className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20">
+              className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
               {MONTHS.map((m) => <option key={m} value={m}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1]}</option>)}
             </select>
             <select value={toYear} onChange={(e) => setToYear(Number(e.target.value))}
-              className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20">
+              className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
-          <span className="text-xs text-[var(--on-surface-variant)]">{filtered.length} เดือน</span>
+          <span className="text-xs text-on-surface-variant">{filtered.length} เดือน</span>
         </div>
       </section>
 
       {/* Summary KPIs */}
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">รายได้รวม</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{loading ? '...' : money(summary.total)}</p>
-              <p className="mt-1 text-xs text-[var(--on-surface-variant)]">ในช่วงที่เลือก</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">รายได้รวม</p>
+              <p className="mt-1 text-2xl font-bold text-on-surface">{loading ? '...' : money(summary.total)}</p>
+              <p className="mt-1 text-xs text-on-surface-variant">ในช่วงที่เลือก</p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 shadow-sm"><Wallet className="h-5 w-5 text-blue-600" /></div>
           </div>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">เฉลี่ยต่อเดือน</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{loading ? '...' : money(summary.avg)}</p>
-              <p className="mt-1 text-xs text-[var(--on-surface-variant)]">ต่อเดือน</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">เฉลี่ยต่อเดือน</p>
+              <p className="mt-1 text-2xl font-bold text-on-surface">{loading ? '...' : money(summary.avg)}</p>
+              <p className="mt-1 text-xs text-on-surface-variant">ต่อเดือน</p>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--primary)]/20 bg-[var(--primary-container)]/20 shadow-sm"><BarChart2 className="h-5 w-5 text-[var(--primary)]" /></div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-primary/20 bg-primary-container/20 shadow-sm"><BarChart2 className="h-5 w-5 text-primary" /></div>
           </div>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">เดือนที่ดีที่สุด</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{loading ? '...' : summary.best ? monthLabel(summary.best.year, summary.best.month) : '—'}</p>
-              <p className="mt-1 text-xs text-[var(--on-surface-variant)]">{summary.best ? money(summary.best.collected ?? summary.best.total ?? 0) : ''}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">เดือนที่ดีที่สุด</p>
+              <p className="mt-1 text-2xl font-bold text-on-surface">{loading ? '...' : summary.best ? monthLabel(summary.best.year, summary.best.month) : '—'}</p>
+              <p className="mt-1 text-xs text-on-surface-variant">{summary.best ? money(summary.best.collected ?? summary.best.total ?? 0) : ''}</p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 shadow-sm"><TrendingUp className="h-5 w-5 text-emerald-600" /></div>
           </div>
@@ -471,19 +471,19 @@ function RevenueTab() {
 
       {/* Bar chart */}
       {!loading && rows.length > 0 && (
-        <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 overflow-hidden">
-          <div className="text-sm font-semibold text-[var(--on-surface)] mb-4">ยอดรายเดือน</div>
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 overflow-hidden">
+          <div className="text-sm font-semibold text-on-surface mb-4">ยอดรายเดือน</div>
           <div className="flex h-44 items-end gap-1.5 overflow-x-auto pb-1">
             {[...rows].sort((a, b) => a.year * 100 + a.month - (b.year * 100 + b.month)).map((row) => {
               const pct = maxCollected > 0 ? (row.collected / maxCollected) * 100 : 0;
               return (
                 <div key={`${row.year}-${row.month}`} className="group relative flex min-w-[32px] flex-1 flex-col items-center justify-end">
-                  <div className="pointer-events-none absolute bottom-full mb-2 hidden rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-2 py-1 text-center text-xs shadow-lg group-hover:block">
-                    <div className="font-semibold text-[var(--on-surface)]">{monthLabel(row.year, row.month)}</div>
+                  <div className="pointer-events-none absolute bottom-full mb-2 hidden rounded-lg border border-outline-variant bg-surface-container-lowest px-2 py-1 text-center text-xs shadow-lg group-hover:block">
+                    <div className="font-semibold text-on-surface">{monthLabel(row.year, row.month)}</div>
                     <div className="text-emerald-700">{money(row.collected)}</div>
                   </div>
                   <div className="w-full rounded-t-md bg-primary/80 transition-all duration-300 hover:bg-primary" style={{ height: `${Math.max(pct, 2)}%` }} />
-                  <div className="mt-1 w-full truncate text-center text-[10px] text-[var(--on-surface-variant)]">{padMonth(row.month)}/{String(row.year).slice(2)}</div>
+                  <div className="mt-1 w-full truncate text-center text-[10px] text-on-surface-variant">{padMonth(row.month)}/{String(row.year).slice(2)}</div>
                 </div>
               );
             })}
@@ -492,47 +492,47 @@ function RevenueTab() {
       )}
 
       {/* Table */}
-      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-[var(--outline-variant)] px-4 py-3">
-          <span className="text-sm font-semibold text-[var(--on-surface)]">รายละเอียดรายเดือน</span>
-          <span className="inline-flex items-center rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface-variant)]">{rows.length} เดือน</span>
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
+          <span className="text-sm font-semibold text-on-surface">รายละเอียดรายเดือน</span>
+          <span className="inline-flex items-center rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant">{rows.length} เดือน</span>
         </div>
         <div className="overflow-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-b border-[var(--outline-variant)]">
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">
-                  <button onClick={() => toggleSort('month')} className="flex items-center gap-1">เดือน <ArrowUpDown className={`h-3.5 w-3.5 ${sortField === 'month' ? 'text-[var(--primary)]' : 'text-[var(--on-surface-variant)]'}`} /></button>
+              <tr className="border-b border-outline-variant">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
+                  <button onClick={() => toggleSort('month')} className="flex items-center gap-1">เดือน <ArrowUpDown className={`h-3.5 w-3.5 ${sortField === 'month' ? 'text-primary' : 'text-on-surface-variant'}`} /></button>
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">
-                  <button onClick={() => toggleSort('invoiced')} className="flex items-center gap-1">ออกใบแจ้ง <ArrowUpDown className={`h-3.5 w-3.5 ${sortField === 'invoiced' ? 'text-[var(--primary)]' : 'text-[var(--on-surface-variant)]'}`} /></button>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
+                  <button onClick={() => toggleSort('invoiced')} className="flex items-center gap-1">ออกใบแจ้ง <ArrowUpDown className={`h-3.5 w-3.5 ${sortField === 'invoiced' ? 'text-primary' : 'text-on-surface-variant'}`} /></button>
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">
-                  <button onClick={() => toggleSort('collected')} className="flex items-center gap-1">เก็บได้ <ArrowUpDown className={`h-3.5 w-3.5 ${sortField === 'collected' ? 'text-[var(--primary)]' : 'text-[var(--on-surface-variant)]'}`} /></button>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
+                  <button onClick={() => toggleSort('collected')} className="flex items-center gap-1">เก็บได้ <ArrowUpDown className={`h-3.5 w-3.5 ${sortField === 'collected' ? 'text-primary' : 'text-on-surface-variant'}`} /></button>
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">
-                  <button onClick={() => toggleSort('outstanding')} className="flex items-center gap-1">ค้างชำระ <ArrowUpDown className={`h-3.5 w-3.5 ${sortField === 'outstanding' ? 'text-[var(--primary)]' : 'text-[var(--on-surface-variant)]'}`} /></button>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
+                  <button onClick={() => toggleSort('outstanding')} className="flex items-center gap-1">ค้างชำระ <ArrowUpDown className={`h-3.5 w-3.5 ${sortField === 'outstanding' ? 'text-primary' : 'text-on-surface-variant'}`} /></button>
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">อัตราเก็บ</th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">อัตราเก็บ</th>
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={5} className="py-8 text-center text-[var(--on-surface-variant)]">กำลังโหลด...</td></tr>
-                : rows.length === 0 ? <tr><td colSpan={5} className="py-8 text-center text-[var(--on-surface-variant)]">ไม่มีข้อมูล</td></tr>
+              {loading ? <tr><td colSpan={5} className="py-8 text-center text-on-surface-variant">กำลังโหลด...</td></tr>
+                : rows.length === 0 ? <tr><td colSpan={5} className="py-8 text-center text-on-surface-variant">ไม่มีข้อมูล</td></tr>
                 : rows.map((row) => {
                   const rate = row.invoiced > 0 ? Math.round((row.collected / row.invoiced) * 100) : 100;
                   return (
-                    <tr key={`${row.year}-${row.month}`} className="border-b border-[var(--outline-variant)]/5 hover:bg-[var(--surface-container)]/50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-[var(--on-surface)]">{monthLabel(row.year, row.month)}</td>
-                      <td className="px-4 py-3 text-[var(--on-surface)]">{money(row.invoiced)}</td>
+                    <tr key={`${row.year}-${row.month}`} className="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors">
+                      <td className="px-4 py-3 font-medium text-on-surface">{monthLabel(row.year, row.month)}</td>
+                      <td className="px-4 py-3 text-on-surface">{money(row.invoiced)}</td>
                       <td className="px-4 py-3 font-semibold text-emerald-700">{money(row.collected)}</td>
-                      <td className="px-4 py-3"><span className={row.outstanding > 0 ? 'font-medium text-red-600' : 'text-[var(--on-surface-variant)]'}>{money(row.outstanding)}</span></td>
+                      <td className="px-4 py-3"><span className={row.outstanding > 0 ? 'font-medium text-red-600' : 'text-on-surface-variant'}>{money(row.outstanding)}</span></td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-[var(--surface-container)]">
+                          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-surface-container">
                             <div className={`h-full rounded-full ${rate >= 90 ? 'bg-emerald-500' : rate >= 70 ? 'bg-amber-400' : 'bg-red-500'}`} style={{ width: `${Math.min(rate, 100)}%` }} />
                           </div>
-                          <span className="text-sm font-medium text-[var(--on-surface)]">{rate}%</span>
+                          <span className="text-sm font-medium text-on-surface">{rate}%</span>
                         </div>
                       </td>
                     </tr>
@@ -620,68 +620,68 @@ function OccupancyTab() {
 
   return (
     <div className="space-y-4">
-      {error && <div className="flex items-center gap-3 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm text-[var(--on-error-container)]"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
+      {error && <div className="flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">ห้องทั้งหมด</p>
-          <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{loading ? '...' : totalRooms}</p>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+          <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">ห้องทั้งหมด</p>
+          <p className="mt-1 text-2xl font-bold text-on-surface">{loading ? '...' : totalRooms}</p>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">มีผู้เช่า</p>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+          <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">มีผู้เช่า</p>
           <p className="mt-1 text-2xl font-bold text-indigo-700">{loading ? '...' : occupied}</p>
-          <p className="mt-1 text-xs text-[var(--on-surface-variant)]">{pct(occupied, totalRooms)}%</p>
+          <p className="mt-1 text-xs text-on-surface-variant">{pct(occupied, totalRooms)}%</p>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">ว่าง</p>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+          <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">ว่าง</p>
           <p className="mt-1 text-2xl font-bold text-emerald-700">{loading ? '...' : vacant}</p>
-          <p className="mt-1 text-xs text-[var(--on-surface-variant)]">{pct(vacant, totalRooms)}%</p>
+          <p className="mt-1 text-xs text-on-surface-variant">{pct(vacant, totalRooms)}%</p>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">ซ่อมบำรุง</p>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+          <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">ซ่อมบำรุง</p>
           <p className="mt-1 text-2xl font-bold text-amber-700">{loading ? '...' : maintenance}</p>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">อัตราการเข้าพัก</p>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+          <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">อัตราการเข้าพัก</p>
           <p className={`mt-1 text-2xl font-bold ${rateColor(occupancyRate)}`}>{loading ? '...' : `${occupancyRate}%`}</p>
         </div>
       </div>
 
       {/* Floor table + distribution */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-[var(--outline-variant)] px-4 py-3">
-            <span className="text-sm font-semibold text-[var(--on-surface)]">ความครอบคลุมตามชั้น</span>
-            <span className="inline-flex items-center rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface-variant)]">{byFloor.length} ชั้น</span>
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+          <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
+            <span className="text-sm font-semibold text-on-surface">ความครอบคลุมตามชั้น</span>
+            <span className="inline-flex items-center rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant">{byFloor.length} ชั้น</span>
           </div>
           <div className="overflow-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b border-[var(--outline-variant)]">
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">ชั้น</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">ทั้งหมด</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">มีผู้เช่า</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">ว่าง</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">ซ่อมบำรุง</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">อัตรา</th>
+                <tr className="border-b border-outline-variant">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">ชั้น</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">ทั้งหมด</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">มีผู้เช่า</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">ว่าง</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">ซ่อมบำรุง</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">อัตรา</th>
                 </tr>
               </thead>
               <tbody>
-                {loading ? <tr><td colSpan={6} className="py-8 text-center text-[var(--on-surface-variant)]">กำลังโหลด...</td></tr>
-                  : byFloor.length === 0 ? <tr><td colSpan={6} className="py-8 text-center text-[var(--on-surface-variant)]">ไม่มีข้อมูล</td></tr>
+                {loading ? <tr><td colSpan={6} className="py-8 text-center text-on-surface-variant">กำลังโหลด...</td></tr>
+                  : byFloor.length === 0 ? <tr><td colSpan={6} className="py-8 text-center text-on-surface-variant">ไม่มีข้อมูล</td></tr>
                   : byFloor.map((fl) => {
                     const rate = fl.occupancyRate ?? pct(fl.occupied, fl.total);
                     return (
-                      <tr key={fl.floorNumber} className="border-b border-[var(--outline-variant)]/5 hover:bg-[var(--surface-container)]/50 transition-colors">
-                        <td className="px-4 py-3 font-semibold text-[var(--on-surface)]">ชั้น {fl.floorNumber}</td>
-                        <td className="px-4 py-3 text-right tabular-nums font-medium text-[var(--on-surface)]">{fl.total}</td>
+                      <tr key={fl.floorNumber} className="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-on-surface">ชั้น {fl.floorNumber}</td>
+                        <td className="px-4 py-3 text-right tabular-nums font-medium text-on-surface">{fl.total}</td>
                         <td className="px-4 py-3 text-right font-semibold text-indigo-700 tabular-nums">{fl.occupied}</td>
                         <td className="px-4 py-3 text-right font-medium text-emerald-700 tabular-nums">{fl.vacant}</td>
                         <td className="px-4 py-3 text-right font-medium text-amber-700 tabular-nums">{fl.maintenance ?? 0}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <div className="h-2 w-24 overflow-hidden rounded-full bg-[var(--surface-container)]">
+                            <div className="h-2 w-24 overflow-hidden rounded-full bg-surface-container">
                               <div className={`h-full rounded-full transition-all ${rateBarColor(rate)}`} style={{ width: `${Math.min(rate, 100)}%` }} />
                             </div>
                             <span className={`text-sm font-semibold tabular-nums ${rateColor(rate)}`}>{rate}%</span>
@@ -696,9 +696,9 @@ function OccupancyTab() {
         </section>
 
         {/* Status distribution */}
-        <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-          <div className="text-sm font-semibold text-[var(--on-surface)] mb-4">สถานะห้อง</div>
-          {loading ? <div className="py-8 text-center text-sm text-[var(--on-surface-variant)]">กำลังโหลด...</div> : (
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+          <div className="text-sm font-semibold text-on-surface mb-4">สถานะห้อง</div>
+          {loading ? <div className="py-8 text-center text-sm text-on-surface-variant">กำลังโหลด...</div> : (
             <div className="flex flex-col gap-4">
               <div className="flex h-4 w-full overflow-hidden rounded-full">
                 {distribution.filter((d) => d.count > 0).map((d) => {
@@ -716,17 +716,17 @@ function OccupancyTab() {
                   return (
                     <div key={status} className="flex flex-col gap-1">
                       <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2"><span className={`h-3 w-3 rounded-sm ${cfg.bar}`} /><span className="font-medium text-[var(--on-surface)]">{cfg.label}</span></div>
-                        <div className="flex items-center gap-2 tabular-nums"><span className={`font-semibold ${cfg.text}`}>{count}</span><span className="text-[var(--on-surface-variant)]">·</span><span className="text-[var(--on-surface-variant)]">{rate}%</span></div>
+                        <div className="flex items-center gap-2"><span className={`h-3 w-3 rounded-sm ${cfg.bar}`} /><span className="font-medium text-on-surface">{cfg.label}</span></div>
+                        <div className="flex items-center gap-2 tabular-nums"><span className={`font-semibold ${cfg.text}`}>{count}</span><span className="text-on-surface-variant">·</span><span className="text-on-surface-variant">{rate}%</span></div>
                       </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-container)]"><div className={`h-full rounded-full ${cfg.bar}`} style={{ width: `${rate}%` }} /></div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-container"><div className={`h-full rounded-full ${cfg.bar}`} style={{ width: `${rate}%` }} /></div>
                     </div>
                   );
                 })}
               </div>
-              <div className="mt-2 flex items-center justify-between border-t border-[var(--outline-variant)] pt-3">
-                <span className="text-sm font-semibold text-[var(--on-surface)]">รวม</span>
-                <span className="text-lg font-bold text-[var(--on-surface)] tabular-nums">{totalRooms}</span>
+              <div className="mt-2 flex items-center justify-between border-t border-outline-variant pt-3">
+                <span className="text-sm font-semibold text-on-surface">รวม</span>
+                <span className="text-lg font-bold text-on-surface tabular-nums">{totalRooms}</span>
               </div>
             </div>
           )}
@@ -805,94 +805,94 @@ function CollectionsTab() {
 
   return (
     <div className="space-y-4">
-      {error && <div className="flex items-center gap-3 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm text-[var(--on-error-container)]"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
+      {error && <div className="flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
 
       {/* Date filter */}
-      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-4">
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
         <div className="flex flex-wrap items-center gap-4">
-          <span className="text-sm font-medium text-[var(--on-surface)]">ช่วงวันที่:</span>
+          <span className="text-sm font-medium text-on-surface">ช่วงวันที่:</span>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-[var(--on-surface-variant)]">จาก</span>
+            <span className="text-sm text-on-surface-variant">จาก</span>
             <select value={fromMonth} onChange={(e) => setFromMonth(Number(e.target.value))}
-              className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20">
+              className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
               {MONTHS.map((m) => <option key={m} value={m}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1]}</option>)}
             </select>
             <select value={fromYear} onChange={(e) => setFromYear(Number(e.target.value))}
-              className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20">
+              className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-[var(--on-surface-variant)]">ถึง</span>
+            <span className="text-sm text-on-surface-variant">ถึง</span>
             <select value={toMonth} onChange={(e) => setToMonth(Number(e.target.value))}
-              className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20">
+              className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
               {MONTHS.map((m) => <option key={m} value={m}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1]}</option>)}
             </select>
             <select value={toYear} onChange={(e) => setToYear(Number(e.target.value))}
-              className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20">
+              className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
-          <span className="text-xs text-[var(--on-surface-variant)]">{rows.length} เดือน</span>
+          <span className="text-xs text-on-surface-variant">{rows.length} เดือน</span>
         </div>
       </section>
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">ออกใบแจ้งทั้งหมด</p>
-          <p className="mt-1 text-2xl font-bold text-[var(--on-surface)]">{loading ? '...' : money(summary.totalInvoiced)}</p>
-          <p className="mt-1 text-xs text-[var(--on-surface-variant)]">ในช่วงที่เลือก</p>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+          <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">ออกใบแจ้งทั้งหมด</p>
+          <p className="mt-1 text-2xl font-bold text-on-surface">{loading ? '...' : money(summary.totalInvoiced)}</p>
+          <p className="mt-1 text-xs text-on-surface-variant">ในช่วงที่เลือก</p>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">เก็บได้ทั้งหมด</p>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+          <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">เก็บได้ทั้งหมด</p>
           <p className="mt-1 text-2xl font-bold text-emerald-700">{loading ? '...' : money(summary.totalCollected)}</p>
-          <p className="mt-1 text-xs text-[var(--on-surface-variant)]">ได้รับชำระ</p>
+          <p className="mt-1 text-xs text-on-surface-variant">ได้รับชำระ</p>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">อัตราการเก็บ</p>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+          <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">อัตราการเก็บ</p>
           <p className={`mt-1 text-2xl font-bold ${rateColor(summary.collectionRate)}`}>{loading ? '...' : `${summary.collectionRate}%`}</p>
-          <p className="mt-1 text-xs text-[var(--on-surface-variant)]">เก็บ / ออกใบแจ้ง</p>
+          <p className="mt-1 text-xs text-on-surface-variant">เก็บ / ออกใบแจ้ง</p>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">ค้างชำระ</p>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+          <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">ค้างชำระ</p>
           <p className="mt-1 text-2xl font-bold text-red-700">{loading ? '...' : money(summary.totalOutstanding)}</p>
-          <p className="mt-1 text-xs text-[var(--on-surface-variant)]">ยอดคงค้าง</p>
+          <p className="mt-1 text-xs text-on-surface-variant">ยอดคงค้าง</p>
         </div>
       </div>
 
       {/* Month table */}
-      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-[var(--outline-variant)] px-4 py-3">
-          <span className="text-sm font-semibold text-[var(--on-surface)]">รายเดือน</span>
-          <span className="inline-flex items-center rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface-variant)]">{rows.length} เดือน</span>
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
+          <span className="text-sm font-semibold text-on-surface">รายเดือน</span>
+          <span className="inline-flex items-center rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant">{rows.length} เดือน</span>
         </div>
         <div className="overflow-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-b border-[var(--outline-variant)]">
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">เดือน</th>
-                <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">ออกใบแจ้ง</th>
-                <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">เก็บได้</th>
-                <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">ค้างชำระ</th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">อัตราเก็บ</th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">สถานะ</th>
+              <tr className="border-b border-outline-variant">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">เดือน</th>
+                <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">ออกใบแจ้ง</th>
+                <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">เก็บได้</th>
+                <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">ค้างชำระ</th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">อัตราเก็บ</th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">สถานะ</th>
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={6} className="py-8 text-center text-[var(--on-surface-variant)]">กำลังโหลด...</td></tr>
-                : rows.length === 0 ? <tr><td colSpan={6} className="py-8 text-center text-[var(--on-surface-variant)]">ไม่มีข้อมูล</td></tr>
+              {loading ? <tr><td colSpan={6} className="py-8 text-center text-on-surface-variant">กำลังโหลด...</td></tr>
+                : rows.length === 0 ? <tr><td colSpan={6} className="py-8 text-center text-on-surface-variant">ไม่มีข้อมูล</td></tr>
                 : rows.map((row) => {
                   const sl = statusLabel(row.collectionRate);
                   return (
-                    <tr key={`${row.year}-${row.month}`} className="border-b border-[var(--outline-variant)]/5 hover:bg-[var(--surface-container)]/50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-[var(--on-surface)]">{monthLabel(row.year, row.month)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-[var(--on-surface)]">{money(row.invoiced)}</td>
+                    <tr key={`${row.year}-${row.month}`} className="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors">
+                      <td className="px-4 py-3 font-medium text-on-surface">{monthLabel(row.year, row.month)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-on-surface">{money(row.invoiced)}</td>
                       <td className="px-4 py-3 text-right font-semibold text-emerald-700 tabular-nums">{money(row.collected)}</td>
-                      <td className="px-4 py-3 text-right"><span className={row.outstanding > 0 ? 'tabular-nums font-medium text-red-600' : 'text-[var(--on-surface-variant)]'}>{money(row.outstanding)}</span></td>
+                      <td className="px-4 py-3 text-right"><span className={row.outstanding > 0 ? 'tabular-nums font-medium text-red-600' : 'text-on-surface-variant'}>{money(row.outstanding)}</span></td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-[var(--surface-container)]">
+                          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-surface-container">
                             <div className={`h-full rounded-full ${rateBarColor(row.collectionRate)}`} style={{ width: `${Math.min(row.collectionRate, 100)}%` }} />
                           </div>
                           <span className={`text-sm font-semibold tabular-nums ${rateColor(row.collectionRate)}`}>{row.collectionRate}%</span>
@@ -908,26 +908,26 @@ function CollectionsTab() {
       </section>
 
       {/* Aging analysis */}
-      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
         <div className="mb-4 flex items-center justify-between">
-          <div className="text-sm font-semibold text-[var(--on-surface)]">วิเคราะห์หนี้ค้าง</div>
+          <div className="text-sm font-semibold text-on-surface">วิเคราะห์หนี้ค้าง</div>
           <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-[var(--color-danger)]-container" />
-            <span className="text-sm text-[var(--on-surface-variant)]">{overdueInvoices.length} ใบแจ้งหนี้เกินกำหนด</span>
+            <AlertCircle className="h-4 w-4 text-color-danger-container" />
+            <span className="text-sm text-on-surface-variant">{overdueInvoices.length} ใบแจ้งหนี้เกินกำหนด</span>
           </div>
         </div>
-        {loading ? <div className="py-8 text-center text-sm text-[var(--on-surface-variant)]">กำลังโหลด...</div> : (
+        {loading ? <div className="py-8 text-center text-sm text-on-surface-variant">กำลังโหลด...</div> : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {agingBuckets.map((bucket) => {
               const barPct = maxAgingAmount > 0 ? (bucket.amount / maxAgingAmount) * 100 : 0;
               const isSerious = bucket.days === '90+';
               return (
-                <div key={bucket.days} className={`rounded-2xl border p-4 ${isSerious ? 'border-[var(--error-container)]/30 bg-[var(--error-container)]/10' : 'border-[var(--outline-variant)] bg-[var(--surface-container)]'}`}>
-                  <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">{bucket.label}</div>
-                  <div className={`text-2xl font-bold tabular-nums ${isSerious ? 'text-[var(--on-error-container)]' : 'text-[var(--on-surface)]'}`}>{money(bucket.amount)}</div>
-                  <div className="mt-1 text-xs text-[var(--on-surface-variant)]">{bucket.count} ใบแจ้งหนี้</div>
-                  <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-container-lowest)]">
-                    <div className={`h-full rounded-full transition-all ${isSerious ? 'bg-[var(--error-container)]' : 'bg-on-surface-variant/30'}`} style={{ width: `${barPct}%` }} />
+                <div key={bucket.days} className={`rounded-2xl border p-4 ${isSerious ? 'border-error-container/30 bg-error-container/10' : 'border-outline-variant bg-surface-container'}`}>
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-on-surface-variant">{bucket.label}</div>
+                  <div className={`text-2xl font-bold tabular-nums ${isSerious ? 'text-on-error-container' : 'text-on-surface'}`}>{money(bucket.amount)}</div>
+                  <div className="mt-1 text-xs text-on-surface-variant">{bucket.count} ใบแจ้งหนี้</div>
+                  <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-container-lowest">
+                    <div className={`h-full rounded-full transition-all ${isSerious ? 'bg-error-container' : 'bg-on-surface-variant/30'}`} style={{ width: `${barPct}%` }} />
                   </div>
                 </div>
               );
@@ -935,7 +935,7 @@ function CollectionsTab() {
           </div>
         )}
         {!loading && overdueInvoices.length === 0 && (
-          <p className="mt-2 rounded-2xl border border-[var(--tertiary-container)]/30 bg-[var(--tertiary-container)]/10 px-4 py-3 text-sm text-[var(--on-tertiary-container)]">ไม่มีใบแจ้งหนี้เกินกำหนด ทุกรายการชำระครบแล้ว</p>
+          <p className="mt-2 rounded-2xl border border-tertiary-container/30 bg-tertiary-container/10 px-4 py-3 text-sm text-on-tertiary-container">ไม่มีใบแจ้งหนี้เกินกำหนด ทุกรายการชำระครบแล้ว</p>
         )}
       </section>
     </div>
@@ -969,30 +969,30 @@ export default function AdminReportsPage() {
   return (
     <main className="space-y-6">
       {/* Page header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
-              <BarChart2 className="h-5 w-5 text-[var(--on-primary)]" strokeWidth={1.75} />
+              <BarChart2 className="h-5 w-5 text-on-primary" strokeWidth={1.75} />
             </div>
             <div>
-              <h1 className="text-base font-semibold text-[var(--on-primary)]">รายงาน</h1>
-              <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">ภาพรวมรายงานทางการเงิน สถานะห้อง และกิจกรรมระบบ</p>
+              <h1 className="text-base font-semibold text-on-primary">รายงาน</h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">ภาพรวมรายงานทางการเงิน สถานะห้อง และกิจกรรมระบบ</p>
             </div>
           </div>
-          <button onClick={() => window.location.reload()} className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30">
+          <button onClick={() => window.location.reload()} className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30">
             <RefreshCw className="h-4 w-4" />รีเฟรช
           </button>
         </div>
       </div>
 
       {/* Tab Switcher */}
-      <div className="inline-flex items-center gap-1 rounded-xl bg-[var(--surface-container)] p-1">
+      <div className="inline-flex items-center gap-1 rounded-xl bg-surface-container p-1">
         {TABS.map((tab) => (
           <button key={tab.id} onClick={() => handleTabChange(tab.id)}
             className={['px-4 py-2 rounded-lg text-sm font-medium transition-all',
-              activeTab === tab.id ? 'bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-sm' : 'text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] hover:text-[var(--on-surface)]'].join(' ')}>
+              activeTab === tab.id ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'].join(' ')}>
             {tab.label}
           </button>
         ))}

@@ -156,17 +156,17 @@ export default function BillingBatchDetailPage() {
 
   return (
     <main className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link href="/admin/billing/batches" className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30">
+            <Link href="/admin/billing/batches" className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30">
               <ArrowLeft className="h-4 w-4" />
               กลับ
             </Link>
             <div>
-              <h1 className="text-base font-semibold text-[var(--on-primary)]">รายละเอียดแบทช์</h1>
-              <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">
+              <h1 className="text-base font-semibold text-on-primary">รายละเอียดแบทช์</h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">
                 ตรวจสอบแถวที่จัดเตรียม แก้ไขความไม่ตรงกันในที่เดียว และยืนยันแบทช์เมื่อทุกอย่างเรียบร้อย
               </p>
             </div>
@@ -180,14 +180,14 @@ export default function BillingBatchDetailPage() {
               ) : (
                 <button
                   onClick={() => setConfirmOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30"
                   disabled={executing}
                 >
                   {executing ? 'กำลังนำเข้า...' : 'ยืนยันแบทช์'}
                 </button>
               )
             ) : null}
-            <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30" disabled={loading}>
+            <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30" disabled={loading}>
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               รีเฟรช
             </button>
@@ -210,46 +210,46 @@ export default function BillingBatchDetailPage() {
       ) : null}
 
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-[var(--on-surface-variant)]">
+        <div className="flex items-center justify-center py-20 text-on-surface-variant">
           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
           กำลังโหลดรายละเอียดแบทช์...
         </div>
       ) : !batch ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <FileSpreadsheet className="h-10 w-10 text-[var(--on-surface-variant)]" />
-          <div className="font-semibold text-[var(--on-surface)]">ไม่พบแบทช์</div>
+          <FileSpreadsheet className="h-10 w-10 text-on-surface-variant" />
+          <div className="font-semibold text-on-surface">ไม่พบแบทช์</div>
         </div>
       ) : (
         <>
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">ชื่อไฟล์</div>
-              <div className="mt-2 text-sm font-medium text-[var(--on-surface)]">{batch.filename}</div>
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">ชื่อไฟล์</div>
+              <div className="mt-2 text-sm font-medium text-on-surface">{batch.filename}</div>
             </div>
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">สถานะ</div>
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">สถานะ</div>
               <div className="mt-2">
                 <span className={statusBadge(batch.status)}>{batch.status}</span>
               </div>
             </div>
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">จำนวนแถว</div>
-              <div className="mt-2 text-xl font-semibold text-[var(--on-surface)]">{totals.rowCount}</div>
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">จำนวนแถว</div>
+              <div className="mt-2 text-xl font-semibold text-on-surface">{totals.rowCount}</div>
             </div>
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">ยอดรวมแบทช์</div>
-              <div className="mt-2 text-xl font-semibold text-[var(--on-surface)]">{money(totals.totalAmount)}</div>
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">ยอดรวมแบทช์</div>
+              <div className="mt-2 text-xl font-semibold text-on-surface">{money(totals.totalAmount)}</div>
             </div>
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">ถูกต้อง / ข้อผิดพลาด</div>
-              <div className="mt-2 text-xl font-semibold text-[var(--on-surface)]">{batch.validRows} / {batch.invalidRows}</div>
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">ถูกต้อง / ข้อผิดพลาด</div>
+              <div className="mt-2 text-xl font-semibold text-on-surface">{batch.validRows} / {batch.invalidRows}</div>
             </div>
           </section>
 
           <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--outline-variant)] px-5 py-4">
-                <div className="text-sm font-semibold text-[var(--on-surface)]">แถวที่จัดเตรียม</div>
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant px-5 py-4">
+                <div className="text-sm font-semibold text-on-surface">แถวที่จัดเตรียม</div>
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
                   {batch.warningRows} เตือน / {batch.invalidRows} ข้อผิดพลาด
                 </span>
@@ -257,22 +257,22 @@ export default function BillingBatchDetailPage() {
               <div className="overflow-auto">
                 <table className="w-full text-sm text-left">
                   <thead>
-                    <tr className="bg-[var(--surface-container)]">
-                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">#</th>
-                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้อง</th>
-                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ชีต</th>
-                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ยอดรวม</th>
-                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ตรวจสอบบันทึก</th>
+                    <tr className="bg-surface-container">
+                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">#</th>
+                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
+                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ชีต</th>
+                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ยอดรวม</th>
+                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ตรวจสอบบันทึก</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/10">
                     {(batch.rows as BatchRow[]).map((row, idx) => (
-                      <tr key={`${row.roomNo}-${idx}`} className="hover:bg-[var(--surface-container-lowest)] transition-colors">
-                        <td className="px-4 py-3 text-[var(--on-surface-variant)]">{idx + 1}</td>
-                        <td className="px-4 py-3 font-semibold text-[var(--on-surface)]">{row.roomNo}</td>
-                        <td className="px-4 py-3 text-[var(--on-surface-variant)]">{row.floorSheetName}</td>
-                        <td className="px-4 py-3 text-[var(--on-surface)]">{money(row.totalDue)}</td>
-                        <td className="px-4 py-3 text-sm text-[var(--on-surface-variant)]">
+                      <tr key={`${row.roomNo}-${idx}`} className="hover:bg-surface-container-lowest transition-colors">
+                        <td className="px-4 py-3 text-on-surface-variant">{idx + 1}</td>
+                        <td className="px-4 py-3 font-semibold text-on-surface">{row.roomNo}</td>
+                        <td className="px-4 py-3 text-on-surface-variant">{row.floorSheetName}</td>
+                        <td className="px-4 py-3 text-on-surface">{money(row.totalDue)}</td>
+                        <td className="px-4 py-3 text-sm text-on-surface-variant">
                           {row.checkNotes ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
                               <AlertTriangle className="h-3 w-3" />
@@ -290,53 +290,53 @@ export default function BillingBatchDetailPage() {
             </div>
 
             <div className="space-y-4">
-              <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">
+              <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">
                   Billing Period
                 </div>
-                <div className="mt-3 text-lg font-semibold text-[var(--on-surface)]">
+                <div className="mt-3 text-lg font-semibold text-on-surface">
                   {batch.billingPeriod ? `${String(batch.billingPeriod.month).padStart(2, '0')}/${batch.billingPeriod.year}` : '—'}
                 </div>
-                <div className="mt-1 text-sm text-[var(--on-surface-variant)]">
+                <div className="mt-1 text-sm text-on-surface-variant">
                   {batch.billingPeriod?.status ?? '—'}
                 </div>
                 {batch.billingPeriod ? (
-                  <Link href={`/admin/billing/${batch.billingPeriod.id}`} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+                  <Link href={`/admin/billing/${batch.billingPeriod.id}`} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
                     Open Billing Cycle
                   </Link>
                 ) : null}
               </section>
 
-              <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">
+              <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">
                   ผลการนำเข้า
                 </div>
-                <div className="mt-3 space-y-3 text-sm text-[var(--on-surface-variant)]">
+                <div className="mt-3 space-y-3 text-sm text-on-surface-variant">
                   <div className="flex justify-between">
                     <span>นำเข้าแล้ว</span>
-                    <span className="font-semibold text-[var(--on-surface)]">{batch.rowsImported}</span>
+                    <span className="font-semibold text-on-surface">{batch.rowsImported}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>ข้าม</span>
-                    <span className="font-semibold text-[var(--on-surface)]">{batch.rowsSkipped}</span>
+                    <span className="font-semibold text-on-surface">{batch.rowsSkipped}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>ข้อผิดพลาด</span>
-                    <span className="font-semibold text-[var(--on-surface)]">{batch.rowsErrored}</span>
+                    <span className="font-semibold text-on-surface">{batch.rowsErrored}</span>
                   </div>
                 </div>
               </section>
 
-              <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">
+              <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">
                   สร้างเมื่อ
                 </div>
-                <div className="mt-2 text-sm font-medium text-[var(--on-surface)]">{dateTime(batch.createdAt)}</div>
+                <div className="mt-2 text-sm font-medium text-on-surface">{dateTime(batch.createdAt)}</div>
               </section>
 
               {batch.warningRows > 0 || batch.invalidRows > 0 ? (
-                <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-                  <div className="mb-3 flex items-center gap-2 text-[var(--on-surface)]">
+                <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+                  <div className="mb-3 flex items-center gap-2 text-on-surface">
                     {batch.invalidRows > 0 ? (
                       <XCircle className="h-4 w-4 text-red-500" />
                     ) : (
@@ -344,7 +344,7 @@ export default function BillingBatchDetailPage() {
                     )}
                     <span className="font-semibold">ต้องตรวจสอบ</span>
                   </div>
-                  <p className="text-sm text-[var(--on-surface-variant)]">
+                  <p className="text-sm text-on-surface-variant">
                     แบทช์นี้มี {batch.warningRows} แถวที่ต้องตรวจสอบ และ {batch.invalidRows} แถวที่ต้องแก้ไขก่อน กรุณาแก้ไขไฟล์ต้นฉบับแล้วอัปโหลดใหม่
                   </p>
                 </section>

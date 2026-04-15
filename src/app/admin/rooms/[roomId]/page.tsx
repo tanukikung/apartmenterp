@@ -172,8 +172,8 @@ function StatusBadge({ status, cls }: { status: string; cls: string }) {
 function Spinner({ message = 'กำลังโหลด...' }: { message?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-3">
-      <Loader2 className="h-7 w-7 animate-spin text-[var(--primary)]" />
-      <p className="text-sm text-[var(--on-surface-variant)]">{message}</p>
+      <Loader2 className="h-7 w-7 animate-spin text-primary" />
+      <p className="text-sm text-on-surface-variant">{message}</p>
     </div>
   );
 }
@@ -181,10 +181,10 @@ function Spinner({ message = 'กำลังโหลด...' }: { message?: str
 function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-3">
-      <XCircle className="h-8 w-8 text-[var(--color-danger)]" />
-      <p className="text-sm text-[var(--on-surface-variant)]">{message}</p>
+      <XCircle className="h-8 w-8 text-color-danger" />
+      <p className="text-sm text-on-surface-variant">{message}</p>
       {onRetry && (
-        <button onClick={onRetry} className="flex items-center gap-1.5 text-sm font-medium text-[var(--primary)] hover:underline">
+        <button onClick={onRetry} className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
           <RefreshCw className="h-3.5 w-3.5" /> ลองใหม่
         </button>
       )}
@@ -195,9 +195,9 @@ function ErrorState({ message, onRetry }: { message: string; onRetry?: () => voi
 function EmptyState({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-2">
-      <Icon className="h-10 w-10 text-[var(--on-surface-variant)]/30" />
-      <p className="text-sm font-medium text-[var(--on-surface-variant)]">{title}</p>
-      <p className="text-xs text-[var(--on-surface-variant)]/60">{description}</p>
+      <Icon className="h-10 w-10 text-on-surface-variant/30" />
+      <p className="text-sm font-medium text-on-surface-variant">{title}</p>
+      <p className="text-xs text-on-surface-variant/60">{description}</p>
     </div>
   );
 }
@@ -208,11 +208,11 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ElementTyp
 
 function InfoRow({ icon, label, value }: { icon?: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)]/80 px-4 py-3">
-      {icon && <span className="mt-0.5 shrink-0 text-[var(--on-surface-variant)]">{icon}</span>}
+    <div className="flex items-start gap-3 rounded-xl border border-outline-variant/10 bg-surface-container-lowest/80 px-4 py-3">
+      {icon && <span className="mt-0.5 shrink-0 text-on-surface-variant">{icon}</span>}
       <div className="min-w-0">
-        <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[var(--on-surface-variant)]">{label}</div>
-        <div className="mt-0.5 text-sm font-medium text-[var(--on-surface)]">{value}</div>
+        <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">{label}</div>
+        <div className="mt-0.5 text-sm font-medium text-on-surface">{value}</div>
       </div>
     </div>
   );
@@ -227,10 +227,10 @@ function OverviewTab({ room }: { room: Room }) {
   return (
     <div className="space-y-5">
       {/* Room Info Grid */}
-      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-        <div className="border-b border-[var(--outline-variant)] bg-[var(--surface-container)] px-4 py-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-[var(--on-surface)]">
-            <Info className="h-4 w-4 text-[var(--on-surface-variant)]" />
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="border-b border-outline-variant bg-surface-container px-4 py-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-on-surface">
+            <Info className="h-4 w-4 text-on-surface-variant" />
             ข้อมูลห้อง
           </div>
         </div>
@@ -251,8 +251,8 @@ function OverviewTab({ room }: { room: Room }) {
           <InfoRow icon={<Building2 className="h-4 w-4" />} label="บัญชีเริ่มต้น" value={room.defaultAccountId} />
           <InfoRow icon={<FileText className="h-4 w-4" />} label="กฎเรียกเก็บ" value={room.defaultRuleCode} />
         </div>
-        <div className="border-t border-[var(--outline-variant)]/10 px-4 py-3 flex items-center justify-between">
-          <div className="text-xs text-[var(--on-surface-variant)]">
+        <div className="border-t border-outline-variant/10 px-4 py-3 flex items-center justify-between">
+          <div className="text-xs text-on-surface-variant">
             สร้างเมื่อ {fmtDateTime(room.createdAt)} · อัปเดต {fmtDateTime(room.updatedAt)}
           </div>
         </div>
@@ -294,10 +294,10 @@ function TenantTab({ roomNo }: { roomNo: string }) {
     <div className="space-y-5">
       {/* Tenant Info */}
       {t && (
-        <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-          <div className="border-b border-[var(--outline-variant)] bg-[var(--surface-container)] px-4 py-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--on-surface)]">
-              <FileText className="h-4 w-4 text-[var(--on-surface-variant)]" />
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+          <div className="border-b border-outline-variant bg-surface-container px-4 py-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-on-surface">
+              <FileText className="h-4 w-4 text-on-surface-variant" />
               ผู้เช่าปัจจุบัน
             </div>
           </div>
@@ -322,17 +322,17 @@ function TenantTab({ roomNo }: { roomNo: string }) {
       )}
 
       {/* Contract Info */}
-      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-        <div className="border-b border-[var(--outline-variant)] bg-[var(--surface-container)] px-4 py-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-[var(--on-surface)]">
-            <FileText className="h-4 w-4 text-[var(--on-surface-variant)]" />
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="border-b border-outline-variant bg-surface-container px-4 py-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-on-surface">
+            <FileText className="h-4 w-4 text-on-surface-variant" />
             สัญญาเช่าที่ใช้งาน
           </div>
         </div>
         <div className="grid gap-3 p-4 sm:grid-cols-2">
           <InfoRow icon={<Calendar className="h-4 w-4" />} label="วันเริ่มสัญญา" value={fmt(contract.startDate)} />
           <InfoRow icon={<Calendar className="h-4 w-4" />} label="วันสิ้นสุด" value={contract.endDate ? fmt(contract.endDate) : 'ไม่กำหนด'} />
-          <InfoRow icon={<FileText className="h-4 w-4" />} label="ค่าเช่ารายเดือน" value={<span className="text-[var(--primary)] font-semibold">{fmtMoney(contract.monthlyRent)}</span>} />
+          <InfoRow icon={<FileText className="h-4 w-4" />} label="ค่าเช่ารายเดือน" value={<span className="text-primary font-semibold">{fmtMoney(contract.monthlyRent)}</span>} />
           <InfoRow icon={<FileText className="h-4 w-4" />} label="เงินมัดจำ" value={contract.deposit != null ? fmtMoney(contract.deposit) : '—'} />
           <InfoRow
             icon={<CheckCircle2 className="h-4 w-4" />}
@@ -374,34 +374,34 @@ function InvoicesTab({ roomNo }: { roomNo: string }) {
   if (invoices.length === 0) return <EmptyState icon={FileText} title="ไม่มีใบแจ้งหนี้" description="ยังไม่มีการออกใบแจ้งหนี้สำหรับห้องนี้" />;
 
   return (
-    <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-      <div className="border-b border-[var(--outline-variant)] bg-[var(--surface-container)] px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold text-[var(--on-surface)]">
-          <FileText className="h-4 w-4 text-[var(--on-surface-variant)]" />
+    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      <div className="border-b border-outline-variant bg-surface-container px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-semibold text-on-surface">
+          <FileText className="h-4 w-4 text-on-surface-variant" />
           ใบแจ้งหนี้
         </div>
-        <span className="text-xs text-[var(--on-surface-variant)]">{invoices.length} รายการ</span>
+        <span className="text-xs text-on-surface-variant">{invoices.length} รายการ</span>
       </div>
       <div className="overflow-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-[var(--surface-container)]">
-              <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">เลขที่ใบแจ้งหนี้</th>
-              <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ประจำเดือน</th>
-              <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ยอดรวม</th>
-              <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ครบกำหนด</th>
-              <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">สถานะ</th>
+            <tr className="bg-surface-container">
+              <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เลขที่ใบแจ้งหนี้</th>
+              <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ประจำเดือน</th>
+              <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ยอดรวม</th>
+              <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ครบกำหนด</th>
+              <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
             </tr>
           </thead>
           <tbody>
             {invoices.map(inv => {
               const badge = invoiceStatusBadge(inv.status);
               return (
-                <tr key={inv.id} className="border-b border-[var(--outline-variant)]/10 hover:bg-[var(--surface-container-lowest)] transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-[var(--on-surface)]">{inv.invoiceNumber ?? inv.id.slice(0, 8)}…</td>
-                  <td className="px-4 py-3 text-[var(--on-surface-variant)]">{TH_MONTHS[inv.month - 1]} {inv.year}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-[var(--on-surface)]">{fmtMoney(inv.totalAmount)}</td>
-                  <td className="px-4 py-3 text-[var(--on-surface-variant)]">{fmt(inv.dueDate)}</td>
+                <tr key={inv.id} className="border-b border-outline-variant/10 hover:bg-surface-container-lowest transition-colors">
+                  <td className="px-4 py-3 font-mono text-xs text-on-surface">{inv.invoiceNumber ?? inv.id.slice(0, 8)}…</td>
+                  <td className="px-4 py-3 text-on-surface-variant">{TH_MONTHS[inv.month - 1]} {inv.year}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-on-surface">{fmtMoney(inv.totalAmount)}</td>
+                  <td className="px-4 py-3 text-on-surface-variant">{fmt(inv.dueDate)}</td>
                   <td className="px-4 py-3"><StatusBadge status={badge.label} cls={badge.cls} /></td>
                 </tr>
               );
@@ -441,19 +441,19 @@ function MaintenanceTab({ roomNo }: { roomNo: string }) {
   if (tickets.length === 0) return <EmptyState icon={Wrench} title="ไม่มีรายการแจ้งซ่อม" description="ไม่มีรายการแจ้งซ่อมสำหรับห้องนี้" />;
 
   return (
-    <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-      <div className="border-b border-[var(--outline-variant)] bg-[var(--surface-container)] px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold text-[var(--on-surface)]">
-          <Wrench className="h-4 w-4 text-[var(--on-surface-variant)]" />
+    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      <div className="border-b border-outline-variant bg-surface-container px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-semibold text-on-surface">
+          <Wrench className="h-4 w-4 text-on-surface-variant" />
           รายการแจ้งซ่อม
         </div>
-        <span className="text-xs text-[var(--on-surface-variant)]">{tickets.length} รายการ</span>
+        <span className="text-xs text-on-surface-variant">{tickets.length} รายการ</span>
       </div>
       <div className="divide-y divide-outline-variant/10">
         {tickets.map(ticket => {
           const badge = maintenanceStatusBadge(ticket.status);
           return (
-            <div key={ticket.id} className="flex items-start justify-between gap-4 px-4 py-4 hover:bg-[var(--surface-container-lowest)] transition-colors">
+            <div key={ticket.id} className="flex items-start justify-between gap-4 px-4 py-4 hover:bg-surface-container-lowest transition-colors">
               <div className="flex items-start gap-3">
                 <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
                   ticket.status === 'OPEN' ? 'bg-red-500' :
@@ -461,9 +461,9 @@ function MaintenanceTab({ roomNo }: { roomNo: string }) {
                   ticket.status === 'DONE' ? 'bg-emerald-500' : 'bg-slate-400'
                 }`} />
                 <div>
-                  <p className="text-sm font-semibold text-[var(--on-surface)]">{ticket.title}</p>
-                  {ticket.description && <p className="text-xs text-[var(--on-surface-variant)] mt-0.5 line-clamp-2">{ticket.description}</p>}
-                  <p className="text-xs text-[var(--on-surface-variant)]/60 mt-1">{fmtDateTime(ticket.createdAt)}</p>
+                  <p className="text-sm font-semibold text-on-surface">{ticket.title}</p>
+                  {ticket.description && <p className="text-xs text-on-surface-variant mt-0.5 line-clamp-2">{ticket.description}</p>}
+                  <p className="text-xs text-on-surface-variant/60 mt-1">{fmtDateTime(ticket.createdAt)}</p>
                 </div>
               </div>
               <StatusBadge status={badge.label} cls={badge.cls} />
@@ -508,31 +508,31 @@ function HistoryTab({ roomNo }: { roomNo: string }) {
   if (logs.length === 0) return <EmptyState icon={History} title="ไม่มีประวัติ" description="ไม่พบรายการประวัติสำหรับห้องนี้" />;
 
   return (
-    <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-      <div className="border-b border-[var(--outline-variant)] bg-[var(--surface-container)] px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold text-[var(--on-surface)]">
-          <History className="h-4 w-4 text-[var(--on-surface-variant)]" />
+    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      <div className="border-b border-outline-variant bg-surface-container px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-semibold text-on-surface">
+          <History className="h-4 w-4 text-on-surface-variant" />
           ประวัติการดำเนินการ
         </div>
-        <span className="text-xs text-[var(--on-surface-variant)]">{logs.length} รายการ</span>
+        <span className="text-xs text-on-surface-variant">{logs.length} รายการ</span>
       </div>
       <div className="divide-y divide-outline-variant/10">
         {logs.map((log, i) => (
           <div key={log.id} className="flex gap-4 px-4 py-4">
             <div className="flex flex-col items-center">
-              <div className="w-2 h-2 rounded-full bg-[var(--primary-container)] text-[var(--primary)] mt-1.5 shrink-0" />
+              <div className="w-2 h-2 rounded-full bg-primary-container text-primary mt-1.5 shrink-0" />
               {i < logs.length - 1 && <div className="w-px flex-1 bg-outline-variant/30 mt-1" />}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <span className="text-sm font-semibold text-[var(--on-surface)]">{log.action}</span>
-                  {log.actorName && <span className="text-xs text-[var(--on-surface-variant)] ml-2">โดย {log.actorName}</span>}
+                  <span className="text-sm font-semibold text-on-surface">{log.action}</span>
+                  {log.actorName && <span className="text-xs text-on-surface-variant ml-2">โดย {log.actorName}</span>}
                 </div>
-                <span className="text-xs text-[var(--on-surface-variant)] shrink-0">{fmtDateTime(log.createdAt)}</span>
+                <span className="text-xs text-on-surface-variant shrink-0">{fmtDateTime(log.createdAt)}</span>
               </div>
               {log.details && Object.keys(log.details).length > 0 && (
-                <pre className="mt-1.5 rounded-lg bg-[var(--surface-container)] px-3 py-2 text-xs text-[var(--on-surface-variant)] overflow-x-auto whitespace-pre-wrap break-words">
+                <pre className="mt-1.5 rounded-lg bg-surface-container px-3 py-2 text-xs text-on-surface-variant overflow-x-auto whitespace-pre-wrap break-words">
                   {JSON.stringify(log.details, null, 2)}
                 </pre>
               )}
@@ -600,14 +600,14 @@ export default function RoomDetailPage() {
   if (loading) {
     return (
       <main className="space-y-6">
-        <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
+        <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
           <div className="flex items-center gap-3">
-            <Link href="/admin/rooms" className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] shadow-sm hover:bg-[var(--surface-container)]">
-              <ArrowLeft className="h-4 w-4 text-[var(--on-primary)]" />
+            <Link href="/admin/rooms" className="flex h-9 w-9 items-center justify-center rounded-xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm hover:bg-surface-container">
+              <ArrowLeft className="h-4 w-4 text-on-primary" />
             </Link>
             <div>
-              <h1 className="text-xl font-semibold text-[var(--on-primary)]">รายละเอียดห้อง</h1>
-              <p className="text-sm text-[var(--on-primary)]/80">กำลังโหลด...</p>
+              <h1 className="text-xl font-semibold text-on-primary">รายละเอียดห้อง</h1>
+              <p className="text-sm text-on-primary/80">กำลังโหลด...</p>
             </div>
           </div>
         </section>
@@ -620,22 +620,22 @@ export default function RoomDetailPage() {
   if (error || !room) {
     return (
       <main className="space-y-6">
-        <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
+        <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
           <div className="flex items-center gap-3">
-            <Link href="/admin/rooms" className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] shadow-sm">
-              <ArrowLeft className="h-4 w-4 text-[var(--on-primary)]" />
+            <Link href="/admin/rooms" className="flex h-9 w-9 items-center justify-center rounded-xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm">
+              <ArrowLeft className="h-4 w-4 text-on-primary" />
             </Link>
             <div>
-              <h1 className="text-xl font-semibold text-[var(--on-primary)]">รายละเอียดห้อง</h1>
+              <h1 className="text-xl font-semibold text-on-primary">รายละเอียดห้อง</h1>
             </div>
           </div>
         </section>
-        <div className="rounded-xl border border-[var(--color-danger)]/30 bg-[var(--error-container)]/20 px-5 py-4 text-sm text-[var(--color-danger)]">
+        <div className="rounded-xl border border-color-danger/30 bg-error-container/20 px-5 py-4 text-sm text-color-danger">
           {error ?? 'ไม่พบห้องพัก'}
         </div>
         <button
           onClick={() => void loadRoom()}
-          className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm hover:bg-[var(--surface-container)]"
+          className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm hover:bg-surface-container"
         >
           <RefreshCw className="h-4 w-4" /> ลองใหม่
         </button>
@@ -648,26 +648,26 @@ export default function RoomDetailPage() {
   return (
     <main className="space-y-6">
       {/* ── Breadcrumb ────────────────────────────────────────────────────── */}
-      <nav className="flex items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
-        <Link href="/admin/rooms" className="hover:text-[var(--on-surface)] transition-colors">ห้องพัก</Link>
+      <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
+        <Link href="/admin/rooms" className="hover:text-on-surface transition-colors">ห้องพัก</Link>
         <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-        <span className="font-medium text-[var(--on-surface)]">{room.roomNo}</span>
+        <span className="font-medium text-on-surface">{room.roomNo}</span>
       </nav>
 
       {/* ── Page header ──────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--primary-container)] text-[var(--primary)] shadow-sm">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-container text-primary shadow-sm">
               <BedDouble className="h-7 w-7" />
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-[var(--on-primary)]">ห้อง {room.roomNo}</h1>
+                <h1 className="text-2xl font-bold text-on-primary">ห้อง {room.roomNo}</h1>
                 <StatusBadge status={statusCfg.label} cls={statusCfg.cls.replace('emerald', 'white').replace('slate', 'white/60').replace('100', '20').replace('700', 'brightness-0'.replace('500', 'brightness-0'))} />
               </div>
-              <p className="text-sm text-[var(--on-primary)]/80 mt-0.5">
+              <p className="text-sm text-on-primary/80 mt-0.5">
                 ชั้น {room.floorNo} · ค่าเช่า {fmtMoney(room.defaultRentAmount)}/เดือน
               </p>
             </div>
@@ -675,13 +675,13 @@ export default function RoomDetailPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/admin/rooms"
-              className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+              className="inline-flex items-center gap-2 rounded-lg border border-outline-variant/20 bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
             >
               <ArrowLeft className="h-4 w-4" /> กลับ
             </Link>
             <button
               onClick={() => router.push(`/admin/rooms?edit=${encodeURIComponent(room.roomNo)}`)}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
             >
               <Pencil className="h-4 w-4" /> แก้ไข
             </button>
@@ -698,8 +698,8 @@ export default function RoomDetailPage() {
       )}
 
       {/* ── Tab Navigation ───────────────────────────────────────────────── */}
-      <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-        <div className="border-b border-[var(--outline-variant)] overflow-x-auto">
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="border-b border-outline-variant overflow-x-auto">
           <nav className="flex min-w-max">
             {TABS.map(tab => {
               const Icon = tab.icon;
@@ -711,12 +711,12 @@ export default function RoomDetailPage() {
                   className={`
                     flex items-center gap-2 px-5 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
                     ${isActive
-                      ? 'border-primary text-[var(--primary)] bg-[var(--primary-container)]/30'
-                      : 'border-transparent text-[var(--on-surface-variant)] hover:text-[var(--on-surface)] hover:bg-[var(--surface-container)]'
+                      ? 'border-primary text-primary bg-primary-container/30'
+                      : 'border-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
                     }
                   `}
                 >
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-[var(--primary)]' : 'text-[var(--on-surface-variant)]'}`} />
+                  <Icon className={`h-4 w-4 ${isActive ? 'text-primary' : 'text-on-surface-variant'}`} />
                   {tab.label}
                 </button>
               );

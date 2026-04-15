@@ -208,7 +208,7 @@ export class InvoiceService {
             totalAmount: Number(inv.totalAmount),
             dueDate: dueDate.toISOString().split('T')[0],
             generatedBy,
-          } as unknown as Json,
+          } as any,
           retryCount: 0,
         },
       });
@@ -596,7 +596,7 @@ export class InvoiceService {
                   })
                 : '',
             },
-          } as unknown as Json,
+          } as any,
           retryCount: 0,
         },
       });
@@ -654,7 +654,7 @@ export class InvoiceService {
             sentBy: sentBy || 'system',
             sentByName: sentBy || 'system',
             sentAt: sentAt.toISOString(),
-          } as unknown as Json,
+          } as any,
           retryCount: 0,
         },
       });
@@ -685,7 +685,7 @@ export class InvoiceService {
       EventTypes.INVOICE_SENT,
       'Invoice',
       id,
-      sentPayload as unknown as Record<string, unknown>,
+      sentPayload as any,
       { userId: sentBy }
     );
 
@@ -737,7 +737,7 @@ export class InvoiceService {
       EventTypes.INVOICE_VIEWED,
       'Invoice',
       invoice.id,
-      payload as unknown as Record<string, unknown>
+      payload as any
     );
 
     return this.formatInvoiceResponse(updated);
@@ -833,7 +833,7 @@ export class InvoiceService {
         EventTypes.INVOICE_MARKED_OVERDUE,
         'Invoice',
         invoice.id,
-        payload as unknown as Record<string, unknown>
+        payload as any
       );
     }
 
@@ -976,7 +976,7 @@ export class InvoiceService {
     });
 
     await logAudit({
-      actorId: sentBy,
+      actorId: sentBy || 'system',
       action: channel === 'PDF' ? 'INVOICE_PDF_GENERATED' : 'INVOICE_PRINT_QUEUED',
       entityType: 'INVOICE',
       entityId: id,
@@ -1073,7 +1073,7 @@ export class InvoiceService {
       tenant: primaryTenant?.id
         ? {
             id: primaryTenant.id,
-            fullName: tenantName ?? 'Unknown tenant',
+            fullName: tenantName ?? 'ไม่ระบุผู้เช่า',
             phone: primaryTenant.phone ?? '-',
           }
         : null,

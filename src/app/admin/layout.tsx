@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ToastProvider } from '@/components/providers/ToastProvider';
@@ -191,16 +192,16 @@ function IconComponent({ icon, size, strokeWidth, className }: { icon: React.Ele
 function Tooltip({ label, side = 'right' }: { label: string; side?: 'right' | 'bottom' }) {
   return (
     <div
-      className={`absolute z-50 px-2.5 py-1.5 rounded-lg bg-[var(--sidebar-bg)] text-[var(--sidebar-text-active)] text-xs font-medium whitespace-nowrap shadow-xl pointer-events-none
+      className={`absolute z-50 px-2.5 py-1.5 rounded-lg bg-sidebar-bg text-sidebar-text-active text-xs font-medium whitespace-nowrap shadow-xl pointer-events-none
         ${side === 'right' ? 'left-full ml-3 top-1/2 -translate-y-1/2' : 'top-full mt-2 left-1/2 -translate-x-1/2'}
         opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 delay-75`}
     >
       {label}
       {side === 'right' && (
-        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[var(--sidebar-bg)]" />
+        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-sidebar-bg" />
       )}
       {side === 'bottom' && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-[var(--sidebar-bg)]" />
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-sidebar-bg" />
       )}
     </div>
   );
@@ -222,7 +223,7 @@ function IconNavItem({
         className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200
           ${active
             ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
-            : 'text-[var(--color-text-3)] hover:bg-[var(--color-surface)]/10 hover:text-[var(--color-text-2)]'
+            : 'text-color-text-3 hover:bg-color-surface/10 hover:text-color-text-2'
           }`}
         title={item.label}
       >
@@ -241,35 +242,41 @@ function IconNavGroup({
   group: Extract<NavItem, { type: 'group' }>;
   pathname: string | null;
 }) {
+  const { createPortal } = require('react-dom') as typeof import('react-dom');
   const hasActiveChild = group.items.some((item) => isActive(pathname, item));
-  const [open, setOpen] = useState(group.defaultOpen ?? false);
   const activeItem = group.items.find((item) => isActive(pathname, item));
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number } | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => { setIsMounted(true); return () => { if (hideTimer.current) clearTimeout(hideTimer.current); }; }, []);
 
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200
-          ${hasActiveChild ? 'text-indigo-400' : 'text-[var(--color-text-3)] hover:bg-[var(--color-surface)]/10 hover:text-[var(--color-text-2)]'}`}
-        title={group.label}
-      >
-        {activeItem ? (
-          <IconComponent icon={activeItem.icon} size={18} strokeWidth={hasActiveChild ? 2.2 : 1.8} />
-        ) : (
-          <IconComponent icon={group.items[0].icon} size={18} />
-        )}
-        {/* Expand indicator */}
-        <span className={`absolute bottom-1 right-1 text-[8px] transition-transform duration-200 ${open ? 'rotate-90' : ''}`}>
-          ▶
-        </span>
-      </button>
-      <Tooltip label={group.label} />
+  function showDropdown() {
+    // Cancel pending hide — user moved back in before the delay elapsed
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.top });
+    }
+  }
 
-      {/* Desktop: floating dropdown panel */}
-      {open && (
-        <div className="absolute left-full top-0 ml-2 z-50 bg-[var(--sidebar-bg)] rounded-xl border border-[var(--color-border)] shadow-2xl shadow-black/30 overflow-hidden min-w-[180px] animate-fade-in">
-          <div className="px-3 py-2.5 border-b border-[var(--color-border)]">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-3)]">{group.label}</span>
+  function hideDropdown() {
+    // 150ms delay so the mouse can cross the 8px gap between sidebar and dropdown
+    hideTimer.current = setTimeout(() => setDropdownPos(null), 150);
+  }
+
+  const SIDEBAR_LEFT = 72; // 64px sidebar + 8px gap
+
+  const dropdown = isMounted && dropdownPos
+    ? createPortal(
+        <div
+          style={{ position: 'fixed', top: dropdownPos.top, left: SIDEBAR_LEFT, zIndex: 9999 }}
+          className="bg-sidebar-bg rounded-xl border border-color-border shadow-2xl shadow-black/30 overflow-y-auto max-h-[80vh] min-w-[180px]"
+          onMouseEnter={showDropdown}
+          onMouseLeave={hideDropdown}
+        >
+          <div className="px-3 py-2.5 border-b border-color-border">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-sidebar-text">{group.label}</span>
           </div>
           {group.items.map((item) => {
             const active = isActive(pathname, item);
@@ -280,16 +287,41 @@ function IconNavGroup({
                 className={`flex items-center gap-2.5 px-3 py-2.5 text-[13px] font-medium transition-colors
                   ${active
                     ? 'bg-indigo-600 text-white'
-                    : 'text-[var(--color-text-3)] hover:bg-[var(--color-surface)]/5 hover:text-[var(--color-text-2)]'
+                    : 'text-sidebar-text hover:bg-white/5 hover:text-white'
                   }`}
               >
-                <IconComponent icon={item.icon} size={15} strokeWidth={active ? 2.2 : 1.8} className={active ? 'text-white' : 'text-[var(--color-text-3)]'} />
+                <IconComponent icon={item.icon} size={15} strokeWidth={active ? 2.2 : 1.8} className={active ? 'text-white' : 'text-sidebar-text'} />
                 {item.label}
               </Link>
             );
           })}
-        </div>
-      )}
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={showDropdown}
+      onMouseLeave={hideDropdown}
+    >
+      <button
+        ref={triggerRef}
+        className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200
+          ${hasActiveChild ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30' : 'text-sidebar-text hover:bg-white/10 hover:text-white'}`}
+        title={group.label}
+      >
+        {activeItem ? (
+          <IconComponent icon={activeItem.icon} size={18} strokeWidth={hasActiveChild ? 2.2 : 1.8} />
+        ) : (
+          <IconComponent icon={group.items[0].icon} size={18} />
+        )}
+        <span className={`absolute bottom-1 right-1 text-[8px] transition-transform duration-200 ${dropdownPos ? 'rotate-90' : ''}`}>
+          ▶
+        </span>
+      </button>
+      {dropdown}
     </div>
   );
 }
@@ -310,7 +342,7 @@ function MobileNavGroup({
     <div>
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-3)] hover:text-[var(--color-text-2)] transition-colors"
+        className="flex w-full items-center justify-between px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-color-text-3 hover:text-color-text-2 transition-colors"
       >
         <span>{group.label}</span>
         <span className={`transition-transform duration-200 ${open ? 'rotate-0' : '-rotate-90'}`}>▾</span>
@@ -327,7 +359,7 @@ function MobileNavGroup({
                 className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors
                   ${active
                     ? 'bg-indigo-600 text-white'
-                    : 'text-[var(--color-text-3)] hover:bg-[var(--color-surface)]/5 hover:text-[var(--color-text-2)]'
+                    : 'text-color-text-3 hover:bg-color-surface/5 hover:text-color-text-2'
                   }`}
               >
                 <subItem.icon size={16} strokeWidth={active ? 2.2 : 1.8} />
@@ -344,16 +376,15 @@ function MobileNavGroup({
 // ── Icon-only Sidebar ────────────────────────────────────────────────────
 function IconSidebar({ pathname }: { pathname: string | null }) {
   return (
-    <div className="w-16 flex flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text-active)] h-full">
+    <div className="w-16 flex flex-col bg-sidebar-bg text-sidebar-text-active h-full">
       {/* Logo */}
-      <div className="flex items-center justify-center h-16 border-b border-[var(--color-border)]">
+      <div className="flex items-center justify-center h-16 border-b border-color-border">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/30">
           <Building2 size={18} className="text-white" strokeWidth={2.5} />
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2 flex flex-col items-center space-y-1">
+      <nav className="flex-1 py-4 px-2 flex flex-col items-center space-y-1">
         {nav.map((item, idx) => {
           if (item.type === 'link') {
             return <IconNavItem key={item.href} item={item} pathname={pathname} />;
@@ -461,13 +492,13 @@ function TopBar({
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-sm px-4 md:px-6 gap-4">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-color-border bg-color-surface/95 backdrop-blur-sm px-4 md:px-6 gap-4">
       {/* Left: hamburger + logo + page title */}
       <div className="flex items-center gap-3 min-w-0">
         {/* Mobile hamburger */}
         <button
           onClick={onMobileMenuToggle}
-          className="flex items-center justify-center w-10 h-10 rounded-xl text-[var(--color-text-2)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors md:hidden flex-shrink-0"
+          className="flex items-center justify-center w-10 h-10 rounded-xl text-color-text-2 hover:bg-color-surface hover:text-color-text transition-colors md:hidden flex-shrink-0"
           aria-label="Open menu"
         >
           <Menu size={20} />
@@ -479,22 +510,22 @@ function TopBar({
             <Building2 size={16} className="text-white" strokeWidth={2.5} />
           </div>
           <div className="hidden lg:block">
-            <div className="text-sm font-semibold text-[var(--color-text)] leading-tight tracking-tight">Apartment ERP</div>
-            <div className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-3)]">Console</div>
+            <div className="text-sm font-semibold text-color-text leading-tight tracking-tight">Apartment ERP</div>
+            <div className="text-[10px] uppercase tracking-[0.12em] text-color-text-3">Console</div>
           </div>
         </Link>
 
         {/* Divider */}
-        <div className="h-5 w-px bg-[var(--color-border)] hidden md:block" />
+        <div className="h-5 w-px bg-color-border hidden md:block" />
 
         {/* Page title */}
-        <span className="text-sm font-medium text-[var(--color-text)] truncate">{getPageTitle(pathname)}</span>
+        <span className="text-sm font-medium text-color-text truncate">{getPageTitle(pathname)}</span>
       </div>
 
       {/* Center: Global Search */}
       <div ref={searchRef} className="flex-1 max-w-sm md:max-w-md relative mx-auto">
         <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-3)] pointer-events-none" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-color-text-3 pointer-events-none" />
           <input
             type="text"
             placeholder="ค้นหาห้อง, ผู้เช่า, ใบแจ้งหนี้..."
@@ -502,66 +533,66 @@ function TopBar({
             onChange={(e) => handleSearch(e.target.value)}
             onFocus={() => setShowSearch(true)}
             onBlur={() => setTimeout(() => setShowSearch(false), 150)}
-            className="w-full h-9 pl-9 pr-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-3)] focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            className="w-full h-9 pl-9 pr-4 rounded-xl border border-color-border bg-color-bg text-sm text-color-text placeholder:text-color-text-3 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
           />
         </div>
 
         {/* Search results dropdown */}
         {showSearch && searchQuery.trim().length >= 2 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-xl shadow-[var(--shadow-md)] overflow-hidden z-50">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-color-surface rounded-xl border border-color-border shadow-xl shadow-app-md overflow-hidden z-50">
             {searchLoading ? (
               <div className="flex items-center justify-center py-6">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
               </div>
             ) : searchResults ? (
               (searchResults.rooms.length === 0 && searchResults.tenants.length === 0 && searchResults.invoices.length === 0) ? (
-                <div className="py-6 text-center text-sm text-[var(--color-text-3)]">ไม่พบผลลัพธ์สำหรับ &quot;{searchQuery}&quot;</div>
+                <div className="py-6 text-center text-sm text-color-text-3">ไม่พบผลลัพธ์สำหรับ &quot;{searchQuery}&quot;</div>
               ) : (
                 <>
                   {searchResults.rooms.length > 0 && (
                     <div>
-                      <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-3)] border-b border-[var(--color-border)]">ห้องพัก</div>
+                      <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-color-text-3 border-b border-color-border">ห้องพัก</div>
                       {searchResults.rooms.map((r) => (
                         <button
                           key={r.roomNo}
                           onMouseDown={() => { setSearchQuery(''); setShowSearch(false); router.push(`/admin/rooms?roomNo=${r.roomNo}`); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-bg)] transition-colors border-b border-[var(--color-border)] last:border-0"
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-color-text hover:bg-color-bg transition-colors border-b border-color-border last:border-0"
                         >
                           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600"><DoorOpen size={14} /></span>
                           <span>ห้อง {r.roomNo}</span>
-                          <span className="ml-auto text-xs text-[var(--color-text-3)]">ชั้น {r.floorNo}</span>
+                          <span className="ml-auto text-xs text-color-text-3">ชั้น {r.floorNo}</span>
                         </button>
                       ))}
                     </div>
                   )}
                   {searchResults.tenants.length > 0 && (
                     <div>
-                      <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-3)] border-b border-[var(--color-border)]">ผู้เช่า</div>
+                      <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-color-text-3 border-b border-color-border">ผู้เช่า</div>
                       {searchResults.tenants.map((t) => (
                         <button
                           key={t.id}
                           onMouseDown={() => { setSearchQuery(''); setShowSearch(false); router.push(`/admin/tenants/${t.id}`); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-bg)] transition-colors border-b border-[var(--color-border)] last:border-0"
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-color-text hover:bg-color-bg transition-colors border-b border-color-border last:border-0"
                         >
                           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-50 text-green-600"><Users size={14} /></span>
                           <span>{t.firstName} {t.lastName}</span>
-                          <span className="ml-auto text-xs text-[var(--color-text-3)]">{t.phone ?? t.email ?? ''}</span>
+                          <span className="ml-auto text-xs text-color-text-3">{t.phone ?? t.email ?? ''}</span>
                         </button>
                       ))}
                     </div>
                   )}
                   {searchResults.invoices.length > 0 && (
                     <div>
-                      <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-3)] border-b border-[var(--color-border)]">ใบแจ้งหนี้</div>
+                      <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-color-text-3 border-b border-color-border">ใบแจ้งหนี้</div>
                       {searchResults.invoices.map((inv) => (
                         <button
                           key={inv.id}
                           onMouseDown={() => { setSearchQuery(''); setShowSearch(false); router.push(`/admin/invoices/${inv.id}`); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-bg)] transition-colors border-b border-[var(--color-border)] last:border-0"
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-color-text hover:bg-color-bg transition-colors border-b border-color-border last:border-0"
                         >
                           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-50 text-red-600"><ScrollText size={14} /></span>
                           <span>ห้อง {inv.roomNo} · {inv.month}/{inv.year}</span>
-                          <span className="ml-auto text-xs text-[var(--color-text-3)]">{inv.status}</span>
+                          <span className="ml-auto text-xs text-color-text-3">{inv.status}</span>
                         </button>
                       ))}
                     </div>
@@ -575,15 +606,15 @@ function TopBar({
 
       {/* Right: theme toggle + notifications + user */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        <ThemeToggle className="flex items-center justify-center w-9 h-9 rounded-xl text-[var(--color-text-3)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors" />
+        <ThemeToggle className="flex items-center justify-center w-9 h-9 rounded-xl text-color-text-3 hover:bg-color-surface hover:text-color-text transition-colors" />
 
-        <div className="h-4 w-px bg-[var(--color-border)] hidden sm:block" />
+        <div className="h-4 w-px bg-color-border hidden sm:block" />
 
         {/* Notifications */}
         <div ref={notifRef} className="relative">
           <button
             onClick={() => setShowNotifs(!showNotifs)}
-            className="relative flex items-center justify-center w-9 h-9 rounded-xl text-[var(--color-text-3)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors"
+            className="relative flex items-center justify-center w-9 h-9 rounded-xl text-color-text-3 hover:bg-color-surface hover:text-color-text transition-colors"
             aria-label="Notifications"
           >
             <BellIcon size={20} />
@@ -595,33 +626,33 @@ function TopBar({
           </button>
 
           {showNotifs && (
-            <div className="absolute top-full right-0 mt-2 w-80 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-xl shadow-[var(--shadow-md)] overflow-hidden z-50">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
-                <span className="text-sm font-semibold text-[var(--color-text)]">การแจ้งเตือน</span>
+            <div className="absolute top-full right-0 mt-2 w-80 bg-color-surface rounded-xl border border-color-border shadow-xl shadow-app-md overflow-hidden z-50">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-color-border">
+                <span className="text-sm font-semibold text-color-text">การแจ้งเตือน</span>
                 <button className="text-xs text-indigo-600 hover:text-indigo-700">ดูทั้งหมด</button>
               </div>
-              <div className="max-h-64 overflow-y-auto divide-y divide-[var(--color-border)]">
+              <div className="max-h-64 overflow-y-auto divide-y divide-color-border">
                 {notifLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
                   </div>
                 ) : notifications.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 gap-2">
-                    <BellIcon size={24} className="text-[var(--color-text-3)]" />
-                    <p className="text-sm text-[var(--color-text-3)]">ไม่มีการแจ้งเตือน</p>
+                    <BellIcon size={24} className="text-color-text-3" />
+                    <p className="text-sm text-color-text-3">ไม่มีการแจ้งเตือน</p>
                   </div>
                 ) : (
                   notifications.map((n) => (
                     <div
                       key={n.id}
-                      className={`flex items-start gap-3 px-4 py-3 hover:bg-[var(--color-bg)] transition-colors cursor-pointer ${n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'bg-indigo-50/40' : ''}`}
+                      className={`flex items-start gap-3 px-4 py-3 hover:bg-color-bg transition-colors cursor-pointer ${n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'bg-indigo-50/40' : ''}`}
                     >
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0 ${n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'bg-indigo-100' : 'bg-[var(--color-bg)]'}`}>
-                        <BellIcon size={14} className={n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'text-indigo-600' : 'text-[var(--color-text-3)]'} />
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0 ${n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'bg-indigo-100' : 'bg-color-bg'}`}>
+                        <BellIcon size={14} className={n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'text-indigo-600' : 'text-color-text-3'} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-[var(--color-text)]">{n.content}</p>
-                        <p className="text-xs text-[var(--color-text-3)] mt-0.5">{n.roomNo ? `ห้อง ${n.roomNo} · ` : ''}{formatNotifTime(n.createdAt)}</p>
+                        <p className="text-sm text-color-text">{n.content}</p>
+                        <p className="text-xs text-color-text-3 mt-0.5">{n.roomNo ? `ห้อง ${n.roomNo} · ` : ''}{formatNotifTime(n.createdAt)}</p>
                       </div>
                       {n.status !== 'SENT' && n.status !== 'CANCELLED' && <div className="h-2 w-2 rounded-full bg-indigo-500 mt-2 flex-shrink-0" />}
                     </div>
@@ -636,31 +667,31 @@ function TopBar({
         <div ref={userMenuRef} className="relative">
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-[var(--color-surface)] transition-colors"
+            className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-color-surface transition-colors"
           >
             <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
               <span className="text-xs font-semibold text-white">O</span>
             </div>
             <div className="hidden md:block text-left">
-              <div className="text-sm font-medium text-[var(--color-text)] leading-tight">ผู้ดูแลระบบ</div>
-              <div className="text-xs text-[var(--color-text-3)]">เจ้าของ</div>
+              <div className="text-sm font-medium text-color-text leading-tight">ผู้ดูแลระบบ</div>
+              <div className="text-xs text-color-text-3">เจ้าของ</div>
             </div>
-            <ChevronDown size={14} className="text-[var(--color-text-3)] hidden md:block" />
+            <ChevronDown size={14} className="text-color-text-3 hidden md:block" />
           </button>
 
           {showUserMenu && (
-            <div className="absolute top-full right-0 mt-2 w-56 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-xl shadow-[var(--shadow-md)] overflow-hidden z-50">
-              <div className="px-4 py-3 border-b border-[var(--color-border)]">
-                <p className="text-sm font-medium text-[var(--color-text)]">ผู้ดูแลระบบ</p>
-                <p className="text-xs text-[var(--color-text-3)]">owner@apartment.com</p>
+            <div className="absolute top-full right-0 mt-2 w-56 bg-color-surface rounded-xl border border-color-border shadow-xl shadow-app-md overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-color-border">
+                <p className="text-sm font-medium text-color-text">ผู้ดูแลระบบ</p>
+                <p className="text-xs text-color-text-3">owner@apartment.com</p>
               </div>
               <div className="py-1">
                 <Link
                   href="/admin/settings"
                   onClick={() => setShowUserMenu(false)}
-                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-bg)] transition-colors"
+                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-color-text hover:bg-color-bg transition-colors"
                 >
-                  <Settings size={16} className="text-[var(--color-text-3)]" />
+                  <Settings size={16} className="text-color-text-3" />
                   ตั้งค่า
                 </Link>
                 <LogoutButton />
@@ -679,9 +710,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] flex">
+    <ThemeProvider>
+    <div className="min-h-screen bg-color-bg flex">
       {/* ── Desktop Icon-only Sidebar (fixed, doesn't push content) ── */}
-      <aside className="hidden md:flex fixed left-0 top-0 bottom-0 z-20 w-16 flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text-active)]">
+      <aside className="hidden md:flex fixed left-0 top-0 bottom-0 z-20 w-16 flex-col bg-sidebar-bg text-sidebar-text-active">
         <IconSidebar pathname={pathname} />
       </aside>
 
@@ -694,7 +726,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-[var(--sidebar-bg)]/60 backdrop-blur-sm z-40 md:hidden"
+              className="fixed inset-0 bg-sidebar-bg/60 backdrop-blur-sm z-40 md:hidden"
               onClick={() => setMobileOpen(false)}
             />
             <motion.aside
@@ -702,22 +734,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', damping: 25, stiffness: 250 }}
-              className="fixed inset-y-0 left-0 z-50 w-72 flex flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text-active)] md:hidden"
+              className="fixed inset-y-0 left-0 z-50 w-72 flex flex-col bg-sidebar-bg text-sidebar-text-active md:hidden"
             >
               {/* Mobile drawer header */}
-              <div className="flex items-center justify-between px-4 h-16 border-b border-[var(--color-border)]">
+              <div className="flex items-center justify-between px-4 h-16 border-b border-color-border">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/30">
                     <Building2 size={18} className="text-white" strokeWidth={2.5} />
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-[var(--sidebar-text-active)] leading-tight tracking-tight">Apartment ERP</div>
-                    <div className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-3)]">Console</div>
+                    <div className="text-sm font-semibold text-sidebar-text-active leading-tight tracking-tight">Apartment ERP</div>
+                    <div className="text-[10px] uppercase tracking-[0.12em] text-color-text-3">Console</div>
                   </div>
                 </div>
                 <button
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center justify-center w-9 h-9 rounded-xl text-[var(--color-text-3)] hover:text-[var(--sidebar-text-active)] hover:bg-[var(--color-surface)]/10 transition-colors"
+                  className="flex items-center justify-center w-9 h-9 rounded-xl text-color-text-3 hover:text-sidebar-text-active hover:bg-color-surface/10 transition-colors"
                   aria-label="Close menu"
                 >
                   <X size={18} />
@@ -737,7 +769,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors
                           ${active
                             ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
-                            : 'text-[var(--color-text-3)] hover:bg-[var(--color-surface)]/5 hover:text-[var(--color-text-2)]'
+                            : 'text-color-text-3 hover:bg-color-surface/5 hover:text-color-text-2'
                           }`}
                       >
                         <IconComponent icon={(item as NavLink).icon} size={18} strokeWidth={active ? 2.2 : 1.8} />
@@ -771,24 +803,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <ErrorBoundary>
             <ToastProvider>
               <QueryProvider>
-                <ThemeProvider>
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={pathname}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                      transition={{ duration: 0.2, ease: 'easeOut' }}
-                    >
-                      {children}
-                    </motion.div>
-                  </AnimatePresence>
-                </ThemeProvider>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={pathname}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                  >
+                    {children}
+                  </motion.div>
+                </AnimatePresence>
               </QueryProvider>
             </ToastProvider>
           </ErrorBoundary>
         </main>
       </div>
     </div>
+    </ThemeProvider>
   );
 }

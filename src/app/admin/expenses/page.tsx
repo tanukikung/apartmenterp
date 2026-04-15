@@ -225,13 +225,13 @@ export default function AdminExpensesPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--on-surface)]">รายจ่าย</h1>
-          <p className="mt-1 text-sm text-[var(--on-surface-variant)]">บันทึกและจัดการค่าใช้จ่าย</p>
+          <h1 className="text-2xl font-bold text-on-surface">รายจ่าย</h1>
+          <p className="mt-1 text-sm text-on-surface-variant">บันทึกและจัดการค่าใช้จ่าย</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => { setShowForm(true); }}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" />
             เพิ่มรายจ่าย
@@ -239,7 +239,7 @@ export default function AdminExpensesPage() {
           <button
             onClick={() => void refetch()}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
+            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
@@ -248,17 +248,17 @@ export default function AdminExpensesPage() {
 
       {/* Alerts */}
       {deleteError && (
-        <div className="px-4 py-3 rounded-lg bg-[var(--error-container)]/10 border border-[var(--error-container)]/20 text-sm text-[var(--color-danger)] font-medium">
+        <div className="px-4 py-3 rounded-lg bg-error-container/10 border border-error-container/20 text-sm text-color-danger font-medium">
           {deleteError}
         </div>
       )}
       {deleteSuccess && (
-        <div className="px-4 py-3 rounded-lg bg-[var(--tertiary-container)]/10 border border-[var(--tertiary-container)]/20 text-sm text-[var(--tertiary-container)] font-medium">
+        <div className="px-4 py-3 rounded-lg bg-tertiary-container/10 border border-tertiary-container/20 text-sm text-tertiary-container font-medium">
           {deleteSuccess}
         </div>
       )}
       {formError && (
-        <div className="px-4 py-3 rounded-lg bg-[var(--error-container)]/10 border border-[var(--error-container)]/20 text-sm text-[var(--color-danger)] font-medium">
+        <div className="px-4 py-3 rounded-lg bg-error-container/10 border border-error-container/20 text-sm text-color-danger font-medium">
           {formError}
         </div>
       )}
@@ -266,42 +266,42 @@ export default function AdminExpensesPage() {
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--on-surface-variant)]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-on-surface-variant" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="ค้นหาค่าใช้จ่าย..."
-            className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] py-2 pl-9 pr-4 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/50 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+            className="w-full rounded-lg border border-outline bg-surface-container-lowest py-2 pl-9 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
         <div className="relative">
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value as ExpenseCategory | 'ALL')}
-            className="appearance-none rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] py-2 pl-3 pr-8 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+            className="appearance-none rounded-lg border border-outline bg-surface-container-lowest py-2 pl-3 pr-8 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {CATEGORY_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--on-surface-variant)]" />
+          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-on-surface-variant" />
         </div>
         <div className="relative">
           <select
             value={monthFilter}
             onChange={(e) => setMonthFilter(e.target.value)}
-            className="appearance-none rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] py-2 pl-3 pr-8 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+            className="appearance-none rounded-lg border border-outline bg-surface-container-lowest py-2 pl-3 pr-8 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {monthOptions.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--on-surface-variant)]" />
+          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-on-surface-variant" />
         </div>
         {(categoryFilter !== 'ALL' || monthFilter !== 'ALL' || search) && (
           <button
             onClick={() => { setCategoryFilter('ALL'); setMonthFilter('ALL'); setSearch(''); }}
-            className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface-variant)] transition-colors hover:bg-[var(--surface-container)]"
+            className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface-variant transition-colors hover:bg-surface-container"
           >
             ล้างตัวกรอง
           </button>
@@ -310,7 +310,7 @@ export default function AdminExpensesPage() {
 
       {/* Summary */}
       {!isLoading && (
-        <div className="flex gap-4 text-sm text-[var(--on-surface-variant)]">
+        <div className="flex gap-4 text-sm text-on-surface-variant">
           <span>แสดง {filteredExpenses.length} รายการ</span>
           <span>•</span>
           <span>รวม: ฿{formatBaht(filteredExpenses.reduce((s, e) => s + e.amount, 0))}</span>
@@ -318,19 +318,19 @@ export default function AdminExpensesPage() {
       )}
 
       {/* Table */}
-      <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : filteredExpenses.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <FileSpreadsheet className="mb-3 h-12 w-12 text-outline-variant" />
-            <p className="font-semibold text-[var(--on-surface)]">ยังไม่มีรายจ่าย</p>
-            <p className="mt-1 text-sm text-[var(--on-surface-variant)]">เพิ่มรายจ่ายเพื่อติดตามการเงิน</p>
+            <p className="font-semibold text-on-surface">ยังไม่มีรายจ่าย</p>
+            <p className="mt-1 text-sm text-on-surface-variant">เพิ่มรายจ่ายเพื่อติดตามการเงิน</p>
             <button
               onClick={() => setShowForm(true)}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90"
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
               เพิ่มรายจ่าย
@@ -340,9 +340,9 @@ export default function AdminExpensesPage() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b border-[var(--outline-variant)]">
+                <tr className="border-b border-outline-variant">
                   {['วันที่', 'หมวดหมู่', 'รายละเอียด', 'จ่ายให้', 'เลขที่ใบเสร็จ', 'จำนวน', 'จัดการ'].map((h) => (
-                    <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[var(--on-surface-variant)]">
+                    <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
                       {h}
                     </th>
                   ))}
@@ -352,8 +352,8 @@ export default function AdminExpensesPage() {
                 {filteredExpenses.map((expense) => {
                   const d = new Date(expense.date);
                   return (
-                    <tr key={expense.id} className="border-b border-[var(--outline-variant)]/5 hover:bg-[var(--surface-container)]/50 transition-colors">
-                      <td className="px-4 py-3 text-[var(--on-surface)] whitespace-nowrap">
+                    <tr key={expense.id} className="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors">
+                      <td className="px-4 py-3 text-on-surface whitespace-nowrap">
                         <ClientOnly fallback={<span className="text-outline">—</span>}>
                           {d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </ClientOnly>
@@ -361,16 +361,16 @@ export default function AdminExpensesPage() {
                       <td className="px-4 py-3">
                         <CategoryBadge category={expense.category} />
                       </td>
-                      <td className="px-4 py-3 text-[var(--on-surface)] max-w-xs truncate">
+                      <td className="px-4 py-3 text-on-surface max-w-xs truncate">
                         {expense.description}
                       </td>
-                      <td className="px-4 py-3 text-[var(--on-surface-variant)]">
+                      <td className="px-4 py-3 text-on-surface-variant">
                         {expense.paidTo ?? <span className="text-outline">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-[var(--on-surface-variant)] font-mono text-xs">
+                      <td className="px-4 py-3 text-on-surface-variant font-mono text-xs">
                         {expense.receiptNo ?? <span className="text-outline">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-[var(--on-surface)] whitespace-nowrap">
+                      <td className="px-4 py-3 text-right font-semibold text-on-surface whitespace-nowrap">
                         ฿{formatBaht(expense.amount)}
                       </td>
                       <td className="px-4 py-3">
@@ -380,7 +380,7 @@ export default function AdminExpensesPage() {
                               setDeleteTargetId(expense.id);
                               setDeleteConfirmOpen(true);
                             }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] p-2 text-xs text-[var(--color-danger)] transition-colors hover:bg-[var(--error-container)]/10"
+                            className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest p-2 text-xs text-color-danger transition-colors hover:bg-error-container/10"
                             title="ลบ"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -402,17 +402,17 @@ export default function AdminExpensesPage() {
           <button
             onClick={() => setPage(page - 1)}
             disabled={page <= 1}
-            className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)] disabled:opacity-40"
+            className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface transition-colors hover:bg-surface-container disabled:opacity-40"
           >
             ก่อนหน้า
           </button>
-          <span className="text-sm text-[var(--on-surface-variant)]">
+          <span className="text-sm text-on-surface-variant">
             หน้า {page} จาก {expensesData?.totalPages ?? 1}
           </span>
           <button
             onClick={() => setPage(page + 1)}
             disabled={page >= (expensesData?.totalPages ?? 1)}
-            className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)] disabled:opacity-40"
+            className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface transition-colors hover:bg-surface-container disabled:opacity-40"
           >
             ถัดไป
           </button>
@@ -422,22 +422,22 @@ export default function AdminExpensesPage() {
       {/* Delete Confirm Dialog */}
       {deleteConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-2xl bg-[var(--surface-container-lowest)] p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-[var(--on-surface)]">ยืนยันการลบ?</h3>
-            <p className="mt-2 text-sm text-[var(--on-surface-variant)]">
+          <div className="w-full max-w-md rounded-2xl bg-surface-container-lowest p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-on-surface">ยืนยันการลบ?</h3>
+            <p className="mt-2 text-sm text-on-surface-variant">
               การลบรายการนี้ไม่สามารถย้อนกลับได้
             </p>
             <div className="mt-6 flex justify-end gap-3">
               <button
                 onClick={() => { setDeleteConfirmOpen(false); setDeleteTargetId(null); }}
-                className="rounded-lg border border-[var(--outline)] px-4 py-2 text-sm text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
+                className="rounded-lg border border-outline px-4 py-2 text-sm text-on-surface transition-colors hover:bg-surface-container"
               >
                 ยกเลิก
               </button>
               <button
                 onClick={() => { if (deleteTargetId) void handleDelete(deleteTargetId); }}
                 disabled={deleteLoading}
-                className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-danger)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[var(--color-danger)]/90 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg bg-color-danger px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-color-danger/90 disabled:opacity-60"
               >
                 {deleteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 ลบ
@@ -512,21 +512,21 @@ function ExpenseFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg rounded-2xl bg-[var(--surface-container-lowest)] p-6 shadow-xl">
-        <h3 className="text-lg font-semibold text-[var(--on-surface)]">เพิ่มรายจ่าย</h3>
+      <div className="w-full max-w-lg rounded-2xl bg-surface-container-lowest p-6 shadow-xl">
+        <h3 className="text-lg font-semibold text-on-surface">เพิ่มรายจ่าย</h3>
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           {error && (
-            <div className="px-4 py-3 rounded-lg bg-[var(--error-container)]/10 border border-[var(--error-container)]/20 text-sm text-[var(--color-danger)]">
+            <div className="px-4 py-3 rounded-lg bg-error-container/10 border border-error-container/20 text-sm text-color-danger">
               {error}
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-[var(--on-surface-variant)] mb-1">หมวดหมู่</label>
+              <label className="block text-sm font-medium text-on-surface-variant mb-1">หมวดหมู่</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
-                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] py-2 px-3 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest py-2 px-3 text-sm text-on-surface focus:border-primary focus:outline-none"
               >
                 {CATEGORY_OPTIONS.filter(o => o.value !== 'ALL').map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -534,7 +534,7 @@ function ExpenseFormModal({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-[var(--on-surface-variant)] mb-1">จำนวน (บาท)</label>
+              <label className="block text-sm font-medium text-on-surface-variant mb-1">จำนวน (บาท)</label>
               <input
                 type="number"
                 step="0.01"
@@ -542,47 +542,47 @@ function ExpenseFormModal({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
-                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] py-2 px-3 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest py-2 px-3 text-sm text-on-surface focus:border-primary focus:outline-none"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--on-surface-variant)] mb-1">วันที่</label>
+            <label className="block text-sm font-medium text-on-surface-variant mb-1">วันที่</label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
-              className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] py-2 px-3 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none"
+              className="w-full rounded-lg border border-outline bg-surface-container-lowest py-2 px-3 text-sm text-on-surface focus:border-primary focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--on-surface-variant)] mb-1">รายละเอียด</label>
+            <label className="block text-sm font-medium text-on-surface-variant mb-1">รายละเอียด</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               required
               rows={3}
-              className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] py-2 px-3 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none"
+              className="w-full rounded-lg border border-outline bg-surface-container-lowest py-2 px-3 text-sm text-on-surface focus:border-primary focus:outline-none"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-[var(--on-surface-variant)] mb-1">จ่ายให้ (ไม่บังคับ)</label>
+              <label className="block text-sm font-medium text-on-surface-variant mb-1">จ่ายให้ (ไม่บังคับ)</label>
               <input
                 type="text"
                 value={paidTo}
                 onChange={(e) => setPaidTo(e.target.value)}
-                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] py-2 px-3 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest py-2 px-3 text-sm text-on-surface focus:border-primary focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[var(--on-surface-variant)] mb-1">เลขที่ใบเสร็จ (ไม่บังคับ)</label>
+              <label className="block text-sm font-medium text-on-surface-variant mb-1">เลขที่ใบเสร็จ (ไม่บังคับ)</label>
               <input
                 type="text"
                 value={receiptNo}
                 onChange={(e) => setReceiptNo(e.target.value)}
-                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] py-2 px-3 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest py-2 px-3 text-sm text-on-surface focus:border-primary focus:outline-none"
               />
             </div>
           </div>
@@ -590,14 +590,14 @@ function ExpenseFormModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-[var(--outline)] px-4 py-2 text-sm text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
+              className="rounded-lg border border-outline px-4 py-2 text-sm text-on-surface transition-colors hover:bg-surface-container"
             >
               ยกเลิก
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               บันทึก

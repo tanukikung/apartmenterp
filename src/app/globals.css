@@ -56,6 +56,12 @@
     --sidebar-text-active: 0 0% 100%;
     --sidebar-divider:     224 32% 20%;
 
+    /* ── Extended semantic tokens ── */
+    --success-container:       158 64% 92%;
+    --on-success-container:    158 64% 20%;
+    --warning-container:       38 92% 92%;
+    --on-warning-container:    38 80% 20%;
+
     /* ── Shadow scale ── */
     --shadow-xs:   0 1px 2px rgba(0,0,0,0.04);
     --shadow-sm:   0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
@@ -135,6 +141,12 @@
     --sidebar-text:        240 5% 65%;
     --sidebar-text-active: 0 0% 100%;
     --sidebar-divider:     240 6% 10%;
+
+    /* ── Extended semantic tokens (dark) ── */
+    --success-container:       158 64% 15%;
+    --on-success-container:    158 64% 85%;
+    --warning-container:       38 80% 15%;
+    --on-warning-container:    38 80% 85%;
 
     --shadow-xs:   0 1px 2px rgba(0,0,0,0.3);
     --shadow-sm:   0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);

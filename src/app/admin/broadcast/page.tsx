@@ -157,20 +157,20 @@ export default function BroadcastPage() {
 
   return (
     <main className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-base font-semibold text-[var(--on-primary)]">ศูนย์ประกาศและเตือน</h1>
-            <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">
+            <h1 className="text-base font-semibold text-on-primary">ศูนย์ประกาศและเตือน</h1>
+            <p className="text-xs text-on-primary/80 mt-0.5">
               ส่งข้อความเตือนค่าบริการหรือประกาศถึงลูกบ้าน
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/admin/overdue" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+            <Link href="/admin/overdue" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
               ไปที่ Overdue
             </Link>
-            <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+            <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               รีเฟรช
             </button>
@@ -186,25 +186,25 @@ export default function BroadcastPage() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden p-4">
-          <div className="text-xs text-[var(--on-surface-variant)] font-medium">ค้างชำระทั้งหมด</div>
-          <div className="text-xl font-semibold text-[var(--on-surface)]">{stats.total}</div>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden p-4">
+          <div className="text-xs text-on-surface-variant font-medium">ค้างชำระทั้งหมด</div>
+          <div className="text-xl font-semibold text-on-surface">{stats.total}</div>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden p-4">
-          <div className="text-xs text-[var(--on-surface-variant)] font-medium">มี LINE</div>
-          <div className="text-xl font-semibold text-[var(--on-surface)]">{stats.withLine}</div>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden p-4">
+          <div className="text-xs text-on-surface-variant font-medium">มี LINE</div>
+          <div className="text-xl font-semibold text-on-surface">{stats.withLine}</div>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden p-4">
-          <div className="text-xs text-[var(--on-surface-variant)] font-medium">ไม่มี LINE</div>
-          <div className="text-xl font-semibold text-[var(--on-surface)]">{stats.withoutLine}</div>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden p-4">
+          <div className="text-xs text-on-surface-variant font-medium">ไม่มี LINE</div>
+          <div className="text-xl font-semibold text-on-surface">{stats.withoutLine}</div>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--outline-variant)]">
-            <div className="text-sm font-semibold text-[var(--on-surface)]">รายการค้างชำระ</div>
-            <div className="flex items-center gap-2 text-sm text-[var(--on-surface-variant)]">
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant">
+            <div className="text-sm font-semibold text-on-surface">รายการค้างชำระ</div>
+            <div className="flex items-center gap-2 text-sm text-on-surface-variant">
               <input
                 type="checkbox"
                 id="selectAll"
@@ -213,7 +213,7 @@ export default function BroadcastPage() {
                   if (e.target.checked) setSelectedIds(new Set(overdueInvoices.map((i) => i.id)));
                   else setSelectedIds(new Set());
                 }}
-                className="h-4 w-4 rounded border-[var(--outline)]"
+                className="h-4 w-4 rounded border-outline"
               />
               <label htmlFor="selectAll" className="cursor-pointer">เลือกทั้งหมด</label>
             </div>
@@ -221,16 +221,16 @@ export default function BroadcastPage() {
 
           {loading ? (
             <div className="flex items-center justify-center p-10">
-              <Loader2 className="h-8 w-8 animate-spin text-[var(--on-surface-variant)]" />
+              <Loader2 className="h-8 w-8 animate-spin text-on-surface-variant" />
             </div>
           ) : overdueInvoices.length === 0 ? (
-            <div className="p-10 text-center text-[var(--on-surface-variant)]">
+            <div className="p-10 text-center text-on-surface-variant">
               ไม่พบใบแจ้งหนี้ค้างชำระ
             </div>
           ) : (
             <div className="overflow-auto max-h-[500px]">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-[var(--surface-container-lowest)]">
+                <thead className="sticky top-0 bg-surface-container-lowest">
                   <tr>
                     <th></th>
                     <th>ห้อง</th>
@@ -242,13 +242,13 @@ export default function BroadcastPage() {
                 </thead>
                 <tbody>
                   {overdueInvoices.map((inv) => (
-                    <tr key={inv.id} className={selectedIds.has(inv.id) ? 'bg-[var(--primary-container)]' : ''}>
+                    <tr key={inv.id} className={selectedIds.has(inv.id) ? 'bg-primary-container' : ''}>
                       <td>
                         <input
                           type="checkbox"
                           checked={selectedIds.has(inv.id)}
                           onChange={() => toggleSelect(inv.id)}
-                          className="h-4 w-4 rounded border-[var(--outline)]"
+                          className="h-4 w-4 rounded border-outline"
                         />
                       </td>
                       <td className="font-semibold">{inv.roomNo}</td>
@@ -264,14 +264,14 @@ export default function BroadcastPage() {
                           {inv.daysOverdue} วัน
                         </span>
                       </td>
-                      <td className="text-[var(--on-surface-variant)]">{inv.tenantName ?? '-'}</td>
+                      <td className="text-on-surface-variant">{inv.tenantName ?? '-'}</td>
                       <td>
                         {inv.lineUserId ? (
                           <span className="inline-flex items-center gap-1 text-green-600">
                             <CheckCircle2 className="h-4 w-4" />
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[var(--on-surface-variant)]">
+                          <span className="inline-flex items-center gap-1 text-on-surface-variant">
                             <XCircle className="h-4 w-4" />
                           </span>
                         )}
@@ -285,17 +285,17 @@ export default function BroadcastPage() {
         </section>
 
         <section className="space-y-4">
-          <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--outline-variant)]">
-              <div className="text-sm font-semibold text-[var(--on-surface)]">ส่ง Reminder</div>
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant">
+              <div className="text-sm font-semibold text-on-surface">ส่ง Reminder</div>
             </div>
             <div className="space-y-4 p-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-[var(--on-surface)]">ประเภทการส่ง</label>
+                <label className="mb-1 block text-sm font-medium text-on-surface">ประเภทการส่ง</label>
                 <select
                   value={sendType}
                   onChange={(e) => setSendType(e.target.value as 'OVERDUE' | 'DUE_SOON' | 'SELECTED')}
-                  className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)] w-full"
+                  className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface w-full"
                 >
                   <option value="OVERDUE">ค้างชำระทั้งหมด</option>
                   <option value="DUE_SOON">ใกล้ครบกำหนด (3 วัน)</option>
@@ -305,7 +305,7 @@ export default function BroadcastPage() {
 
               {sendType === 'SELECTED' ? (
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-[var(--on-surface)]">เลือกชั้น</label>
+                  <label className="mb-1 block text-sm font-medium text-on-surface">เลือกชั้น</label>
                   <div className="flex flex-wrap gap-2">
                     {uniqueFloors.map((floor) => (
                       <button
@@ -313,32 +313,32 @@ export default function BroadcastPage() {
                         onClick={() => toggleFloor(floor)}
                         className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
                           selectedFloors.includes(floor)
-                            ? 'border-[var(--primary)]/30 bg-[var(--primary-container)] text-[var(--primary)]'
-                            : 'border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container)]'
+                            ? 'border-primary/30 bg-primary-container text-primary'
+                            : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container'
                         }`}
                       >
                         ชั้น {floor}
                       </button>
                     ))}
                   </div>
-                  <p className="mt-1 text-xs text-[var(--on-surface-variant)]">
+                  <p className="mt-1 text-xs text-on-surface-variant">
                     เลือก {selectedFloors.length} ชั้น
                   </p>
                 </div>
               ) : null}
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-[var(--on-surface)]">ข้อความ (ถ้าว่างจะใช้ default)</label>
+                <label className="mb-1 block text-sm font-medium text-on-surface">ข้อความ (ถ้าว่างจะใช้ default)</label>
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="แจ้งเตือนค่าบริการ..."
                   rows={3}
-                  className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)] w-full"
+                  className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant w-full"
                 />
               </div>
 
-              <div className="rounded-lg border border-[var(--color-warning)]/30 bg-[var(--warning-container)] p-3 text-sm text-[var(--on-warning-container)]">
+              <div className="rounded-lg border border-color-warning/30 bg-warning-container p-3 text-sm text-on-warning-container">
                 <div className="flex items-start gap-2">
                   <Clock className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>ระบบจะข้ามผู้ที่ได้รับ reminder ใน 24 ชั่วโมงที่ผ่านมาแล้ว</span>
@@ -348,7 +348,7 @@ export default function BroadcastPage() {
               <button
                 onClick={() => void handleSend()}
                 disabled={sending || (sendType === 'SELECTED' && selectedIds.size === 0)}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 flex w-full items-center justify-center gap-2"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-primary/90 flex w-full items-center justify-center gap-2"
               >
                 {sending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -361,12 +361,12 @@ export default function BroadcastPage() {
           </div>
 
           {result && (
-            <div className="bg-[var(--success-container)] rounded-xl border border-[var(--color-success)]/30 overflow-hidden">
+            <div className="bg-success-container rounded-xl border border-color-success/30 overflow-hidden">
               <div className="flex items-center gap-3 p-4">
-                <CheckCircle2 className="h-8 w-8 text-[var(--color-success)]" />
+                <CheckCircle2 className="h-8 w-8 text-color-success" />
                 <div>
-                  <div className="font-semibold text-[var(--on-success-container)]">ส่งสำเร็จ</div>
-                  <div className="text-sm text-[var(--on-success-container)]/80">
+                  <div className="font-semibold text-on-success-container">ส่งสำเร็จ</div>
+                  <div className="text-sm text-on-success-container/80">
                     ส่ง {result.sent} / {result.totalInvoices} รายการ
                     {result.skipped > 0 && ` (ข้าม ${result.skipped} ราย - cooldown 24 ชม.)`}
                     {result.errors > 0 && ` (ผิดพลาด ${result.errors} ราย)`}

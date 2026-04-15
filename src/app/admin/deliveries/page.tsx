@@ -48,20 +48,20 @@ type DeliveryOrder = {
 };
 
 const ORDER_STATUS: Record<OrderStatus, { cls: string; label: string; icon: typeof Clock }> = {
-  DRAFT:     { cls: 'bg-[var(--surface-container)] text-[var(--on-surface-variant)] border-[var(--outline-variant)]/30', label: 'ฉบับร่าง', icon: Clock },
-  SENDING:   { cls: 'bg-[var(--secondary-container)] text-[var(--on-secondary-container)] border-[var(--secondary)]30', label: 'กำลังส่ง', icon: Send },
-  COMPLETED: { cls: 'bg-[var(--success-container)] text-[var(--on-success-container)] border-[var(--color-success)]/30', label: 'เสร็จสิ้น', icon: CheckCircle2 },
-  PARTIAL:   { cls: 'bg-[var(--warning-container)] text-[var(--on-warning-container)] border-[var(--color-warning)]/30', label: 'ส่งบางส่วน', icon: AlertCircle },
-  FAILED:    { cls: 'bg-[var(--error-container)] text-[var(--on-error-container)] border-[var(--color-danger)]/30', label: 'ล้มเหลว', icon: XCircle },
+  DRAFT:     { cls: 'bg-surface-container text-on-surface-variant border-outline-variant/30', label: 'ฉบับร่าง', icon: Clock },
+  SENDING:   { cls: 'bg-secondary-container text-on-secondary-container border-secondary30', label: 'กำลังส่ง', icon: Send },
+  COMPLETED: { cls: 'bg-success-container text-on-success-container border-color-success/30', label: 'เสร็จสิ้น', icon: CheckCircle2 },
+  PARTIAL:   { cls: 'bg-warning-container text-on-warning-container border-color-warning/30', label: 'ส่งบางส่วน', icon: AlertCircle },
+  FAILED:    { cls: 'bg-error-container text-on-error-container border-color-danger/30', label: 'ล้มเหลว', icon: XCircle },
 };
 
 const ITEM_STATUS: Record<ItemStatus, { cls: string; label: string }> = {
-  PENDING:   { cls: 'bg-[var(--warning-container)] text-[var(--on-warning-container)]', label: 'รอส่ง' },
-  SENT:      { cls: 'bg-[var(--secondary-container)] text-[var(--on-secondary-container)]', label: 'ส่งแล้ว' },
-  DELIVERED: { cls: 'bg-[var(--success-container)] text-[var(--on-success-container)]', label: 'ส่งสำเร็จ' },
-  FAILED:    { cls: 'bg-[var(--error-container)] text-[var(--on-error-container)]', label: 'ล้มเหลว' },
-  SKIPPED:   { cls: 'bg-[var(--surface-container)] text-[var(--on-surface-variant)]', label: 'ข้าม' },
-  VIEWED:    { cls: 'bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)]', label: 'เปิดแล้ว' },
+  PENDING:   { cls: 'bg-warning-container text-on-warning-container', label: 'รอส่ง' },
+  SENT:      { cls: 'bg-secondary-container text-on-secondary-container', label: 'ส่งแล้ว' },
+  DELIVERED: { cls: 'bg-success-container text-on-success-container', label: 'ส่งสำเร็จ' },
+  FAILED:    { cls: 'bg-error-container text-on-error-container', label: 'ล้มเหลว' },
+  SKIPPED:   { cls: 'bg-surface-container text-on-surface-variant', label: 'ข้าม' },
+  VIEWED:    { cls: 'bg-tertiary-container text-on-tertiary-container', label: 'เปิดแล้ว' },
 };
 
 function fmtDate(s: string | null) {
@@ -174,18 +174,18 @@ export default function DeliveriesPage() {
 
   return (
     <main className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-base font-semibold text-[var(--on-primary)]">รายการส่ง LINE</h1>
-            <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">ติดตามสถานะการส่งเอกสารผ่าน LINE</p>
+            <h1 className="text-base font-semibold text-on-primary">รายการส่ง LINE</h1>
+            <p className="text-xs text-on-primary/80 mt-0.5">ติดตามสถานะการส่งเอกสารผ่าน LINE</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/admin/documents" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+            <Link href="/admin/documents" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
               เอกสาร
             </Link>
-            <button onClick={() => void refetch()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+            <button onClick={() => void refetch()} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               รีเฟรช
             </button>
@@ -194,21 +194,21 @@ export default function DeliveriesPage() {
       </div>
 
       {fetchError && (
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm text-[var(--on-error-container)]">
+        <div className="flex items-center gap-2 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container">
           <AlertCircle className="h-4 w-4" />
           {fetchError instanceof Error ? fetchError.message : String(fetchError)}
         </div>
       )}
 
-      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--outline-variant)]">
-          <div className="text-sm font-semibold text-[var(--on-surface)]">รายการ Delivery Orders ({total})</div>
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant">
+          <div className="text-sm font-semibold text-on-surface">รายการ Delivery Orders ({total})</div>
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-[var(--on-surface-variant)]" />
+            <Filter className="h-4 w-4 text-on-surface-variant" />
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+              className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
             >
               <option value="">ทุกสถานะ</option>
               <option value="DRAFT">ฉบับร่าง</option>
@@ -222,10 +222,10 @@ export default function DeliveriesPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center p-10">
-            <Loader2 className="h-8 w-8 animate-spin text-[var(--on-surface-variant)]" />
+            <Loader2 className="h-8 w-8 animate-spin text-on-surface-variant" />
           </div>
         ) : orders.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 p-10 text-center text-[var(--on-surface-variant)]">
+          <div className="flex flex-col items-center gap-2 p-10 text-center text-on-surface-variant">
             <Package className="h-8 w-8 opacity-40" />
             <div>ไม่พบรายการ Delivery Orders</div>
           </div>
@@ -235,31 +235,31 @@ export default function DeliveriesPage() {
               <div key={order.id}>
                 <button
                   onClick={() => void toggleExpand(order.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--surface-container)] transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-container transition-colors"
                 >
-                  <span className="text-[var(--on-surface-variant)]">
+                  <span className="text-on-surface-variant">
                     {expandedId === order.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-[var(--on-surface)]">{order.documentType}</span>
+                      <span className="text-sm font-semibold text-on-surface">{order.documentType}</span>
                       {order.year || order.month ? (
-                        <span className="text-xs text-[var(--on-surface-variant)]">{fmtPeriod(order.year, order.month)}</span>
+                        <span className="text-xs text-on-surface-variant">{fmtPeriod(order.year, order.month)}</span>
                       ) : null}
                       {order.description ? (
-                        <span className="text-xs text-[var(--on-surface-variant)] truncate max-w-[200px]">{order.description}</span>
+                        <span className="text-xs text-on-surface-variant truncate max-w-[200px]">{order.description}</span>
                       ) : null}
                     </div>
-                    <div className="mt-0.5 text-xs text-[var(--on-surface-variant)]">{fmtDate(order.createdAt)}</div>
+                    <div className="mt-0.5 text-xs text-on-surface-variant">{fmtDate(order.createdAt)}</div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-xs text-[var(--on-surface-variant)]">{order.sentCount}/{order.totalCount} ส่งแล้ว</span>
+                    <span className="text-xs text-on-surface-variant">{order.sentCount}/{order.totalCount} ส่งแล้ว</span>
                     <OrderStatusBadge status={order.status} />
                     {(order.status === 'DRAFT') && (
                       <button
                         onClick={(e) => { e.stopPropagation(); if (!isLineConfigured()) { toastError('LINE ไม่ได้รับการตั้งค่า ไม่สามารถส่งได้'); return; } void handleSend(order.id); }}
                         disabled={sending === order.id}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
                       >
                         {sending === order.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                         ส่ง
@@ -269,16 +269,16 @@ export default function DeliveriesPage() {
                 </button>
 
                 {expandedId === order.id && (
-                  <div className="border-t border-[var(--outline-variant)] bg-[var(--surface-container)]/30 px-4 py-3">
+                  <div className="border-t border-outline-variant bg-surface-container/30 px-4 py-3">
                     {itemsLoading === order.id ? (
                       <div className="flex items-center justify-center py-4">
-                        <Loader2 className="h-5 w-5 animate-spin text-[var(--on-surface-variant)]" />
+                        <Loader2 className="h-5 w-5 animate-spin text-on-surface-variant" />
                       </div>
                     ) : (
                       <div className="overflow-auto">
                         <table className="w-full text-xs">
                           <thead>
-                            <tr className="text-left text-[var(--on-surface-variant)]">
+                            <tr className="text-left text-on-surface-variant">
                               <th className="pb-2 pr-4 font-medium">ห้อง</th>
                               <th className="pb-2 pr-4 font-medium">ผู้เช่า</th>
                               <th className="pb-2 pr-4 font-medium">สถานะ</th>
@@ -291,19 +291,19 @@ export default function DeliveriesPage() {
                           <tbody className="divide-y divide-outline-variant/40">
                             {(itemsMap[order.id] ?? []).map((item) => (
                               <tr key={item.id}>
-                                <td className="py-1.5 pr-4 font-semibold text-[var(--on-surface)]">{item.roomNo}</td>
-                                <td className="py-1.5 pr-4 text-[var(--on-surface-variant)]">{item.tenant?.fullName ?? '-'}</td>
+                                <td className="py-1.5 pr-4 font-semibold text-on-surface">{item.roomNo}</td>
+                                <td className="py-1.5 pr-4 text-on-surface-variant">{item.tenant?.fullName ?? '-'}</td>
                                 <td className="py-1.5 pr-4">
                                   <ItemStatusBadge status={item.status as ItemStatus} />
                                 </td>
-                                <td className="py-1.5 pr-4 font-mono text-[var(--on-surface-variant)] truncate max-w-[120px]">{item.recipientRef ?? '-'}</td>
-                                <td className="py-1.5 pr-4 text-[var(--on-surface-variant)]">{fmtDate(item.sentAt)}</td>
-                                <td className="py-1.5 pr-4 max-w-[180px] truncate text-[var(--color-danger)]">{item.errorMessage ?? '-'}</td>
+                                <td className="py-1.5 pr-4 font-mono text-on-surface-variant truncate max-w-[120px]">{item.recipientRef ?? '-'}</td>
+                                <td className="py-1.5 pr-4 text-on-surface-variant">{fmtDate(item.sentAt)}</td>
+                                <td className="py-1.5 pr-4 max-w-[180px] truncate text-color-danger">{item.errorMessage ?? '-'}</td>
                                 <td className="py-1.5">
                                   {item.status === 'FAILED' && (
                                     <button
                                       onClick={() => { if (!isLineConfigured()) { toastError('LINE ไม่ได้รับการตั้งค่า ไม่สามารถส่งซ้ำได้'); return; } void handleResendItem(order.id, item.id); }}
-                                      className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-2 py-1 text-xs font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
+                                      className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2 py-1 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
                                     >
                                       <RefreshCw className="h-3 w-3" />
                                       Retry
@@ -324,15 +324,15 @@ export default function DeliveriesPage() {
         )}
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-[var(--outline-variant)] px-4 py-3">
-            <span className="text-sm text-[var(--on-surface-variant)]">หน้า {page} จาก {totalPages} ({total} รายการ)</span>
+          <div className="flex items-center justify-between border-t border-outline-variant px-4 py-3">
+            <span className="text-sm text-on-surface-variant">หน้า {page} จาก {totalPages} ({total} รายการ)</span>
             <div className="flex gap-2">
               <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}
-                className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] disabled:opacity-50">
+                className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-50">
                 ก่อนหน้า
               </button>
               <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-                className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] disabled:opacity-50">
+                className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-50">
                 ถัดไป
               </button>
             </div>

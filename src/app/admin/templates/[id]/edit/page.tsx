@@ -291,17 +291,17 @@ export default function TemplateEditPage() {
 
   return (
     <main className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link href={isNew ? '/admin/templates' : `/admin/templates/${params.id}`} className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30">
+            <Link href={isNew ? '/admin/templates' : `/admin/templates/${params.id}`} className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30">
               <ArrowLeft className="h-4 w-4" />
               กลับ
             </Link>
             <div>
-              <h1 className="text-base font-semibold text-[var(--on-primary)]">{isNew ? 'สร้างเทมเพลต' : 'พื้นที่แก้ไขเทมเพลต'}</h1>
-              <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">
+              <h1 className="text-base font-semibold text-on-primary">{isNew ? 'สร้างเทมเพลต' : 'พื้นที่แก้ไขเทมเพลต'}</h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">
                 จัดการข้อมูลเมตา เวอร์ชัน ฟิลด์ที่กำหนดโครงสร้าง และแก้ไขเนื้อหาด้วย TipTap
               </p>
             </div>
@@ -313,27 +313,27 @@ export default function TemplateEditPage() {
       {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
 
       {loading ? (
-        <div className="py-16 text-center text-[var(--on-surface-variant)]">กำลังโหลดพื้นที่เทมเพลต...</div>
+        <div className="py-16 text-center text-on-surface-variant">กำลังโหลดพื้นที่เทมเพลต...</div>
       ) : (
         <div className="space-y-6">
-          <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-            <div className="px-5 py-4 border-b border-[var(--outline-variant)]">
-              <div className="text-sm font-semibold text-[var(--on-surface)]">ตั้งค่าเทมเพลต</div>
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="px-5 py-4 border-b border-outline-variant">
+              <div className="text-sm font-semibold text-on-surface">ตั้งค่าเทมเพลต</div>
             </div>
             <div className="grid gap-4 p-5 lg:grid-cols-4">
               <div className="lg:col-span-2">
-                <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">ชื่อเทมเพลต</label>
+                <label className="mb-1.5 block text-sm font-medium text-on-surface">ชื่อเทมเพลต</label>
                 <input
-                  className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                   value={form.name}
                   onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
                   placeholder="ใบแจ้งหนี้รายเดือน"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">ประเภท</label>
+                <label className="mb-1.5 block text-sm font-medium text-on-surface">ประเภท</label>
                 <select
-                  className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                   value={form.type}
                   onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))}
                 >
@@ -345,25 +345,25 @@ export default function TemplateEditPage() {
                 </select>
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">หัวข้อ</label>
+                <label className="mb-1.5 block text-sm font-medium text-on-surface">หัวข้อ</label>
                 <input
-                  className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                   value={form.subject}
                   onChange={(event) => setForm((current) => ({ ...current, subject: event.target.value }))}
                   placeholder="ใบแจ้งหนี้สำหรับห้อง {{room.number}}"
                 />
               </div>
               <div className="lg:col-span-4">
-                <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">รายละเอียด</label>
+                <label className="mb-1.5 block text-sm font-medium text-on-surface">รายละเอียด</label>
                 <textarea
-                  className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)] min-h-[96px]"
+                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface min-h-[96px]"
                   value={form.description}
                   onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
                   placeholder="รายละเอียดว่าเทมเพลตนี้ใช้สำหรับอะไรและเมื่อใดควรสร้าง"
                 />
               </div>
             </div>
-            <div className="border-t border-[var(--outline-variant)] px-5 py-4">
+            <div className="border-t border-outline-variant px-5 py-4">
               <button
                 type="button"
                 onClick={() => void saveMetadata()}
@@ -379,18 +379,18 @@ export default function TemplateEditPage() {
           {!isNew ? (
             <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
               <div className="space-y-6">
-                <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-                  <div className="px-5 py-4 border-b border-[var(--outline-variant)]">
+                <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-outline-variant">
                     <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-[var(--on-surface)]">
-                        <Layers3 className="h-4 w-4 text-[var(--primary)]" />
+                      <div className="flex items-center gap-2 text-sm font-semibold text-on-surface">
+                        <Layers3 className="h-4 w-4 text-primary" />
                         เวอร์ชัน
                       </div>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => void createDraft()}
-                          className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+                          className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
                           disabled={working === 'draft'}
                         >
                           <FilePlus2 className="h-3.5 w-3.5" />
@@ -399,7 +399,7 @@ export default function TemplateEditPage() {
                         <button
                           type="button"
                           onClick={() => fileRef.current?.click()}
-                          className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+                          className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
                           disabled={working === 'upload'}
                           title="Upload a .docx file (DOCX support has been removed)"
                         >
@@ -427,8 +427,8 @@ export default function TemplateEditPage() {
                         key={version.id}
                         className={`rounded-2xl border px-4 py-4 ${
                           selectedVersionId === version.id
-                            ? 'border-primary bg-[var(--primary-container)]/50'
-                            : 'border-[var(--outline-variant)] bg-[var(--surface-container-lowest)]'
+                            ? 'border-primary bg-primary-container/50'
+                            : 'border-outline-variant bg-surface-container-lowest'
                         }`}
                       >
                         <button
@@ -438,8 +438,8 @@ export default function TemplateEditPage() {
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div>
-                              <div className="font-semibold text-[var(--on-surface)]">v{version.version}</div>
-                              <div className="text-xs text-[var(--on-surface-variant)]">{version.fileType.toUpperCase()} · {version.status}</div>
+                              <div className="font-semibold text-on-surface">v{version.version}</div>
+                              <div className="text-xs text-on-surface-variant">{version.fileType.toUpperCase()} · {version.status}</div>
                             </div>
                             {template?.activeVersionId === version.id ? (
                               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">ใช้งาน</span>
@@ -451,7 +451,7 @@ export default function TemplateEditPage() {
                             <button
                               type="button"
                               onClick={() => void activateVersion(version.id)}
-                              className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] flex-1"
+                              className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container flex-1"
                               disabled={working === version.id}
                             >
                               {working === version.id ? 'กำลังเปิดใช้งาน...' : 'เปิดใช้งาน'}
@@ -460,7 +460,7 @@ export default function TemplateEditPage() {
                           <button
                             type="button"
                             onClick={() => void loadTemplate(params.id)}
-                            className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+                            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
                           >
                             <RefreshCw className="h-3.5 w-3.5" />
                           </button>
@@ -470,9 +470,9 @@ export default function TemplateEditPage() {
                   </div>
                 </section>
 
-                <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-                  <div className="px-5 py-4 border-b border-[var(--outline-variant)]">
-                    <div className="text-sm font-semibold text-[var(--on-surface)]">เบราว์เซอร์ฟิลด์</div>
+                <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-outline-variant">
+                    <div className="text-sm font-semibold text-on-surface">เบราว์เซอร์ฟิลด์</div>
                   </div>
                   <div className="space-y-4 p-4">
                     {groupedFields.map(([group, fields]) => (
@@ -480,19 +480,19 @@ export default function TemplateEditPage() {
                         <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-outline-variant">{group}</div>
                         <div className="space-y-2">
                           {fields.map((field) => (
-                            <div key={field.key} className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-3 py-3">
+                            <div key={field.key} className="rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-3">
                               <div className="flex items-start justify-between gap-3">
                                 <div>
-                                  <div className="font-medium text-[var(--on-surface)]">{field.label}</div>
-                                  <div className="mt-1 font-mono text-[11px] text-[var(--primary)]">{field.key}</div>
+                                  <div className="font-medium text-on-surface">{field.label}</div>
+                                  <div className="mt-1 font-mono text-[11px] text-primary">{field.key}</div>
                                   {field.description ? (
-                                    <div className="mt-1 text-xs text-[var(--on-surface-variant)]">{field.description}</div>
+                                    <div className="mt-1 text-xs text-on-surface-variant">{field.description}</div>
                                   ) : null}
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => void copyFieldMarkup(field)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-2.5 py-1.5 text-xs font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
                                 >
                                   <Copy className="h-3.5 w-3.5" />
                                   คัดลอก
@@ -507,22 +507,22 @@ export default function TemplateEditPage() {
                 </section>
               </div>
 
-              <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-                <div className="px-5 py-4 border-b border-[var(--outline-variant)] flex items-center justify-between">
-                  <div className="text-sm font-semibold text-[var(--on-surface)]">ตัวแก้ไขเทมเพลต</div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface)]">
+              <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+                <div className="px-5 py-4 border-b border-outline-variant flex items-center justify-between">
+                  <div className="text-sm font-semibold text-on-surface">ตัวแก้ไขเทมเพลต</div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">
                     {selectedVersionId ? `เวอร์ชัน ${template?.versions?.find((version) => version.id === selectedVersionId)?.version ?? '-'}` : 'ยังไม่เลือกเวอร์ชัน'}
                   </span>
                 </div>
                 <div className="p-5">
                   {contentLoading ? (
-                    <div className="rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-6 py-20 text-center text-sm text-[var(--on-surface-variant)]">
+                    <div className="rounded-2xl border border-outline-variant bg-surface-container-lowest px-6 py-20 text-center text-sm text-on-surface-variant">
                       กำลังโหลด...
                     </div>
                   ) : selectedVersionId ? (
                     <ClientOnly
                       fallback={
-                        <div className="rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-6 py-20 text-center text-sm text-[var(--on-surface-variant)]">
+                        <div className="rounded-2xl border border-outline-variant bg-surface-container-lowest px-6 py-20 text-center text-sm text-on-surface-variant">
                           กำลังเริ่มตัวแก้ไข...
                         </div>
                       }
@@ -558,14 +558,29 @@ export default function TemplateEditPage() {
                       </ErrorBoundary>
                     </ClientOnly>
                   ) : (
-                    <div className="rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-6 py-20 text-center text-sm text-[var(--on-surface-variant)]">
+                    <div className="rounded-2xl border border-outline-variant bg-surface-container-lowest px-6 py-20 text-center text-sm text-on-surface-variant">
                       เลือกหรือสร้างเวอร์ชันเพื่อเริ่มแก้ไข
                     </div>
                   )}
                 </div>
               </section>
             </div>
-          ) : null}
+          ) : (
+            <div className="grid gap-6 xl:grid-cols-1">
+              <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+                <div className="px-5 py-4 border-b border-outline-variant">
+                  <div className="text-sm font-semibold text-on-surface">ตัวแก้ไขเทมเพลต (TipTap)</div>
+                </div>
+                <div className="p-5 flex flex-col items-center justify-center py-20 min-h-[400px]">
+                  <Layers3 className="h-10 w-10 text-primary/40 mb-4" />
+                  <p className="font-semibold text-lg text-on-surface mb-2">เริ่มสร้างเทมเพลตเอกสาร</p>
+                  <p className="text-sm text-on-surface-variant text-center max-w-sm">
+                    กรุณาระบุชื่อและข้อมูลเทมเพลตในกล่องด้านบน จากนั้นกดปุ่ม <strong>สร้างเทมเพลต</strong> เพื่อบันทึกและเปิดใช้งานหน้าต่างแก้ไขเนื้อหาเอกสาร (TipTap)
+                  </p>
+                </div>
+              </section>
+            </div>
+          )}
         </div>
       )}
     </main>

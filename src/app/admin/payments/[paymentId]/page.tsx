@@ -165,11 +165,11 @@ function InfoRow({
   value: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)]/80 px-4 py-3">
-      <span className="mt-0.5 shrink-0 text-[var(--on-surface-variant)]">{icon}</span>
+    <div className="flex items-start gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest/80 px-4 py-3">
+      <span className="mt-0.5 shrink-0 text-on-surface-variant">{icon}</span>
       <div className="min-w-0">
-        <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[var(--on-surface-variant)]">{label}</div>
-        <div className="mt-0.5 text-sm font-medium text-[var(--on-surface)] break-all">{value}</div>
+        <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">{label}</div>
+        <div className="mt-0.5 text-sm font-medium text-on-surface break-all">{value}</div>
       </div>
     </div>
   );
@@ -203,12 +203,12 @@ export default function PaymentDetailPage() {
   if (loading) {
     return (
       <main className="space-y-6">
-        <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+        <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-base font-semibold text-[var(--on-primary)]">รายละเอียดการชำระเงิน</h1>
-            <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">กำลังโหลดข้อมูลการชำระ...</p>
+            <h1 className="text-base font-semibold text-on-primary">รายละเอียดการชำระเงิน</h1>
+            <p className="text-xs text-on-primary/80 mt-0.5">กำลังโหลดข้อมูลการชำระ...</p>
           </div>
         </div>
       </section>
@@ -220,14 +220,14 @@ export default function PaymentDetailPage() {
   if (fetchError && !payment) {
     return (
       <main className="space-y-6">
-        <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+        <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-base font-semibold text-[var(--on-primary)]">รายละเอียดการชำระเงิน</h1>
+            <h1 className="text-base font-semibold text-on-primary">รายละเอียดการชำระเงิน</h1>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => router.back()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+            <button onClick={() => router.back()} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
               <ArrowLeft className="h-4 w-4" />
               กลับ
             </button>
@@ -247,32 +247,32 @@ export default function PaymentDetailPage() {
   return (
     <main className="space-y-6">
       {/* ── Breadcrumb ─────────────────────────────────────────────────── */}
-      <nav className="mb-1 flex items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
-        <Link href="/admin/payments" className="hover:text-[var(--on-surface)] transition-colors">
+      <nav className="mb-1 flex items-center gap-1.5 text-sm text-on-surface-variant">
+        <Link href="/admin/payments" className="hover:text-on-surface transition-colors">
           การชำระ
         </Link>
         <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-        <span className="font-medium text-[var(--on-surface)] truncate max-w-[200px]" title={payment.id}>
+        <span className="font-medium text-on-surface truncate max-w-[200px]" title={payment.id}>
           {payment.id}
         </span>
       </nav>
 
       {/* ── Page header ────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-base font-semibold text-[var(--on-primary)]">การชำระ {payment.id}</h1>
-            <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">
+            <h1 className="text-base font-semibold text-on-primary">การชำระ {payment.id}</h1>
+            <p className="text-xs text-on-primary/80 mt-0.5">
               รับเมื่อ {fmtDay(payment.paymentDate)}
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => queryClient.invalidateQueries({ queryKey: ['payments', paymentId] })} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]" disabled={loading}>
+            <button onClick={() => queryClient.invalidateQueries({ queryKey: ['payments', paymentId] })} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" disabled={loading}>
               <RefreshCw className="h-4 w-4" />
               รีเฟรช
             </button>
-            <button onClick={() => router.back()} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+            <button onClick={() => router.back()} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
               <ArrowLeft className="h-4 w-4" />
               กลับ
             </button>
@@ -284,19 +284,19 @@ export default function PaymentDetailPage() {
       {fetchError ? <div className="auth-alert auth-alert-error">{fetchError instanceof Error ? fetchError.message : String(fetchError)}</div> : null}
 
       {/* ── Hero card ──────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--primary-container)] text-[var(--primary)]">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-container text-primary">
               <Banknote className="h-7 w-7" />
             </div>
             <div>
-              <div className="text-3xl font-bold text-[var(--on-primary)] tabular-nums">
+              <div className="text-3xl font-bold text-on-primary tabular-nums">
                 {money(payment.amount)}
               </div>
               {payment.referenceNumber ? (
-                <div className="mt-0.5 text-sm text-[var(--on-primary)]/80">
-                  Ref: <span className="font-medium text-[var(--on-primary)]">{payment.referenceNumber}</span>
+                <div className="mt-0.5 text-sm text-on-primary/80">
+                  Ref: <span className="font-medium text-on-primary">{payment.referenceNumber}</span>
                 </div>
               ) : null}
             </div>
@@ -314,9 +314,9 @@ export default function PaymentDetailPage() {
         {/* ── Left column ──────────────────────────────────────────────── */}
         <div className="flex flex-col gap-6">
           {/* Info grid */}
-          <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-            <div className="border-b border-[var(--outline-variant)] bg-[var(--surface-container)] px-4 py-3">
-              <div className="text-sm font-semibold text-[var(--on-surface)]">รายละเอียดการชำระ</div>
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="border-b border-outline-variant bg-surface-container px-4 py-3">
+              <div className="text-sm font-semibold text-on-surface">รายละเอียดการชำระ</div>
             </div>
             <div className="grid gap-3 p-4 sm:grid-cols-2">
               <InfoRow
@@ -364,7 +364,7 @@ export default function PaymentDetailPage() {
                   value={
                     <Link
                       href={getPaymentInvoiceHref(payment.invoiceId)}
-                      className="text-[var(--primary)] hover:underline"
+                      className="text-primary hover:underline"
                     >
                       {payment.invoiceId}
                     </Link>
@@ -376,12 +376,12 @@ export default function PaymentDetailPage() {
 
           {/* Matched invoice card */}
           {isMatched && payment.invoice ? (
-            <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-              <div className="flex items-center justify-between border-b border-[var(--outline-variant)] bg-[var(--surface-container)] px-4 py-3">
-                <div className="text-sm font-semibold text-[var(--on-surface)]">ใบแจ้งหนี้ที่จับคู่</div>
+            <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+              <div className="flex items-center justify-between border-b border-outline-variant bg-surface-container px-4 py-3">
+                <div className="text-sm font-semibold text-on-surface">ใบแจ้งหนี้ที่จับคู่</div>
                 <Link
                   href={getPaymentInvoiceHref(payment.invoice.id)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] text-xs"
+                  className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container text-xs"
                 >
                   เปิดใบแจ้งหนี้
                 </Link>
@@ -415,19 +415,19 @@ export default function PaymentDetailPage() {
         {/* ── Right column ─────────────────────────────────────────────── */}
         <div className="flex flex-col gap-6">
           {/* Timeline */}
-          <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-            <div className="border-b border-[var(--outline-variant)] bg-[var(--surface-container)] px-4 py-3">
-              <div className="text-sm font-semibold text-[var(--on-surface)]">ไทม์ไลน์</div>
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="border-b border-outline-variant bg-surface-container px-4 py-3">
+              <div className="text-sm font-semibold text-on-surface">ไทม์ไลน์</div>
             </div>
-            <ol className="relative ml-4 mt-2 mb-4 border-l border-[var(--outline-variant)]">
+            <ol className="relative ml-4 mt-2 mb-4 border-l border-outline-variant">
               {timeline.map((event, i) => (
                 <li key={i} className="mb-6 ml-5 last:mb-0">
                   <span
                     className={[
                       'absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-white',
                       event.done
-                        ? 'bg-[var(--primary-container)] text-[var(--primary)]'
-                        : 'bg-[var(--surface-container)] text-[var(--on-surface-variant)]',
+                        ? 'bg-primary-container text-primary'
+                        : 'bg-surface-container text-on-surface-variant',
                     ].join(' ')}
                   >
                     {event.icon}
@@ -436,13 +436,13 @@ export default function PaymentDetailPage() {
                     <p
                       className={[
                         'text-sm font-medium',
-                        event.done ? 'text-[var(--on-surface)]' : 'text-[var(--on-surface-variant)]',
+                        event.done ? 'text-on-surface' : 'text-on-surface-variant',
                       ].join(' ')}
                     >
                       {event.label}
                     </p>
                     {event.timestamp ? (
-                      <time className="mt-0.5 block text-xs text-[var(--on-surface-variant)]">
+                      <time className="mt-0.5 block text-xs text-on-surface-variant">
                         {fmtDate(event.timestamp)}
                       </time>
                     ) : (
@@ -455,15 +455,15 @@ export default function PaymentDetailPage() {
           </section>
 
           {/* Actions */}
-          <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-            <div className="border-b border-[var(--outline-variant)] bg-[var(--surface-container)] px-4 py-3">
-              <div className="text-sm font-semibold text-[var(--on-surface)]">การดำเนินการ</div>
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="border-b border-outline-variant bg-surface-container px-4 py-3">
+              <div className="text-sm font-semibold text-on-surface">การดำเนินการ</div>
             </div>
             <div className="flex flex-col gap-3 p-4">
               {isMatched && payment.invoice ? (
                 <Link
                   href={getPaymentInvoiceHref(payment.invoice.id)}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
                 >
                   <FileText className="h-4 w-4" />
                   เปิดใบแจ้งหนี้

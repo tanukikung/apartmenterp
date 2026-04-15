@@ -372,10 +372,7 @@ export class TenantService {
         where: { tenantId: id },
         data: { tenantId: null },
       });
-      await tx.maintenanceTicket.updateMany({
-        where: { tenantId: id },
-        data: { tenantId: null },
-      });
+
 
       // Cascade deletes: RoomTenant, DeliveryOrderItem.
       await tx.tenant.delete({ where: { id } });

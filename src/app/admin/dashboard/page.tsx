@@ -172,13 +172,13 @@ function KpiCard({
   const card = (
     <div className={`${colors.bg} ${colors.border} border rounded-xl p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer`}>
       <div className="flex items-start justify-between gap-2 mb-3">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--on-surface-variant)]">{label}</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">{label}</span>
         <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${colors.icon}`}>
           <Icon size={16} strokeWidth={2} />
         </div>
       </div>
       <div className={`text-2xl font-extrabold tracking-tight ${colors.text} leading-none mb-1`}>{value}</div>
-      {sub && <div className="text-xs text-[var(--on-surface-variant)] mt-1">{sub}</div>}
+      {sub && <div className="text-xs text-on-surface-variant mt-1">{sub}</div>}
     </div>
   );
 
@@ -252,10 +252,10 @@ function TaskCard({
 
   return (
     <div className={`${colors.bg} ${colors.border} border rounded-xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200`}>
-      <div className={`px-4 py-3 border-b border-[var(--outline-variant)]/30 flex items-center justify-between`}>
+      <div className={`px-4 py-3 border-b border-outline-variant/30 flex items-center justify-between`}>
         <div className="flex items-center gap-2">
           <Icon size={14} className={colors.icon} />
-          <span className="text-sm font-bold text-[var(--on-surface)]">{title}</span>
+          <span className="text-sm font-bold text-on-surface">{title}</span>
         </div>
         {count !== undefined && (
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${colors.count}`}>
@@ -268,19 +268,19 @@ function TaskCard({
         {items && items.length > 0 && (
           <ul className="space-y-1.5 mb-3">
             {items.slice(0, 3).map((item, i) => (
-              <li key={i} className="flex items-center gap-2 text-xs text-[var(--on-surface-variant)]">
+              <li key={i} className="flex items-center gap-2 text-xs text-on-surface-variant">
                 <div className="h-1.5 w-1.5 rounded-full bg-current shrink-0" />
-                <span className="font-medium text-[var(--on-surface)]">{item.label}</span>
+                <span className="font-medium text-on-surface">{item.label}</span>
                 {item.sub && <span>{item.sub}</span>}
               </li>
             ))}
             {items.length > 3 && (
-              <li className="text-xs text-[var(--on-surface-variant)] pl-3.5">+{items.length - 3} รายการ</li>
+              <li className="text-xs text-on-surface-variant pl-3.5">+{items.length - 3} รายการ</li>
             )}
           </ul>
         )}
 
-        {sub && !items && <p className="text-xs text-[var(--on-surface-variant)] mb-3">{sub}</p>}
+        {sub && !items && <p className="text-xs text-on-surface-variant mb-3">{sub}</p>}
 
         <div className="flex items-center gap-2">
           {actionLabel && actionHref && (
@@ -302,7 +302,7 @@ function TaskCard({
           {secondaryActionLabel && secondaryActionHref && (
             <Link
               href={secondaryActionHref}
-              className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface-variant)] hover:bg-[var(--surface-container)] transition-colors"
+              className="inline-flex items-center gap-1 rounded-lg border border-outline px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:bg-surface-container transition-colors"
             >
               {secondaryActionLabel}
             </Link>
@@ -324,11 +324,11 @@ function ActivityItem({ log }: { log: AuditRow }) {
     <div className="flex items-start gap-3 py-2.5">
       <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${dotColor}`} />
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-[var(--on-surface)] leading-snug">
+        <p className="text-xs font-medium text-on-surface leading-snug">
           {auditLabel(log.action)}
-          <span className="font-normal text-[var(--on-surface-variant)] ml-1">{log.entityType}</span>
+          <span className="font-normal text-on-surface-variant ml-1">{log.entityType}</span>
         </p>
-        <p className="text-[10px] text-[var(--on-surface-variant)] mt-0.5">{log.userName} · {timeAgo(log.createdAt)}</p>
+        <p className="text-[10px] text-on-surface-variant mt-0.5">{log.userName} · {timeAgo(log.createdAt)}</p>
       </div>
     </div>
   );
@@ -374,7 +374,7 @@ export default function AdminDashboardPage() {
           safe('/api/analytics/occupancy'),
           safe('/api/analytics/summary'),
           safe('/api/admin/maintenance?status=OPEN&pageSize=5'),
-          safe('/api/admin/payments/review?limit=1'),
+          safe('/api/payments/review?limit=1'),
           safe('/api/invoices?status=OVERDUE&pageSize=5'),
           safe('/api/admin/dashboard-alerts'),
           safe('/api/audit-logs?limit=10'),
@@ -455,7 +455,7 @@ export default function AdminDashboardPage() {
   return (
     <main className="min-h-screen bg-gray-50/50">
       {/* ── Page Header ─────────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-primary to-[var(--primary)]/80 px-6 py-6 shadow-lg">
+      <div className="bg-gradient-to-br from-primary to-primary/80 px-6 py-6 shadow-lg">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-extrabold tracking-tight text-white">
             {greeting} 👋
@@ -599,11 +599,11 @@ export default function AdminDashboardPage() {
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Clock size={14} className="text-gray-400" />
-                <span className="text-sm font-bold text-[var(--on-surface)]">กิจกรรมล่าสุด</span>
+                <span className="text-sm font-bold text-on-surface">กิจกรรมล่าสุด</span>
               </div>
               <Link
                 href="/admin/audit-logs"
-                className="flex items-center gap-1 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary)]/80 transition-colors"
+                className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
               >
                 ดูทั้งหมด <ArrowRight size={10} />
               </Link>

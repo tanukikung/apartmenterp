@@ -71,11 +71,11 @@ function FieldRow({
 }) {
   return (
     <div className="flex items-start gap-4">
-      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-container)] text-[var(--on-surface-variant)]">
+      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-container text-on-surface-variant">
         {icon}
       </div>
       <div className="flex-1">
-        <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">{label}</label>
+        <label className="mb-1.5 block text-sm font-medium text-on-surface">{label}</label>
         {children}
       </div>
     </div>
@@ -84,7 +84,7 @@ function FieldRow({
 
 function LetterheadPreview({ profile }: { profile: BuildingProfile }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-sm">
       {/* Gradient header strip */}
       <div className="h-2 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
 
@@ -107,11 +107,11 @@ function LetterheadPreview({ profile }: { profile: BuildingProfile }) {
             </div>
           )}
           <div>
-            <div className="text-lg font-bold leading-tight text-[var(--on-surface)]">
-              {profile.name || <span className="italic text-[var(--on-surface-variant)]">ชื่ออาคาร</span>}
+            <div className="text-lg font-bold leading-tight text-on-surface">
+              {profile.name || <span className="italic text-on-surface-variant">ชื่ออาคาร</span>}
             </div>
             {profile.taxId && (
-              <div className="mt-0.5 text-xs text-[var(--on-surface-variant)]">
+              <div className="mt-0.5 text-xs text-on-surface-variant">
                 เลขที่ผู้เสียภาษี: {profile.taxId}
               </div>
             )}
@@ -119,35 +119,35 @@ function LetterheadPreview({ profile }: { profile: BuildingProfile }) {
         </div>
 
         {/* Divider */}
-        <div className="my-4 border-t border-[var(--outline-variant)]" />
+        <div className="my-4 border-t border-outline-variant" />
 
         {/* Contact grid */}
-        <div className="grid gap-2 text-sm text-[var(--on-surface-variant)]">
+        <div className="grid gap-2 text-sm text-on-surface-variant">
           {profile.address && (
             <div className="flex items-start gap-2">
-              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--on-surface-variant)]" />
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
               <span className="leading-snug">{profile.address}</span>
             </div>
           )}
           {profile.phone && (
             <div className="flex items-center gap-2">
-              <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--on-surface-variant)]" />
+              <Phone className="h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
               <span>{profile.phone}</span>
             </div>
           )}
           {profile.email && (
             <div className="flex items-center gap-2">
-              <Mail className="h-3.5 w-3.5 shrink-0 text-[var(--on-surface-variant)]" />
+              <Mail className="h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
               <span>{profile.email}</span>
             </div>
           )}
           {!profile.address && !profile.phone && !profile.email && (
-            <p className="italic text-[var(--on-surface-variant)]">กรอกข้อมูลติดต่อเพื่อดูตัวอย่าง</p>
+            <p className="italic text-on-surface-variant">กรอกข้อมูลติดต่อเพื่อดูตัวอย่าง</p>
           )}
         </div>
 
         {/* Footer strip */}
-        <div className="mt-5 rounded-xl bg-[var(--surface-container)] px-3 py-2 text-xs text-[var(--on-surface-variant)]">
+        <div className="mt-5 rounded-xl bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
           ตัวอย่างการแสดงผลข้อมูลอาคารบนใบแจ้งหนี้และเอกสาร
         </div>
       </div>
@@ -251,19 +251,19 @@ export default function BuildingProfilePage() {
   return (
     <main className="space-y-6">
       {/* Page header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
-              <Building2 className="h-5 w-5 text-[var(--on-primary)]" strokeWidth={1.75} />
+              <Building2 className="h-5 w-5 text-on-primary" strokeWidth={1.75} />
             </div>
             <div>
-              <h1 className="text-base font-semibold text-[var(--on-primary)]">ข้อมูลอาคาร</h1>
-              <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">ตั้งค่าชื่ออาคาร ที่อยู่ และข้อมูลติดต่อที่พิมพ์บนเอกสาร</p>
+              <h1 className="text-base font-semibold text-on-primary">ข้อมูลอาคาร</h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">ตั้งค่าชื่ออาคาร ที่อยู่ และข้อมูลติดต่อที่พิมพ์บนเอกสาร</p>
             </div>
           </div>
-          <Link href="/admin/settings" className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30">
+          <Link href="/admin/settings" className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30">
             <ArrowLeft className="h-4 w-4" /> กลับ
           </Link>
         </div>
@@ -271,22 +271,22 @@ export default function BuildingProfilePage() {
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
-        <Link href="/admin/settings" className="flex items-center gap-1 text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]">
+        <Link href="/admin/settings" className="flex items-center gap-1 text-on-surface-variant hover:text-on-surface">
           ตั้งค่า
         </Link>
         <span className="text-outline-variant">/</span>
-        <span className="text-[var(--on-surface)]">ข้อมูลอาคาร</span>
+        <span className="text-on-surface">ข้อมูลอาคาร</span>
       </div>
 
       {/* Alerts */}
       {message && (
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--tertiary-container)] bg-[var(--tertiary-container)]/20 px-4 py-3 text-sm font-medium text-[var(--on-tertiary-container)]">
+        <div className="flex items-center gap-2 rounded-xl border border-tertiary-container bg-tertiary-container/20 px-4 py-3 text-sm font-medium text-on-tertiary-container">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           {message}
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm font-medium text-[var(--on-error-container)]">
+        <div className="flex items-center gap-2 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm font-medium text-on-error-container">
           <XCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>
@@ -295,17 +295,17 @@ export default function BuildingProfilePage() {
       {/* Two-column layout: form + preview */}
       <div className="grid gap-6 xl:grid-cols-5">
         {/* Form */}
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-6 xl:col-span-3">
-          <h2 className="mb-6 text-base font-semibold text-[var(--on-surface)]">ข้อมูลอาคาร</h2>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 xl:col-span-3">
+          <h2 className="mb-6 text-base font-semibold text-on-surface">ข้อมูลอาคาร</h2>
 
           {isLoading ? (
             <div className="space-y-5">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-start gap-4">
-                  <div className="h-9 w-9 animate-pulse rounded-xl bg-[var(--surface-container)]" />
+                  <div className="h-9 w-9 animate-pulse rounded-xl bg-surface-container" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 w-24 animate-pulse rounded-lg bg-[var(--surface-container)]" />
-                    <div className="h-10 w-full animate-pulse rounded-xl bg-[var(--surface-container)]" />
+                    <div className="h-4 w-24 animate-pulse rounded-lg bg-surface-container" />
+                    <div className="h-10 w-full animate-pulse rounded-xl bg-surface-container" />
                   </div>
                 </div>
               ))}
@@ -315,7 +315,7 @@ export default function BuildingProfilePage() {
               <FieldRow label="ชื่ออาคาร" icon={<Building2 className="h-4 w-4" />}>
                 <input
                   type="text"
-                  className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/50 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+                  className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="อพาร์ตเมนต์ซันเซท"
                   value={fields.name}
                   onChange={(e) => setField('name', e.target.value)}
@@ -324,7 +324,7 @@ export default function BuildingProfilePage() {
 
               <FieldRow label="ที่อยู่" icon={<MapPin className="h-4 w-4" />}>
                 <textarea
-                  className="w-full resize-none rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/50 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+                  className="w-full resize-none rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   rows={3}
                   placeholder="123 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10100"
                   value={fields.address}
@@ -335,7 +335,7 @@ export default function BuildingProfilePage() {
               <FieldRow label="หมายเลขโทรศัพท์" icon={<Phone className="h-4 w-4" />}>
                 <input
                   type="tel"
-                  className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/50 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+                  className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="02-XXX-XXXX"
                   value={fields.phone}
                   onChange={(e) => setField('phone', e.target.value)}
@@ -345,7 +345,7 @@ export default function BuildingProfilePage() {
               <FieldRow label="อีเมล" icon={<Mail className="h-4 w-4" />}>
                 <input
                   type="email"
-                  className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/50 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+                  className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="contact@yourbuilding.com"
                   value={fields.email}
                   onChange={(e) => setField('email', e.target.value)}
@@ -355,7 +355,7 @@ export default function BuildingProfilePage() {
               <FieldRow label="เลขที่ผู้เสียภาษี" icon={<ReceiptText className="h-4 w-4" />}>
                 <input
                   type="text"
-                  className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm font-mono tracking-wider text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/50 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+                  className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm font-mono tracking-wider text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="0-1234-56789-01-2"
                   value={fields.taxId}
                   onChange={(e) => setField('taxId', e.target.value)}
@@ -366,19 +366,19 @@ export default function BuildingProfilePage() {
                 label={
                   <>
                     URL โลโก้{' '}
-                    <span className="ml-1 text-xs font-normal text-[var(--on-surface-variant)]">(ไม่บังคับ)</span>
+                    <span className="ml-1 text-xs font-normal text-on-surface-variant">(ไม่บังคับ)</span>
                   </>
                 }
                 icon={<Globe className="h-4 w-4" />}
               >
                 <input
                   type="url"
-                  className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/50 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+                  className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="https://example.com/logo.png"
                   value={fields.logoUrl}
                   onChange={(e) => setField('logoUrl', e.target.value)}
                 />
-                <p className="mt-1 text-xs text-[var(--on-surface-variant)]">
+                <p className="mt-1 text-xs text-on-surface-variant">
                   URL ที่เข้าถึงได้สาธารณะ จะแสดงบนหัวกระดาษใบแจ้งหนี้
                 </p>
               </FieldRow>
@@ -388,24 +388,24 @@ export default function BuildingProfilePage() {
 
         {/* Preview */}
         <div className="space-y-4 xl:col-span-2">
-          <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-            <h2 className="mb-4 text-base font-semibold text-[var(--on-surface)]">ตัวอย่างหัวกระดาษ</h2>
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+            <h2 className="mb-4 text-base font-semibold text-on-surface">ตัวอย่างหัวกระดาษ</h2>
             <LetterheadPreview profile={fields} />
           </div>
 
           {/* Last updated */}
-          <div className="flex items-center gap-2 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 py-3 text-sm text-[var(--on-surface-variant)] shadow-sm">
-            <Clock className="h-4 w-4 shrink-0 text-[var(--on-surface-variant)]" />
+          <div className="flex items-center gap-2 rounded-xl border border-outline-variant bg-surface-container-lowest px-4 py-3 text-sm text-on-surface-variant shadow-sm">
+            <Clock className="h-4 w-4 shrink-0 text-on-surface-variant" />
             <span>
-              บันทึกล่าสุด: <span className="font-medium text-[var(--on-surface)]">{formatTs(fields.updatedAt)}</span>
+              บันทึกล่าสุด: <span className="font-medium text-on-surface">{formatTs(fields.updatedAt)}</span>
             </span>
           </div>
         </div>
       </div>
 
       {/* Save bar */}
-      <div className="flex items-center justify-between rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-5 py-4 shadow-sm">
-        <div className="text-sm text-[var(--on-surface-variant)]">
+      <div className="flex items-center justify-between rounded-xl border border-outline-variant bg-surface-container-lowest px-5 py-4 shadow-sm">
+        <div className="text-sm text-on-surface-variant">
           {isDirty ? (
             <span className="font-medium text-amber-600">คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก</span>
           ) : (
@@ -420,7 +420,7 @@ export default function BuildingProfilePage() {
                 setMessage(null);
                 setError(null);
               }}
-              className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+              className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
             >
               ยกเลิก
             </button>
@@ -428,7 +428,7 @@ export default function BuildingProfilePage() {
           <button
             onClick={() => void handleSave()}
             disabled={saving || isLoading || !isDirty}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Save className="h-4 w-4" />
             {saving ? 'กำลังบันทึก...' : 'บันทึก'}
