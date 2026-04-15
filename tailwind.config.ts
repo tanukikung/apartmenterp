@@ -100,7 +100,6 @@ const config: Config = {
         "color-success":      "hsl(var(--color-success))",
         "color-warning":      "hsl(var(--color-warning))",
         // Extended semantic tokens
-        "error-container":         "hsl(var(--error-container))",
         "success-container":       "hsl(var(--success-container))",
         "on-success-container":    "hsl(var(--on-success-container))",
         "warning-container":       "hsl(var(--warning-container))",
