@@ -251,8 +251,8 @@ function IconNavGroup({
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => { setIsMounted(true); return () => { if (hideTimer.current) clearTimeout(hideTimer.current); }; }, []);
 
-  function showDropdown() {
-    // Cancel pending hide — user moved back in before the delay elapsed
+  // Called only from the TRIGGER div — opens dropdown and positions it
+  function openDropdown() {
     if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
@@ -260,9 +260,14 @@ function IconNavGroup({
     }
   }
 
+  // Called from DROPDOWN div — just cancel the pending close, don't re-render
+  function keepOpen() {
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
+  }
+
   function hideDropdown() {
-    // 150ms delay so the mouse can cross the 8px gap between sidebar and dropdown
-    hideTimer.current = setTimeout(() => setDropdownPos(null), 150);
+    // 200ms delay — enough to cross the 8px gap AND move between items
+    hideTimer.current = setTimeout(() => setDropdownPos(null), 200);
   }
 
   const SIDEBAR_LEFT = 72; // 64px sidebar + 8px gap
@@ -272,7 +277,7 @@ function IconNavGroup({
         <div
           style={{ position: 'fixed', top: dropdownPos.top, left: SIDEBAR_LEFT, zIndex: 9999 }}
           className="bg-sidebar-bg rounded-xl border border-color-border shadow-2xl shadow-black/30 overflow-y-auto max-h-[80vh] min-w-[180px]"
-          onMouseEnter={showDropdown}
+          onMouseEnter={keepOpen}
           onMouseLeave={hideDropdown}
         >
           <div className="px-3 py-2.5 border-b border-color-border">
@@ -303,7 +308,7 @@ function IconNavGroup({
   return (
     <div
       className="relative"
-      onMouseEnter={showDropdown}
+      onMouseEnter={openDropdown}
       onMouseLeave={hideDropdown}
     >
       <button
