@@ -86,6 +86,34 @@ export function startCronIfEnabled(): void {
       logger.error({ type: 'cron_contract_expiry_error', error: e instanceof Error ? e.message : String(e) });
     }
   });
+
+  // Audit log rotation — weekly Sunday 02:00.
+  // Deletes rows older than AUDIT_LOG_RETENTION_DAYS (default 365). Keeps the
+  // table bounded so indexes stay fast. Set retention to 0 to disable.
+  cron.schedule('0 2 * * 0', async () => {
+    try {
+      const retentionDays = Number(process.env.AUDIT_LOG_RETENTION_DAYS ?? 365);
+      if (!Number.isFinite(retentionDays) || retentionDays <= 0) {
+        logger.info({ type: 'cron_audit_rotation_skipped', retentionDays });
+        return;
+      }
+      const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+      const result = await prisma.auditLog.deleteMany({
+        where: { createdAt: { lt: cutoff } },
+      });
+      logger.info({
+        type: 'cron_audit_rotation_done',
+        retentionDays,
+        cutoff: cutoff.toISOString(),
+        deleted: result.count,
+      });
+    } catch (e) {
+      logger.error({
+        type: 'cron_audit_rotation_error',
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  });
 }
 
 export function isCronInitialized(): boolean {

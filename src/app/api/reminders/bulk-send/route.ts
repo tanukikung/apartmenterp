@@ -7,6 +7,7 @@ import type { Json } from '@/types/prisma-json';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
 import { prisma } from '@/lib/db/client';
+import { applyPlainTextTemplateVariables } from '@/lib/templates/document-template';
 
 const schema = z.object({
   invoiceIds: z.array(z.string().uuid()).optional(),
@@ -125,13 +126,36 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     }
 
     try {
+      const tenantFullName = tenant
+        ? `${tenant.firstName ?? ''} ${tenant.lastName ?? ''}`.trim()
+        : '';
+      const invoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.roomNo}`;
+      const personalisedText = applyPlainTextTemplateVariables(messageBody, {
+        tenantName: tenantFullName,
+        roomNumber: invoice.roomNo,
+        invoiceNumber,
+        year: String(invoice.year),
+        month: String(invoice.month).padStart(2, '0'),
+        totalAmount: Number(invoice.totalAmount).toLocaleString('th-TH', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+        dueDate: invoice.dueDate
+          ? invoice.dueDate.toLocaleDateString('th-TH', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })
+          : '',
+      });
+
       await processor.writeOne(
         'Conversation',
         conversation.id,
         'ManualReminderSendRequested',
         {
           conversationId: conversation.id,
-          text: messageBody,
+          text: personalisedText,
           templateId: resolvedTemplateId,
           metadata: { invoiceId: invoice.id, roomNo: invoice.roomNo },
         } as any,

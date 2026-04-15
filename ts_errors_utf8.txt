@@ -1,0 +1,2 @@
+﻿src/app/api/analytics/occupancy/route.ts(50,35): error TS2561: Object literal may only specify known properties, but 'floor' does not exist in type 'RoomSelect<DefaultArgs>'. Did you mean to write 'floorNo'?
+src/app/api/analytics/occupancy/route.ts(57,30): error TS2551: Property 'floor' does not exist on type '{ roomNo: string; floorNo: number; defaultAccountId: string; defaultRuleCode: string; defaultRentAmount: Decimal; hasFurniture: boolean; defaultFurnitureAmount: Decimal; roomStatus: RoomStatus; maxResidents: number; lineUserId: string; }'. Did you mean 'floorNo'?

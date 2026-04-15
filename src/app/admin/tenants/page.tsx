@@ -78,8 +78,52 @@ export default function AdminTenantsPage() {
 
   // ─── Load via TanStack Query ───────────────────────────────────────────────
 
+<<<<<<< HEAD
   const { data: tenantsData, isLoading: loading, refetch: refetchTenants } = useApiData<{ data: Tenant[] }>('/api/tenants', ['tenants']);
   const { data: roomsData } = useApiData<{ data: Room[] }>('/api/rooms?pageSize=100', ['rooms']);
+=======
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch ALL tenants by paginating through the list endpoint (max pageSize=100).
+      const PAGE_SIZE = 100;
+      const allTenants: Tenant[] = [];
+      let page = 1;
+      while (true) {
+        const res = await fetch(`/api/tenants?page=${page}&pageSize=${PAGE_SIZE}`, { cache: 'no-store' }).then(r => r.json());
+        if (!res.success) break;
+        const chunk: Tenant[] = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+        allTenants.push(...chunk);
+        const total: number = (res.data?.total as number | undefined) ?? chunk.length;
+        if (allTenants.length >= total || chunk.length === 0) break;
+        page += 1;
+        if (page > 100) break; // safety stop (>10k tenants)
+      }
+
+      // Rooms: fetch all pages too (max pageSize=300 per request)
+      const allRooms: Room[] = [];
+      let rp = 1;
+      while (true) {
+        const res = await fetch(`/api/rooms?page=${rp}&pageSize=300`, { cache: 'no-store' }).then(r => r.json());
+        if (!res.success) break;
+        const chunk: Room[] = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+        allRooms.push(...chunk);
+        const total: number = (res.data?.total as number | undefined) ?? chunk.length;
+        if (allRooms.length >= total || chunk.length === 0) break;
+        rp += 1;
+        if (rp > 50) break;
+      }
+
+      setTenants(allTenants);
+      setRooms(allRooms);
+    } catch {
+      setError('ไม่สามารถโหลดข้อมูลได้');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+>>>>>>> claude/xenodochial-hellman
 
   const tenants = tenantsData?.data ?? [];
   const rooms = roomsData?.data ?? [];

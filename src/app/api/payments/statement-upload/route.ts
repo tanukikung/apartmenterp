@@ -37,12 +37,37 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
   const fileName = file.name.toLowerCase();
   const storageKey = `bank-statements/${Date.now()}-${file.name}`;
 
+  // Optional column-mapping override. Lets the operator point at non-standard
+  // column headers (e.g. Thai-language exports) when auto-detection fails.
+  // Pass form fields:  dateColumn, amountColumn, descriptionColumn,
+  // referenceColumn, timeColumn, dateFormat, skipRows.
+  const parseOptions: Parameters<typeof bankStatementParser.parseCSV>[1] = {};
+  const fieldMap: Record<string, keyof typeof parseOptions> = {
+    dateColumn: 'dateColumn',
+    timeColumn: 'timeColumn',
+    amountColumn: 'amountColumn',
+    descriptionColumn: 'descriptionColumn',
+    referenceColumn: 'referenceColumn',
+    dateFormat: 'dateFormat',
+  };
+  for (const [formKey, optKey] of Object.entries(fieldMap)) {
+    const v = formData.get(formKey);
+    if (typeof v === 'string' && v.trim().length > 0) {
+      (parseOptions as Record<string, unknown>)[optKey] = v.trim();
+    }
+  }
+  const skipRowsRaw = formData.get('skipRows');
+  if (typeof skipRowsRaw === 'string' && skipRowsRaw.trim().length > 0) {
+    const n = Number(skipRowsRaw);
+    if (Number.isFinite(n) && n >= 0) parseOptions.skipRows = n;
+  }
+
   let entries;
   try {
     if (fileName.endsWith('.csv')) {
-      entries = bankStatementParser.parseCSV(buffer.toString('utf-8'));
+      entries = bankStatementParser.parseCSV(buffer.toString('utf-8'), parseOptions);
     } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-      entries = bankStatementParser.parseExcel(buffer);
+      entries = bankStatementParser.parseExcel(buffer, parseOptions);
     } else {
       return NextResponse.json(
         { success: false, error: { message: 'Unsupported file format. Accepted: CSV, XLSX.' } },

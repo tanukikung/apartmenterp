@@ -24,21 +24,18 @@ These are intentional constraints, non-blocking risks, and simplified modules do
 
 ## Intentional Constraints
 
-### Message Template Variable Interpolation
-- Template bodies are stored as plain text and passed to outbox events as-is.
-- The UI placeholder text shows `{{tenant_name}}`, `{{room_number}}` etc. as examples, but **variable substitution is not implemented** in the outbox processor or LINE client. The raw template body is delivered verbatim.
-- Impact: templates must be written with static text. Dynamic personalisation (tenant name in the message body) requires a future implementation of the interpolation step in the outbox processor.
+### Message Template Variable Interpolation — Supported Variables
+- Variable substitution is implemented for the LINE invoice flow and all reminder endpoints (`/api/reminders/send`, `/api/reminders/bulk-send`, `/api/tenants/[id]/notify`).
+- Supported placeholders: `{{tenantName}}`, `{{roomNumber}}`, `{{invoiceNumber}}`, `{{year}}`, `{{month}}`, `{{totalAmount}}`, `{{dueDate}}`. Unknown placeholders are left untouched.
+- Impact: template authors can personalise messages using the placeholders above. Placeholders outside that set must be added to the interpolation helpers before they will be substituted.
 
-### Invoice Send Channel: PDF and PRINT
-- The `sendInvoiceSchema` accepts `channel: 'LINE' | 'PDF' | 'PRINT'`.
-- Only `LINE` results in an actual dispatched message. `PDF` and `PRINT` record an `InvoiceDelivery` row with `status: SENT` but do not trigger any delivery mechanism (no email, no print queue).
-- These channels are schema-complete stubs for future implementation.
+### Invoice Send Channel: PRINT workflow
+- `LINE` and `PDF` channels are fully operational. `PDF` records an `InvoiceDelivery` row with `status: SENT` and returns the signed PDF URL for immediate download.
+- `PRINT` creates the delivery with `status: PENDING`. Staff must confirm the physical print via `PATCH /api/invoices/deliveries/[id]/mark-printed` (admin print-queue screen) to flip the row to `SENT`. No automatic printer spooling.
 
-### Documents Report — Contracts Count
-- `/admin/reports/documents` shows `Contracts Created: 0` unconditionally. The contracts model exists and is operational, but the documents report does not query it. This is a known placeholder (`const contractsCreated = 0`).
-
-### Tenant Delete
-- The `DELETE /api/tenants/[id]` endpoint has no implementation. A `// TODO` comment marks where cascade-safe delete logic would go. Attempting to delete a tenant returns a method or not-implemented response. Tenants with active contracts must be deactivated, not deleted.
+### Tenant Delete — Clean-Slate Only
+- `DELETE /api/tenants/[id]` is implemented but deliberately narrow: it only deletes tenants with **zero contract history** and **no active room assignment**. This is a "created by mistake" cleanup path, not a way to erase real ex-tenants.
+- Tenants with any contract or active `roomTenants` row return `409 Conflict`. Deactivate (move out) or terminate the contract first if you want to remove an ex-tenant — audit, invoice, and payment history remain intact.
 
 ### In-Process Rate Limiting
 - Rate limiting (default: 120 req/min per IP) is tracked in-process memory, not a shared store. On multi-instance deployments, each instance has its own counter. A client can exceed the limit by distributing requests across instances. Use an edge or infrastructure-level rate limiter for multi-instance setups.
@@ -65,7 +62,7 @@ These are intentional constraints, non-blocking risks, and simplified modules do
 | Email delivery | Not implemented | No email transport. All tenant notifications go through LINE only. |
 | Tenant self-service portal | Not implemented | Tenants interact via LINE bot only. No web portal for tenants. |
 | Two-factor authentication | Not implemented | Username/password only. |
-| Invoice versioning (UI) | Partial | Version number stored and displayed. Side-by-side diff view not implemented. |
+| Invoice versioning (UI) | Operational | Version number stored and displayed. Template version side-by-side diff available at `/admin/templates/[id]/diff`. |
 
 ---
 

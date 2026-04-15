@@ -559,13 +559,40 @@ function OccupancyTab() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [occRes, roomsRes] = await Promise.all([
-        fetch('/api/analytics/occupancy', { cache: 'no-store' }).then((r) => r.json()),
-        fetch('/api/rooms?pageSize=100', { cache: 'no-store' }).then((r) => r.json()),
-      ]);
+      // Occupancy API now returns totals AND by-floor breakdown computed
+      // server-side from every room. The rooms list is only used as a
+      // fallback, so we paginate through /api/rooms to cover all of them
+      // (not just the first 100) to keep the fallback accurate as well.
+      const occPromise = fetch('/api/analytics/occupancy', { cache: 'no-store' }).then((r) => r.json());
+
+      // The /api/rooms endpoint returns { roomNo, roomStatus, floorNo, ... } but
+      // this page's Room type expects { id, roomNumber, status, floor:{ floorNumber } }.
+      // Normalise each chunk so the fallback derivation still works.
+      type ApiRoom = { roomNo?: string; roomNumber?: string; roomStatus?: string; floorNo?: number };
+      const PAGE_SIZE = 300;
+      const allRooms: Room[] = [];
+      let rp = 1;
+      while (true) {
+        const res = await fetch(`/api/rooms?page=${rp}&pageSize=${PAGE_SIZE}`, { cache: 'no-store' }).then((r) => r.json());
+        if (!res.success) break;
+        const chunk: ApiRoom[] = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+        allRooms.push(
+          ...chunk.map((r): Room => ({
+            id: r.roomNo ?? r.roomNumber ?? '',
+            roomNumber: r.roomNumber ?? r.roomNo ?? '',
+            status: (r.roomStatus as RoomStatus) ?? 'VACANT',
+            floor: r.floorNo != null ? { id: String(r.floorNo), floorNumber: r.floorNo } : null,
+          })),
+        );
+        const total: number = (res.data?.total as number | undefined) ?? chunk.length;
+        if (allRooms.length >= total || chunk.length === 0) break;
+        rp += 1;
+        if (rp > 50) break;
+      }
+
+      const occRes = await occPromise;
       if (occRes.success) setOccupancy(occRes.data);
-      if (roomsRes.success) setRooms(roomsRes.data?.data ?? roomsRes.data ?? []);
-      else if (roomsRes.error) throw new Error(roomsRes.error.message);
+      setRooms(allRooms);
     } catch (err) { setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูล'); }
     finally { setLoading(false); }
   }, []);
@@ -728,13 +755,26 @@ function CollectionsTab() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [revRes, invRes] = await Promise.all([
-        fetch('/api/analytics/revenue?months=12', { cache: 'no-store' }).then((r) => r.json()),
-        fetch('/api/invoices?status=OVERDUE&pageSize=100', { cache: 'no-store' }).then((r) => r.json()),
-      ]);
+      const revRes = await fetch('/api/analytics/revenue?months=12', { cache: 'no-store' }).then((r) => r.json());
       if (!revRes.success) throw new Error(revRes.error?.message || 'ไม่สามารถโหลดข้อมูลรายได้');
       setRevenueData(revRes.data ?? []);
-      if (invRes.success) setOverdueInvoices(invRes.data?.data ?? invRes.data ?? []);
+
+      // Fetch ALL overdue invoices (aging analysis must cover every row, not
+      // just the first page) by looping through pages until exhausted.
+      const PAGE_SIZE = 100;
+      const allOverdue: Invoice[] = [];
+      let page = 1;
+      while (true) {
+        const res = await fetch(`/api/invoices?status=OVERDUE&page=${page}&pageSize=${PAGE_SIZE}`, { cache: 'no-store' }).then((r) => r.json());
+        if (!res.success) break;
+        const chunk: Invoice[] = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+        allOverdue.push(...chunk);
+        const total: number = (res.data?.total as number | undefined) ?? chunk.length;
+        if (allOverdue.length >= total || chunk.length === 0) break;
+        page += 1;
+        if (page > 100) break; // safety stop (>10k overdue)
+      }
+      setOverdueInvoices(allOverdue);
     } catch (err) { setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูล'); }
     finally { setLoading(false); }
   }, []);

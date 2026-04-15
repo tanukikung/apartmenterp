@@ -496,10 +496,17 @@ export class InvoiceService {
     input: SendInvoiceInput,
     sentBy?: string
   ): Promise<InvoiceSendResult> {
-    logger.info({ type: 'invoice_send', invoiceId: id });
+    logger.info({ type: 'invoice_send', invoiceId: id, channel: input.channel });
+
+    // PDF / PRINT channels do not go through LINE or the outbox. They
+    // record a synchronous InvoiceDelivery row and return the admin-facing
+    // PDF URL so staff can download, hand-off, or feed a print queue.
+    if (input.channel === 'PDF' || input.channel === 'PRINT') {
+      return this.sendInvoiceNonLineChannel(id, input.channel, sentBy);
+    }
 
     if (input.channel !== 'LINE' || input.sendToLine === false) {
-      throw new ValidationError('Only LINE delivery is supported by this endpoint');
+      throw new ValidationError('Only LINE, PDF and PRINT delivery are supported');
     }
 
     const lineConfigured = isLineConfigured();
@@ -595,6 +602,11 @@ export class InvoiceService {
         logger.warn({ type: 'invoice_msg_template_lookup_failed', invoiceId: id, error: err instanceof Error ? err.message : String(err) });
       }
 
+      const tenantFullName = primaryTenant
+        ? `${primaryTenant.firstName ?? ''} ${primaryTenant.lastName ?? ''}`.trim() || null
+        : null;
+      const invoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.roomNo}`;
+
       await tx.outboxEvent.create({
         data: {
           id: uuidv4(),
@@ -612,7 +624,32 @@ export class InvoiceService {
             templateId: resolvedTemplateId,
             templateBody,
             lineConfigured,
+<<<<<<< HEAD
           } as any,
+=======
+            // Variables for mail-merge in the LINE worker. Kept flat and
+            // serialisable so the payload survives round-tripping through the
+            // outbox (JSON column).
+            interpolationVars: {
+              tenantName: tenantFullName ?? '',
+              roomNumber: invoice.roomNo,
+              invoiceNumber,
+              year: String(invoice.year),
+              month: String(invoice.month).padStart(2, '0'),
+              totalAmount: Number(invoice.totalAmount).toLocaleString('th-TH', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }),
+              dueDate: invoice.dueDate
+                ? invoice.dueDate.toLocaleDateString('th-TH', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })
+                : '',
+            },
+          } as unknown as Json,
+>>>>>>> claude/xenodochial-hellman
           retryCount: 0,
         },
       });
@@ -940,6 +977,143 @@ export class InvoiceService {
     `;
 
     return rows[0] ?? null;
+  }
+
+  /**
+   * Deliver an invoice via the PDF or PRINT channel.
+   *
+   * These channels do not use LINE or the outbox. We lock the invoice row,
+   * record a synchronous InvoiceDelivery, flip the invoice to SENT, and
+   * return the admin-facing signed PDF URL so staff can download (PDF) or
+   * feed it to a print queue (PRINT).
+   *
+   * PDF: delivery status = SENT (staff already has the file)
+   * PRINT: delivery status = PENDING until staff marks it printed
+   */
+  private async sendInvoiceNonLineChannel(
+    id: string,
+    channel: 'PDF' | 'PRINT',
+    sentBy?: string
+  ): Promise<InvoiceSendResult> {
+    const pdfUrl = buildInvoiceAccessUrl(id, {
+      absoluteBaseUrl: process.env.APP_BASE_URL || '',
+      signed: true,
+    });
+
+    const result = await prisma.$transaction(async (tx) => {
+      const invoice = await this.lockInvoiceForSend(tx, id);
+      if (!invoice) {
+        throw new NotFoundError('Invoice', id);
+      }
+      if (invoice.status === 'SENT' || invoice.status === 'PAID') {
+        throw new ValidationError(`Invoice is already ${invoice.status.toLowerCase()}`);
+      }
+
+      let docTemplate: { id: string; body: string } | null = null;
+      try {
+        docTemplate = await tx.documentTemplate.findFirst({
+          where: { type: 'INVOICE' },
+          orderBy: { updatedAt: 'desc' },
+          select: { id: true, body: true },
+        });
+      } catch (err) {
+        logger.warn({
+          type: 'invoice_doc_template_lookup_failed',
+          invoiceId: id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+
+      const documentTemplateId = docTemplate?.id ?? null;
+      const documentTemplateHash = docTemplate?.body
+        ? createHash('sha256').update(docTemplate.body).digest('hex')
+        : null;
+
+      // PDF: already delivered to admin (downloaded) → SENT immediately.
+      // PRINT: awaits physical print confirmation → PENDING until staff flips
+      // it via PATCH /api/invoices/deliveries/[id]/mark-printed.
+      const sentAtForDelivery: Date | null = channel === 'PDF' ? new Date() : null;
+
+      const delivery = await tx.invoiceDelivery.create({
+        data: {
+          invoiceId: id,
+          channel,
+          status: channel === 'PDF' ? 'SENT' : 'PENDING',
+          recipientRef: null,
+          sentAt: sentAtForDelivery,
+          createdBy: sentBy,
+          ...(documentTemplateId ? { documentTemplateId } : {}),
+          ...(documentTemplateHash ? { documentTemplateHash } : {}),
+        },
+      });
+
+      const sentAt = new Date();
+      const updatedCount = await tx.invoice.updateMany({
+        where: { id, status: invoice.status },
+        data: { status: 'SENT', sentAt },
+      });
+      if (updatedCount.count !== 1) {
+        throw new ConflictError('Invoice send state changed before delivery could be recorded');
+      }
+
+      const updatedInvoice = await tx.invoice.findUnique({
+        where: { id },
+        include: {
+          room: {
+            include: {
+              tenants: {
+                where: { role: 'PRIMARY', moveOutDate: null },
+                include: { tenant: true },
+                take: 1,
+              },
+            },
+          },
+          deliveries: { orderBy: { createdAt: 'desc' } },
+        },
+      });
+      if (!updatedInvoice) {
+        throw new NotFoundError('Invoice', id);
+      }
+
+      return {
+        delivery,
+        updatedInvoice,
+        documentTemplateId,
+        documentTemplateHash,
+      };
+    });
+
+    await logAudit({
+      actorId: sentBy,
+      action: channel === 'PDF' ? 'INVOICE_PDF_GENERATED' : 'INVOICE_PRINT_QUEUED',
+      entityType: 'INVOICE',
+      entityId: id,
+      metadata: {
+        deliveryId: result.delivery.id,
+        channel,
+        pdfUrl,
+      },
+    });
+
+    logger.info({
+      type: channel === 'PDF' ? 'invoice_pdf_generated' : 'invoice_print_queued',
+      invoiceId: id,
+      deliveryId: result.delivery.id,
+    });
+
+    return {
+      queued: true,
+      invoice: this.formatInvoiceResponse(result.updatedInvoice),
+      errorMessage: null,
+      lineConfigured: isLineConfigured(),
+      hasLineRecipient: false,
+      deliveryStatus: 'PENDING',
+      deliveryId: result.delivery.id,
+      messageTemplateId: null,
+      documentTemplateId: result.documentTemplateId,
+      documentTemplateHash: result.documentTemplateHash,
+      pdfUrl,
+    };
   }
 
   private async lockPrimaryRecipientForSend(

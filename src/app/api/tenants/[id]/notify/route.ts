@@ -5,6 +5,7 @@ import { asyncHandler, ApiResponse, ConflictError, NotFoundError } from '@/lib/u
 import { getOutboxProcessor } from '@/lib/outbox';
 import { logAudit } from '@/modules/audit';
 import { logger, prisma } from '@/lib';
+import { applyPlainTextTemplateVariables } from '@/lib/templates/document-template';
 import type { Json } from '@/types/prisma-json';
 
 const schema = z.object({
@@ -24,6 +25,8 @@ export const POST = asyncHandler(
       where: { id: params.id },
       select: {
         id: true,
+        firstName: true,
+        lastName: true,
         lineUserId: true,
         roomTenants: {
           where: {
@@ -86,6 +89,12 @@ export const POST = asyncHandler(
     } catch {
       // Non-blocking: fall back to the default reminder body.
     }
+
+    const tenantFullName = `${tenant.firstName ?? ''} ${tenant.lastName ?? ''}`.trim();
+    text = applyPlainTextTemplateVariables(text, {
+      tenantName: tenantFullName,
+      roomNumber: activeRoom?.roomNo ?? '',
+    });
 
     const processor = getOutboxProcessor();
     await processor.writeOne(

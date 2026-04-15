@@ -166,6 +166,27 @@ export function applyTemplateVariables(
   return html;
 }
 
+// ── Plain-text mail-merge ────────────────────────────────────────────────────
+//
+// Used by the LINE messaging path where the template body is plain text (not
+// HTML) and values must not be HTML-escaped. Accepts variable keys with or
+// without double braces — `tenantName` and `{{tenantName}}` both work.
+//
+export function applyPlainTextTemplateVariables(
+  body: string,
+  variables: Record<string, string | number | null | undefined>,
+): string {
+  let out = body;
+  for (const [rawKey, rawValue] of Object.entries(variables)) {
+    const value = rawValue == null ? '' : String(rawValue);
+    const bare = rawKey.replace(/^\{\{|\}\}$/g, '').trim();
+    if (!bare) continue;
+    const pattern = new RegExp(`\\{\\{\\s*${bare.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\}\\}`, 'g');
+    out = out.replace(pattern, value);
+  }
+  return out;
+}
+
 export function documentTemplateHtmlToText(body: string): string {
   return body
     .replace(TEMPLATE_META_PATTERN, '')

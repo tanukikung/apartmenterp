@@ -1,4 +1,5 @@
 import { getEventBus, logger, sendLineImageMessage, sendLineMessage, sendLineFileMessage, prisma } from '@/lib';
+import { applyPlainTextTemplateVariables } from '@/lib/templates/document-template';
 import type { Prisma } from '@prisma/client';
 
 let registered = false;
@@ -74,9 +75,12 @@ export function registerFileSendWorker(options?: { allowInTest?: boolean }): voi
         lineUserId?: string | null;
         pdfUrl: string;
         roomId?: string | null;
+        roomNo?: string | null;
         roomNumber?: string | null;
         totalAmount?: number | null;
         dueDate?: string | null;
+        templateBody?: string | null;
+        interpolationVars?: Record<string, string> | null;
       };
     })?.payload;
     if (!payload) return;
@@ -85,8 +89,9 @@ export function registerFileSendWorker(options?: { allowInTest?: boolean }): voi
       let targetLineUserId = payload.lineUserId || null;
       let conversationId: string | null = null;
 
-      if (!targetLineUserId && payload.roomId) {
-        const conversation = await prisma.conversation.findFirst({ where: { roomNo: payload.roomId } });
+      const roomLookup = payload.roomId || payload.roomNo;
+      if (!targetLineUserId && roomLookup) {
+        const conversation = await prisma.conversation.findFirst({ where: { roomNo: roomLookup } });
         targetLineUserId = conversation?.lineUserId || null;
         conversationId = conversation?.id || null;
       }
@@ -101,17 +106,30 @@ export function registerFileSendWorker(options?: { allowInTest?: boolean }): voi
         ? payload.pdfUrl
         : `${baseUrl}${payload.pdfUrl}`;
 
-      const fileName = `invoice-${payload.roomNumber || 'unknown'}-${payload.dueDate ? new Date(payload.dueDate).toLocaleDateString('th-TH') : 'document'}.pdf`;
+      const roomLabel = payload.roomNumber || payload.roomNo || 'unknown';
+      const fileName = `invoice-${roomLabel}-${payload.dueDate ? new Date(payload.dueDate).toLocaleDateString('th-TH') : 'document'}.pdf`;
 
       // Send PDF as LINE file attachment
       await sendLineFileMessage(targetLineUserId, absolutePdfUrl, fileName);
 
-      // Also send a brief text summary
-      const parts: string[] = ['Invoice sent'];
-      if (payload.roomNumber) parts.push(`Room ${payload.roomNumber}`);
-      if (payload.totalAmount != null) parts.push(`Amount ${payload.totalAmount}`);
-      if (payload.dueDate) parts.push(`Due ${new Date(payload.dueDate).toLocaleDateString()}`);
-      await sendLineMessage(targetLineUserId, parts.join(' | '));
+      // Build the text message. If a MessageTemplate body is attached, apply
+      // variable interpolation ({{tenantName}}, {{roomNumber}}, {{totalAmount}},
+      // {{dueDate}}, {{invoiceNumber}}) using the flat vars in the payload.
+      // Fall back to a default pipe-separated summary if no template is set.
+      let textMessage: string;
+      if (payload.templateBody && payload.templateBody.trim().length > 0) {
+        textMessage = applyPlainTextTemplateVariables(
+          payload.templateBody,
+          (payload.interpolationVars as Record<string, string>) || {},
+        );
+      } else {
+        const parts: string[] = ['Invoice sent'];
+        if (roomLabel !== 'unknown') parts.push(`Room ${roomLabel}`);
+        if (payload.totalAmount != null) parts.push(`Amount ${payload.totalAmount}`);
+        if (payload.dueDate) parts.push(`Due ${new Date(payload.dueDate).toLocaleDateString()}`);
+        textMessage = parts.join(' | ');
+      }
+      await sendLineMessage(targetLineUserId, textMessage);
 
       if (payload.deliveryId) {
         await prisma.invoiceDelivery.update({
