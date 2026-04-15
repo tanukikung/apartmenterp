@@ -284,17 +284,17 @@ export default function BankAccountsPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div className="flex items-center gap-3">
           <Link
             href="/admin/settings"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] shadow-sm transition-colors hover:border-[var(--primary)]30 hover:bg-[var(--surface-container)]"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-colors hover:border-primary30 hover:bg-surface-container"
           >
-            <ArrowLeft className="h-4 w-4 text-[var(--on-primary)]" />
+            <ArrowLeft className="h-4 w-4 text-on-primary" />
           </Link>
           <div>
-            <h1 className="text-xl font-semibold text-[var(--on-primary)]">บัญชีธนาคาร</h1>
-            <p className="text-sm text-[var(--on-primary)]/80">
+            <h1 className="text-xl font-semibold text-on-primary">บัญชีธนาคาร</h1>
+            <p className="text-sm text-on-primary/80">
               จัดการบัญชีที่ใช้รับชำระเงินในใบแจ้งหนี้และใบเสร็จ
             </p>
           </div>
@@ -334,23 +334,23 @@ export default function BankAccountsPage() {
       {/* Two-column layout */}
       <div className="grid gap-6 xl:grid-cols-5">
         {/* Left: Table */}
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 xl:col-span-3">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 xl:col-span-3">
           <div className="mb-4 flex items-center justify-between px-5 py-4">
-            <h2 className="text-base font-semibold text-[var(--on-surface)]">บัญชีธนาคารทั้งหมด</h2>
-            <span className="rounded-full bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface-variant)]">
+            <h2 className="text-base font-semibold text-on-surface">บัญชีธนาคารทั้งหมด</h2>
+            <span className="rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant">
               {totalAccounts} บัญชี
             </span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-[var(--surface-container)]">
+              <thead className="bg-surface-container">
                 <tr>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] text-left">ธนาคาร</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] text-left">เลขบัญชี</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] text-left">PromptPay</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] text-center">สถานะ</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] text-right">การดำเนินการ</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-left">ธนาคาร</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-left">เลขบัญชี</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-left">PromptPay</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-center">สถานะ</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-right">การดำเนินการ</th>
                 </tr>
               </thead>
               <tbody>
@@ -451,16 +451,16 @@ export default function BankAccountsPage() {
         </div>
 
         {/* Right: Add / Edit form */}
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 xl:col-span-2">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 xl:col-span-2">
           <div className="mb-5 flex items-center gap-3 px-5 py-4">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
               {isEditing ? (
-                <Edit2 className="h-4 w-4 text-[var(--primary)]" />
+                <Edit2 className="h-4 w-4 text-primary" />
               ) : (
-                <PlusCircle className="h-4 w-4 text-[var(--primary)]" />
+                <PlusCircle className="h-4 w-4 text-primary" />
               )}
             </div>
-            <h2 className="text-base font-semibold text-[var(--on-surface)]">
+            <h2 className="text-base font-semibold text-on-surface">
               {isEditing ? `แก้ไข: ${editId}` : 'เพิ่มบัญชีธนาคาร'}
             </h2>
           </div>
@@ -468,27 +468,27 @@ export default function BankAccountsPage() {
           <div className="space-y-4 px-5 pb-5">
             {!isEditing && (
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">
+                <label className="mb-1.5 block text-sm font-medium text-on-surface">
                   รหัสบัญชี <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 font-mono"
+                  className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono"
                   placeholder="เช่น ACC_KBANK_01"
                   value={form.id}
                   onChange={(e) => setForm((prev) => ({ ...prev, id: e.target.value }))}
                 />
-                <p className="mt-1 text-xs text-[var(--on-surface-variant)]">ต้องไม่ซ้ำกัน ไม่สามารถเปลี่ยนได้หลังสร้างแล้ว</p>
+                <p className="mt-1 text-xs text-on-surface-variant">ต้องไม่ซ้ำกัน ไม่สามารถเปลี่ยนได้หลังสร้างแล้ว</p>
               </div>
             )}
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
                 ชื่อที่แสดง <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="เช่น บัญชีหลัก กสิกรไทย"
                 value={form.name}
                 onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -496,12 +496,12 @@ export default function BankAccountsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
                 ชื่อธนาคาร <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="เช่น กสิกรไทย"
                 list="bank-suggestions"
                 value={form.bankName}
@@ -523,12 +523,12 @@ export default function BankAccountsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
                 เลขบัญชี <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 font-mono tracking-wider"
+                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono tracking-wider"
                 placeholder="xxx-x-xxxxx-x"
                 value={form.bankAccountNo}
                 onChange={(e) => setForm((prev) => ({ ...prev, bankAccountNo: e.target.value }))}
@@ -536,27 +536,27 @@ export default function BankAccountsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">
-                หมายเลข PromptPay <span className="text-[var(--on-surface-variant)] font-normal">(ไม่บังคับ)</span>
+              <label className="mb-1.5 block text-sm font-medium text-on-surface">
+                หมายเลข PromptPay <span className="text-on-surface-variant font-normal">(ไม่บังคับ)</span>
               </label>
               <input
                 type="text"
-                className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 font-mono"
+                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono"
                 placeholder="0XX-XXX-XXXX or เลขผู้เสียภาษี"
                 value={form.promptpay}
                 onChange={(e) => setForm((prev) => ({ ...prev, promptpay: e.target.value }))}
               />
             </div>
 
-            <div className="flex items-center gap-3 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container)] px-4 py-3">
+            <div className="flex items-center gap-3 rounded-xl border border-outline-variant bg-surface-container px-4 py-3">
               <input
                 type="checkbox"
                 id="active-toggle"
                 checked={form.active}
                 onChange={(e) => setForm((prev) => ({ ...prev, active: e.target.checked }))}
-                className="h-4 w-4 rounded border-[var(--outline)] text-[var(--primary)] focus:ring-[var(--primary)]"
+                className="h-4 w-4 rounded border-outline text-primary focus:ring-primary"
               />
-              <label htmlFor="active-toggle" className="text-sm font-medium text-[var(--on-surface)]">
+              <label htmlFor="active-toggle" className="text-sm font-medium text-on-surface">
                 ใช้งาน (พร้อมใช้ในใบแจ้งหนี้)
               </label>
             </div>
@@ -567,13 +567,13 @@ export default function BankAccountsPage() {
                   <button
                     onClick={() => void handleUpdate()}
                     disabled={saving}
-                    className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-primary text-[var(--on-primary)] hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors flex-1 justify-center disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors flex-1 justify-center disabled:opacity-50"
                   >
                     {saving ? 'กำลังบันทึก...' : 'บันทึก'}
                   </button>
                   <button
                     onClick={cancelEdit}
-                    className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] text-[var(--on-surface)] hover:bg-[var(--surface-container)] px-4 py-2 text-sm font-medium shadow-sm transition-colors justify-center"
+                    className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest text-on-surface hover:bg-surface-container px-4 py-2 text-sm font-medium shadow-sm transition-colors justify-center"
                   >
                     ยกเลิก
                   </button>
@@ -582,7 +582,7 @@ export default function BankAccountsPage() {
                 <button
                   onClick={() => void handleCreate()}
                   disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-primary text-[var(--on-primary)] hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors w-full justify-center disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors w-full justify-center disabled:opacity-50"
                 >
                   <PlusCircle className="h-4 w-4" />
                   {saving ? 'กำลังสร้าง...' : 'เพิ่มบัญชีธนาคาร'}

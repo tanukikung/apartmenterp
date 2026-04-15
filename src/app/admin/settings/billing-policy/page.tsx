@@ -39,10 +39,10 @@ function SettingRow({
   onChange: (value: number) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)] p-5">
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5">
       <div>
-        <div className="font-semibold text-[var(--on-surface)]">{label}</div>
-        <p className="mt-1 text-sm text-[var(--on-surface-variant)]">{description}</p>
+        <div className="font-semibold text-on-surface">{label}</div>
+        <p className="mt-1 text-sm text-on-surface-variant">{description}</p>
       </div>
       <input
         type="number"
@@ -50,7 +50,7 @@ function SettingRow({
         max={max}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="w-24 rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] text-center tabular-nums focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+        className="w-24 rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface text-center tabular-nums focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
       />
     </div>
   );
@@ -128,17 +128,17 @@ export default function BillingPolicyPage() {
 
   return (
     <main className="space-y-6">
-      <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div className="flex items-center gap-3">
           <Link
             href="/admin/settings"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] shadow-sm transition-colors hover:border-[var(--primary)]30 hover:bg-[var(--surface-container)]"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-colors hover:border-primary30 hover:bg-surface-container"
           >
-            <ArrowLeft className="h-4 w-4 text-[var(--on-primary)]" />
+            <ArrowLeft className="h-4 w-4 text-on-primary" />
           </Link>
           <div>
-            <h1 className="text-xl font-semibold text-[var(--on-primary)]">ปฏิทินการเรียกเก็บ</h1>
-            <p className="text-sm text-[var(--on-primary)]/80">
+            <h1 className="text-xl font-semibold text-on-primary">ปฏิทินการเรียกเก็บ</h1>
+            <p className="text-sm text-on-primary/80">
               หน้านี้เชื่อมต่อกับ API ตั้งค่าการเรียกเก็บจริง
             </p>
           </div>
@@ -157,7 +157,7 @@ export default function BillingPolicyPage() {
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="h-24 animate-pulse rounded-xl bg-[var(--surface-container)]" />
+            <div key={index} className="h-24 animate-pulse rounded-xl bg-surface-container" />
           ))}
         </div>
       ) : (
@@ -189,8 +189,8 @@ export default function BillingPolicyPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between rounded-xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)] px-5 py-4">
-        <div className="flex items-center gap-2 text-sm text-[var(--on-surface-variant)]">
+      <div className="flex items-center justify-between rounded-xl border border-outline-variant/10 bg-surface-container-lowest px-5 py-4">
+        <div className="flex items-center gap-2 text-sm text-on-surface-variant">
           <CalendarDays className="h-4 w-4" />
           {isDirty ? 'คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก' : 'ปฏิทินการเรียกเก็บเป็นปัจจุบันแล้ว'}
         </div>
@@ -202,7 +202,7 @@ export default function BillingPolicyPage() {
                 setMessage(null);
                 setError(null);
               }}
-              className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+              className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
             >
               รีเซ็ต
             </button>
@@ -210,7 +210,7 @@ export default function BillingPolicyPage() {
           <button
             onClick={() => void handleSave()}
             disabled={saving || isLoading || !isDirty}
-            className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-primary text-[var(--on-primary)] hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Save className="h-4 w-4" />
             {saving ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}

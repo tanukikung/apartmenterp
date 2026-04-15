@@ -140,29 +140,29 @@ export default function DocumentDetailPage() {
 
   return (
     <main className="space-y-6">
-      <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div className="flex items-center gap-4">
-          <Link href="/admin/documents" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+          <Link href="/admin/documents" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
             <ArrowLeft className="h-4 w-4" />
             เอกสาร
           </Link>
           <div>
-            <h1 className="text-xl font-semibold text-[var(--on-primary)]">{document?.title ?? 'รายละเอียดเอกสาร'}</h1>
-            <p className="text-sm text-[var(--on-primary)]/80">
+            <h1 className="text-xl font-semibold text-on-primary">{document?.title ?? 'รายละเอียดเอกสาร'}</h1>
+            <p className="text-sm text-on-primary/80">
               ไฟล์ที่สร้างแล้ว ข้อมูลเทมเพลตที่ใช้ และไฟล์ที่ดาวน์โหลดได้
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2 mt-4">
           {document?.files.some((f) => f.role === 'PDF') && document.status !== 'SENT' && (
-            <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]" onClick={() => void sendDocument()} disabled={working}>
+            <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={() => void sendDocument()} disabled={working}>
               <Send className="h-4 w-4" />
               {working ? 'กำลังส่ง...' : 'ส่ง PDF'}
             </button>
           )}
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
             onClick={() => setConfirmOpen(true)}
             disabled={working || document?.status === 'SENT'}
             title={document?.status === 'SENT' ? 'ไม่สามารถสร้างเอกสารใหม่ได้ เอกสารถูกส่งแล้ว กรุณาสร้างเอกสารใหม่แทน' : undefined}
@@ -181,62 +181,62 @@ export default function DocumentDetailPage() {
       ) : !document ? null : (
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <div className="space-y-6">
-            <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10">
-              <div className="px-5 py-4 border-b border-[var(--outline-variant)]">
-                <div className="text-sm font-semibold text-[var(--primary)]">ข้อมูลเมตา</div>
+            <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+              <div className="px-5 py-4 border-b border-outline-variant">
+                <div className="text-sm font-semibold text-primary">ข้อมูลเมตา</div>
               </div>
-              <div className="space-y-4 p-5 text-sm text-[var(--on-surface-variant)]">
+              <div className="space-y-4 p-5 text-sm text-on-surface-variant">
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">สถานะ</div>
-                  <div className="mt-1"><span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-[var(--surface-container)] text-[var(--on-surface-variant)]">{document.status}</span></div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">สถานะ</div>
+                  <div className="mt-1"><span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-surface-container text-on-surface-variant">{document.status}</span></div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">ประเภท</div>
-                  <div className="mt-1 text-[var(--on-surface)]">{document.documentType.replace(/_/g, ' ')}</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">ประเภท</div>
+                  <div className="mt-1 text-on-surface">{document.documentType.replace(/_/g, ' ')}</div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">เทมเพลต</div>
-                  <div className="mt-1 text-[var(--on-surface)]">{document.template.name} · v{document.templateVersion.version}</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">เทมเพลต</div>
+                  <div className="mt-1 text-on-surface">{document.template.name} · v{document.templateVersion.version}</div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">ห้อง</div>
-                  <div className="mt-1 text-[var(--on-surface)]">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">ห้อง</div>
+                  <div className="mt-1 text-on-surface">
                     {document.room.roomNumber ?? document.room.roomNo ?? '-'} · Floor {document.room.floorNumber ?? '—'}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">ผู้เช่า</div>
-                  <div className="mt-1 text-[var(--on-surface)]">{document.tenantName ?? 'No tenant linked'}</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">ผู้เช่า</div>
+                  <div className="mt-1 text-on-surface">{document.tenantName ?? 'No tenant linked'}</div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">สร้างเมื่อ</div>
-                  <div className="mt-1 text-[var(--on-surface)]"><ClientOnly fallback="-">{new Date(document.generatedAt).toLocaleString('th-TH')}</ClientOnly></div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">สร้างเมื่อ</div>
+                  <div className="mt-1 text-on-surface"><ClientOnly fallback="-">{new Date(document.generatedAt).toLocaleString('th-TH')}</ClientOnly></div>
                 </div>
               </div>
             </section>
 
-            <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10">
-              <div className="px-5 py-4 border-b border-[var(--outline-variant)]">
-                <div className="text-sm font-semibold text-[var(--primary)] flex items-center gap-2">
-                  <FolderOutput className="h-4 w-4 text-[var(--primary)]" />
+            <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+              <div className="px-5 py-4 border-b border-outline-variant">
+                <div className="text-sm font-semibold text-primary flex items-center gap-2">
+                  <FolderOutput className="h-4 w-4 text-primary" />
                   ไฟล์ที่สร้าง
                 </div>
               </div>
               <div className="space-y-3 p-5">
                 {document.files.map((file) => (
-                  <div key={file.id} className="rounded-xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container)] px-4 py-4">
+                  <div key={file.id} className="rounded-xl border border-outline-variant/10 bg-surface-container px-4 py-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="font-medium text-[var(--on-surface)]">{file.fileName}</div>
-                        <div className="mt-1 text-xs text-[var(--on-surface-variant)]">
+                        <div className="font-medium text-on-surface">{file.fileName}</div>
+                        <div className="mt-1 text-xs text-on-surface-variant">
                           {file.role} · {file.mimeType} · {(file.size / 1024).toFixed(1)} KB
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <a href={file.url} className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+                        <a href={file.url} className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
                           <Download className="h-3.5 w-3.5" />
                         </a>
-                        <a href={file.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+                        <a href={file.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
                       </div>
@@ -247,10 +247,10 @@ export default function DocumentDetailPage() {
             </section>
           </div>
 
-          <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-            <div className="px-5 py-4 border-b border-[var(--outline-variant)]">
-              <div className="text-sm font-semibold text-[var(--primary)] flex items-center gap-2">
-                <FileCode2 className="h-4 w-4 text-[var(--primary)]" />
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="px-5 py-4 border-b border-outline-variant">
+              <div className="text-sm font-semibold text-primary flex items-center gap-2">
+                <FileCode2 className="h-4 w-4 text-primary" />
                 บริบทการสร้าง
               </div>
             </div>

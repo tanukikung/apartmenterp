@@ -126,40 +126,40 @@ export function MoveOutDetailPanel({
       </div>
 
       {/* Summary Card */}
-      <div className="rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 py-3 space-y-2">
+      <div className="rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-3 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">
             ห้อง
           </span>
-          <span className="font-semibold text-[var(--on-surface)]">
+          <span className="font-semibold text-on-surface">
             {moveOut.contract?.roomNo ?? '—'}
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">
             ผู้เช่า
           </span>
-          <span className="text-[var(--on-surface)]">
+          <span className="text-on-surface">
             {moveOut.contract?.primaryTenant?.fullName ?? '—'}
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">
             วันที่ย้ายออก
           </span>
-          <span className="text-[var(--on-surface)]">
+          <span className="text-on-surface">
             {fmtDate(moveOut.moveOutDate)}
           </span>
         </div>
       </div>
 
       {/* Deposit Summary */}
-      <div className="rounded-lg border border-[var(--primary-container)]/30 bg-[var(--primary-container)]/30 px-4 py-3 space-y-2">
+      <div className="rounded-lg border border-primary-container/30 bg-primary-container/30 px-4 py-3 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">
             เงินมัดจำ
           </span>
-          <span className="font-semibold text-[var(--on-surface)]">
+          <span className="font-semibold text-on-surface">
             {fmtMoney(moveOut.depositAmount)}
           </span>
         </div>
@@ -169,8 +169,8 @@ export function MoveOutDetailPanel({
           </span>
           <span className="font-semibold">-{fmtMoney(moveOut.totalDeduction)}</span>
         </div>
-        <div className="border-t border-[var(--outline-variant)] pt-2 flex items-center justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--on-surface-variant)]">
+        <div className="border-t border-outline-variant pt-2 flex items-center justify-between">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
             คืนเงินสุทธิ
           </span>
           <span className="font-bold text-lg text-emerald-600">
@@ -215,34 +215,34 @@ export function MoveOutDetailPanel({
       {canCalculate && (
         <form
           onSubmit={onCalculate}
-          className="rounded-lg border border-[var(--outline-variant)] p-4 space-y-3"
+          className="rounded-lg border border-outline-variant p-4 space-y-3"
         >
-          <h4 className="text-[12px] font-semibold text-[var(--on-surface)]">
+          <h4 className="text-[12px] font-semibold text-on-surface">
             รายการหักลบ
           </h4>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">
+              <label className="mb-1 block text-[11px] font-medium text-on-surface">
                 ค่าทำความสะอาด
               </label>
               <input
                 type="number"
                 min="0"
                 step="1"
-                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                 value={deductionForm.cleaningFee}
                 onChange={(e) => patchDeduction('cleaningFee', e.target.value)}
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">
+              <label className="mb-1 block text-[11px] font-medium text-on-surface">
                 ค่าซ่อมแซม
               </label>
               <input
                 type="number"
                 min="0"
                 step="1"
-                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                 value={deductionForm.damageRepairCost}
                 onChange={(e) =>
                   patchDeduction('damageRepairCost', e.target.value)
@@ -251,14 +251,14 @@ export function MoveOutDetailPanel({
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">
+            <label className="mb-1 block text-[11px] font-medium text-on-surface">
               หักอื่นๆ
             </label>
             <input
               type="number"
               min="0"
               step="1"
-              className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+              className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
               value={deductionForm.otherDeductions}
               onChange={(e) =>
                 patchDeduction('otherDeductions', e.target.value)
@@ -282,18 +282,18 @@ export function MoveOutDetailPanel({
       {canCalculate && (
         <form
           onSubmit={onAddItem}
-          className="rounded-lg border border-[var(--outline-variant)] p-4 space-y-3"
+          className="rounded-lg border border-outline-variant p-4 space-y-3"
         >
-          <h4 className="text-[12px] font-semibold text-[var(--on-surface)]">
+          <h4 className="text-[12px] font-semibold text-on-surface">
             เพิ่มรายการตรวจสอบ
           </h4>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">
+              <label className="mb-1 block text-[11px] font-medium text-on-surface">
                 หมวดหมู่
               </label>
               <select
-                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                 value={newItemForm.category}
                 onChange={(e) => patchItem('category', e.target.value)}
               >
@@ -306,11 +306,11 @@ export function MoveOutDetailPanel({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">
+              <label className="mb-1 block text-[11px] font-medium text-on-surface">
                 สภาพ
               </label>
               <select
-                className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
                 value={newItemForm.condition}
                 onChange={(e) => patchItem('condition', e.target.value)}
               >
@@ -322,12 +322,12 @@ export function MoveOutDetailPanel({
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">
+            <label className="mb-1 block text-[11px] font-medium text-on-surface">
               รายการ
             </label>
             <input
               type="text"
-              className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+              className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
               placeholder="เช่น ผนังทาสี, กระเบื้องแตก"
               value={newItemForm.item}
               onChange={(e) => patchItem('item', e.target.value)}
@@ -335,14 +335,14 @@ export function MoveOutDetailPanel({
             />
           </div>
           <div>
-            <label className="mb-1 block text-[11px] font-medium text-[var(--on-surface)]">
+            <label className="mb-1 block text-[11px] font-medium text-on-surface">
               ค่าใช้จ่าย (฿)
             </label>
             <input
               type="number"
               min="0"
               step="1"
-              className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+              className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
               value={newItemForm.cost}
               onChange={(e) => patchItem('cost', e.target.value)}
             />
@@ -350,7 +350,7 @@ export function MoveOutDetailPanel({
           <button
             type="submit"
             disabled={itemSaving}
-            className="w-full rounded-lg bg-primary py-2 text-sm font-semibold text-[var(--on-primary)] hover:bg-primary/90 disabled:opacity-50"
+            className="w-full rounded-lg bg-primary py-2 text-sm font-semibold text-on-primary hover:bg-primary/90 disabled:opacity-50"
           >
             {itemSaving ? 'กำลังเพิ่ม...' : 'เพิ่มรายการ'}
           </button>
@@ -359,19 +359,19 @@ export function MoveOutDetailPanel({
 
       {/* Inspection Items */}
       {moveOut.items.length > 0 && (
-        <div className="rounded-lg border border-[var(--outline-variant)] p-4 space-y-3">
-          <h4 className="text-[12px] font-semibold text-[var(--on-surface)]">
+        <div className="rounded-lg border border-outline-variant p-4 space-y-3">
+          <h4 className="text-[12px] font-semibold text-on-surface">
             รายการตรวจสอบ
           </h4>
           <div className="space-y-2">
             {moveOut.items.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between rounded-lg bg-[var(--surface-container)] px-3 py-2"
+                className="flex items-center justify-between rounded-lg bg-surface-container px-3 py-2"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-[var(--on-surface)]">
+                    <span className="text-sm font-medium text-on-surface">
                       {item.item}
                     </span>
                     <span
@@ -394,7 +394,7 @@ export function MoveOutDetailPanel({
                             : 'หาย'}
                     </span>
                   </div>
-                  <div className="text-[11px] text-[var(--on-surface-variant)]">
+                  <div className="text-[11px] text-on-surface-variant">
                     {item.category}{' '}
                     {item.notes && `- ${item.notes}`}
                   </div>
@@ -420,22 +420,22 @@ export function MoveOutDetailPanel({
 
       {/* Notes */}
       {moveOut.notes && (
-        <div className="rounded-lg border border-[var(--outline-variant)] p-4">
-          <h4 className="text-[12px] font-semibold text-[var(--on-surface)] mb-2">
+        <div className="rounded-lg border border-outline-variant p-4">
+          <h4 className="text-[12px] font-semibold text-on-surface mb-2">
             หมายเหตุ
           </h4>
-          <p className="text-sm text-[var(--on-surface-variant)] whitespace-pre-wrap">
+          <p className="text-sm text-on-surface-variant whitespace-pre-wrap">
             {moveOut.notes}
           </p>
         </div>
       )}
 
       {/* Timeline */}
-      <div className="rounded-lg border border-[var(--outline-variant)] p-4 space-y-2">
-        <h4 className="text-[12px] font-semibold text-[var(--on-surface)]">
+      <div className="rounded-lg border border-outline-variant p-4 space-y-2">
+        <h4 className="text-[12px] font-semibold text-on-surface">
           ประวัติ
         </h4>
-        <div className="text-xs text-[var(--on-surface-variant)] space-y-1">
+        <div className="text-xs text-on-surface-variant space-y-1">
           <div>สร้าง: {fmtDate(moveOut.createdAt)}</div>
           {moveOut.lineNoticeSentAt && (
             <div>ส่ง LINE: {fmtDate(moveOut.lineNoticeSentAt)}</div>

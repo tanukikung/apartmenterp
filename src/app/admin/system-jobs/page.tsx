@@ -258,10 +258,10 @@ export default function SystemJobsPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <section className="rounded-2xl border border-[var(--outline-variant)]/10 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5">
+      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
         <div>
-          <h1 className="text-xl font-semibold text-[var(--on-primary)]">งานระบบ</h1>
-          <p className="text-sm text-[var(--on-primary)]/80">
+          <h1 className="text-xl font-semibold text-on-primary">งานระบบ</h1>
+          <p className="text-sm text-on-primary/80">
             งานเบื้องหลังที่กำหนดเวลาไว้ ระบบอัตโนมัติบิลลิ่ง และงานบำรุงรักษาระบบ
           </p>
         </div>
@@ -269,7 +269,7 @@ export default function SystemJobsPage() {
           <button
             onClick={() => fetchJobStatus(true)}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-50"
           >
             <RotateCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing ? 'กำลังรีเฟรช…' : 'รีเฟรช'}
@@ -326,10 +326,10 @@ export default function SystemJobsPage() {
             const jobToast = toasts.find((t) => t.jobId === job.id);
 
             return (
-              <div key={job.id} className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10">
-                <div className="px-5 py-4 border-b border-[var(--outline-variant)]">
+              <div key={job.id} className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+                <div className="px-5 py-4 border-b border-outline-variant">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <h3 className="text-sm font-semibold text-[var(--primary)] flex items-center gap-2">{job.name}</h3>
+                    <h3 className="text-sm font-semibold text-primary flex items-center gap-2">{job.name}</h3>
                     <StatusBadge status={job.status} />
                   </div>
                   <button
@@ -342,7 +342,7 @@ export default function SystemJobsPage() {
                         ? 'งานกำลังรันอยู่แล้ว'
                         : `รัน ${job.name} ทันที`
                     }
-                    className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-primary text-[var(--on-primary)] hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 mt-3"
+                    className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 mt-3"
                   >
                     {isRunning ? (
                       <>
@@ -365,7 +365,7 @@ export default function SystemJobsPage() {
                     <div className="flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5" />
                       <span className="font-medium">เวลา:</span>
-                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-[var(--surface-container)] text-[var(--on-surface-variant)]">{job.schedule}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-surface-container text-on-surface-variant">{job.schedule}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       {job.lastRun ? (

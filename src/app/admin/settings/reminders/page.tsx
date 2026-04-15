@@ -201,22 +201,22 @@ export default function ReminderConfigPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
-              <Bell className="h-5 w-5 text-[var(--on-primary)]" strokeWidth={1.75} />
+              <Bell className="h-5 w-5 text-on-primary" strokeWidth={1.75} />
             </div>
             <div>
-              <h1 className="text-base font-semibold text-[var(--on-primary)]">ตั้งค่าการแจ้งเตือนอัตโนมัติ</h1>
-              <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">กำหนดตารางและข้อความสำหรับ reminder อัตโนมัติ</p>
+              <h1 className="text-base font-semibold text-on-primary">ตั้งค่าการแจ้งเตือนอัตโนมัติ</h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">กำหนดตารางและข้อความสำหรับ reminder อัตโนมัติ</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => void refetch()}
-              className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
+              className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30"
             >
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               รีเฟรช
@@ -227,22 +227,22 @@ export default function ReminderConfigPage() {
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
-        <Link href="/admin/settings" className="flex items-center gap-1 text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]">
+        <Link href="/admin/settings" className="flex items-center gap-1 text-on-surface-variant hover:text-on-surface">
           <ArrowLeft className="h-4 w-4" /> ตั้งค่า
         </Link>
         <span className="text-outline-variant">/</span>
-        <span className="text-[var(--on-surface)]">การแจ้งเตือนอัตโนมัติ</span>
+        <span className="text-on-surface">การแจ้งเตือนอัตโนมัติ</span>
       </div>
 
       {/* Alerts */}
       {successMsg && (
-        <div className="flex items-center gap-3 rounded-xl border border-[var(--tertiary-container)] bg-[var(--tertiary-container)]/20 px-5 py-3.5 text-sm font-medium text-[var(--on-tertiary-container)]">
+        <div className="flex items-center gap-3 rounded-xl border border-tertiary-container bg-tertiary-container/20 px-5 py-3.5 text-sm font-medium text-on-tertiary-container">
           <CheckCircle2 className="h-5 w-5 shrink-0" />
           {successMsg}
         </div>
       )}
       {fetchError && (
-        <div className="flex items-center gap-3 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-5 py-3.5 text-sm font-medium text-[var(--on-error-container)]">
+        <div className="flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-5 py-3.5 text-sm font-medium text-on-error-container">
           <XCircle className="h-5 w-5 shrink-0" />
           {fetchError instanceof Error ? fetchError.message : String(fetchError)}
         </div>
@@ -264,25 +264,25 @@ export default function ReminderConfigPage() {
       {!showForm ? (
         <button
           onClick={() => setShowForm(true)}
-          className="inline-flex items-center gap-2 rounded-xl border border-primary bg-primary px-5 py-2.5 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90"
+          className="inline-flex items-center gap-2 rounded-xl border border-primary bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" />
           เพิ่มการตั้งค่า
         </button>
       ) : (
-        <div className="rounded-2xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-lowest)] p-6 space-y-4">
-          <h3 className="font-semibold text-[var(--on-surface)]">เพิ่มการตั้งค่า Reminder ใหม่</h3>
+        <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-6 space-y-4">
+          <h3 className="font-semibold text-on-surface">เพิ่มการตั้งค่า Reminder ใหม่</h3>
 
           {/* Presets */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-[var(--on-surface-variant)]">เลือกเทมเพลตสำเร็จรูป</label>
+            <label className="mb-1.5 block text-xs font-medium text-on-surface-variant">เลือกเทมเพลตสำเร็จรูป</label>
             <div className="flex flex-wrap gap-2">
               {PRESET_ROWS.map((p, i) => (
                 <button
                   key={p.periodDays}
                   type="button"
                   onClick={() => applyPreset(i)}
-                  className="rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-lowest)] transition-colors"
+                  className="rounded-lg border border-outline-variant bg-surface-container px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:bg-surface-container-lowest transition-colors"
                 >
                   {periodLabel(p.periodDays)}
                 </button>
@@ -292,23 +292,23 @@ export default function ReminderConfigPage() {
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-[var(--on-surface)]">จำนวนวัน</label>
+              <label className="mb-1 block text-sm font-medium text-on-surface">จำนวนวัน</label>
               <input
                 type="number"
                 value={formDays}
                 onChange={(e) => setFormDays(Number(e.target.value))}
                 min={-60}
                 max={60}
-                className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
               />
-              <p className="mt-1 text-xs text-[var(--on-surface-variant)]">{periodLabel(formDays)}</p>
+              <p className="mt-1 text-xs text-on-surface-variant">{periodLabel(formDays)}</p>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-[var(--on-surface)]">ความสำคัญ</label>
+              <label className="mb-1 block text-sm font-medium text-on-surface">ความสำคัญ</label>
               <select
                 value={formPriority}
                 onChange={(e) => setFormPriority(e.target.value as typeof formPriority)}
-                className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
               >
                 <option value="LOW">LOW</option>
                 <option value="NORMAL">NORMAL</option>
@@ -317,11 +317,11 @@ export default function ReminderConfigPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-[var(--on-surface)]">ใช้กับ</label>
+              <label className="mb-1 block text-sm font-medium text-on-surface">ใช้กับ</label>
               <select
                 value={formAppliesTo}
                 onChange={(e) => setFormAppliesTo(e.target.value as typeof formAppliesTo)}
-                className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)]"
+                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
               >
                 <option value="ALL">ทั้งหมด</option>
                 <option value="OVERDUE">ค้างชำระ</option>
@@ -331,23 +331,23 @@ export default function ReminderConfigPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-[var(--on-surface)]">ข้อความ (Thai)</label>
+            <label className="mb-1 block text-sm font-medium text-on-surface">ข้อความ (Thai)</label>
             <textarea
               value={formMessage}
               onChange={(e) => setFormMessage(e.target.value)}
               rows={3}
               placeholder="เรียนผู้เช่าห้อง {{roomNo}} ค่ะ..."
-              className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]"
+              className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant"
             />
           </div>
 
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-[var(--on-surface)]">
+            <label className="flex items-center gap-2 text-sm text-on-surface">
               <input
                 type="checkbox"
                 checked={formActive}
                 onChange={(e) => setFormActive(e.target.checked)}
-                className="h-4 w-4 rounded border-[var(--outline)]"
+                className="h-4 w-4 rounded border-outline"
               />
               เปิดใช้งานทันที
             </label>
@@ -357,14 +357,14 @@ export default function ReminderConfigPage() {
             <button
               onClick={() => void handleAdd()}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {saving ? 'กำลังบันทึก...' : 'บันทึก'}
             </button>
             <button
               onClick={() => { setShowForm(false); setActionError(null); }}
-              className="inline-flex items-center gap-2 rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+              className="inline-flex items-center gap-2 rounded-xl border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
             >
               ยกเลิก
             </button>
@@ -375,10 +375,10 @@ export default function ReminderConfigPage() {
       {/* Config List */}
       {isLoading ? (
         <div className="flex items-center justify-center p-10">
-          <Loader2 className="h-8 w-8 animate-spin text-[var(--on-surface-variant)]" />
+          <Loader2 className="h-8 w-8 animate-spin text-on-surface-variant" />
         </div>
       ) : configs.length === 0 ? (
-        <div className="rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-lowest)] p-10 text-center text-[var(--on-surface-variant)]">
+        <div className="rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-10 text-center text-on-surface-variant">
           ไม่มีการตั้งค่า reminder — คลิก &quot;เพิ่มการตั้งค่า&quot; เพื่อสร้าง
         </div>
       ) : (
@@ -386,8 +386,8 @@ export default function ReminderConfigPage() {
           {configs.map((config) => (
             <div
               key={config.id}
-              className={`rounded-2xl border bg-[var(--surface-container-lowest)] p-5 transition-opacity ${
-                config.isActive ? 'border-[var(--primary)]/20' : 'border-[var(--outline-variant)]/30 opacity-60'
+              className={`rounded-2xl border bg-surface-container-lowest p-5 transition-opacity ${
+                config.isActive ? 'border-primary/20' : 'border-outline-variant/30 opacity-60'
               }`}
             >
               <div className="flex items-start justify-between gap-4">
@@ -396,7 +396,7 @@ export default function ReminderConfigPage() {
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${priorityColor(config.priority)}`}>
                       {config.priority}
                     </span>
-                    <span className="text-sm font-semibold text-[var(--on-surface)]">
+                    <span className="text-sm font-semibold text-on-surface">
                       {periodLabel(config.periodDays)}
                     </span>
                     <span className={`rounded-full px-2 py-0.5 text-xs ${config.appliesTo === 'ALL' ? 'bg-slate-100 text-slate-600' : config.appliesTo === 'OVERDUE' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
@@ -406,8 +406,8 @@ export default function ReminderConfigPage() {
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">ปิดใช้งาน</span>
                     )}
                   </div>
-                  <p className="mt-2 text-sm text-[var(--on-surface-variant)] line-clamp-2">{config.messageTh}</p>
-                  <p className="mt-1 text-xs text-[var(--on-surface-variant)]/60">
+                  <p className="mt-2 text-sm text-on-surface-variant line-clamp-2">{config.messageTh}</p>
+                  <p className="mt-1 text-xs text-on-surface-variant/60">
                     อัปเดตล่าสุด: {new Date(config.updatedAt).toLocaleString('th-TH')}
                   </p>
                 </div>
@@ -420,7 +420,7 @@ export default function ReminderConfigPage() {
                     className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                       config.isActive
                         ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
-                        : 'border-[var(--outline-variant)] bg-[var(--surface-container)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-lowest)]'
+                        : 'border-outline-variant bg-surface-container text-on-surface-variant hover:bg-surface-container-lowest'
                     }`}
                   >
                     {config.isActive ? (

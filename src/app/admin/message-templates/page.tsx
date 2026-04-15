@@ -90,8 +90,8 @@ const VARIABLE_HINTS: { label: string; value: string }[] = [
 const TYPE_BADGE: Record<TemplateType, { cls: string; label: string }> = {
   INVOICE_SEND: { cls: 'bg-blue-100 text-blue-700 border-blue-200', label: 'INVOICE' },
   PAYMENT_REMINDER: { cls: 'bg-amber-100 text-amber-700 border-amber-200', label: 'REMINDER' },
-  OVERDUE_NOTICE: { cls: 'bg-[var(--error-container)] text-[var(--on-error-container)] border-[var(--error-container)]/30', label: 'OVERDUE' },
-  CUSTOM: { cls: 'bg-[var(--surface-container)] text-[var(--on-surface-variant)] border-[var(--outline-variant)]', label: 'CUSTOM' },
+  OVERDUE_NOTICE: { cls: 'bg-error-container text-on-error-container border-error-container/30', label: 'OVERDUE' },
+  CUSTOM: { cls: 'bg-surface-container text-on-surface-variant border-outline-variant', label: 'CUSTOM' },
 };
 
 const EMPTY_FORM: TemplateFormData = { name: '', type: 'INVOICE_SEND', body: '' };
@@ -114,7 +114,7 @@ function generateId() {
 // ---------------------------------------------------------------------------
 
 function TypeBadge({ type }: { type: TemplateType }) {
-  const { cls, label } = TYPE_BADGE[type] ?? { cls: 'bg-[var(--surface-container)] text-[var(--on-surface-variant)] border-[var(--outline-variant)]', label: type };
+  const { cls, label } = TYPE_BADGE[type] ?? { cls: 'bg-surface-container text-on-surface-variant border-outline-variant', label: type };
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold tracking-wide ${cls}`}>
       {label}
@@ -128,7 +128,7 @@ function TypeBadge({ type }: { type: TemplateType }) {
 
 function VarChip({ value }: { value: string }) {
   return (
-    <code className="inline-flex items-center gap-1 rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container)] px-2 py-0.5 font-mono text-xs text-[var(--on-surface-variant)]">
+    <code className="inline-flex items-center gap-1 rounded-md border border-outline-variant bg-surface-container px-2 py-0.5 font-mono text-xs text-on-surface-variant">
       {value}
     </code>
   );
@@ -152,20 +152,20 @@ function ConfirmDeleteModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-[var(--error-container)]/30 bg-[var(--surface-container-lowest)] p-6 shadow-xl">
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--error-container)]/20">
-          <Trash2 className="h-5 w-5 text-[var(--on-error-container)]" />
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-error-container/30 bg-surface-container-lowest p-6 shadow-xl">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-error-container/20">
+          <Trash2 className="h-5 w-5 text-on-error-container" />
         </div>
-        <h3 className="mb-1 text-base font-semibold text-[var(--on-surface)]">ลบเทมเพลต</h3>
-        <p className="mb-5 text-sm text-[var(--on-surface-variant)]">
+        <h3 className="mb-1 text-base font-semibold text-on-surface">ลบเทมเพลต</h3>
+        <p className="mb-5 text-sm text-on-surface-variant">
           คุณแน่ใจหรือไม่ว่าต้องการลบ{' '}
-          <span className="font-medium text-[var(--on-surface)]">&ldquo;{templateName}&rdquo;</span>? This action cannot be undone.
+          <span className="font-medium text-on-surface">&ldquo;{templateName}&rdquo;</span>? This action cannot be undone.
         </p>
         <div className="flex gap-2">
           <button
             onClick={onConfirm}
             disabled={deleting}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--error-container)] px-4 py-2.5 text-sm font-semibold text-[var(--on-error-container)] transition-colors hover:bg-[var(--error-container)]/90 disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-error-container px-4 py-2.5 text-sm font-semibold text-on-error-container transition-colors hover:bg-error-container/90 disabled:opacity-50"
           >
             {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
             ลบ
@@ -173,7 +173,7 @@ function ConfirmDeleteModal({
           <button
             onClick={onCancel}
             disabled={deleting}
-            className="flex-1 rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2.5 text-sm font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
+            className="flex-1 rounded-xl border border-outline bg-surface-container-lowest px-4 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
             ยกเลิก
           </button>
@@ -206,19 +206,19 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
   const vars = extractVariables(form.body);
 
   return (
-    <div className="rounded-2xl border border-[var(--primary)]/20 bg-[var(--primary-container)]/10 p-5">
+    <div className="rounded-2xl border border-primary/20 bg-primary-container/10 p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-semibold text-[var(--on-surface)]">{title}</h3>
+        <h3 className="font-semibold text-on-surface">{title}</h3>
         <button
           onClick={onCancel}
-          className="rounded-lg p-1.5 text-[var(--on-surface-variant)] hover:bg-[var(--surface-container)] transition-colors"
+          className="rounded-lg p-1.5 text-on-surface-variant hover:bg-surface-container transition-colors"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm text-[var(--on-error-container)]">
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
         </div>
@@ -227,27 +227,27 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
       <div className="space-y-4">
         {/* Name */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">
-            ชื่อเทมเพลต <span className="text-[var(--error-container)]">*</span>
+          <label className="mb-1.5 block text-sm font-medium text-on-surface">
+            ชื่อเทมเพลต <span className="text-error-container">*</span>
           </label>
           <input
             type="text"
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="ตัวอย่าง: ใบแจ้งหนี้ประจำเดือน — ภาษาไทย"
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/50 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
 
         {/* Type */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">
-            ประเภท <span className="text-[var(--error-container)]">*</span>
+          <label className="mb-1.5 block text-sm font-medium text-on-surface">
+            ประเภท <span className="text-error-container">*</span>
           </label>
           <select
             value={form.type}
             onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as TemplateType }))}
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {TYPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -257,14 +257,14 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
 
         {/* Variable hints */}
         <div>
-          <p className="mb-2 text-xs font-medium text-[var(--on-surface-variant)]">แทรกตัวแปร</p>
+          <p className="mb-2 text-xs font-medium text-on-surface-variant">แทรกตัวแปร</p>
           <div className="flex flex-wrap gap-1.5">
             {VARIABLE_HINTS.map((hint) => (
               <button
                 key={hint.value}
                 type="button"
                 onClick={() => insertVariable(hint.value)}
-                className="inline-flex items-center gap-1 rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container)] px-2.5 py-1 font-mono text-xs text-[var(--on-surface-variant)] shadow-sm transition-colors hover:border-[var(--primary)]30 hover:bg-[var(--primary-container)]/20 hover:text-[var(--primary)]"
+                className="inline-flex items-center gap-1 rounded-md border border-outline-variant bg-surface-container px-2.5 py-1 font-mono text-xs text-on-surface-variant shadow-sm transition-colors hover:border-primary30 hover:bg-primary-container/20 hover:text-primary"
               >
                 <Plus className="h-3 w-3" />
                 {hint.label}
@@ -275,23 +275,23 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
 
         {/* Body */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-[var(--on-surface)]">
-            เนื้อหาข้อความ <span className="text-[var(--error-container)]">*</span>
+          <label className="mb-1.5 block text-sm font-medium text-on-surface">
+            เนื้อหาข้อความ <span className="text-error-container">*</span>
           </label>
           <textarea
             value={form.body}
             onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
             placeholder="เขียนข้อความที่นี่ ใช้ตัวแปร เช่น {{tenant_name}} เพื่อปรับแต่งข้อความ"
             rows={6}
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 font-mono text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/50 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 resize-y"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 font-mono text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-y"
           />
-          <p className="mt-1.5 text-xs text-[var(--on-surface-variant)]">{form.body.length} characters</p>
+          <p className="mt-1.5 text-xs text-on-surface-variant">{form.body.length} characters</p>
         </div>
 
         {/* Detected variables */}
         {vars.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-[var(--on-surface-variant)]">ตัวแปรที่พบ:</span>
+            <span className="text-xs font-medium text-on-surface-variant">ตัวแปรที่พบ:</span>
             {vars.map((v) => (<VarChip key={v} value={v} />))}
           </div>
         )}
@@ -301,7 +301,7 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
           <button
             onClick={() => void onSave(form)}
             disabled={saving || !form.name.trim() || !form.body.trim()}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             บันทึกเทมเพลต
@@ -309,7 +309,7 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
           <button
             onClick={onCancel}
             disabled={saving}
-            className="rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-5 py-2.5 text-sm font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
+            className="rounded-xl border border-outline bg-surface-container-lowest px-5 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
             ยกเลิก
           </button>
@@ -338,50 +338,50 @@ function TemplateCard({ template, onEdit, onDelete, onDuplicate }: TemplateCardP
   const vars = template.variables ?? extractVariables(template.body);
 
   return (
-    <div className="rounded-2xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)] p-5 shadow-sm transition-shadow hover:shadow-md">
+    <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-5 shadow-sm transition-shadow hover:shadow-md">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--primary-container)] text-[var(--primary)]">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-container text-primary">
             <MessageSquare className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <div className="truncate font-semibold text-[var(--on-surface)]">{template.name}</div>
+            <div className="truncate font-semibold text-on-surface">{template.name}</div>
           </div>
         </div>
         <TypeBadge type={template.type} />
       </div>
 
       {/* Preview */}
-      <p className="mt-3 text-sm text-[var(--on-surface-variant)] leading-relaxed break-words">{preview}</p>
+      <p className="mt-3 text-sm text-on-surface-variant leading-relaxed break-words">{preview}</p>
 
       {/* Variables */}
       {vars.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-[var(--on-surface-variant)]/60">ตัวแปร:</span>
+          <span className="text-xs text-on-surface-variant/60">ตัวแปร:</span>
           {vars.map((v) => (<VarChip key={v} value={v} />))}
         </div>
       )}
 
       {/* Actions */}
-      <div className="mt-4 flex items-center gap-2 border-t border-[var(--outline-variant)]/10 pt-4">
+      <div className="mt-4 flex items-center gap-2 border-t border-outline-variant/10 pt-4">
         <button
           onClick={() => onEdit(template)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
         >
           <Pencil className="h-3.5 w-3.5" />
           แก้ไข
         </button>
         <button
           onClick={() => onDuplicate(template)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
         >
           <ClipboardCopy className="h-3.5 w-3.5" />
           คัดลอก
         </button>
         <button
           onClick={() => onDelete(template)}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-[var(--error-container)]/30 bg-[var(--error-container)]/10 px-3 py-1.5 text-xs font-medium text-[var(--on-error-container)] transition-colors hover:bg-[var(--error-container)]/20"
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-error-container/30 bg-error-container/10 px-3 py-1.5 text-xs font-medium text-on-error-container transition-colors hover:bg-error-container/20"
         >
           <Trash2 className="h-3.5 w-3.5" />
           ลบ
@@ -606,30 +606,30 @@ export default function MessageTemplatesPage() {
           className={[
             'fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium shadow-lg',
             toast.ok
-              ? 'border-[var(--tertiary-container)] bg-[var(--tertiary-container)]/20 text-[var(--on-tertiary-container)]'
-              : 'border-[var(--error-container)] bg-[var(--error-container)]/20 text-[var(--on-error-container)]',
+              ? 'border-tertiary-container bg-tertiary-container/20 text-on-tertiary-container'
+              : 'border-error-container bg-error-container/20 text-on-error-container',
           ].join(' ')}
         >
           {toast.ok ? (
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--on-tertiary-container)]" />
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-on-tertiary-container" />
           ) : (
-            <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--on-error-container)]" />
+            <AlertTriangle className="h-4 w-4 shrink-0 text-on-error-container" />
           )}
           {toast.msg}
         </div>
       )}
 
       {/* Page header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
-              <MessageSquare className="h-5 w-5 text-[var(--on-primary)]" strokeWidth={1.75} />
+              <MessageSquare className="h-5 w-5 text-on-primary" strokeWidth={1.75} />
             </div>
             <div>
-              <h1 className="text-base font-semibold text-[var(--on-primary)]">เทมเพลตข้อความ</h1>
-              <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">จัดการเทมเพลตข้อความ LINE สำหรับใบแจ้งหนี้ การแจ้งเตือน และประกาศ</p>
+              <h1 className="text-base font-semibold text-on-primary">เทมเพลตข้อความ</h1>
+              <p className="text-xs text-on-primary/80 mt-0.5">จัดการเทมเพลตข้อความ LINE สำหรับใบแจ้งหนี้ การแจ้งเตือน และประกาศ</p>
             </div>
           </div>
           <button
@@ -638,7 +638,7 @@ export default function MessageTemplatesPage() {
               setFormError(null);
               setShowAddForm(true);
             }}
-            className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
+            className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30"
           >
             <Plus className="h-4 w-4" />
             สร้างเทมเพลต
@@ -672,25 +672,25 @@ export default function MessageTemplatesPage() {
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="animate-pulse rounded-2xl border border-[var(--outline-variant)]/10 bg-[var(--surface-container-lowest)] p-5 space-y-3">
+            <div key={i} className="animate-pulse rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-5 space-y-3">
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-[var(--surface-container)]" />
-                <div className="h-4 w-32 rounded bg-[var(--surface-container)]" />
+                <div className="h-9 w-9 rounded-xl bg-surface-container" />
+                <div className="h-4 w-32 rounded bg-surface-container" />
               </div>
-              <div className="h-3 w-full rounded bg-[var(--surface-container)]" />
-              <div className="h-3 w-3/4 rounded bg-[var(--surface-container)]" />
-              <div className="h-8 w-24 rounded-lg bg-[var(--surface-container)]" />
+              <div className="h-3 w-full rounded bg-surface-container" />
+              <div className="h-3 w-3/4 rounded bg-surface-container" />
+              <div className="h-8 w-24 rounded-lg bg-surface-container" />
             </div>
           ))}
         </div>
       ) : templates.length === 0 && !showAddForm ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] py-20 text-center">
-          <MessageSquare className="mb-3 h-12 w-12 text-[var(--on-surface-variant)]/30" />
-          <p className="font-semibold text-[var(--on-surface)]">ยังไม่มีเทมเพลต</p>
-          <p className="mt-1 text-sm text-[var(--on-surface-variant)]">สร้างเทมเพลตข้อความแรกของคุณเพื่อเริ่มต้น</p>
+        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-outline-variant bg-surface-container-lowest py-20 text-center">
+          <MessageSquare className="mb-3 h-12 w-12 text-on-surface-variant/30" />
+          <p className="font-semibold text-on-surface">ยังไม่มีเทมเพลต</p>
+          <p className="mt-1 text-sm text-on-surface-variant">สร้างเทมเพลตข้อความแรกของคุณเพื่อเริ่มต้น</p>
           <button
             onClick={() => setShowAddForm(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] transition-colors hover:bg-primary/90"
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition-colors hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" />
             สร้างเทมเพลต
@@ -726,7 +726,7 @@ export default function MessageTemplatesPage() {
 
       {/* Template count */}
       {!loading && templates.length > 0 && (
-        <p className="text-right text-xs text-[var(--on-surface-variant)]/60">
+        <p className="text-right text-xs text-on-surface-variant/60">
           {templates.length} template{templates.length !== 1 ? 's' : ''}
         </p>
       )}

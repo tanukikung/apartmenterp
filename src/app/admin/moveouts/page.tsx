@@ -42,17 +42,17 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--surface-container)]">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-container">
         <ArrowLeft
           size={28}
-          className="text-[var(--on-surface-variant)]"
+          className="text-on-surface-variant"
           strokeWidth={1.5}
         />
       </div>
-      <h3 className="text-[15px] font-semibold text-[var(--on-surface)]">
+      <h3 className="text-[15px] font-semibold text-on-surface">
         {hasFilter ? 'ไม่พบรายการที่ตรงกับตัวกรอง' : 'ยังไม่มีการบันทึกย้ายออก'}
       </h3>
-      <p className="mt-1 max-w-xs text-[13px] text-[var(--on-surface-variant)]">
+      <p className="mt-1 max-w-xs text-[13px] text-on-surface-variant">
         {hasFilter
           ? 'ลองล้างการค้นหาหรือเปลี่ยนตัวกรองสถานะ'
           : 'บันทึกการย้ายออกเมื่อผู้เช่าแจ้งย้ายออก'}
@@ -60,7 +60,7 @@ function EmptyState({
       {!hasFilter && (
         <button
           onClick={onNew}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 mt-5"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 mt-5"
         >
           <Plus size={14} strokeWidth={2.5} />
           บันทึกย้ายออกใหม่
@@ -540,7 +540,7 @@ export default function AdminMoveOutsPage() {
         }`}
       >
         {/* Header */}
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -548,17 +548,17 @@ export default function AdminMoveOutsPage() {
                 <ArrowLeft size={20} className="text-white" strokeWidth={2} />
               </div>
               <div>
-                <h1 className="text-base font-semibold text-[var(--on-primary)]">
+                <h1 className="text-base font-semibold text-on-primary">
                   การย้ายออก
                 </h1>
-                <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">
+                <p className="text-xs text-on-primary/80 mt-0.5">
                   จัดการข้อมูลการย้ายออกและคืนเงินมัดจำ
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <button
-                className="inline-flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30"
                 onClick={() => void refetchMoveOuts()}
                 title="Refresh"
               >
@@ -566,7 +566,7 @@ export default function AdminMoveOutsPage() {
                 รีเฟรช
               </button>
               <button
-                className="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30"
                 onClick={openNew}
               >
                 <Plus size={14} strokeWidth={2.5} />
@@ -620,17 +620,17 @@ export default function AdminMoveOutsPage() {
           <div className="relative flex-1 min-w-[200px]">
             <Search
               size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)]"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant"
             />
             <input
-              className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 pl-8"
+              className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 pl-8"
               placeholder="ค้นหาหมายเลขห้องหรือชื่อผู้เช่า..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <select
-            className="w-full rounded-xl border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             value={filterStatus}
             onChange={(e) => {
               setFilterStatus(e.target.value);
@@ -649,40 +649,40 @@ export default function AdminMoveOutsPage() {
 
         {/* Error banner */}
         {error && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm font-medium text-[var(--on-error-container)]">
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-error-container bg-error-container/20 px-4 py-3 text-sm font-medium text-on-error-container">
             <AlertCircle size={15} />
             {error.message}
           </div>
         )}
 
         {/* Table */}
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden p-0">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="bg-[var(--surface-container)]">
-                  <th className="pl-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">
+                <tr className="bg-surface-container">
+                  <th className="pl-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                     ห้อง
                   </th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                     ผู้เช่า
                   </th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                     วันที่ย้ายออก
                   </th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                     มัดจำ
                   </th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                     หัก
                   </th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                     คืนเงิน
                   </th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                     สถานะ
                   </th>
-                  <th className="pr-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] text-right">
+                  <th className="pr-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-right">
                     การดำเนินการ
                   </th>
                 </tr>
@@ -694,7 +694,7 @@ export default function AdminMoveOutsPage() {
                       {Array.from({ length: 8 }).map((__, j) => (
                         <td key={j}>
                           <div
-                            className="h-4 rounded bg-[var(--surface-container)] animate-pulse"
+                            className="h-4 rounded bg-surface-container animate-pulse"
                             style={{
                               width: `${70 + ((i * 13 + j * 17) % 25)}%`,
                             }}
@@ -716,38 +716,38 @@ export default function AdminMoveOutsPage() {
                   filteredMoveOuts.map((m) => (
                     <tr
                       key={m.id}
-                      className={`hover:bg-[var(--surface-container-lowest)] cursor-pointer ${
+                      className={`hover:bg-surface-container-lowest cursor-pointer ${
                         selectedMoveOut?.id === m.id && panelMode === 'detail'
                           ? 'ring-2 ring-inset ring-primary'
                           : ''
                       }`}
                       onClick={() => openDetail(m)}
                     >
-                      <td className="pl-4 font-semibold text-[var(--on-surface)]">
+                      <td className="pl-4 font-semibold text-on-surface">
                         {m.contract?.roomNo ?? '—'}
                       </td>
-                      <td className="text-[var(--on-surface)]">
+                      <td className="text-on-surface">
                         <div className="font-medium">
                           {m.contract?.primaryTenant?.fullName ?? '—'}
                         </div>
                         {m.contract?.primaryTenant?.phone && (
-                          <div className="text-[11px] text-[var(--on-surface-variant)]">
+                          <div className="text-[11px] text-on-surface-variant">
                             {m.contract.primaryTenant.phone}
                           </div>
                         )}
                       </td>
-                      <td className="text-[var(--on-surface)]">
+                      <td className="text-on-surface">
                         {fmtDate(m.moveOutDate)}
                       </td>
-                      <td className="text-[var(--on-surface)]">
+                      <td className="text-on-surface">
                         {fmtMoney(m.depositAmount)}
                       </td>
-                      <td className="text-[var(--on-surface)] text-red-600">
+                      <td className="text-on-surface text-red-600">
                         {m.totalDeduction > 0
                           ? `-${fmtMoney(m.totalDeduction)}`
                           : '—'}
                       </td>
-                      <td className="font-medium text-[var(--on-surface)]">
+                      <td className="font-medium text-on-surface">
                         {fmtMoney(m.finalRefund)}
                       </td>
                       <td>
@@ -776,7 +776,7 @@ export default function AdminMoveOutsPage() {
                       </td>
                       <td className="pr-4 text-right">
                         <button
-                          className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] flex items-center gap-1 text-xs"
+                          className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container flex items-center gap-1 text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
                             openDetail(m);
@@ -795,23 +795,23 @@ export default function AdminMoveOutsPage() {
 
           {/* Pagination footer */}
           {!loading && filteredMoveOuts.length > 0 && (
-            <div className="flex items-center justify-between border-t border-[var(--outline-variant)] px-4 py-2.5">
-              <span className="text-xs text-[var(--on-surface-variant)]">
+            <div className="flex items-center justify-between border-t border-outline-variant px-4 py-2.5">
+              <span className="text-xs text-on-surface-variant">
                 แสดง {filteredMoveOuts.length} จาก {total} รายการ
               </span>
               <div className="flex items-center gap-1">
                 <button
-                  className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   ก่อนหน้า
                 </button>
-                <span className="px-2 text-xs text-[var(--on-surface-variant)]">
+                <span className="px-2 text-xs text-on-surface-variant">
                   หน้า {page}
                 </span>
                 <button
-                  className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)] disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed"
                   disabled={page >= Math.ceil(total / 50)}
                   onClick={() => setPage((p) => p + 1)}
                 >
@@ -825,16 +825,16 @@ export default function AdminMoveOutsPage() {
 
       {/* ── Side Panel ───────────────────────────────────────────── */}
       {panelMode !== 'none' && (
-        <aside className="fixed right-0 top-0 z-30 flex h-full w-full flex-col border-l border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] shadow-2xl xl:w-[420px]">
+        <aside className="fixed right-0 top-0 z-30 flex h-full w-full flex-col border-l border-outline-variant bg-surface-container-lowest shadow-2xl xl:w-[420px]">
           {/* Panel header */}
-          <div className="flex items-center justify-between border-b border-[var(--outline-variant)] px-5 py-4">
+          <div className="flex items-center justify-between border-b border-outline-variant px-5 py-4">
             <div className="flex items-center gap-2">
               {panelMode === 'new' ? (
-                <Plus size={16} className="text-[var(--primary)]" />
+                <Plus size={16} className="text-primary" />
               ) : (
-                <Eye size={15} className="text-[var(--primary)]" />
+                <Eye size={15} className="text-primary" />
               )}
-              <span className="text-[15px] font-semibold text-[var(--on-surface)]">
+              <span className="text-[15px] font-semibold text-on-surface">
                 {panelMode === 'new'
                   ? 'บันทึกย้ายออกใหม่'
                   : `รายละเอียด — ห้อง ${selectedMoveOut?.contract?.roomNo ?? ''}`}
@@ -842,7 +842,7 @@ export default function AdminMoveOutsPage() {
             </div>
             <button
               onClick={closePanel}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--on-surface-variant)] hover:bg-[var(--surface-container)] hover:text-[var(--on-surface)]"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
             >
               <X size={15} />
             </button>

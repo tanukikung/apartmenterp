@@ -183,21 +183,21 @@ export default function BillingImportPage() {
 
   return (
     <main className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] px-6 py-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between">
           <div>
-            <h1 className="text-base font-semibold text-[var(--on-primary)]">นำเข้าการเรียกเก็บ</h1>
-            <p className="text-xs text-[var(--on-primary)]/80 mt-0.5">
+            <h1 className="text-base font-semibold text-on-primary">นำเข้าการเรียกเก็บ</h1>
+            <p className="text-xs text-on-primary/80 mt-0.5">
               อัปโหลดเวิร์กบุ๊ก Excel รายเดือน ตรวจสอบทุกห้อง แล้วยืนยันแบทช์เป็นบันทึกการเรียกเก็บ
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <a href="/billing_template.xlsx" download="billing_template.xlsx" className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30">
+            <a href="/billing_template.xlsx" download="billing_template.xlsx" className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30">
               <FileSpreadsheet className="h-4 w-4" />
               ดาวน์โหลด Template
             </a>
-            <Link href="/admin/billing/batches" className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-[var(--on-primary)] shadow-sm transition-colors hover:bg-white/30">
+            <Link href="/admin/billing/batches" className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30">
               ดูแบทช์
             </Link>
           </div>
@@ -212,8 +212,8 @@ export default function BillingImportPage() {
       ) : null}
 
       {/* Import Mode Tabs */}
-      <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-        <div className="px-5 py-3 border-b border-[var(--outline-variant)]">
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="px-5 py-3 border-b border-outline-variant">
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -223,8 +223,8 @@ export default function BillingImportPage() {
               }}
               className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                 importMode === 'template'
-                  ? 'bg-primary text-[var(--on-primary)]'
-                  : 'bg-[var(--surface-container-lowest)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container)]'
+                  ? 'bg-primary text-on-primary'
+                  : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container'
               }`}
             >
               <FileText className="h-4 w-4" />
@@ -238,8 +238,8 @@ export default function BillingImportPage() {
               }}
               className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                 importMode === 'monthly'
-                  ? 'bg-primary text-[var(--on-primary)]'
-                  : 'bg-[var(--surface-container-lowest)] text-[var(--on-surface-variant)] hover:bg-[var(--surface-container)]'
+                  ? 'bg-primary text-on-primary'
+                  : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container'
               }`}
             >
               <Calendar className="h-4 w-4" />
@@ -249,14 +249,14 @@ export default function BillingImportPage() {
         </div>
 
         {importMode === 'monthly' && (
-          <div className="px-5 py-4 border-b border-[var(--outline-variant)] bg-amber-50/50">
+          <div className="px-5 py-4 border-b border-outline-variant bg-amber-50/50">
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-[var(--on-surface)]">เดือน:</label>
+                <label className="text-sm font-medium text-on-surface">เดือน:</label>
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(parseInt(e.target.value, 10))}
-                  className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none"
+                  className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none"
                 >
                   {THAI_MONTHS.map((m) => (
                     <option key={m.value} value={m.value}>
@@ -266,11 +266,11 @@ export default function BillingImportPage() {
                 </select>
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-[var(--on-surface)]">ปี:</label>
+                <label className="text-sm font-medium text-on-surface">ปี:</label>
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
-                  className="rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-sm text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none"
+                  className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:outline-none"
                 >
                   {YEARS.map((y) => (
                     <option key={y} value={y}>
@@ -279,9 +279,9 @@ export default function BillingImportPage() {
                   ))}
                 </select>
               </div>
-              <div className="text-sm text-[var(--on-surface-variant)]">
+              <div className="text-sm text-on-surface-variant">
                 ดาวน์โหลด template:{' '}
-                <a href="/billing_template.xlsx" download="billing_template.xlsx" className="text-[var(--primary)] underline hover:no-underline">
+                <a href="/billing_template.xlsx" download="billing_template.xlsx" className="text-primary underline hover:no-underline">
                   billing_template.xlsx
                 </a>
                 {' '}→ กรอกข้อมูล → upload
@@ -291,9 +291,9 @@ export default function BillingImportPage() {
         )}
       </div>
 
-      <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10">
-        <div className="px-5 py-4 border-b border-[var(--outline-variant)]">
-          <div className="text-sm font-semibold text-[var(--primary)]">1. Upload Workbook</div>
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+        <div className="px-5 py-4 border-b border-outline-variant">
+          <div className="text-sm font-semibold text-primary">1. Upload Workbook</div>
         </div>
         <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div
@@ -301,7 +301,7 @@ export default function BillingImportPage() {
             className={`flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-[2rem] border-2 border-dashed px-6 py-10 text-center transition-all ${
               file
                 ? 'border-emerald-300 bg-emerald-50/80'
-                : 'border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] hover:border-[var(--primary)]/30 hover:bg-[var(--primary-container)]/30'
+                : 'border-outline-variant bg-surface-container-lowest hover:border-primary/30 hover:bg-primary-container/30'
             }`}
           >
             <input
@@ -315,21 +315,21 @@ export default function BillingImportPage() {
               {file ? (
                 <CheckCircle2 className="h-8 w-8 text-emerald-500" />
               ) : (
-                <UploadCloud className="h-8 w-8 text-[var(--on-surface-variant)]" />
+                <UploadCloud className="h-8 w-8 text-on-surface-variant" />
               )}
             </div>
-            <div className="text-lg font-semibold text-[var(--on-surface)]">
+            <div className="text-lg font-semibold text-on-surface">
               {file ? file.name : 'Drop or choose the Excel file'}
             </div>
-            <p className="mt-2 max-w-md text-sm text-[var(--on-surface-variant)]">
+            <p className="mt-2 max-w-md text-sm text-on-surface-variant">
               {importMode === 'template' ? (
                 <>
-                  Upload the standard Excel template with <code className="rounded bg-[var(--surface-container)] px-1 py-0.5 text-xs">FLOOR_*</code> sheets.
+                  Upload the standard Excel template with <code className="rounded bg-surface-container px-1 py-0.5 text-xs">FLOOR_*</code> sheets.
                 </>
               ) : (
                 <>
-                  Upload <code className="rounded bg-[var(--surface-container)] px-1 py-0.5 text-xs">billing_template.xlsx</code> ที่กรอกข้อมูลแล้ว
-                  — รองรับทั้ง format ใหม่ <code className="rounded bg-[var(--surface-container)] px-1 py-0.5 text-xs">ชั้น_1</code> และ format เดิม <code className="rounded bg-[var(--surface-container)] px-1 py-0.5 text-xs">ชั้น 1</code>
+                  Upload <code className="rounded bg-surface-container px-1 py-0.5 text-xs">billing_template.xlsx</code> ที่กรอกข้อมูลแล้ว
+                  — รองรับทั้ง format ใหม่ <code className="rounded bg-surface-container px-1 py-0.5 text-xs">ชั้น_1</code> และ format เดิม <code className="rounded bg-surface-container px-1 py-0.5 text-xs">ชั้น 1</code>
                   <br />
                   <span className="text-amber-700">ห้องที่มี ค่าเช่า = 0 จะถูกตั้งเป็นสถานะว่าง (INACTIVE)</span>
                 </>
@@ -337,22 +337,22 @@ export default function BillingImportPage() {
             </p>
           </div>
 
-          <div className="space-y-4 rounded-[2rem] border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)]/80 p-5">
+          <div className="space-y-4 rounded-[2rem] border border-outline-variant bg-surface-container-lowest/80 p-5">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">
                 Workflow
               </div>
-              <div className="mt-3 space-y-3 text-sm text-[var(--on-surface)]">
+              <div className="mt-3 space-y-3 text-sm text-on-surface">
                 <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary-container)] text-xs font-semibold text-[var(--primary)]">1</span>
+                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary-container text-xs font-semibold text-primary">1</span>
                   Upload workbook
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary-container)] text-xs font-semibold text-[var(--primary)]">2</span>
+                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary-container text-xs font-semibold text-primary">2</span>
                   Review staged rows
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary-container)] text-xs font-semibold text-[var(--primary)]">3</span>
+                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary-container text-xs font-semibold text-primary">3</span>
                   Commit validated batch
                 </div>
               </div>
@@ -371,12 +371,12 @@ export default function BillingImportPage() {
                 type="button"
                 onClick={() => void handlePreview()}
                 disabled={loading || !file}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90 flex flex-1 items-center justify-center gap-2"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 flex flex-1 items-center justify-center gap-2"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
                 {loading ? 'Previewing...' : 'Preview Batch'}
               </button>
-              <button type="button" onClick={resetAll} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+              <button type="button" onClick={resetAll} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
                 Reset
               </button>
             </div>
@@ -387,33 +387,33 @@ export default function BillingImportPage() {
       {preview ? (
         <section className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">รหัสแบทช์</div>
-              <div className="mt-2 font-mono text-xs text-[var(--on-surface)]">{preview.batch.id}</div>
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รหัสแบทช์</div>
+              <div className="mt-2 font-mono text-xs text-on-surface">{preview.batch.id}</div>
             </div>
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">รอบการเรียกเก็บ</div>
-              <div className="mt-2 text-sm font-semibold text-[var(--on-surface)]">{preview.batch.billingCycleId.slice(0, 8)}…</div>
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รอบการเรียกเก็บ</div>
+              <div className="mt-2 text-sm font-semibold text-on-surface">{preview.batch.billingCycleId.slice(0, 8)}…</div>
             </div>
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้อง</div>
-              <div className="mt-2 text-sm font-semibold text-[var(--on-surface)]">{totals.rooms}</div>
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</div>
+              <div className="mt-2 text-sm font-semibold text-on-surface">{totals.rooms}</div>
             </div>
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ถูกต้อง / ข้อผิดพลาด</div>
-              <div className="mt-2 text-sm font-semibold text-[var(--on-surface)]">
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ถูกต้อง / ข้อผิดพลาด</div>
+              <div className="mt-2 text-sm font-semibold text-on-surface">
                 {preview.batch.validRows} / {preview.batch.invalidRows}
               </div>
             </div>
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ยอดรวมแบทช์</div>
-              <div className="mt-2 text-sm font-semibold text-[var(--on-surface)]">{money(totals.totalAmount)}</div>
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ยอดรวมแบทช์</div>
+              <div className="mt-2 text-sm font-semibold text-on-surface">{money(totals.totalAmount)}</div>
             </div>
           </div>
 
           {preview.warnings.length > 0 ? (
-            <section className="bg-[var(--surface-container-lowest)] rounded-xl border overflow-hidden border-amber-200">
-              <div className="px-5 py-4 border-b border-[var(--outline-variant)]">
+            <section className="bg-surface-container-lowest rounded-xl border overflow-hidden border-amber-200">
+              <div className="px-5 py-4 border-b border-outline-variant">
                 <div className="text-sm font-semibold text-amber-800">Warnings / คำเตือน</div>
                 <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold border-amber-300 bg-amber-50 text-amber-700">
                   {preview.warnings.length} room{preview.warnings.length === 1 ? '' : 's'}
@@ -422,16 +422,16 @@ export default function BillingImportPage() {
               <div className="overflow-auto">
                 <table className="w-full text-sm text-left">
                   <thead>
-                    <tr className="bg-[var(--surface-container)]">
-                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้อง</th>
-                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ประเภท</th>
-                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ปัญหา</th>
+                    <tr className="bg-surface-container">
+                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
+                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ประเภท</th>
+                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ปัญหา</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/10">
                     {preview.warnings.map((warning) => (
-                      <tr key={`${warning.roomNumber}-${warning.year}-${warning.month}`} className="hover:bg-[var(--surface-container-lowest)] transition-colors">
-                        <td className="font-semibold text-[var(--on-surface)]">{warning.roomNumber}</td>
+                      <tr key={`${warning.roomNumber}-${warning.year}-${warning.month}`} className="hover:bg-surface-container-lowest transition-colors">
+                        <td className="font-semibold text-on-surface">{warning.roomNumber}</td>
                         <td>
                           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                             warning.type === 'meter_reset' ? 'border-orange-300 bg-orange-50 text-orange-700' :
@@ -454,11 +454,11 @@ export default function BillingImportPage() {
             </section>
           ) : null}
 
-          <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-            <div className="px-5 py-4 border-b border-[var(--outline-variant)]">
-              <div className="text-sm font-semibold text-[var(--primary)]">ตัวอย่างห้อง</div>
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="px-5 py-4 border-b border-outline-variant">
+              <div className="text-sm font-semibold text-primary">ตัวอย่างห้อง</div>
               <div className="flex items-center gap-2">
-                <Link href={`/admin/billing/batches/${preview.batch.id}`} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+                <Link href={`/admin/billing/batches/${preview.batch.id}`} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
                   เปิดรายละเอียดแบทช์
                 </Link>
               </div>
@@ -466,11 +466,11 @@ export default function BillingImportPage() {
             <div className="overflow-auto">
               <table className="w-full text-sm text-left">
                 <thead>
-                  <tr className="bg-[var(--surface-container)]">
-                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">ห้อง</th>
-                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">รอบ</th>
-                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">รายการ</th>
-                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)]">รวม</th>
+                  <tr className="bg-surface-container">
+                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
+                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รอบ</th>
+                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รายการ</th>
+                    <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รวม</th>
                     <th>ตรวจสอบ</th>
                   </tr>
                 </thead>
@@ -484,8 +484,8 @@ export default function BillingImportPage() {
                     );
 
                     return (
-                      <tr key={`${group.roomNumber}-${group.year}-${group.month}`} className="hover:bg-[var(--surface-container-lowest)] transition-colors">
-                        <td className="font-semibold text-[var(--on-surface)]">{group.roomNumber}</td>
+                      <tr key={`${group.roomNumber}-${group.year}-${group.month}`} className="hover:bg-surface-container-lowest transition-colors">
+                        <td className="font-semibold text-on-surface">{group.roomNumber}</td>
                         <td>
                           {group.month}/{group.year}
                         </td>
@@ -497,7 +497,7 @@ export default function BillingImportPage() {
                               Total mismatch
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)]">พร้อม</span>
+                            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-tertiary-container text-on-tertiary-container">พร้อม</span>
                           )}
                         </td>
                       </tr>
@@ -508,11 +508,11 @@ export default function BillingImportPage() {
             </div>
           </section>
 
-          <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10">
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
             <div className="flex flex-wrap items-center justify-between gap-3 p-5">
               <div>
-                <div className="text-base font-semibold text-[var(--on-surface)]">2. Commit Staged Batch</div>
-                <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+                <div className="text-base font-semibold text-on-surface">2. Commit Staged Batch</div>
+                <p className="mt-1 text-sm text-on-surface-variant">
                   Execution writes validated staged rows into live billing records and links them back to this batch for audit.
                 </p>
               </div>
@@ -521,7 +521,7 @@ export default function BillingImportPage() {
                   type="button"
                   onClick={() => void handlePreview()}
                   disabled={loading}
-                  className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+                  className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
                 >
                   <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                   Refresh Preview
@@ -530,7 +530,7 @@ export default function BillingImportPage() {
                   type="button"
                   onClick={() => setConfirmDialogOpen(true)}
                   disabled={executing || preview.warnings.length > 0 || preview.batch.invalidRows > 0}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90"
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
                 >
                   {executing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
                   {executing ? 'Executing...' : 'Commit Batch'}
@@ -542,7 +542,7 @@ export default function BillingImportPage() {
       ) : null}
 
       {result ? (
-        <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 border-emerald-200 bg-emerald-50/70">
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 border-emerald-200 bg-emerald-50/70">
           <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-[1.5rem] bg-white shadow-sm">
@@ -556,10 +556,10 @@ export default function BillingImportPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link href={`/admin/billing/${result.cycleId}`} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+              <Link href={`/admin/billing/${result.cycleId}`} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
                 Open Billing Cycle
               </Link>
-              <Link href={`/admin/billing/batches/${result.batchId}`} className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]">
+              <Link href={`/admin/billing/batches/${result.batchId}`} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
                 Open Batch Detail
               </Link>
             </div>
@@ -576,21 +576,21 @@ export default function BillingImportPage() {
             onClick={() => setConfirmDialogOpen(false)}
           />
           {/* Dialog */}
-          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-[var(--outline-variant)]/20 bg-[var(--surface-container-lowest)] p-6 shadow-2xl">
+          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-2xl">
             <div className="flex items-start gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100">
                 <AlertTriangle className="h-6 w-6 text-amber-600" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-[var(--on-surface)]">ยืนยันการนำเข้า?</h3>
-                <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+                <h3 className="text-lg font-semibold text-on-surface">ยืนยันการนำเข้า?</h3>
+                <p className="mt-1 text-sm text-on-surface-variant">
                   การดำเนินการนี้จะเขียนข้อมูล {preview.preview.length} ห้อง รวม {money(totals.totalAmount)} ลงในระบบบิลลิ่ง
                   คุณยืนยันที่จะดำเนินการต่อหรือไม่?
                 </p>
               </div>
               <button
                 onClick={() => setConfirmDialogOpen(false)}
-                className="text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]"
+                className="text-on-surface-variant hover:text-on-surface"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -598,16 +598,16 @@ export default function BillingImportPage() {
 
             {/* Summary */}
             <div className="mt-4 grid grid-cols-3 gap-3">
-              <div className="rounded-lg border border-[var(--outline-variant)]/10 bg-[var(--surface-container)] p-3 text-center">
-                <div className="text-xs text-[var(--on-surface-variant)]">ห้อง</div>
-                <div className="mt-1 text-lg font-semibold text-[var(--on-surface)]">{totals.rooms}</div>
+              <div className="rounded-lg border border-outline-variant/10 bg-surface-container p-3 text-center">
+                <div className="text-xs text-on-surface-variant">ห้อง</div>
+                <div className="mt-1 text-lg font-semibold text-on-surface">{totals.rooms}</div>
               </div>
-              <div className="rounded-lg border border-[var(--outline-variant)]/10 bg-[var(--surface-container)] p-3 text-center">
-                <div className="text-xs text-[var(--on-surface-variant)]">ยอดรวม</div>
-                <div className="mt-1 text-lg font-semibold text-[var(--on-surface)]">{money(totals.totalAmount)}</div>
+              <div className="rounded-lg border border-outline-variant/10 bg-surface-container p-3 text-center">
+                <div className="text-xs text-on-surface-variant">ยอดรวม</div>
+                <div className="mt-1 text-lg font-semibold text-on-surface">{money(totals.totalAmount)}</div>
               </div>
-              <div className="rounded-lg border border-[var(--outline-variant)]/10 bg-[var(--surface-container)] p-3 text-center">
-                <div className="text-xs text-[var(--on-surface-variant)]">คำเตือน</div>
+              <div className="rounded-lg border border-outline-variant/10 bg-surface-container p-3 text-center">
+                <div className="text-xs text-on-surface-variant">คำเตือน</div>
                 <div className={`mt-1 text-lg font-semibold ${preview.warnings.length > 0 ? 'text-amber-600' : 'text-green-600'}`}>
                   {preview.warnings.length}
                 </div>
@@ -627,7 +627,7 @@ export default function BillingImportPage() {
             <div className="mt-5 flex justify-end gap-3">
               <button
                 onClick={() => setConfirmDialogOpen(false)}
-                className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] shadow-sm transition-colors hover:bg-[var(--surface-container)]"
+                className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
               >
                 ยกเลิก
               </button>
@@ -637,7 +637,7 @@ export default function BillingImportPage() {
                   void handleExecute();
                 }}
                 disabled={executing}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[var(--on-primary)] shadow-sm transition-colors hover:bg-primary/90"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
               >
                 {executing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 {executing ? 'กำลังนำเข้า...' : 'ยืนยันนำเข้า'}

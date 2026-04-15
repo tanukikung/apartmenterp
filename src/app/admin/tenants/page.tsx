@@ -253,15 +253,15 @@ export default function AdminTenantsPage() {
       {/* Header */}
       <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-[var(--primary)]">ผู้เช่า</h1>
-          <p className="mt-1 text-sm text-[var(--on-surface-variant)]">จัดการผู้เช่า เชื่อมต่อ LINE และจัดสรรห้อง</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-primary">ผู้เช่า</h1>
+          <p className="mt-1 text-sm text-on-surface-variant">จัดการผู้เช่า เชื่อมต่อ LINE และจัดสรรห้อง</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)]" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 pr-4 py-2 bg-[var(--surface-container-lowest)] border border-[var(--outline-variant)]/30 rounded-lg text-sm w-[220px] focus:ring-2 focus:ring-[var(--primary)]" placeholder="ค้นหาชื่อ ห้อง เบอร์โทร..." />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/30 rounded-lg text-sm w-[220px] focus:ring-2 focus:ring-primary" placeholder="ค้นหาชื่อ ห้อง เบอร์โทร..." />
           </div>
-          <button onClick={() => { setShowCreate(true); setDrawerOpen(true); setSelectedTenant(null); }} className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all">
+          <button onClick={() => { setShowCreate(true); setDrawerOpen(true); setSelectedTenant(null); }} className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-primary-container to-primary text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all">
             <Plus size={14} strokeWidth={2.5} />
             เพิ่มผู้เช่า
           </button>
@@ -270,28 +270,28 @@ export default function AdminTenantsPage() {
 
       {/* Alerts */}
       {message && (
-        <div className="px-4 py-3 rounded-lg bg-[var(--tertiary-container)]/10 border border-[var(--tertiary-container)]/20 text-sm text-[var(--tertiary-container)] font-medium">
+        <div className="px-4 py-3 rounded-lg bg-tertiary-container/10 border border-tertiary-container/20 text-sm text-tertiary-container font-medium">
           {message}
         </div>
       )}
       {error && (
-        <div className="px-4 py-3 rounded-lg bg-[var(--error-container)]/10 border border-[var(--error-container)]/20 text-sm text-[var(--color-danger)] font-medium">
+        <div className="px-4 py-3 rounded-lg bg-error-container/10 border border-error-container/20 text-sm text-[var(--color-danger)] font-medium">
           {error}
         </div>
       )}
 
       {/* Stats */}
       <section className="grid gap-4 sm:grid-cols-3">
-        <div className="bg-[var(--surface-container-lowest)] p-5 rounded-xl border border-[var(--outline-variant)]/10 hover:shadow-lg transition-all">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ผู้เช่าทั้งหมด</p>
-          <div className="text-2xl font-extrabold tracking-tight text-[var(--primary)]">{tenants.length}</div>
+        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10 hover:shadow-lg transition-all">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">ผู้เช่าทั้งหมด</p>
+          <div className="text-2xl font-extrabold tracking-tight text-primary">{tenants.length}</div>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] p-5 rounded-xl border border-[var(--outline-variant)]/10 hover:shadow-lg transition-all">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">เชื่อม LINE</p>
+        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10 hover:shadow-lg transition-all">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">เชื่อม LINE</p>
           <div className="text-2xl font-extrabold tracking-tight text-emerald-600">{tenants.filter(t=>t.lineUserId).length}</div>
         </div>
-        <div className="bg-[var(--surface-container-lowest)] p-5 rounded-xl border border-[var(--outline-variant)]/10 hover:shadow-lg transition-all">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">มีห้อง</p>
+        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10 hover:shadow-lg transition-all">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">มีห้อง</p>
           <div className="text-2xl font-extrabold tracking-tight text-amber-600">{tenants.filter(t=>t.roomTenants?.length>0).length}</div>
         </div>
       </section>
@@ -302,7 +302,7 @@ export default function AdminTenantsPage() {
           {[1,2,3,4,5].map(i => <div key={i} className="skeleton h-16 rounded-lg" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10">
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
           <EmptyState
             icon={<Inbox className="h-7 w-7" />}
             title="ไม่พบผู้เช่า"
@@ -322,24 +322,24 @@ export default function AdminTenantsPage() {
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(name)}`}>
                       {initials(name)}
                     </div>
-                    <span className="text-sm font-semibold text-[var(--on-surface)]">{name}</span>
+                    <span className="text-sm font-semibold text-on-surface">{name}</span>
                   </div>
                 );
               },
             },
-            { key: 'phone', header: 'เบอร์โทร', sortable: true, render: (t) => <span className="text-sm text-[var(--on-surface)]">{t.phone || '—'}</span> },
-            { key: 'email', header: 'อีเมล', sortable: true, render: (t) => <span className="text-sm text-[var(--on-surface)]">{t.email || '—'}</span> },
+            { key: 'phone', header: 'เบอร์โทร', sortable: true, render: (t) => <span className="text-sm text-on-surface">{t.phone || '—'}</span> },
+            { key: 'email', header: 'อีเมล', sortable: true, render: (t) => <span className="text-sm text-on-surface">{t.email || '—'}</span> },
             {
               key: 'roomTenants', header: 'ห้อง',
               render: (t) => (
                 t.roomTenants?.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
                     {t.roomTenants.map(rt => (
-                      <span key={rt.id} className="inline-flex items-center px-2 py-0.5 bg-[var(--primary-container)]/10 text-[var(--primary-container)] text-[10px] font-bold rounded-full">{rt.roomNo}</span>
+                      <span key={rt.id} className="inline-flex items-center px-2 py-0.5 bg-primary-container/10 text-primary-container text-[10px] font-bold rounded-full">{rt.roomNo}</span>
                     ))}
                   </div>
                 ) : (
-                  <span className="text-xs text-[var(--on-surface-variant)]">ไม่มี</span>
+                  <span className="text-xs text-on-surface-variant">ไม่มี</span>
                 )
               ),
             },
@@ -349,7 +349,7 @@ export default function AdminTenantsPage() {
                 t.lineUserId ? (
                   <StatusBadge variant="success" dot>เชื่อมแล้ว</StatusBadge>
                 ) : (
-                  <span className="text-xs text-[var(--on-surface-variant)]">—</span>
+                  <span className="text-xs text-on-surface-variant">—</span>
                 )
               ),
             },
@@ -365,7 +365,7 @@ export default function AdminTenantsPage() {
           ]}
           loading={loading}
           empty={
-            <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10">
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
               <EmptyState icon={<Inbox className="h-7 w-7" />} title="ไม่พบผู้เช่า" description="ลองเปลี่ยนคำค้นหา" />
             </div>
           }
@@ -376,13 +376,13 @@ export default function AdminTenantsPage() {
       {drawerOpen && (
         <>
           <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-40" onClick={closeDrawer} style={{ animation: 'fade-in 200ms ease' }} />
-          <div className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-[var(--surface-container-lowest)] border-l border-[var(--outline-variant)]/10 z-50 overflow-y-auto" style={{ animation: 'slide-in-right 250ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <div className="sticky top-0 bg-[var(--surface-container-lowest)] border-b border-[var(--outline-variant)]/10 px-6 py-4 flex items-center justify-between z-10">
-              <h2 className="text-lg font-bold text-[var(--primary)]">
+          <div className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-surface-container-lowest border-l border-outline-variant/10 z-50 overflow-y-auto" style={{ animation: 'slide-in-right 250ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
+            <div className="sticky top-0 bg-surface-container-lowest border-b border-outline-variant/10 px-6 py-4 flex items-center justify-between z-10">
+              <h2 className="text-lg font-bold text-primary">
                 {showCreate ? 'เพิ่มผู้เช่าใหม่' : `จัดการ ${selectedTenant ? `${selectedTenant.firstName} ${selectedTenant.lastName}` : ''}`}
               </h2>
-              <button onClick={closeDrawer} className="p-2 hover:bg-[var(--surface-container-high)] rounded-lg transition-colors">
-                <X size={18} className="text-[var(--on-surface-variant)]" />
+              <button onClick={closeDrawer} className="p-2 hover:bg-surface-container-high rounded-lg transition-colors">
+                <X size={18} className="text-on-surface-variant" />
               </button>
             </div>
 
@@ -391,31 +391,31 @@ export default function AdminTenantsPage() {
                 <form className="space-y-5" onSubmit={handleCreate}>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ชื่อ</label>
-                      <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={createForm.firstName} placeholder="ชื่อ" onChange={e => setCreateForm(p => ({ ...p, firstName: e.target.value }))} required />
+                      <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">ชื่อ</label>
+                      <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.firstName} placeholder="ชื่อ" onChange={e => setCreateForm(p => ({ ...p, firstName: e.target.value }))} required />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">นามสกุล</label>
-                      <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={createForm.lastName} placeholder="นามสกุล" onChange={e => setCreateForm(p => ({ ...p, lastName: e.target.value }))} required />
+                      <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">นามสกุล</label>
+                      <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.lastName} placeholder="นามสกุล" onChange={e => setCreateForm(p => ({ ...p, lastName: e.target.value }))} required />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">เบอร์โทร</label>
-                    <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={createForm.phone} placeholder="0xx-xxx-xxxx" onChange={e => setCreateForm(p => ({ ...p, phone: e.target.value }))} required />
+                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">เบอร์โทร</label>
+                    <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.phone} placeholder="0xx-xxx-xxxx" onChange={e => setCreateForm(p => ({ ...p, phone: e.target.value }))} required />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">อีเมล</label>
-                    <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" type="email" value={createForm.email} placeholder="email@example.com" onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))} />
+                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">อีเมล</label>
+                    <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" type="email" value={createForm.email} placeholder="email@example.com" onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ผู้ติดต่อฉุกเฉิน</label>
-                    <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={createForm.emergencyContact} placeholder="ชื่อ + เบอร์โทร" onChange={e => setCreateForm(p => ({ ...p, emergencyContact: e.target.value }))} />
+                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">ผู้ติดต่อฉุกเฉิน</label>
+                    <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.emergencyContact} placeholder="ชื่อ + เบอร์โทร" onChange={e => setCreateForm(p => ({ ...p, emergencyContact: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">โทรศัพท์ฉุกเฉิน</label>
-                    <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={createForm.emergencyPhone} placeholder="0xx-xxx-xxxx" onChange={e => setCreateForm(p => ({ ...p, emergencyPhone: e.target.value }))} />
+                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">โทรศัพท์ฉุกเฉิน</label>
+                    <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.emergencyPhone} placeholder="0xx-xxx-xxxx" onChange={e => setCreateForm(p => ({ ...p, emergencyPhone: e.target.value }))} />
                   </div>
-                  <button className="w-full py-2.5 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50" disabled={working === 'create'}>
+                  <button className="w-full py-2.5 bg-gradient-to-br from-primary-container to-primary text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50" disabled={working === 'create'}>
                     {working === 'create' ? 'กำลังเพิ่ม...' : 'เพิ่มผู้เช่า'}
                   </button>
                 </form>
@@ -423,10 +423,10 @@ export default function AdminTenantsPage() {
             ) : selectedTenant ? (
               <>
                 {/* Tab Nav */}
-                <div className="flex border-b border-[var(--outline-variant)]/10">
-                  <button className={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'edit' ? 'text-[var(--primary)] border-b-2 border-primary' : 'text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]'}`} onClick={() => setActiveTab('edit')}>แก้ไขข้อมูล</button>
-                  <button className={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'line' ? 'text-[var(--primary)] border-b-2 border-primary' : 'text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]'}`} onClick={() => setActiveTab('line')}>LINE</button>
-                  <button className={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'rooms' ? 'text-[var(--primary)] border-b-2 border-primary' : 'text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]'}`} onClick={() => setActiveTab('rooms')}>ห้องพัก</button>
+                <div className="flex border-b border-outline-variant/10">
+                  <button className={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'edit' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:text-on-surface'}`} onClick={() => setActiveTab('edit')}>แก้ไขข้อมูล</button>
+                  <button className={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'line' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:text-on-surface'}`} onClick={() => setActiveTab('line')}>LINE</button>
+                  <button className={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'rooms' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:text-on-surface'}`} onClick={() => setActiveTab('rooms')}>ห้องพัก</button>
                 </div>
                 <div className="p-6">
 
@@ -435,31 +435,31 @@ export default function AdminTenantsPage() {
                     <form className="space-y-5" onSubmit={handleUpdate}>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ชื่อ</label>
-                          <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={editForm.firstName} onChange={e => setEditForm(p => ({ ...p, firstName: e.target.value }))} required />
+                          <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">ชื่อ</label>
+                          <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.firstName} onChange={e => setEditForm(p => ({ ...p, firstName: e.target.value }))} required />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">นามสกุล</label>
-                          <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={editForm.lastName} onChange={e => setEditForm(p => ({ ...p, lastName: e.target.value }))} required />
+                          <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">นามสกุล</label>
+                          <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.lastName} onChange={e => setEditForm(p => ({ ...p, lastName: e.target.value }))} required />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">เบอร์โทร</label>
-                        <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={editForm.phone} onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} />
+                        <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">เบอร์โทร</label>
+                        <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.phone} onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">อีเมล</label>
-                        <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" type="email" value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} />
+                        <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">อีเมล</label>
+                        <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" type="email" value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ผู้ติดต่อฉุกเฉิน</label>
-                        <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={editForm.emergencyContact} onChange={e => setEditForm(p => ({ ...p, emergencyContact: e.target.value }))} />
+                        <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">ผู้ติดต่อฉุกเฉิน</label>
+                        <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.emergencyContact} onChange={e => setEditForm(p => ({ ...p, emergencyContact: e.target.value }))} />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">โทรศัพท์ฉุกเฉิน</label>
-                        <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={editForm.emergencyPhone} onChange={e => setEditForm(p => ({ ...p, emergencyPhone: e.target.value }))} />
+                        <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">โทรศัพท์ฉุกเฉิน</label>
+                        <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.emergencyPhone} onChange={e => setEditForm(p => ({ ...p, emergencyPhone: e.target.value }))} />
                       </div>
-                      <button className="w-full py-2.5 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50" disabled={working === `edit:${selectedTenant.id}`}>
+                      <button className="w-full py-2.5 bg-gradient-to-br from-primary-container to-primary text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50" disabled={working === `edit:${selectedTenant.id}`}>
                         {working === `edit:${selectedTenant.id}` ? 'กำลังบันทึก...' : 'บันทึก'}
                       </button>
                     </form>
@@ -471,22 +471,22 @@ export default function AdminTenantsPage() {
                       <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 mb-2">สถานะ LINE</div>
                         {selectedTenant.lineUserId ? (
-                          <div className="flex items-center gap-2 text-sm text-[var(--on-surface)]">
+                          <div className="flex items-center gap-2 text-sm text-on-surface">
                             <CheckCircle size={16} className="text-emerald-500" />
                             <span>เชื่อมต่อแล้ว:</span>
-                            <code className="rounded bg-[var(--surface-container)] px-2 py-0.5 text-xs font-mono">{selectedTenant.lineUserId}</code>
+                            <code className="rounded bg-surface-container px-2 py-0.5 text-xs font-mono">{selectedTenant.lineUserId}</code>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 text-sm text-[var(--on-surface-variant)]">
-                            <MessageCircle size={16} className="text-[var(--on-surface-variant)]" />
+                          <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+                            <MessageCircle size={16} className="text-on-surface-variant" />
                             <span>ยังไม่เชื่อมต่อ</span>
                           </div>
                         )}
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">LINE User ID</label>
+                        <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">LINE User ID</label>
                         <input
-                          className={`w-full px-4 py-2.5 bg-[var(--surface-container-low)] border rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)] ${lineIdError ? 'border-[var(--color-danger)]/50' : 'border-[var(--outline-variant)]/30'}`}
+                          className={`w-full px-4 py-2.5 bg-surface-container-low border rounded-lg text-sm focus:ring-2 focus:ring-primary ${lineIdError ? 'border-[var(--color-danger)]/50' : 'border-outline-variant/30'}`}
                           value={lineUserId}
                           placeholder="ไอดีจาก LINE (เช่น Udf3k...)"
                           onChange={e => {
@@ -500,12 +500,12 @@ export default function AdminTenantsPage() {
                             {lineIdError}
                           </p>
                         ) : (
-                          <p className="mt-1 text-[10px] text-[var(--on-surface-variant)]">ดูได้จาก LINE Official Account → ผู้ติดตาม → โค้ดผู้ใช้ (User ID)</p>
+                          <p className="mt-1 text-[10px] text-on-surface-variant">ดูได้จาก LINE Official Account → ผู้ติดตาม → โค้ดผู้ใช้ (User ID)</p>
                         )}
                       </div>
                       <div className="flex gap-3">
                         <button
-                          className="flex-1 py-2.5 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50"
+                          className="flex-1 py-2.5 bg-gradient-to-br from-primary-container to-primary text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50"
                           disabled={working === `line:${selectedTenant.id}`}
                         >
                           {working === `line:${selectedTenant.id}` ? '...' : lineUserId ? 'อัพเดท LINE' : 'ลบ LINE'}
@@ -518,14 +518,14 @@ export default function AdminTenantsPage() {
                   {activeTab === 'rooms' && (
                     <div className="space-y-5">
                       <div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--on-surface-variant)] mb-3">ห้องปัจจุบัน</div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-3">ห้องปัจจุบัน</div>
                         {selectedTenant.roomTenants?.length > 0 ? (
                           <div className="space-y-2">
                             {selectedTenant.roomTenants.map(rt => (
-                              <div key={rt.id} className="flex items-center justify-between rounded-lg border border-[var(--outline-variant)]/10 px-4 py-3">
+                              <div key={rt.id} className="flex items-center justify-between rounded-lg border border-outline-variant/10 px-4 py-3">
                                 <div className="flex items-center gap-2">
-                                  <Home size={14} className="text-[var(--on-surface-variant)]" />
-                                  <span className="text-sm font-semibold text-[var(--on-surface)]">{rt.roomNo}</span>
+                                  <Home size={14} className="text-on-surface-variant" />
+                                  <span className="text-sm font-semibold text-on-surface">{rt.roomNo}</span>
                                 </div>
                                 <button
                                   onClick={() => handleRemoveRoom(rt.roomNo)}
@@ -538,20 +538,20 @@ export default function AdminTenantsPage() {
                             ))}
                           </div>
                         ) : (
-                          <div className="rounded-lg border-2 border-dashed border-[var(--outline-variant)]/30 px-4 py-4 text-center text-sm text-[var(--on-surface-variant)]">
+                          <div className="rounded-lg border-2 border-dashed border-outline-variant/30 px-4 py-4 text-center text-sm text-on-surface-variant">
                             ยังไม่มีห้อง
                           </div>
                         )}
                       </div>
                       <form className="space-y-3" onSubmit={handleAssignRoom}>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--on-surface-variant)]">จัดสรรห้องใหม่</div>
-                        <select className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={assignRoom} onChange={e => setAssignRoom(e.target.value)} required>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">จัดสรรห้องใหม่</div>
+                        <select className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={assignRoom} onChange={e => setAssignRoom(e.target.value)} required>
                           <option value="">— เลือกห้อง —</option>
                           {rooms.filter(r => r.roomStatus === 'VACANT').map(r => (
                             <option key={r.roomNo} value={r.roomNo}>{r.roomNo}</option>
                           ))}
                         </select>
-                        <button className="w-full py-2.5 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50" disabled={!assignRoom || working === `assign:${selectedTenant.id}`}>
+                        <button className="w-full py-2.5 bg-gradient-to-br from-primary-container to-primary text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50" disabled={!assignRoom || working === `assign:${selectedTenant.id}`}>
                           {working === `assign:${selectedTenant.id}` ? '...' : 'จัดสรร'}
                         </button>
                       </form>

@@ -354,12 +354,12 @@ export default function AdminRoomsPage() {
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="space-y-3">
             <span className="section-kicker">Room Operations</span>
-            <h1 className="text-2xl font-extrabold tracking-[-0.05em] text-[var(--primary)] sm:text-[2rem]">ห้องพัก</h1>
-            <p className="mt-1 max-w-2xl text-sm text-[var(--on-surface-variant)]">
+            <h1 className="text-2xl font-extrabold tracking-[-0.05em] text-primary sm:text-[2rem]">ห้องพัก</h1>
+            <p className="mt-1 max-w-2xl text-sm text-on-surface-variant">
               จัดการห้องพัก ค้นหาเลขห้อง เปลี่ยนสถานะ และติดตามภาพรวมการเข้าพักได้จากหน้าเดียว
             </p>
             <div className="flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full bg-[var(--surface-container-low)] px-3 py-1 font-semibold text-[var(--on-surface)]">
+              <span className="rounded-full bg-surface-container-low px-3 py-1 font-semibold text-on-surface">
                 ห้องทั้งหมด {stats.total.toLocaleString()}
               </span>
               <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
@@ -384,8 +384,8 @@ export default function AdminRoomsPage() {
                   }}
                   className={`pressable rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
                     viewMode === 'grid'
-                      ? 'bg-white text-[var(--primary)] shadow-sm'
-                      : 'text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]'
+                      ? 'bg-white text-primary shadow-sm'
+                      : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
                   <span className="inline-flex items-center gap-2">
@@ -401,8 +401,8 @@ export default function AdminRoomsPage() {
                   }}
                   className={`pressable rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
                     viewMode === 'table'
-                      ? 'bg-white text-[var(--primary)] shadow-sm'
-                      : 'text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]'
+                      ? 'bg-white text-primary shadow-sm'
+                      : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
                   <span className="inline-flex items-center gap-2">
@@ -426,22 +426,22 @@ export default function AdminRoomsPage() {
       {/* ── KPI Stats ── */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="premium-surface premium-hover rounded-[26px] p-5">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ทั้งหมด</p>
-          <div className="text-3xl font-extrabold tracking-tight text-[var(--primary)]">{stats.total.toLocaleString()}</div>
-          <p className="mt-2 text-sm text-[var(--on-surface-variant)]">ห้องทั้งหมดที่เปิดใช้งานในอาคาร</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">ทั้งหมด</p>
+          <div className="text-3xl font-extrabold tracking-tight text-primary">{stats.total.toLocaleString()}</div>
+          <p className="mt-2 text-sm text-on-surface-variant">ห้องทั้งหมดที่เปิดใช้งานในอาคาร</p>
         </div>
         <div className="premium-hover rounded-[26px] border border-emerald-200 bg-[linear-gradient(180deg,rgba(236,253,245,0.96),rgba(209,250,229,0.82))] p-5 shadow-[var(--shadow-card)]">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ว่าง</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">ว่าง</p>
           <div className="text-3xl font-extrabold tracking-tight text-emerald-700">{stats.vacant.toLocaleString()}</div>
           <p className="mt-2 text-sm text-emerald-800/80">พร้อมปล่อยเช่าทันที</p>
         </div>
         <div className="premium-hover rounded-[26px] border border-sky-200 bg-[linear-gradient(180deg,rgba(240,249,255,0.96),rgba(224,242,254,0.84))] p-5 shadow-[var(--shadow-card)]">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">มีผู้เช่า</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">มีผู้เช่า</p>
           <div className="text-3xl font-extrabold tracking-tight text-blue-700">{stats.occupied.toLocaleString()}</div>
           <p className="mt-2 text-sm text-blue-800/80">อัตราเข้าพัก {stats.occupancyRate}% ของอาคาร</p>
         </div>
         <div className="premium-hover rounded-[26px] border border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.96),rgba(254,243,199,0.84))] p-5 shadow-[var(--shadow-card)]">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ไม่ว่าง/ซ่อม</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">ไม่ว่าง/ซ่อม</p>
           <div className="text-3xl font-extrabold tracking-tight text-amber-700">{stats.blocked.toLocaleString()}</div>
           <p className="mt-2 text-sm text-amber-800/80">รวมห้องซ่อมบำรุงและห้องใช้เอง</p>
         </div>
@@ -452,29 +452,29 @@ export default function AdminRoomsPage() {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">ตัวกรองห้องพัก</div>
-              <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">ตัวกรองห้องพัก</div>
+              <p className="mt-1 text-sm text-on-surface-variant">
                 แสดง {filteredRooms.length.toLocaleString()} ห้องในหน้านี้ จากผลลัพธ์ทั้งหมด {roomsData?.total?.toLocaleString() ?? 0} ห้อง
               </p>
             </div>
             {roomsData && roomsData.totalPages > 1 ? (
-              <div className="rounded-full bg-[var(--surface-container-low)] px-3 py-1 text-xs font-semibold text-[var(--on-surface)]">
+              <div className="rounded-full bg-surface-container-low px-3 py-1 text-xs font-semibold text-on-surface">
                 หน้า {page} / {roomsData.totalPages}
               </div>
             ) : null}
           </div>
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <div className="relative flex-1 min-w-[200px] max-w-md">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--on-surface-variant)]" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-white/85 py-2.5 pl-10 pr-4 text-sm shadow-sm transition-all focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary)]/12"
+                className="w-full rounded-2xl border border-slate-200 bg-white/85 py-2.5 pl-10 pr-4 text-sm shadow-sm transition-all focus:border-primary focus:ring-4 focus:ring-primary/12"
                 placeholder="ค้นหาเลขห้อง เช่น 205 หรือ 798/1"
               />
             </div>
             <select
-              className="rounded-2xl border border-slate-200 bg-white/85 px-3 py-2.5 text-sm shadow-sm focus:ring-4 focus:ring-[var(--primary)]/12"
+              className="rounded-2xl border border-slate-200 bg-white/85 px-3 py-2.5 text-sm shadow-sm focus:ring-4 focus:ring-primary/12"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -488,7 +488,7 @@ export default function AdminRoomsPage() {
           {floors.length > 0 && (
             <div className="flex flex-wrap gap-2">
               <button
-                className={`pressable rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${floorFilter === null ? 'bg-primary text-white shadow-md' : 'bg-white/85 text-[var(--on-surface-variant)] hover:bg-slate-50'}`}
+                className={`pressable rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${floorFilter === null ? 'bg-primary text-white shadow-md' : 'bg-white/85 text-on-surface-variant hover:bg-slate-50'}`}
                 onClick={() => setFloorFilter(null)}
               >
                 ทุกชั้น
@@ -496,7 +496,7 @@ export default function AdminRoomsPage() {
               {floors.map((f) => (
                 <button
                   key={f.floorNo}
-                  className={`pressable rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${floorFilter === f.floorNo ? 'bg-primary text-white shadow-md' : 'bg-white/85 text-[var(--on-surface-variant)] hover:bg-slate-50'}`}
+                  className={`pressable rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${floorFilter === f.floorNo ? 'bg-primary text-white shadow-md' : 'bg-white/85 text-on-surface-variant hover:bg-slate-50'}`}
                   onClick={() => setFloorFilter(f.floorNo)}
                 >
                   ชั้น {f.floorNo}
@@ -509,12 +509,12 @@ export default function AdminRoomsPage() {
 
       {/* ── Alerts ── */}
       {message && (
-        <div className="px-4 py-3 rounded-lg bg-[var(--tertiary-container)]/10 border border-[var(--tertiary-container)]/20 text-sm text-[var(--tertiary-container)] font-medium">
+        <div className="px-4 py-3 rounded-lg bg-tertiary-container/10 border border-tertiary-container/20 text-sm text-tertiary-container font-medium">
           {message}
         </div>
       )}
       {error && (
-        <div className="px-4 py-3 rounded-lg bg-[var(--error-container)]/10 border border-[var(--error-container)]/20 text-sm text-[var(--color-danger)] font-medium">
+        <div className="px-4 py-3 rounded-lg bg-error-container/10 border border-error-container/20 text-sm text-[var(--color-danger)] font-medium">
           {error}
         </div>
       )}
@@ -528,9 +528,9 @@ export default function AdminRoomsPage() {
         </div>
       ) : !filteredRooms.length ? (
         <div className="premium-surface rounded-[28px] p-12 text-center">
-          <DoorOpen size={40} className="mx-auto text-[var(--on-surface-variant)] mb-4" />
-          <div className="text-sm font-semibold text-[var(--on-surface-variant)]">ไม่พบห้อง</div>
-          <div className="text-xs text-[var(--on-surface-variant)] mt-1">ลองเปลี่ยนตัวกรองหรือเพิ่มห้องใหม่</div>
+          <DoorOpen size={40} className="mx-auto text-on-surface-variant mb-4" />
+          <div className="text-sm font-semibold text-on-surface-variant">ไม่พบห้อง</div>
+          <div className="text-xs text-on-surface-variant mt-1">ลองเปลี่ยนตัวกรองหรือเพิ่มห้องใหม่</div>
         </div>
       ) : viewMode === 'grid' ? (
         <CardGrid
@@ -551,12 +551,12 @@ export default function AdminRoomsPage() {
             ],
             footer: (
               <div className="flex items-center justify-between">
-                <span className="text-xs text-[var(--on-surface-variant)]">
+                <span className="text-xs text-on-surface-variant">
                   {room.hasFurniture ? `เฟอร์นิเจอร์ ฿${Number(room.defaultFurnitureAmount).toLocaleString()}` : 'ไม่มีค่าเฟอร์นิเจอร์'}
                 </span>
                 <Link
                   href={`/admin/rooms/${encodeURIComponent(room.roomNo)}`}
-                  className="text-xs font-semibold text-[var(--primary)] hover:text-indigo-800 transition-colors flex items-center gap-1"
+                  className="text-xs font-semibold text-primary hover:text-indigo-800 transition-colors flex items-center gap-1"
                   onClick={(e) => e.stopPropagation()}
                 >
                   ดูรายละเอียด <ExternalLink className="h-3 w-3" />
@@ -568,9 +568,9 @@ export default function AdminRoomsPage() {
           loading={loading}
           empty={
             <div className="premium-surface rounded-[28px] p-12 text-center">
-              <DoorOpen size={40} className="mx-auto text-[var(--on-surface-variant)] mb-4" />
-              <div className="text-sm font-semibold text-[var(--on-surface-variant)]">ไม่พบห้อง</div>
-              <div className="text-xs text-[var(--on-surface-variant)] mt-1">ลองเปลี่ยนตัวกรองหรือเพิ่มห้องใหม่</div>
+              <DoorOpen size={40} className="mx-auto text-on-surface-variant mb-4" />
+              <div className="text-sm font-semibold text-on-surface-variant">ไม่พบห้อง</div>
+              <div className="text-xs text-on-surface-variant mt-1">ลองเปลี่ยนตัวกรองหรือเพิ่มห้องใหม่</div>
             </div>
           }
         />
@@ -592,7 +592,7 @@ export default function AdminRoomsPage() {
               key: 'hasFurniture',
               header: 'เฟอร์นิเจอร์',
               render: (r) => (
-                <span className="text-sm text-[var(--on-surface)]">
+                <span className="text-sm text-on-surface">
                   {r.hasFurniture ? `มี (฿${Number(r.defaultFurnitureAmount).toLocaleString()})` : 'ไม่มี'}
                 </span>
               ),
@@ -620,8 +620,8 @@ export default function AdminRoomsPage() {
           loading={loading}
           empty={
             <div className="premium-surface rounded-[28px] p-12 text-center">
-              <DoorOpen size={40} className="mx-auto text-[var(--on-surface-variant)] mb-4" />
-              <div className="text-sm font-semibold text-[var(--on-surface-variant)]">ไม่พบห้อง</div>
+              <DoorOpen size={40} className="mx-auto text-on-surface-variant mb-4" />
+              <div className="text-sm font-semibold text-on-surface-variant">ไม่พบห้อง</div>
             </div>
           }
         />
@@ -630,10 +630,10 @@ export default function AdminRoomsPage() {
       {roomsData && roomsData.totalPages > 1 && (
         <section className="premium-surface flex flex-col gap-3 rounded-[28px] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-sm font-semibold text-[var(--on-surface)]">
+            <div className="text-sm font-semibold text-on-surface">
               หน้า {page} จาก {roomsData.totalPages}
             </div>
-            <p className="mt-1 text-xs text-[var(--on-surface-variant)]">
+            <p className="mt-1 text-xs text-on-surface-variant">
               แสดง {filteredRooms.length.toLocaleString()} ห้องในหน้านี้ จากทั้งหมด {roomsData.total.toLocaleString()} ห้อง
             </p>
           </div>
@@ -642,7 +642,7 @@ export default function AdminRoomsPage() {
               type="button"
               onClick={() => setPage((current) => Math.max(1, current - 1))}
               disabled={page <= 1}
-              className="pressable inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3.5 py-2 text-sm font-semibold text-[var(--on-surface)] transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="pressable inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3.5 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ChevronLeft size={16} />
               ก่อนหน้า
@@ -651,7 +651,7 @@ export default function AdminRoomsPage() {
               type="button"
               onClick={() => setPage((current) => Math.min(roomsData.totalPages, current + 1))}
               disabled={page >= roomsData.totalPages}
-              className="pressable inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3.5 py-2 text-sm font-semibold text-[var(--on-surface)] transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="pressable inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3.5 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               ถัดไป
               <ChevronRight size={16} />
@@ -664,108 +664,108 @@ export default function AdminRoomsPage() {
       {drawerMode && (
         <>
           <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-40" onClick={closeDrawer} style={{ animation: 'fade-in 200ms ease' }} />
-          <div className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-[var(--surface-container-lowest)] border-l border-[var(--outline-variant)]/10 z-50 overflow-y-auto" style={{ animation: 'slide-in-right 250ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <div className="sticky top-0 bg-[var(--surface-container-lowest)] border-b border-[var(--outline-variant)]/10 px-6 py-4 flex items-center justify-between z-10">
-              <h2 className="text-lg font-bold text-[var(--primary)]">
+          <div className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-surface-container-lowest border-l border-outline-variant/10 z-50 overflow-y-auto" style={{ animation: 'slide-in-right 250ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
+            <div className="sticky top-0 bg-surface-container-lowest border-b border-outline-variant/10 px-6 py-4 flex items-center justify-between z-10">
+              <h2 className="text-lg font-bold text-primary">
                 {drawerMode === 'create' ? 'เพิ่มห้องใหม่' : `แก้ไขห้อง ${selectedRoom?.roomNo}`}
               </h2>
-              <button onClick={closeDrawer} className="p-2 hover:bg-[var(--surface-container-high)] rounded-lg transition-colors">
-                <X size={18} className="text-[var(--on-surface-variant)]" />
+              <button onClick={closeDrawer} className="p-2 hover:bg-surface-container-high rounded-lg transition-colors">
+                <X size={18} className="text-on-surface-variant" />
               </button>
             </div>
             <div className="p-6">
               {drawerMode === 'create' ? (
                 <form className="space-y-5" onSubmit={createRoom}>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">เลขห้อง</label>
-                    <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all" value={createForm.roomNo} placeholder="เช่น 3210" onChange={(e) => setCreateForm((p) => ({ ...p, roomNo: e.target.value }))} required />
+                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">เลขห้อง</label>
+                    <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary transition-all" value={createForm.roomNo} placeholder="เช่น 3210" onChange={(e) => setCreateForm((p) => ({ ...p, roomNo: e.target.value }))} required />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ชั้น</label>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">ชั้น</label>
                     {floors.length > 0 ? (
-                      <select className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={createForm.floorNo} onChange={(e) => setCreateForm((p) => ({ ...p, floorNo: e.target.value }))}>
+                      <select className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.floorNo} onChange={(e) => setCreateForm((p) => ({ ...p, floorNo: e.target.value }))}>
                         {floors.map((f) => <option key={f.floorNo} value={f.floorNo}>{f.label}</option>)}
                       </select>
                     ) : (
-                      <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" type="number" min={1} value={createForm.floorNo} onChange={(e) => setCreateForm((p) => ({ ...p, floorNo: e.target.value }))} />
+                      <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" type="number" min={1} value={createForm.floorNo} onChange={(e) => setCreateForm((p) => ({ ...p, floorNo: e.target.value }))} />
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ค่าเช่าเริ่มต้น (฿)</label>
-                    <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" type="number" min={0} value={createForm.defaultRentAmount} onChange={(e) => setCreateForm((p) => ({ ...p, defaultRentAmount: e.target.value }))} />
+                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">ค่าเช่าเริ่มต้น (฿)</label>
+                    <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" type="number" min={0} value={createForm.defaultRentAmount} onChange={(e) => setCreateForm((p) => ({ ...p, defaultRentAmount: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">บัญชีธนาคาร</label>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">บัญชีธนาคาร</label>
                     {accounts.length > 0 ? (
-                      <select className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={createForm.defaultAccountId} onChange={(e) => setCreateForm((p) => ({ ...p, defaultAccountId: e.target.value }))}>
+                      <select className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.defaultAccountId} onChange={(e) => setCreateForm((p) => ({ ...p, defaultAccountId: e.target.value }))}>
                         {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.bankName})</option>)}
                       </select>
                     ) : (
-                      <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={createForm.defaultAccountId} placeholder="ACC_F2" onChange={(e) => setCreateForm((p) => ({ ...p, defaultAccountId: e.target.value }))} required />
+                      <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.defaultAccountId} placeholder="ACC_F2" onChange={(e) => setCreateForm((p) => ({ ...p, defaultAccountId: e.target.value }))} required />
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">กฎการเรียกเก็บ</label>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">กฎการเรียกเก็บ</label>
                     {rules.length > 0 ? (
-                      <select className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={createForm.defaultRuleCode} onChange={(e) => setCreateForm((p) => ({ ...p, defaultRuleCode: e.target.value }))}>
+                      <select className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.defaultRuleCode} onChange={(e) => setCreateForm((p) => ({ ...p, defaultRuleCode: e.target.value }))}>
                         {rules.map((r) => <option key={r.code} value={r.code}>{r.descriptionTh}</option>)}
                       </select>
                     ) : (
-                      <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={createForm.defaultRuleCode} placeholder="STANDARD" onChange={(e) => setCreateForm((p) => ({ ...p, defaultRuleCode: e.target.value }))} required />
+                      <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.defaultRuleCode} placeholder="STANDARD" onChange={(e) => setCreateForm((p) => ({ ...p, defaultRuleCode: e.target.value }))} required />
                     )}
                   </div>
-                  <button className="w-full py-2.5 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50" disabled={working === 'create'}>
+                  <button className="w-full py-2.5 bg-gradient-to-br from-primary-container to-primary text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50" disabled={working === 'create'}>
                     {working === 'create' ? 'กำลังสร้าง...' : 'สร้างห้อง'}
                   </button>
                 </form>
               ) : selectedRoom ? (
                 <form className="space-y-5" onSubmit={updateRoom}>
-                  <div className="px-4 py-3 bg-[var(--surface-container-low)] rounded-lg text-sm text-[var(--on-surface)] border border-[var(--outline-variant)]/10">
-                    แก้ไขห้อง <span className="font-bold text-[var(--on-surface)]">{selectedRoom.roomNo}</span>
+                  <div className="px-4 py-3 bg-surface-container-low rounded-lg text-sm text-on-surface border border-outline-variant/10">
+                    แก้ไขห้อง <span className="font-bold text-on-surface">{selectedRoom.roomNo}</span>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ชั้น</label>
-                    <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" type="number" min={1} value={editForm.floorNo} onChange={(e) => setEditForm((p) => ({ ...p, floorNo: Number(e.target.value) }))} />
+                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">ชั้น</label>
+                    <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" type="number" min={1} value={editForm.floorNo} onChange={(e) => setEditForm((p) => ({ ...p, floorNo: Number(e.target.value) }))} />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ค่าเช่า (฿)</label>
-                    <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" type="number" min={0} value={editForm.defaultRentAmount} onChange={(e) => setEditForm((p) => ({ ...p, defaultRentAmount: e.target.value }))} />
+                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">ค่าเช่า (฿)</label>
+                    <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" type="number" min={0} value={editForm.defaultRentAmount} onChange={(e) => setEditForm((p) => ({ ...p, defaultRentAmount: e.target.value }))} />
                   </div>
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" id="hasFurniture" checked={editForm.hasFurniture} onChange={(e) => setEditForm((p) => ({ ...p, hasFurniture: e.target.checked }))} className="w-4 h-4 rounded border-[var(--outline-variant)] text-[var(--primary)] focus:ring-[var(--primary)]" />
-                    <label htmlFor="hasFurniture" className="text-sm font-medium text-[var(--on-surface)]">มีเฟอร์นิเจอร์</label>
+                    <input type="checkbox" id="hasFurniture" checked={editForm.hasFurniture} onChange={(e) => setEditForm((p) => ({ ...p, hasFurniture: e.target.checked }))} className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary" />
+                    <label htmlFor="hasFurniture" className="text-sm font-medium text-on-surface">มีเฟอร์นิเจอร์</label>
                   </div>
                   {editForm.hasFurniture && (
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">ค่าเฟอร์นิเจอร์ (฿)</label>
-                      <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" type="number" min={0} value={editForm.defaultFurnitureAmount} onChange={(e) => setEditForm((p) => ({ ...p, defaultFurnitureAmount: e.target.value }))} />
+                      <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">ค่าเฟอร์นิเจอร์ (฿)</label>
+                      <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" type="number" min={0} value={editForm.defaultFurnitureAmount} onChange={(e) => setEditForm((p) => ({ ...p, defaultFurnitureAmount: e.target.value }))} />
                     </div>
                   )}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">บัญชีธนาคาร</label>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">บัญชีธนาคาร</label>
                     {accounts.length > 0 ? (
-                      <select className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={editForm.defaultAccountId} onChange={(e) => setEditForm((p) => ({ ...p, defaultAccountId: e.target.value }))}>
+                      <select className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.defaultAccountId} onChange={(e) => setEditForm((p) => ({ ...p, defaultAccountId: e.target.value }))}>
                         {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.bankName})</option>)}
                       </select>
                     ) : (
-                      <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={editForm.defaultAccountId} onChange={(e) => setEditForm((p) => ({ ...p, defaultAccountId: e.target.value }))} />
+                      <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.defaultAccountId} onChange={(e) => setEditForm((p) => ({ ...p, defaultAccountId: e.target.value }))} />
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[var(--on-surface-variant)] mb-2">กฎการเรียกเก็บ</label>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">กฎการเรียกเก็บ</label>
                     {rules.length > 0 ? (
-                      <select className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={editForm.defaultRuleCode} onChange={(e) => setEditForm((p) => ({ ...p, defaultRuleCode: e.target.value }))}>
+                      <select className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.defaultRuleCode} onChange={(e) => setEditForm((p) => ({ ...p, defaultRuleCode: e.target.value }))}>
                         {rules.map((r) => <option key={r.code} value={r.code}>{r.descriptionTh}</option>)}
                       </select>
                     ) : (
-                      <input className="w-full px-4 py-2.5 bg-[var(--surface-container-low)] border border-[var(--outline-variant)]/30 rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)]" value={editForm.defaultRuleCode} onChange={(e) => setEditForm((p) => ({ ...p, defaultRuleCode: e.target.value }))} />
+                      <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.defaultRuleCode} onChange={(e) => setEditForm((p) => ({ ...p, defaultRuleCode: e.target.value }))} />
                     )}
                   </div>
                   <div className="flex gap-3">
-                    <button type="submit" className="flex-1 py-2.5 bg-gradient-to-br from-[var(--primary-container)] to-[var(--primary)] text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50" disabled={working === `edit:${selectedRoom.roomNo}`}>
+                    <button type="submit" className="flex-1 py-2.5 bg-gradient-to-br from-primary-container to-primary text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50" disabled={working === `edit:${selectedRoom.roomNo}`}>
                       {working === `edit:${selectedRoom.roomNo}` ? 'กำลังบันทึก...' : 'บันทึก'}
                     </button>
-                    <button type="button" className="px-4 py-2.5 bg-[var(--error-container)]/10 text-[var(--color-danger)] border border-[var(--error-container)]/20 text-sm font-semibold rounded-lg hover:bg-[var(--error-container)]/20 transition-all disabled:opacity-50" onClick={deleteRoom} disabled={working === `delete:${selectedRoom.roomNo}`}>
+                    <button type="button" className="px-4 py-2.5 bg-error-container/10 text-[var(--color-danger)] border border-error-container/20 text-sm font-semibold rounded-lg hover:bg-error-container/20 transition-all disabled:opacity-50" onClick={deleteRoom} disabled={working === `delete:${selectedRoom.roomNo}`}>
                       {working === `delete:${selectedRoom.roomNo}` ? 'กำลังลบ...' : 'ลบห้อง'}
                     </button>
                   </div>

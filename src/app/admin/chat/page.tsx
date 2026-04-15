@@ -424,14 +424,14 @@ export default function ChatInboxPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--on-surface)]">แชท</h1>
-          <p className="mt-1 text-sm text-[var(--on-surface-variant)]">กล่องข้อความสำหรับสื่อสารกับผู้เช่า ส่งใบแจ้งหนี้ และติดตามใบเสร็จ</p>
+          <h1 className="text-2xl font-bold text-on-surface">แชท</h1>
+          <p className="mt-1 text-sm text-on-surface-variant">กล่องข้อความสำหรับสื่อสารกับผู้เช่า ส่งใบแจ้งหนี้ และติดตามใบเสร็จ</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center rounded-full bg-[var(--surface-container)] px-3 py-1 text-xs font-semibold text-[var(--on-surface-variant)]">
+          <span className="inline-flex items-center rounded-full bg-surface-container px-3 py-1 text-xs font-semibold text-on-surface-variant">
             การสนทนา {conversations.length} รายการ
           </span>
-          <span className="inline-flex items-center rounded-full bg-[var(--error-container)] px-3 py-1 text-xs font-semibold text-[var(--on-error-container)]">
+          <span className="inline-flex items-center rounded-full bg-error-container px-3 py-1 text-xs font-semibold text-on-error-container">
             ยังไม่อ่าน {conversations.filter((item) => item.unreadCount > 0).length} รายการ
           </span>
         </div>
@@ -439,9 +439,9 @@ export default function ChatInboxPage() {
 
       {actionNotice ? (
         <div className={
-          actionNotice.tone === 'success' ? 'flex items-center gap-3 rounded-xl border border-[var(--tertiary-container)] bg-[var(--tertiary-container)]/20 px-4 py-3 text-sm text-[var(--on-tertiary-container)]'
-            : actionNotice.tone === 'info' ? 'flex items-center gap-3 rounded-xl border border-primary-container bg-[var(--primary-container)]/20 px-4 py-3 text-sm text-[var(--primary-container)]'
-            : 'flex items-center gap-3 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm text-[var(--on-error-container)]'
+          actionNotice.tone === 'success' ? 'flex items-center gap-3 rounded-xl border border-tertiary-container bg-tertiary-container/20 px-4 py-3 text-sm text-on-tertiary-container'
+            : actionNotice.tone === 'info' ? 'flex items-center gap-3 rounded-xl border border-primary-container bg-primary-container/20 px-4 py-3 text-sm text-primary-container'
+            : 'flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container'
         }>
           {actionNotice.message}
         </div>
@@ -455,7 +455,7 @@ export default function ChatInboxPage() {
       ) : null}
 
       {current?.lineUserId && lineConfigured === false ? (
-        <div className="flex items-start gap-3 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 py-3 text-sm text-[var(--on-surface)]">
+        <div className="flex items-start gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest px-4 py-3 text-sm text-on-surface">
           การส่งข้อความ LINE ไม่พร้อมใช้งานเนื่องจากยังไม่ได้ตั้งค่าข้อมูลรับรอง การส่งแชทและการดำเนินการด่วนจะถูกปิดใช้งานจนกว่าจะตั้งค่า LINE
         </div>
       ) : null}
@@ -463,13 +463,13 @@ export default function ChatInboxPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 anim-fade-in">
         {/* Chat list sidebar */}
         <section className="lg:col-span-3">
-          <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 overflow-hidden">
-            <div className="border-b border-[var(--outline-variant)] px-4 py-3">
-              <span className="text-sm font-semibold text-[var(--on-surface)]">การสนทนา</span>
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+            <div className="border-b border-outline-variant px-4 py-3">
+              <span className="text-sm font-semibold text-on-surface">การสนทนา</span>
             </div>
             {conversationsLoading ? (
               <div className="flex items-center justify-center p-8">
-                <svg className="h-6 w-6 animate-spin text-[var(--on-surface-variant)]" fill="none" viewBox="0 0 24 24">
+                <svg className="h-6 w-6 animate-spin text-on-surface-variant" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.878 3 8.291l2-2z" />
                 </svg>
@@ -481,17 +481,17 @@ export default function ChatInboxPage() {
         </section>
 
         {/* Chat timeline */}
-        <section className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 lg:col-span-6 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-[var(--outline-variant)] px-4 py-3">
+        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 lg:col-span-6 overflow-hidden">
+          <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
             <div>
-              <div className="text-sm font-semibold text-[var(--on-surface)]">ไทม์ไลน์การสนทนา</div>
-              <div className="mt-0.5 text-xs text-[var(--on-surface-variant)]">
+              <div className="text-sm font-semibold text-on-surface">ไทม์ไลน์การสนทนา</div>
+              <div className="mt-0.5 text-xs text-on-surface-variant">
                 {current ? `ห้อง ${current.room?.roomNumber ?? current.room?.roomNo ?? '-'} • ${current.tenant?.fullName || 'ผู้เช่าที่ยังไม่ได้เชื่อมต่อ'}` : 'เลือกการสนทนา'}
               </div>
             </div>
             {hasMore && (
               <button onClick={loadOlder} disabled={loadingMore}
-                className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-1.5 text-xs font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]">
+                className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container">
                 {loadingMore ? 'กำลังโหลด...' : 'โหลดข้อความเก่ากว่า'}
               </button>
             )}

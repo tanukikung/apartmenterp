@@ -56,10 +56,10 @@ const THAI_MONTHS = [
 
 const STATUS_META: Record<InvoiceStatus, { label: string; cls: string }> = {
   GENERATED: { label: 'สร้างแล้ว',     cls: 'bg-blue-100 text-blue-700 border-blue-200'       },
-  SENT:      { label: 'ส่งแล้ว',       cls: 'bg-[var(--primary-container)] text-[var(--primary-container)]'    },
-  VIEWED:    { label: 'เปิดดูแล้ว',   cls: 'bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)]' },
-  PAID:      { label: 'ชำระแล้ว',     cls: 'bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)]' },
-  OVERDUE:   { label: 'เกินกำหนด',   cls: 'bg-[var(--error-container)] text-[var(--on-error-container)]'       },
+  SENT:      { label: 'ส่งแล้ว',       cls: 'bg-primary-container text-primary-container'    },
+  VIEWED:    { label: 'เปิดดูแล้ว',   cls: 'bg-tertiary-container text-on-tertiary-container' },
+  PAID:      { label: 'ชำระแล้ว',     cls: 'bg-tertiary-container text-on-tertiary-container' },
+  OVERDUE:   { label: 'เกินกำหนด',   cls: 'bg-error-container text-on-error-container'       },
   CANCELLED: { label: 'ยกเลิก',        cls: 'bg-slate-100 text-slate-500 border-slate-200'    },
 };
 
@@ -108,14 +108,14 @@ function billingCycleLink(inv: InvoiceRow): string {
 
 function KpiCard({ label, value, icon, iconBg }: { label: string; value: number; icon: React.ReactNode; iconBg: string }) {
   return (
-    <div className="bg-[var(--surface-container-lowest)] rounded-xl border border-[var(--outline-variant)]/10 p-5 hover:shadow-lg transition-all">
+    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
       <div className="flex items-start gap-4">
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${iconBg}`}>
           {icon}
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--on-surface-variant)]">{label}</p>
-          <p className="mt-0.5 text-2xl font-bold tabular-nums text-[var(--on-surface)]">{value}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">{label}</p>
+          <p className="mt-0.5 text-2xl font-bold tabular-nums text-on-surface">{value}</p>
         </div>
       </div>
     </div>
@@ -202,10 +202,10 @@ export default function AdminInvoicesPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--on-surface)]">ใบแจ้งหนี้</h1>
-          <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
+          <h1 className="text-2xl font-bold text-on-surface">ใบแจ้งหนี้</h1>
+          <p className="mt-1 text-sm text-on-surface-variant">
             ติดตามสถานะใบแจ้งหนี้ทุกรอบบิล หากต้องการสร้างหรือส่งเป็นกลุ่ม ให้ไปที่{' '}
-            <Link href="/admin/billing" className="text-[var(--primary)] hover:underline font-medium">
+            <Link href="/admin/billing" className="text-primary hover:underline font-medium">
               รอบบิล
             </Link>
             .
@@ -237,7 +237,7 @@ export default function AdminInvoicesPage() {
               ],
             )}
             disabled={loading || filtered.length === 0}
-            className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-4 py-2 text-sm font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)] disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container disabled:opacity-50"
           >
             <Download className="h-4 w-4" />
             ส่งออก CSV
@@ -245,7 +245,7 @@ export default function AdminInvoicesPage() {
           <button
             onClick={() => void refetch()}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
+            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -253,13 +253,13 @@ export default function AdminInvoicesPage() {
       </div>
 
       {message && (
-        <div className="flex items-center gap-3 rounded-xl border border-[var(--tertiary-container)] bg-[var(--tertiary-container)]/20 px-4 py-3 text-sm text-[var(--on-tertiary-container)]">
+        <div className="flex items-center gap-3 rounded-xl border border-tertiary-container bg-tertiary-container/20 px-4 py-3 text-sm text-on-tertiary-container">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           {message}
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-3 rounded-xl border border-[var(--error-container)] bg-[var(--error-container)]/20 px-4 py-3 text-sm text-[var(--on-error-container)]">
+        <div className="flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
         </div>
@@ -268,22 +268,22 @@ export default function AdminInvoicesPage() {
       {/* KPI row */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="สร้างแล้ว" value={kpi.GENERATED ?? 0} icon={<FileText className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-100 border-blue-200" />
-        <KpiCard label="ส่ง/เปิดดูแล้ว" value={(kpi.SENT ?? 0) + (kpi.VIEWED ?? 0)} icon={<Send className="h-5 w-5 text-[var(--primary)]" />} iconBg="bg-[var(--primary-container)] border-primary-container/20" />
-        <KpiCard label="ชำระแล้ว" value={kpi.PAID ?? 0} icon={<CheckCircle2 className="h-5 w-5 text-[var(--tertiary-container)]" />} iconBg="bg-[var(--tertiary-container)] border-[var(--tertiary-container)]/20" />
-        <KpiCard label="เกินกำหนด" value={kpi.OVERDUE ?? 0} icon={<AlertTriangle className="h-5 w-5 text-[var(--on-error-container)]" />} iconBg="bg-[var(--error-container)] border-[var(--error-container)]/20" />
+        <KpiCard label="ส่ง/เปิดดูแล้ว" value={(kpi.SENT ?? 0) + (kpi.VIEWED ?? 0)} icon={<Send className="h-5 w-5 text-primary" />} iconBg="bg-primary-container border-primary-container/20" />
+        <KpiCard label="ชำระแล้ว" value={kpi.PAID ?? 0} icon={<CheckCircle2 className="h-5 w-5 text-tertiary-container" />} iconBg="bg-tertiary-container border-tertiary-container/20" />
+        <KpiCard label="เกินกำหนด" value={kpi.OVERDUE ?? 0} icon={<AlertTriangle className="h-5 w-5 text-on-error-container" />} iconBg="bg-error-container border-error-container/20" />
       </section>
 
       {/* Status tabs + Search */}
       <section className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex items-center gap-1 rounded-xl bg-[var(--surface-container)] p-1">
+        <div className="inline-flex items-center gap-1 rounded-xl bg-surface-container p-1">
           {STATUS_TABS.map((tab) => (
             <button
               key={tab.value}
               onClick={() => { setStatusFilter(tab.value); setSearch(''); setPage(1); }}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
                 statusFilter === tab.value
-                  ? 'bg-[var(--surface-container-lowest)] text-[var(--primary)] shadow-sm'
-                  : 'text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] hover:text-[var(--on-surface)]'
+                  ? 'bg-surface-container-lowest text-primary shadow-sm'
+                  : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
               }`}
             >
               {tab.label}
@@ -292,17 +292,17 @@ export default function AdminInvoicesPage() {
         </div>
 
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--on-surface-variant)]" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="ค้นหาห้อง, ผู้เช่า, เลขใบแจ้งหนี้..."
-            className="w-full rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] py-2 pl-9 pr-4 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/50 focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+            className="w-full rounded-lg border border-outline bg-surface-container-lowest py-2 pl-9 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
 
-        <span className="text-sm text-[var(--on-surface-variant)]">
+        <span className="text-sm text-on-surface-variant">
           {search.trim() ? `${filtered.length} รายการ` : `${total} ใบแจ้งหนี้`}
         </span>
       </section>
@@ -311,7 +311,7 @@ export default function AdminInvoicesPage() {
       <ModernTable
         header={
           <>
-            <span className="text-sm font-semibold text-[var(--on-surface)]">รายการใบแจ้งหนี้</span>
+            <span className="text-sm font-semibold text-on-surface">รายการใบแจ้งหนี้</span>
             {statusFilter !== 'ALL' && (
               <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_META[statusFilter as InvoiceStatus]?.cls ?? ''}`}>
                 {STATUS_META[statusFilter as InvoiceStatus]?.label ?? statusFilter}
@@ -323,19 +323,19 @@ export default function AdminInvoicesPage() {
           {
             key: 'invoiceNumber', header: 'เลขใบแจ้งหนี้', sortable: true,
             render: (inv) => (
-              <Link href={`/admin/invoices/${inv.id}`} className="font-mono text-xs font-medium text-[var(--primary)] hover:underline">
+              <Link href={`/admin/invoices/${inv.id}`} className="font-mono text-xs font-medium text-primary hover:underline">
                 {inv.invoiceNumber}
               </Link>
             ),
           },
           {
             key: 'roomNo', header: 'ห้อง', sortable: true,
-            render: (inv) => <span className="font-semibold text-[var(--on-surface)]">{roomNum(inv)}</span>,
+            render: (inv) => <span className="font-semibold text-on-surface">{roomNum(inv)}</span>,
           },
-          { key: 'tenantName', header: 'ผู้เช่า', sortable: true, render: (inv) => <span className="text-sm text-[var(--on-surface)]">{inv.tenantName ?? '—'}</span> },
+          { key: 'tenantName', header: 'ผู้เช่า', sortable: true, render: (inv) => <span className="text-sm text-on-surface">{inv.tenantName ?? '—'}</span> },
           {
             key: 'period', header: 'เดือน', sortable: true,
-            render: (inv) => <span className="text-sm text-[var(--on-surface-variant)]">{fmtPeriod(inv.year, inv.month)}</span>,
+            render: (inv) => <span className="text-sm text-on-surface-variant">{fmtPeriod(inv.year, inv.month)}</span>,
           },
           {
             key: 'status', header: 'สถานะ', sortable: true,
@@ -347,7 +347,7 @@ export default function AdminInvoicesPage() {
                     {meta?.label ?? inv.status}
                   </StatusBadge>
                   {inv.sentAt && (
-                    <div className="flex items-center gap-1 text-[10px] text-[var(--on-surface-variant)]/60">
+                    <div className="flex items-center gap-1 text-[10px] text-on-surface-variant/60">
                       <Clock className="h-2.5 w-2.5" />
                       {fmtDate(inv.sentAt)}
                     </div>
@@ -359,7 +359,7 @@ export default function AdminInvoicesPage() {
           {
             key: 'dueDate', header: 'วันครบกำหนด', sortable: true,
             render: (inv) => (
-              <span className={inv.status === 'OVERDUE' ? 'font-semibold text-[var(--color-danger)]' : 'text-sm text-[var(--on-surface-variant)]'}>
+              <span className={inv.status === 'OVERDUE' ? 'font-semibold text-[var(--color-danger)]' : 'text-sm text-on-surface-variant'}>
                 {fmtDate(inv.dueDate)}
               </span>
             ),
@@ -370,7 +370,7 @@ export default function AdminInvoicesPage() {
               <span className={`tabular-nums font-semibold ${
                 inv.status === 'PAID' ? 'text-emerald-600'
                   : inv.status === 'OVERDUE' ? 'text-[var(--color-danger)]'
-                  : 'text-[var(--on-surface)]'
+                  : 'text-on-surface'
               }`}>
                 {money(inv.totalAmount)}
               </span>
@@ -389,7 +389,7 @@ export default function AdminInvoicesPage() {
                       href={`/api/invoices/${inv.id}/pdf`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-2.5 py-1.5 text-xs font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
+                      className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
                     >
                       <FileText className="h-3.5 w-3.5" />
                       PDF
@@ -399,7 +399,7 @@ export default function AdminInvoicesPage() {
                     <button
                       onClick={() => void sendInvoice(inv.id)}
                       disabled={isSending || sending !== null}
-                      className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-2.5 py-1.5 text-xs font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)] disabled:opacity-60"
+                      className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container disabled:opacity-60"
                     >
                       <Send className="h-3.5 w-3.5" />
                       {isSending ? 'กำลังส่ง…' : 'ส่ง'}
@@ -407,7 +407,7 @@ export default function AdminInvoicesPage() {
                   )}
                   <Link
                     href={billingCycleLink(inv)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-[var(--outline)] bg-[var(--surface-container-lowest)] px-2.5 py-1.5 text-xs font-medium text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container)]"
+                    className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                     รอบบิล

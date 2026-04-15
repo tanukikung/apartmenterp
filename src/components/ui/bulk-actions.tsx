@@ -26,7 +26,7 @@ export function BulkActions({ count, actions, onClear, className = '' }: BulkAct
     >
       {/* Selection count */}
       <div className="flex items-center gap-2">
-        <span className="inline-flex items-center justify-center rounded-full bg-primary-container min-w-[1.75rem] h-7 px-2 text-xs font-bold text-primary-container">
+        <span className="inline-flex items-center justify-center rounded-full bg-primary-container min-w-[1.75rem] h-7 px-2 text-xs font-bold text-on-primary-container">
           {count}
         </span>
         <span className="text-sm font-medium text-on-surface">

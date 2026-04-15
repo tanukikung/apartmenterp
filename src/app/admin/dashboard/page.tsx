@@ -190,7 +190,7 @@ function KpiCard({
     >
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-br ${colors.glow} opacity-90`} />
       <div className="relative flex items-start justify-between gap-2 mb-4">
-        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">{label}</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">{label}</span>
         <div className={`flex h-10 w-10 items-center justify-center rounded-2xl shadow-sm ${colors.icon}`}>
           <Icon size={16} strokeWidth={2} />
         </div>
@@ -300,10 +300,10 @@ function TaskCard({
       className={`premium-surface relative overflow-hidden rounded-[28px] border ${colors.border}`}
     >
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-br ${colors.wash} opacity-95`} />
-      <div className="relative flex items-center justify-between border-b border-[var(--outline-variant)]/10 px-5 py-4">
+      <div className="relative flex items-center justify-between border-b border-outline-variant/10 px-5 py-4">
         <div className="flex items-center gap-2">
           <Icon size={14} className={colors.icon} />
-          <span className="text-sm font-bold text-[var(--on-surface)]">{title}</span>
+          <span className="text-sm font-bold text-on-surface">{title}</span>
         </div>
         {count !== undefined && (
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${colors.count}`}>
@@ -316,19 +316,19 @@ function TaskCard({
         {items && items.length > 0 && (
           <ul className="space-y-1.5 mb-3">
             {items.slice(0, 3).map((item, i) => (
-              <li key={i} className="flex items-center gap-2 text-xs text-[var(--on-surface-variant)]">
+              <li key={i} className="flex items-center gap-2 text-xs text-on-surface-variant">
                 <div className="h-1.5 w-1.5 rounded-full bg-current shrink-0" />
-                <span className="font-medium text-[var(--on-surface)]">{item.label}</span>
+                <span className="font-medium text-on-surface">{item.label}</span>
                 {item.sub && <span>{item.sub}</span>}
               </li>
             ))}
             {items.length > 3 && (
-              <li className="text-xs text-[var(--on-surface-variant)] pl-3.5">+{items.length - 3} รายการ</li>
+              <li className="text-xs text-on-surface-variant pl-3.5">+{items.length - 3} รายการ</li>
             )}
           </ul>
         )}
 
-        {sub && !items && <p className="text-xs text-[var(--on-surface-variant)] mb-3">{sub}</p>}
+        {sub && !items && <p className="text-xs text-on-surface-variant mb-3">{sub}</p>}
 
         <div className="flex items-center gap-2">
           {actionLabel && actionHref && (
@@ -350,7 +350,7 @@ function TaskCard({
           {secondaryActionLabel && secondaryActionHref && (
             <Link
               href={secondaryActionHref}
-              className="pressable inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-[var(--on-surface-variant)] hover:bg-slate-50 transition-colors"
+              className="pressable inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:bg-slate-50 transition-colors"
             >
               {secondaryActionLabel}
             </Link>
@@ -372,11 +372,11 @@ function ActivityItem({ log }: { log: AuditRow }) {
     <div className="flex items-start gap-3 py-2.5">
       <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${dotColor}`} />
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-[var(--on-surface)] leading-snug">
+        <p className="text-xs font-medium text-on-surface leading-snug">
           {auditLabel(log.action)}
-          <span className="font-normal text-[var(--on-surface-variant)] ml-1">{log.entityType}</span>
+          <span className="font-normal text-on-surface-variant ml-1">{log.entityType}</span>
         </p>
-        <p className="text-[10px] text-[var(--on-surface-variant)] mt-0.5">{log.userName} · {timeAgo(log.createdAt)}</p>
+        <p className="text-[10px] text-on-surface-variant mt-0.5">{log.userName} · {timeAgo(log.createdAt)}</p>
       </div>
     </div>
   );
@@ -515,10 +515,10 @@ export default function AdminDashboardPage() {
             <div className="space-y-5">
               <span className="section-kicker">Daily Control Room</span>
               <div className="space-y-2">
-                <h1 className="text-3xl font-extrabold tracking-[-0.05em] text-[var(--on-surface)] sm:text-[2.45rem]">
+                <h1 className="text-3xl font-extrabold tracking-[-0.05em] text-on-surface sm:text-[2.45rem]">
                   {greeting} วันนี้
                 </h1>
-                <p className="max-w-2xl text-sm leading-7 text-[var(--on-surface-variant)] sm:text-[0.95rem]">
+                <p className="max-w-2xl text-sm leading-7 text-on-surface-variant sm:text-[0.95rem]">
                   ภาพรวมงานสำคัญของอาคารในวันนี้ ทั้งห้องพัก รายได้ ค้างชำระ และงานที่ทีมต้องติดตามต่อทันที
                 </p>
               </div>
@@ -542,8 +542,8 @@ export default function AdminDashboardPage() {
             <div className="premium-surface-muted rounded-[30px] p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--on-surface-variant)]">สถานะวันนี้</div>
-                  <div className="mt-1 text-lg font-bold tracking-tight text-[var(--on-surface)]">อาคารกำลังดำเนินงานปกติ</div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">สถานะวันนี้</div>
+                  <div className="mt-1 text-lg font-bold tracking-tight text-on-surface">อาคารกำลังดำเนินงานปกติ</div>
                 </div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(99,102,241,0.96),rgba(34,211,238,0.72))] text-white shadow-[var(--shadow-indigo)]">
                   <CheckCircle2 size={18} strokeWidth={2.2} />
@@ -552,7 +552,7 @@ export default function AdminDashboardPage() {
 
               <div className="mt-5 space-y-4">
                 <div>
-                  <div className="flex items-center justify-between text-sm font-medium text-[var(--on-surface)]">
+                  <div className="flex items-center justify-between text-sm font-medium text-on-surface">
                     <span>อัตราเข้าพัก</span>
                     <span>{occupancyRate}%</span>
                   </div>
@@ -566,11 +566,11 @@ export default function AdminDashboardPage() {
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
                   <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--on-surface-variant)]">ใบแจ้งหนี้ชำระแล้ว</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-on-surface-variant">ใบแจ้งหนี้ชำระแล้ว</div>
                     <div className="mt-2 text-2xl font-extrabold tracking-[-0.05em] text-emerald-700">{summary?.paidInvoices ?? 0}</div>
                   </div>
                   <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--on-surface-variant)]">รอจัดการ</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-on-surface-variant">รอจัดการ</div>
                     <div className="mt-2 text-2xl font-extrabold tracking-[-0.05em] text-slate-800">{summary?.unpaidInvoices ?? 0}</div>
                   </div>
                 </div>
@@ -627,8 +627,8 @@ export default function AdminDashboardPage() {
         <motion.section {...riseIn(0.1)} className="premium-surface rounded-[32px] p-5 sm:p-6">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-sm font-bold text-[var(--on-surface)]">งานด่วนประจำวัน</h2>
-              <p className="text-xs text-[var(--on-surface-variant)]">ทางลัดสำหรับงานที่ทีมใช้งานบ่อยที่สุดในรอบปฏิบัติการประจำวัน</p>
+              <h2 className="text-sm font-bold text-on-surface">งานด่วนประจำวัน</h2>
+              <p className="text-xs text-on-surface-variant">ทางลัดสำหรับงานที่ทีมใช้งานบ่อยที่สุดในรอบปฏิบัติการประจำวัน</p>
             </div>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -708,14 +708,14 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="premium-surface overflow-hidden rounded-[30px]">
-            <div className="flex items-center justify-between border-b border-[var(--outline-variant)]/10 px-5 py-4">
+            <div className="flex items-center justify-between border-b border-outline-variant/10 px-5 py-4">
               <div className="flex items-center gap-2">
                 <Clock size={14} className="text-[var(--color-text-3)]" />
-                <span className="text-sm font-bold text-[var(--on-surface)]">กิจกรรมล่าสุด</span>
+                <span className="text-sm font-bold text-on-surface">กิจกรรมล่าสุด</span>
               </div>
               <Link
                 href="/admin/audit-logs"
-                className="pressable flex items-center gap-1 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-[var(--primary)] transition-colors hover:bg-slate-50"
+                className="pressable flex items-center gap-1 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-slate-50"
               >
                 ดูทั้งหมด <ArrowRight size={10} />
               </Link>
