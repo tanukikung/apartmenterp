@@ -62,6 +62,7 @@ vi.mock('@/lib', async () => {
       },
       room: {
         count: vi.fn(),
+        findMany: vi.fn(),
       },
       roomBilling: {
         aggregate: vi.fn(),
@@ -132,7 +133,15 @@ describe('Analytics API', () => {
     (prisma.room.count as any)
       .mockResolvedValueOnce(30) // total
       .mockResolvedValueOnce(20) // occupied
-      .mockResolvedValueOnce(10); // vacant
+      .mockResolvedValueOnce(10) // vacant
+      .mockResolvedValueOnce(0)  // maintenance
+      .mockResolvedValueOnce(0); // owner use
+    (prisma.room.findMany as any).mockResolvedValue(
+      Array.from({ length: 30 }, (_, i) => ({
+        roomStatus: i < 20 ? 'OCCUPIED' : 'VACANT',
+        floorNo: Math.floor(i / 10) + 1,
+      })),
+    );
     const mod = await import('@/app/api/analytics/occupancy/route');
     const res: Response = await (mod as any).GET({} as any);
     expect(res.ok).toBe(true);

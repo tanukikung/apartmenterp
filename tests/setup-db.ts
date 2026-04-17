@@ -19,22 +19,27 @@ afterAll(async () => {
 
 beforeEach(async () => {
   if (!USE_TEST_DB) return;
+  // Order matters — children before parents to avoid FK violations
   const deletable = [
     'message',
     'conversation',
-    'maintenanceAttachment',
-    'maintenanceComment',
-    'maintenanceTicket',
     'outboxEvent',
     'paymentTransaction',
     'payment',
-    'invoiceVersion',
     'invoice',
-    'billingItem',
-    'billingRecord',
+    'roomBilling',
+    'billingPeriod',
     'tenant',
+    'deliveryOrderItem',
+    'deliveryOrder',
+    'generatedDocument',
+    'documentTemplateVersion',
+    'documentTemplate',
+    'uploadedFile',
+    'maintenanceAttachment',
+    'maintenanceComment',
+    'maintenanceTicket',
     'room',
-    'floor',
     'lineUser',
   ] as const;
   try {

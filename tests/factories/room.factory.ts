@@ -29,7 +29,7 @@ export async function createRoom(
   const { prisma: shared } = await import('@/lib/db/client');
   const db = (tx || shared) as unknown as Prisma.TransactionClient & typeof shared;
 
-  const roomNo = overrides.roomNo ?? overrides.roomNumber ?? `${Math.floor(Math.random() * 900) + 100}`;
+  const roomNo = overrides.roomNo ?? overrides.roomNumber ?? `R${Date.now()}-${Math.floor(Math.random() * 90000) + 1000}`;
   const floorNo = overrides.floorNo ?? 1;
 
   return db.room.create({
@@ -41,7 +41,7 @@ export async function createRoom(
       defaultRentAmount: 5000,
       hasFurniture: false,
       defaultFurnitureAmount: 0,
-      roomStatus: 'ACTIVE',
+      roomStatus: 'VACANT',
     } as any,
   });
 }

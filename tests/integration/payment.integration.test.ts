@@ -28,7 +28,7 @@ describe('Integration: Payment flow', () => {
         defaultRentAmount: 4200,
         hasFurniture: false,
         defaultFurnitureAmount: 0,
-        roomStatus: 'ACTIVE',
+        roomStatus: 'VACANT',
       },
     });
     const period = await (prisma as any).billingPeriod.create({

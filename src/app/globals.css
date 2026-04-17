@@ -181,7 +181,7 @@
   }
 
   * {
-    @apply border-border;
+    @apply border-[hsl(var(--border))];
     box-sizing: border-box;
   }
 

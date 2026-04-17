@@ -39,7 +39,7 @@ async function createPrismaRoomBilling(overrides?: {
       defaultRentAmount: 5000,
       hasFurniture: false,
       defaultFurnitureAmount: 0,
-      roomStatus: 'ACTIVE',
+      roomStatus: 'VACANT',
     },
   });
 
@@ -292,14 +292,29 @@ describe('regenerate_sent_document_blocked', () => {
       },
     });
 
-    const doc = await (prisma as any).generatedDocument.create({
+    const templateVersion = await (prisma as any).documentTemplateVersion.create({
       data: {
         id: uuidv4(),
         templateId: template.id,
+        version: 1,
+        label: 'v1',
+        body: '<html>Test</html>',
+        status: 'ACTIVE',
+      },
+    });
+
+    const doc = await (prisma as any).generatedDocument.create({
+      data: {
+        id: uuidv4(),
+        templateVersionId: templateVersion.id,
+        documentType: 'INVOICE',
         status: 'SENT', // already sent — must block regeneration
+        title: 'Test Doc',
+        sourceScope: 'SINGLE_ROOM',
+        roomNo: 'TEST-999',
         year: 2026,
         month: 3,
-        generatedBy: 'test',
+        generatedById: 'test',
       },
     });
 
@@ -392,6 +407,11 @@ describe('delivery_order_send_updates_item_status_to_sent', () => {
     const lib = await import('@/lib');
     try { await (lib.prisma as any).$connect(); } catch { return; }
 
+    // Create room first (required for FK constraint)
+    await (lib.prisma as any).room.create({
+      data: { roomNo: 'TEST-101', floorNo: 1, defaultAccountId: 'ACC_F1', defaultRuleCode: 'STANDARD', defaultRentAmount: 5000, hasFurniture: false, defaultFurnitureAmount: 0, roomStatus: 'VACANT' },
+    });
+
     // Mock LINE sends to succeed
     vi.spyOn(lib, 'sendLineFileMessage').mockResolvedValue(undefined);
     vi.spyOn(lib, 'sendLineMessage').mockResolvedValue(undefined);
@@ -403,8 +423,8 @@ describe('delivery_order_send_updates_item_status_to_sent', () => {
     const order = await (lib.prisma as any).deliveryOrder.create({
       data: {
         id: uuidv4(),
-        title: 'Test DO',
         description: 'Test',
+        documentType: 'INVOICE',
         status: 'SENDING',
         sentCount: 0,
         failedCount: 0,
@@ -416,10 +436,7 @@ describe('delivery_order_send_updates_item_status_to_sent', () => {
         id: uuidv4(),
         deliveryOrderId: order.id,
         roomNo: 'TEST-101',
-        documentTitle: 'Test Doc',
-        pdfUrl: 'http://localhost:3001/tmp/test.pdf',
         status: 'PENDING',
-        generatedDocumentId: null,
       },
     });
 
@@ -431,9 +448,7 @@ describe('delivery_order_send_updates_item_status_to_sent', () => {
         itemId: item.id,
         orderId: order.id,
         lineUserId: 'U00000000000000000000000000000000',
-        documentTitle: 'Test Doc',
         roomNo: 'TEST-101',
-        pdfUrl: 'http://localhost:3001/tmp/test.pdf',
       }
     );
 
@@ -452,6 +467,11 @@ describe('delivery_order_send_failure_updates_item_status_to_failed', () => {
     const lib = await import('@/lib');
     try { await (lib.prisma as any).$connect(); } catch { return; }
 
+    // Create room first (required for FK constraint)
+    await (lib.prisma as any).room.create({
+      data: { roomNo: 'TEST-102', floorNo: 1, defaultAccountId: 'ACC_F1', defaultRuleCode: 'STANDARD', defaultRentAmount: 5000, hasFurniture: false, defaultFurnitureAmount: 0, roomStatus: 'VACANT' },
+    });
+
     // Mock LINE send to always fail
     vi.spyOn(lib, 'sendLineFileMessage').mockRejectedValue(new Error('LINE API Error'));
 
@@ -462,8 +482,8 @@ describe('delivery_order_send_failure_updates_item_status_to_failed', () => {
     const order = await (lib.prisma as any).deliveryOrder.create({
       data: {
         id: uuidv4(),
-        title: 'Test DO Fail',
         description: 'Test',
+        documentType: 'INVOICE',
         status: 'SENDING',
         sentCount: 0,
         failedCount: 0,
@@ -475,10 +495,7 @@ describe('delivery_order_send_failure_updates_item_status_to_failed', () => {
         id: uuidv4(),
         deliveryOrderId: order.id,
         roomNo: 'TEST-102',
-        documentTitle: 'Test Doc 2',
-        pdfUrl: 'http://localhost:3001/tmp/test2.pdf',
         status: 'PENDING',
-        generatedDocumentId: null,
       },
     });
 
@@ -490,9 +507,7 @@ describe('delivery_order_send_failure_updates_item_status_to_failed', () => {
         itemId: item.id,
         orderId: order.id,
         lineUserId: 'U00000000000000000000000000000000',
-        documentTitle: 'Test Doc 2',
         roomNo: 'TEST-102',
-        pdfUrl: 'http://localhost:3001/tmp/test2.pdf',
       }
     );
 

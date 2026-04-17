@@ -30,7 +30,7 @@ describe('Integration: Billing → Invoice', () => {
         defaultRentAmount: 5000,
         hasFurniture: false,
         defaultFurnitureAmount: 0,
-        roomStatus: 'ACTIVE',
+        roomStatus: 'VACANT',
       },
     });
 
