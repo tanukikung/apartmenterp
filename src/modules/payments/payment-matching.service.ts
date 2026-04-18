@@ -72,52 +72,58 @@ export class PaymentMatchingService {
     sourceFile: string,
     actor?: { actorId: string; actorRole: string }
   ): Promise<{ imported: number; matched: number }> {
+    const BATCH_SIZE = 50;
     let imported = 0;
     let matched = 0;
 
-    for (const entry of entries) {
-      try {
-        await prisma.$transaction(async (tx) => {
-          // Create payment transaction
-          const transaction = await tx.paymentTransaction.create({
-            data: {
-              id: uuidv4(),
-              amount: entry.amount,
-              transactionDate: entry.date,
-              description: entry.description,
-              reference: entry.reference,
-              sourceFile,
-              status: 'PENDING',
-              // Normalize empty/undefined roomNo to null so the dedup unique constraint
-              // treats multiple missing-roomNo entries as non-duplicates (SQL NULL != NULL).
-              roomNo: entry.roomNo || null,
-            },
-          });
-
-          imported++;
-
-          // Attempt to match using the same transaction connection
-          // autoConfirmHighConfidence=true: auto-confirm HIGH confidence matches immediately
-          const matchResult = await this.attemptMatch(transaction.id, tx as Prisma.TransactionClient, { autoConfirmHighConfidence: true });
-          if (matchResult === 'CONFIRMED') {
-            matched++;
-          } else if (matchResult) {
-            // MEDIUM/LOW confidence — stays as NEED_REVIEW for admin review
-            matched++;
-          } else {
-            // No match found — move to NEED_REVIEW so admins can manually assign
-            await tx.paymentTransaction.update({
-              where: { id: transaction.id },
-              data: { status: 'NEED_REVIEW' },
+    // Process entries in batches to amortize transaction overhead
+    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      const batch = entries.slice(i, i + BATCH_SIZE);
+      const results = await prisma.$transaction(async (tx) => {
+        const batchResults: Array<{ imported: boolean; matched: boolean }> = [];
+        for (const entry of batch) {
+          try {
+            const transaction = await tx.paymentTransaction.create({
+              data: {
+                id: uuidv4(),
+                amount: entry.amount,
+                transactionDate: entry.date,
+                description: entry.description,
+                reference: entry.reference,
+                sourceFile,
+                status: 'PENDING',
+                roomNo: entry.roomNo || null,
+              },
             });
+
+            batchResults.push({ imported: true, matched: false });
+
+            const matchResult = await this.attemptMatch(transaction.id, tx as Prisma.TransactionClient, { autoConfirmHighConfidence: true });
+            if (matchResult === 'CONFIRMED') {
+              batchResults[batchResults.length - 1].matched = true;
+            } else if (matchResult) {
+              batchResults[batchResults.length - 1].matched = true;
+            } else {
+              await tx.paymentTransaction.update({
+                where: { id: transaction.id },
+                data: { status: 'NEED_REVIEW' },
+              });
+            }
+          } catch (error) {
+            logger.error({
+              type: 'payment_import_entry_failed',
+              entry,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            batchResults.push({ imported: false, matched: false });
           }
-        }); // transaction auto-rolls back on any unhandled exception
-      } catch (error) {
-        logger.error({
-          type: 'payment_import_entry_failed',
-          entry,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        }
+        return batchResults;
+      });
+
+      for (const r of results) {
+        if (r.imported) imported++;
+        if (r.matched) matched++;
       }
     }
 

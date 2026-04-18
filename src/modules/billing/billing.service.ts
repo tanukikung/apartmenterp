@@ -276,20 +276,34 @@ export class BillingService {
     const skipped: Array<{ roomNo: string; reason: string }> = [];
     const errors: Array<{ roomNo: string; error: string }> = [];
 
+    // Prefetch all rooms mentioned in the import to avoid N per-row queries
+    const uniqueRoomNos = [...new Set(allRows.map((r) => r.roomNo))];
+    const roomsFromDb = await prisma.room.findMany({
+      where: { roomNo: { in: uniqueRoomNos } },
+      select: { roomNo: true, defaultAccountId: true, defaultRuleCode: true },
+    });
+    const roomMap = new Map(roomsFromDb.map((r) => [r.roomNo, r]));
+
+    // Prefetch existing billing records for the period to avoid N per-row queries
+    const existingBillings = await prisma.roomBilling.findMany({
+      where: {
+        billingPeriodId: period!.id,
+        roomNo: { in: uniqueRoomNos },
+      },
+      select: { id: true, roomNo: true, status: true },
+    });
+    const existingMap = new Map(existingBillings.map((b) => [b.roomNo, b]));
+
     for (const row of allRows) {
       const { roomNo } = row;
       try {
-        // Check room exists
-        const room = await prisma.room.findUnique({ where: { roomNo } });
+        const room = roomMap.get(roomNo);
         if (!room) {
           skipped.push({ roomNo, reason: 'Room not found in database' });
           continue;
         }
 
-        // Check for existing RoomBilling
-        const existing = await prisma.roomBilling.findUnique({
-          where: { billingPeriodId_roomNo: { billingPeriodId: period!.id, roomNo } },
-        });
+        const existing = existingMap.get(roomNo);
         if (existing) {
           if (existing.status !== 'DRAFT') {
             skipped.push({ roomNo, reason: `Already ${existing.status}` });

@@ -811,16 +811,16 @@ export class InvoiceService {
       },
     });
 
-    for (const invoice of overdueInvoices) {
+    if (overdueInvoices.length === 0) {
+      logger.info({ type: 'overdue_check', count: 0 });
+      return;
+    }
+
+    // Build all payloads before any DB writes or event publishes
+    const events = overdueInvoices.map((invoice) => {
       const daysOverdue = Math.floor(
         (today.getTime() - invoice.dueDate.getTime()) / (1000 * 60 * 60 * 24)
       );
-
-      await prisma.invoice.update({
-        where: { id: invoice.id },
-        data: { status: 'OVERDUE' },
-      });
-
       const payload: InvoiceOverduePayload = {
         invoiceId: invoice.id,
         roomId: invoice.roomNo,
@@ -828,14 +828,24 @@ export class InvoiceService {
         daysOverdue,
         totalAmount: Number(invoice.totalAmount),
       };
+      return { invoice, payload };
+    });
 
-      await this.eventBus.publish(
-        EventTypes.INVOICE_MARKED_OVERDUE,
-        'Invoice',
-        invoice.id,
-        payload as any
-      );
-    }
+    // Batch update DB + publish events concurrently
+    await Promise.all(
+      events.map(async ({ invoice, payload }) => {
+        await prisma.invoice.update({
+          where: { id: invoice.id },
+          data: { status: 'OVERDUE' },
+        });
+        await this.eventBus.publish(
+          EventTypes.INVOICE_MARKED_OVERDUE,
+          'Invoice',
+          invoice.id,
+          payload as any
+        );
+      })
+    );
 
     logger.info({ type: 'overdue_check', count: overdueInvoices.length });
   }

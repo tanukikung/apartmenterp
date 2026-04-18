@@ -11,6 +11,20 @@ import { ReminderService } from '@/modules/reminders/reminder.service';
 import { InvoicePDFService } from '@/modules/invoices/invoice-pdf.service';
 import { disconnectPrisma } from '@/lib';
 
+/**
+ * Service container providing all domain services with a shared EventBus instance.
+ *
+ * LIFECYCLE NOTES:
+ * - **getServiceContainer() vs createServiceContainer()**: Use getServiceContainer()
+ *   for the shared singleton in API routes. Use createServiceContainer() in tests to
+ *   get an isolated container with its own EventBus (prevents test pollution).
+ * - **Test isolation**: Call resetServiceContainer() after each test (e.g., in afterEach)
+ *   to disconnect Prisma and clear the singleton. Also call EventBus.resetInstance().
+ * - **Hot reload**: Call resetServiceContainer() during dev reload to avoid stale connections.
+ * - **Thread safety**: Node.js is single-threaded; the container is process-global,
+ *   not per-request. Services should be stateless; Prisma manages its own connection pool.
+ */
+
 export interface ServiceContainer {
   eventBus: EventBus;
   billingService: BillingService;

@@ -23,6 +23,13 @@ export interface EventMetadata {
 /**
  * Event Bus implementation for domain events
  * Supports publish/subscribe pattern with async handlers
+ *
+ * LIFECYCLE NOTES:
+ * - **getInstance() vs constructor**: Use getInstance() for shared bus in API routes.
+ *   Use `new EventBus()` in tests to get an isolated instance.
+ * - **Test isolation**: Call EventBus.resetInstance() between tests to clear handlers/history.
+ * - **Hot reload**: Call resetInstance() during dev reload to avoid duplicate handlers.
+ * - **Thread safety**: Node.js is single-threaded; no true concurrency concerns apply.
  */
 export class EventBus {
   private handlers: EventHandlerMap = new Map();
@@ -42,6 +49,13 @@ export class EventBus {
       EventBus.instance = new EventBus();
     }
     return EventBus.instance;
+  }
+
+  /**
+   * Reset the singleton. Use between tests or during hot reload to get a fresh bus.
+   */
+  static resetInstance(): void {
+    EventBus.instance = null;
   }
 
   /**

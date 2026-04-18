@@ -6,7 +6,13 @@ import { getAuthSecret, resolveAuthSecret } from '@/lib/config/env';
 export const AUTH_COOKIE_NAME = 'auth_session';
 export const ROLE_COOKIE_NAME = 'role';
 
-// NOTE: Building isolation is NOT yet implemented at the API layer.
+// WARNING: The session payload is base64-encoded JSON, NOT encrypted.
+// The token is signed (HMAC-SHA256) to prevent tampering, but the payload is
+// visible to anyone who can read the cookie. DO NOT store sensitive data
+// (passwords, credit card numbers, personal identification numbers, etc.)
+// in the session payload. Treat the payload as publicly visible.
+
+// TODO [security/building-isolation]: Building isolation is NOT yet implemented at the API layer.
 // All ADMIN/STAFF users can access all buildings' data regardless of buildingId.
 // To enable building isolation:
 // 1. Add a Building model to the schema with proper relations to Room, AdminUser, etc.

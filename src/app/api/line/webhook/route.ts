@@ -56,7 +56,10 @@ function extractIncomingMessage(event: WebhookEvent): IncomingMessage | null {
     return null;
   }
 
-  if (!evt.message?.id || !evt.message?.type) return null;
+  if (!evt.message?.id || !evt.message?.type) {
+    logger.debug({ type: 'line_webhook_message_missing_fields', eventType: evt.type, messageId: evt.message?.id });
+    return null;
+  }
 
   if (evt.message.type === 'text') {
     return {
@@ -303,48 +306,100 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   const events = Array.isArray(payload.events) ? payload.events : [];
 
   for (const event of events) {
-    const userId = extractUserId(event);
-    if (!userId) continue;
+    try {
+      const userId = extractUserId(event);
+      if (!userId) continue;
 
-    const eventType = (event as { type?: string }).type || 'message';
+      const eventType = (event as { type?: string }).type || 'message';
 
-    // ── Handle line@read (read receipt) ────────────────────────────────────
-    if (eventType === 'line@read' || eventType === 'read') {
-      const readEvent = event as { replyToken?: string; read?: { readAt?: number } };
-      if (!readEvent.replyToken) continue;
-      const conversation = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
-      if (!conversation) continue;
-      const readAt = readEvent.read?.readAt ? new Date(readEvent.read.readAt) : new Date();
-      await prisma.message.updateMany({
-        where: { conversationId: conversation.id, direction: 'OUTGOING', isRead: false },
-        data: { isRead: true, readAt },
-      });
-      logger.info({ type: 'line_read_receipt', conversationId: conversation.id });
-      continue;
-    }
-
-    // ── Handle unfollow ────────────────────────────────────────────────────
-    if (eventType === 'unfollow') {
-      const conversation = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
-      if (conversation) {
-        await prisma.conversation.update({
-          where: { id: conversation.id },
-          data: { status: 'ARCHIVED' },
+      // ── Handle line@read (read receipt) ────────────────────────────────────
+      if (eventType === 'line@read' || eventType === 'read') {
+        const readEvent = event as { replyToken?: string; read?: { readAt?: number } };
+        if (!readEvent.replyToken) continue;
+        const conversation = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
+        if (!conversation) continue;
+        const readAt = readEvent.read?.readAt ? new Date(readEvent.read.readAt) : new Date();
+        await prisma.message.updateMany({
+          where: { conversationId: conversation.id, direction: 'OUTGOING', isRead: false },
+          data: { isRead: true, readAt },
         });
-      }
-      continue;
-    }
-
-    // ── Handle follow ──────────────────────────────────────────────────────
-    if (eventType === 'follow') {
-      // Idempotent: skip if conversation already exists and is not ARCHIVED
-      const existingConv = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
-      if (existingConv && existingConv.status !== 'ARCHIVED') {
-        // Already have an active conversation — acknowledge without reprocessing
+        logger.info({ type: 'line_read_receipt', conversationId: conversation.id });
         continue;
       }
 
-      // Fetch real LINE profile and upsert LineUser with real data
+      // ── Handle unfollow ────────────────────────────────────────────────────
+      if (eventType === 'unfollow') {
+        const conversation = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
+        if (conversation) {
+          await prisma.conversation.update({
+            where: { id: conversation.id },
+            data: { status: 'ARCHIVED' },
+          });
+        }
+        continue;
+      }
+
+      // ── Handle follow ──────────────────────────────────────────────────────
+      if (eventType === 'follow') {
+        // Idempotent: skip if conversation already exists and is not ARCHIVED
+        const existingConv = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
+        if (existingConv && existingConv.status !== 'ARCHIVED') {
+          // Already have an active conversation — acknowledge without reprocessing
+          continue;
+        }
+
+        // Fetch real LINE profile and upsert LineUser with real data
+        let displayName = 'LINE User';
+        let pictureUrl: string | null = null;
+        let statusMessage: string | null = null;
+        try {
+          const profile = await getLineUserProfile(userId);
+          displayName = profile.displayName;
+          pictureUrl = profile.pictureUrl;
+          statusMessage = profile.statusMessage;
+        } catch (err) {
+          logger.warn({ type: 'line_profile_fetch_failed', userId, error: (err as Error).message });
+        }
+
+        // Ensure LineUser record exists before creating Conversation (required FK).
+        // Use upsert so this is idempotent — safe to call even if the record already exists.
+        await prisma.lineUser.upsert({
+          where: { lineUserId: userId },
+          create: { lineUserId: userId, displayName, pictureUrl, statusMessage },
+          update: { displayName, pictureUrl, statusMessage, lastFetchedAt: new Date() },
+        });
+
+        const conversation = existingConv
+          ? await prisma.conversation.update({
+              where: { id: existingConv.id },
+              data: { status: 'ACTIVE', lastMessageAt: new Date() },
+            })
+          : await prisma.conversation.create({
+              data: { id: uuidv4(), lineUserId: userId, lastMessageAt: new Date() },
+            });
+        await prisma.message.create({
+          data: {
+            id: uuidv4(),
+            conversation: { connect: { id: conversation.id } },
+            lineMessageId: uuidv4(),
+            direction: 'INCOMING',
+            type: 'SYSTEM',
+            content: '[Follow event]',
+            sentAt: new Date(),
+            metadata: { eventType: 'follow' } as Prisma.InputJsonValue,
+          },
+        });
+        continue;
+      }
+
+      // ── Handle incoming messages (text, image, sticker, postback) ────────────
+      const incoming = extractIncomingMessage(event);
+      if (!incoming) {
+        logger.debug({ type: 'line_webhook_skipped_event', eventType });
+        continue;
+      }
+
+      // Ensure LineUser record exists and has current profile data.
       let displayName = 'LINE User';
       let pictureUrl: string | null = null;
       let statusMessage: string | null = null;
@@ -356,147 +411,106 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       } catch (err) {
         logger.warn({ type: 'line_profile_fetch_failed', userId, error: (err as Error).message });
       }
-
-      // Ensure LineUser record exists before creating Conversation (required FK).
-      // Use upsert so this is idempotent — safe to call even if the record already exists.
       await prisma.lineUser.upsert({
         where: { lineUserId: userId },
         create: { lineUserId: userId, displayName, pictureUrl, statusMessage },
         update: { displayName, pictureUrl, statusMessage, lastFetchedAt: new Date() },
       });
 
-      const conversation = existingConv
-        ? await prisma.conversation.update({
-            where: { id: existingConv.id },
-            data: { status: 'ACTIVE', lastMessageAt: new Date() },
-          })
-        : await prisma.conversation.create({
-            data: { id: uuidv4(), lineUserId: userId, lastMessageAt: new Date() },
-          });
+      let conversation = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
+      if (!conversation) {
+        conversation = await prisma.conversation.create({
+          data: { id: uuidv4(), lineUserId: userId, lastMessageAt: new Date() },
+        });
+      }
+
+      // Handle postback: process action but don't store as visible message
+      if (incoming.type === 'POSTBACK' && incoming.replyToken) {
+        await handlePostback(incoming.content, incoming.replyToken, conversation.id);
+        continue;
+      }
+
+      // ── Balance / invoice inquiry via text ───────────────────────────────────
+      if (incoming.type === 'TEXT' && incoming.replyToken) {
+        const text = (incoming.content || '').trim();
+        if (INQUIRY_TRIGGERS.some((t) => text === t || text.includes(t))) {
+          await handleBalanceInquiry(userId, incoming.replyToken, conversation.id);
+          continue;
+        }
+      }
+
+      // ── LINE Maintenance Request handling ──────────────────────────────────
+      // Check if user has an in-progress maintenance request
+      const hasMaintenanceRequest = getMaintenanceRequestState(userId) !== undefined;
+
+      if (incoming.type === 'TEXT' && incoming.replyToken) {
+        const text = (incoming.content || '').trim();
+
+        // Start maintenance request when user says "แจ้งซ่อม"
+        if (text === 'แจ้งซ่อม') {
+          const { replyText } = await startMaintenanceRequest(userId);
+          await sendReplyMessage(incoming.replyToken, replyText);
+          continue;
+        }
+
+        // Handle in-progress maintenance conversation
+        if (hasMaintenanceRequest) {
+          const result = await handleMaintenanceRequestMessage(userId, text);
+          if (result) {
+            await sendReplyMessage(incoming.replyToken, result.replyText);
+            continue;
+          }
+        }
+      }
+
+      // Handle image messages during a maintenance request flow
+      if (incoming.type === 'IMAGE' && incoming.replyToken) {
+        if (hasMaintenanceRequest) {
+          const imageMessageId = incoming.lineMessageId;
+          const result = await handleMaintenanceRequestImage(userId, imageMessageId);
+          if (result) {
+            await sendReplyMessage(incoming.replyToken, result.replyText);
+            continue;
+          }
+        }
+      }
+
+      // Deduplicate by lineMessageId
+      const existingMessage = await prisma.message.findUnique({
+        where: { lineMessageId: incoming.lineMessageId },
+      });
+      if (existingMessage) continue;
+
+      const sentAt = new Date((event as { timestamp?: number }).timestamp || Date.now());
+
       await prisma.message.create({
         data: {
           id: uuidv4(),
           conversation: { connect: { id: conversation.id } },
-          lineMessageId: uuidv4(),
+          lineMessageId: incoming.lineMessageId,
           direction: 'INCOMING',
-          type: 'SYSTEM',
-          content: '[Follow event]',
-          sentAt: new Date(),
-          metadata: { eventType: 'follow' } as Prisma.InputJsonValue,
+          type: incoming.type as MessageType,
+          content: incoming.content,
+          metadata: incoming.metadata,
+          sentAt,
         },
       });
-      continue;
-    }
 
-    // ── Handle incoming messages (text, image, sticker, postback) ────────────
-    const incoming = extractIncomingMessage(event);
-    if (!incoming) continue;
-
-    // Ensure LineUser record exists and has current profile data.
-    let displayName = 'LINE User';
-    let pictureUrl: string | null = null;
-    let statusMessage: string | null = null;
-    try {
-      const profile = await getLineUserProfile(userId);
-      displayName = profile.displayName;
-      pictureUrl = profile.pictureUrl;
-      statusMessage = profile.statusMessage;
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: {
+          status: 'ACTIVE',
+          lastMessageAt: sentAt,
+          unreadCount: { increment: 1 },
+        },
+      });
     } catch (err) {
-      logger.warn({ type: 'line_profile_fetch_failed', userId, error: (err as Error).message });
-    }
-    await prisma.lineUser.upsert({
-      where: { lineUserId: userId },
-      create: { lineUserId: userId, displayName, pictureUrl, statusMessage },
-      update: { displayName, pictureUrl, statusMessage, lastFetchedAt: new Date() },
-    });
-
-    let conversation = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
-    if (!conversation) {
-      conversation = await prisma.conversation.create({
-        data: { id: uuidv4(), lineUserId: userId, lastMessageAt: new Date() },
+      logger.error({
+        type: 'line_webhook_event_error',
+        event: event as Record<string, unknown>,
+        error: err instanceof Error ? err.message : String(err),
       });
     }
-
-    // Handle postback: process action but don't store as visible message
-    if (incoming.type === 'POSTBACK' && incoming.replyToken) {
-      await handlePostback(incoming.content, incoming.replyToken, conversation.id);
-      continue;
-    }
-
-    // ── Balance / invoice inquiry via text ───────────────────────────────────
-    if (incoming.type === 'TEXT' && incoming.replyToken) {
-      const text = (incoming.content || '').trim();
-      if (INQUIRY_TRIGGERS.some((t) => text === t || text.includes(t))) {
-        await handleBalanceInquiry(userId, incoming.replyToken, conversation.id);
-        continue;
-      }
-    }
-
-    // ── LINE Maintenance Request handling ──────────────────────────────────
-    // Check if user has an in-progress maintenance request
-    const hasMaintenanceRequest = getMaintenanceRequestState(userId) !== undefined;
-
-    if (incoming.type === 'TEXT' && incoming.replyToken) {
-      const text = (incoming.content || '').trim();
-
-      // Start maintenance request when user says "แจ้งซ่อม"
-      if (text === 'แจ้งซ่อม') {
-        const { replyText } = await startMaintenanceRequest(userId);
-        await sendReplyMessage(incoming.replyToken, replyText);
-        continue;
-      }
-
-      // Handle in-progress maintenance conversation
-      if (hasMaintenanceRequest) {
-        const result = await handleMaintenanceRequestMessage(userId, text);
-        if (result) {
-          await sendReplyMessage(incoming.replyToken, result.replyText);
-          continue;
-        }
-      }
-    }
-
-    // Handle image messages during a maintenance request flow
-    if (incoming.type === 'IMAGE' && incoming.replyToken) {
-      if (hasMaintenanceRequest) {
-        const imageMessageId = incoming.lineMessageId;
-        const result = await handleMaintenanceRequestImage(userId, imageMessageId);
-        if (result) {
-          await sendReplyMessage(incoming.replyToken, result.replyText);
-          continue;
-        }
-      }
-    }
-
-    // Deduplicate by lineMessageId
-    const existingMessage = await prisma.message.findUnique({
-      where: { lineMessageId: incoming.lineMessageId },
-    });
-    if (existingMessage) continue;
-
-    const sentAt = new Date((event as { timestamp?: number }).timestamp || Date.now());
-
-    await prisma.message.create({
-      data: {
-        id: uuidv4(),
-        conversation: { connect: { id: conversation.id } },
-        lineMessageId: incoming.lineMessageId,
-        direction: 'INCOMING',
-        type: incoming.type as MessageType,
-        content: incoming.content,
-        metadata: incoming.metadata,
-        sentAt,
-      },
-    });
-
-    await prisma.conversation.update({
-      where: { id: conversation.id },
-      data: {
-        status: 'ACTIVE',
-        lastMessageAt: sentAt,
-        unreadCount: { increment: 1 },
-      },
-    });
   }
 
   logger.info({ type: 'line_webhook_processed', count: events.length });

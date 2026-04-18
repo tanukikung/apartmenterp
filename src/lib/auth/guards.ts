@@ -47,6 +47,40 @@ export function requireOperator(req: NextRequest): AuthSessionPayload {
   return requireRole(req, ['ADMIN', 'STAFF']);
 }
 
+/**
+ * Validate that the session's buildingId matches the resource's buildingId.
+ *
+ * This is a fail-safe guard: when session.buildingId is null (single-building mode),
+ * access is permitted for backward compatibility. When session.buildingId is set,
+ * it must match the resourceBuildingId or a ForbiddenError is thrown.
+ *
+ * Usage in API routes:
+ *   const session = requireOperator(req);
+ *   const room = await prisma.room.findUnique({ where: { id } });
+ *   requireBuildingAccess(session, room.buildingId);  // throws if mismatch
+ *   // proceed with operation...
+ *
+ * @param session - The authenticated session (from requireOperator or requireAuthSession)
+ * @param resourceBuildingId - The buildingId of the resource being accessed (null if unbuildinged)
+ * @throws ForbiddenError - When session.buildingId is set but does not match resourceBuildingId
+ */
+export function requireBuildingAccess(
+  session: AuthSessionPayload,
+  resourceBuildingId: string | null
+): void {
+  if (session.buildingId === null) {
+    // Single-building mode: no building isolation, permit all access
+    return;
+  }
+  if (resourceBuildingId === null) {
+    // Resource has no buildingId but session is building-scoped — deny to be safe
+    throw new ForbiddenError('Access denied: resource belongs to a different building');
+  }
+  if (session.buildingId !== resourceBuildingId) {
+    throw new ForbiddenError('Access denied: you do not have permission to access this building\'s data');
+  }
+}
+
 export function getRequestIp(req: NextRequest): string | null {
   // Only trust x-forwarded-for when the direct connection is from a known proxy.
   const trustedProxies = (process.env.TRUSTED_PROXY_IPS || '')

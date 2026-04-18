@@ -539,7 +539,13 @@ export class ContractService {
       },
     });
 
-    for (const contract of expiringContracts) {
+    if (expiringContracts.length === 0) {
+      logger.info({ type: 'expiring_contracts_check', count: 0 });
+      return;
+    }
+
+    // Build all payloads first, then publish all events concurrently
+    const eventPayloads = expiringContracts.map((contract) => {
       const daysUntilExpiry = Math.ceil(
         (contract.endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
       );
@@ -551,14 +557,19 @@ export class ContractService {
         endDate: contract.endDate.toISOString().split('T')[0],
         daysUntilExpiry,
       };
+      return payload;
+    });
 
-      await this.eventBus.publish(
-        EventTypes.CONTRACT_EXPIRING_SOON,
-        'Contract',
-        contract.id,
-        payload as any
-      );
-    }
+    await Promise.all(
+      expiringContracts.map((contract, i) =>
+        this.eventBus.publish(
+          EventTypes.CONTRACT_EXPIRING_SOON,
+          'Contract',
+          contract.id,
+          eventPayloads[i] as any
+        )
+      )
+    );
 
     logger.info({ type: 'expiring_contracts_check', count: expiringContracts.length });
   }
