@@ -1,13 +1,11 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 
 vi.doUnmock('@/lib/db/client');
 vi.resetModules();
 
 process.env.USE_PRISMA_TEST_DB = 'true';
 
-// TODO(schema-drift): uses stubbed billing.factory (old BillingRecord model);
-// needs rewrite against RoomBilling schema.
-describe.skip('Integration: Billing → Invoice', () => {
+describe('Integration: Billing → Invoice', () => {
   let prisma: typeof import('@/lib/db/client').prisma;
 
   beforeAll(async () => {
@@ -21,7 +19,6 @@ describe.skip('Integration: Billing → Invoice', () => {
       return;
     }
 
-    // New schema: no building/floor models, Room PK is roomNo (string)
     const roomNo = `TEST-BI-${crypto.randomUUID().slice(0, 8)}`;
     await (prisma as any).room.create({
       data: {
@@ -36,8 +33,12 @@ describe.skip('Integration: Billing → Invoice', () => {
       },
     });
 
+    // Use a randomized year/month to avoid the (year, month) unique constraint
+    // colliding with sibling tests sharing the same Postgres test DB.
+    const year = 3000 + Math.floor(Math.random() * 1000);
+    const month = 1 + Math.floor(Math.random() * 12);
     const period = await (prisma as any).billingPeriod.create({
-      data: { year: 2026, month: 3, status: 'LOCKED', dueDay: 5 },
+      data: { year, month, status: 'LOCKED', dueDay: 5 },
     });
     const billing = await (prisma as any).roomBilling.create({
       data: {

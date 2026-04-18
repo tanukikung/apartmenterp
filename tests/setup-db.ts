@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, beforeEach } from 'vitest';
+import { beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 
 const USE_TEST_DB = process.env.USE_PRISMA_TEST_DB === 'true';
@@ -113,10 +113,18 @@ const DELETABLE_MODELS = [
   'config',
 ] as const;
 
-beforeEach(async () => {
-  if (!USE_TEST_DB || !realPrisma) return;
+// NOTE: no automatic cleanup. With a multi-fork pool, any deleteMany on shared
+// tables races against sibling forks that are mid-assertion. Tests instead
+// isolate themselves via randomized IDs (roomNo, year/month, reference strings).
+// If you want a clean DB, export WIPE_TEST_DB=true before running vitest.
+beforeAll(async () => {
+  if (!USE_TEST_DB) return;
+  if (process.env.WIPE_TEST_DB !== 'true') return;
+  const g = globalThis as any;
+  if (g.__APT_ERP_CLEANED__) return;
+  g.__APT_ERP_CLEANED__ = true;
   try {
-    const p = realPrisma as any;
+    const p = getRealPrisma() as any;
     await p.$transaction(
       DELETABLE_MODELS
         .map((m) => p[m])

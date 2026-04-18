@@ -1,5 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterAll, describe, it, expect, vi, beforeEach } from 'vitest';
 import { prisma } from '@/lib';
+
+// Fake timers here must not leak into the global afterAll in tests/setup.ts,
+// which uses setTimeout() to cap prisma.$disconnect(). Without the cleanup
+// below, that setTimeout never fires and the hook times out (30s).
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 vi.mock('@/lib/line/client', () => ({
   getLineClient: vi.fn(),

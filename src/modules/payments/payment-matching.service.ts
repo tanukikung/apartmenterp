@@ -849,3 +849,15 @@ export class PaymentMatchingService {
 export function createPaymentMatchingService(): PaymentMatchingService {
   return new PaymentMatchingService();
 }
+
+let _paymentMatchingSingleton: PaymentMatchingService | null = null;
+/**
+ * Cached singleton accessor used by route handlers and integration tests
+ * that don't go through the DI container.
+ */
+export function getPaymentMatchingService(): PaymentMatchingService {
+  if (!_paymentMatchingSingleton) {
+    _paymentMatchingSingleton = new PaymentMatchingService();
+  }
+  return _paymentMatchingSingleton;
+}
