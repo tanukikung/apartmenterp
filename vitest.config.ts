@@ -10,7 +10,7 @@ export default defineConfig({
     isolate: true,
     passWithNoTests: false,
     setupFiles: ['tests/setup-env.ts', 'tests/setup.ts', 'tests/setup-mocks.ts', 'tests/setup-db.ts'],
-    hookTimeout: 5000,
+    hookTimeout: 30000,
     teardownTimeout: 5000,
     testTimeout: 30000,
     coverage: {

@@ -1187,3 +1187,15 @@ export class BillingService {
 export function createBillingService(eventBus?: EventBus): BillingService {
   return new BillingService(eventBus);
 }
+
+/**
+ * Cached singleton accessor used by route handlers, workers, and integration
+ * tests that need a BillingService without plumbing through the DI container.
+ */
+let _billingServiceSingleton: BillingService | null = null;
+export function getBillingService(): BillingService {
+  if (!_billingServiceSingleton) {
+    _billingServiceSingleton = new BillingService();
+  }
+  return _billingServiceSingleton;
+}
