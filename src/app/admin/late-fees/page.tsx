@@ -2,18 +2,8 @@
 
 import { useCallback, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  Edit2,
-  Loader2,
-  RefreshCw,
-  Search,
-  ThumbsUp,
-  X,
-} from 'lucide-react';
-import { StatusBadge } from '@/components/ui/status-badge';
+import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, Search, ThumbsUp, X } from 'lucide-react';
+
 
 type LateFeeInvoice = {
   id: string;
@@ -164,7 +154,7 @@ export default function LateFeesPage() {
       setSaveSuccess(true);
       setSelectedIds(new Set());
       void queryClient.invalidateQueries({ queryKey: ['late-fees'] });
-    } catch (err) {
+    } catch (_err) {
       void refetch();
     } finally {
       setSaving(false);
@@ -195,7 +185,7 @@ export default function LateFeesPage() {
       if (!json.success) throw new Error(json.error?.message ?? 'Failed to save');
       setSaveSuccess(true);
       void queryClient.invalidateQueries({ queryKey: ['late-fees'] });
-    } catch (err) {
+    } catch (_err) {
       void refetch();
     } finally {
       setSaving(false);

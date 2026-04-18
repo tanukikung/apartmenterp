@@ -67,7 +67,7 @@ export const GET = asyncHandler(
           }
         },
       });
-      return new NextResponse(stream as unknown as BodyInit, { status: 200, headers });
+      return new NextResponse(stream as any as BodyInit, { status: 200, headers });
     } catch (error) {
       if (error instanceof AppError) {
         throw error;

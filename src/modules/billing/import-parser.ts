@@ -305,7 +305,7 @@ export function parseBillingWorkbook(buffer: Uint8Array): WorkbookParseResult {
     const errors: Array<{ rowIndex: number; roomNo: string; error: string }> = [];
 
     for (let i = 0; i < dataRows.length; i++) {
-      const values = dataRows[i] as unknown[];
+      const values = dataRows[i] as any[];
       // Skip completely empty rows (room column is null/empty)
       const roomVal = values[headers.indexOf('room')];
       if (!roomVal) continue;

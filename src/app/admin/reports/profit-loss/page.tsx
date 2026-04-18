@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ClientOnly } from '@/components/ui/ClientOnly';
+
 import React from 'react';
 import {
   AlertTriangle,
@@ -39,7 +39,7 @@ const THAI_MONTHS = [
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
 ];
 
-const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+const _CATEGORY_LABELS: Record<ExpenseCategory, string> = {
   CLEANING: 'ทำความสะอาด',
   REPAIR: 'ซ่อมแซม',
   UTILITY: 'ค่าสาธารณูปโภค',
@@ -237,7 +237,7 @@ export default function AdminProfitLossPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">จำนวนรายการ</p>
-                <p className="mt-0.5 text-2xl font-bold text-on-surface">{report.expenseByCategory.reduce((s, c) => s + 1, 0)}</p>
+                <p className="mt-0.5 text-2xl font-bold text-on-surface">{report.expenseByCategory.reduce((s, _c) => s + 1, 0)}</p>
                 <p className="mt-0.5 text-xs text-on-surface-variant">หมวดหมู่</p>
               </div>
             </div>

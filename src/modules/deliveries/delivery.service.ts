@@ -13,7 +13,7 @@ export class DeliveryService {
     // Note: Zod schema uses 'GENERAL' but Prisma enum has 'GENERAL_NOTICE' — cast via unknown
     const docWhere = {
       documentType: input.documentType,
-    } as unknown as Prisma.GeneratedDocumentWhereInput;
+    } as any as Prisma.GeneratedDocumentWhereInput;
     if (input.year) docWhere.year = input.year;
     if (input.month) docWhere.month = input.month;
 
@@ -74,7 +74,7 @@ export class DeliveryService {
     const order = await prisma.deliveryOrder.create({
       data: {
         channel: 'LINE',
-        documentType: input.documentType as unknown as Prisma.DeliveryOrderCreateInput['documentType'],
+        documentType: input.documentType as any as Prisma.DeliveryOrderCreateInput['documentType'],
         description: input.description,
         year: input.year,
         month: input.month,
@@ -217,7 +217,7 @@ export class DeliveryService {
           documentTitle: item.generatedDocument.title,
           roomNo: item.roomNo,
           pdfUrl: pdfFile.uploadedFile.url,
-        } as any,
+        },
       );
     }
 
@@ -256,7 +256,7 @@ export class DeliveryService {
         documentTitle: item.generatedDocument!.title,
         roomNo: item.roomNo,
         pdfUrl: pdfFile.uploadedFile.url,
-      } as any,
+      },
     );
   }
 
@@ -339,7 +339,7 @@ export class DeliveryService {
         documentTitle: doc.title,
         roomNo: doc.roomNo,
         pdfUrl: pdfFile.uploadedFile.url,
-      } as any,
+      },
     );
 
     // Note: GeneratedDocument.status is NOT updated here optimistically.

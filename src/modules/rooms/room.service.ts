@@ -1,6 +1,7 @@
+import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma, EventBus, logger, EventTypes } from '@/lib';
-import { Json } from '@/types/prisma-json';
+
 import {
   CreateRoomInput,
   UpdateRoomInput,
@@ -75,7 +76,7 @@ export class RoomService {
             defaultAccountId: created.defaultAccountId,
             defaultRuleCode: created.defaultRuleCode,
             createdBy,
-          } as any,
+          },
           retryCount: 0,
         },
       });
@@ -260,7 +261,7 @@ export class RoomService {
               roomNo: updated.roomNo,
               changes,
               updatedBy,
-            } as any,
+            } as Prisma.InputJsonValue,
             retryCount: 0,
           },
         });
@@ -362,7 +363,7 @@ export class RoomService {
             newStatus: input.roomStatus,
             reason: input.reason,
             changedBy,
-          } as any,
+          },
           retryCount: 0,
         },
       });

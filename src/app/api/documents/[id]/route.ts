@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/guards';
-import { asyncHandler, type ApiResponse, NotFoundError, ForbiddenError } from '@/lib/utils/errors';
+import { asyncHandler, type ApiResponse, NotFoundError } from '@/lib/utils/errors';
 import { getDocumentGenerationService } from '@/modules/documents/generation.service';
 import { getStorage } from '@/infrastructure/storage';
 import { logAudit } from '@/modules/audit';

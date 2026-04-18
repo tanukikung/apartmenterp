@@ -53,7 +53,7 @@ export function getRequestIp(req: NextRequest): string | null {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  const directIp = (req as unknown as { ip?: string }).ip;
+  const directIp = (req as any as { ip?: string }).ip;
   if (directIp && trustedProxies.includes(directIp)) {
     const forwardedFor = req.headers.get('x-forwarded-for');
     if (forwardedFor) return forwardedFor.split(',')[0]?.trim() || null;

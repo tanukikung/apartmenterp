@@ -41,7 +41,7 @@ export async function createRoom(
       defaultRentAmount: 5000,
       hasFurniture: false,
       defaultFurnitureAmount: 0,
-      roomStatus: 'ACTIVE',
+      roomStatus: 'VACANT',
     } as any,
   });
 }

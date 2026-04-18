@@ -3,10 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ClientOnly } from '@/components/ui/ClientOnly';
-import {
-  Wrench, RefreshCw, ChevronDown, User, Home, AlertTriangle,
-  Clock, CheckCircle2, XCircle, Loader2, MessageSquare,
-} from 'lucide-react';
+import { Wrench, RefreshCw, User, Home, AlertTriangle, Clock, CheckCircle2, XCircle, Loader2, MessageSquare } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

@@ -39,7 +39,7 @@ async function createPrismaRoomBilling(overrides?: {
       defaultRentAmount: 5000,
       hasFurniture: false,
       defaultFurnitureAmount: 0,
-      roomStatus: 'ACTIVE',
+      roomStatus: 'VACANT',
     },
   });
 
@@ -292,14 +292,41 @@ describe('regenerate_sent_document_blocked', () => {
       },
     });
 
+    const version = await (prisma as any).documentTemplateVersion.create({
+      data: {
+        id: uuidv4(),
+        templateId: template.id,
+        version: 1,
+        body: '<html>Test</html>',
+        status: 'ACTIVE',
+      },
+    });
+
+    const room = await (prisma as any).room.create({
+      data: {
+        roomNo: 'REGEN-001',
+        floorNo: 1,
+        defaultAccountId: 'ACC_F1',
+        defaultRuleCode: 'STANDARD',
+        defaultRentAmount: 5000,
+        hasFurniture: false,
+        defaultFurnitureAmount: 0,
+        roomStatus: 'VACANT',
+      },
+    });
+
     const doc = await (prisma as any).generatedDocument.create({
       data: {
         id: uuidv4(),
         templateId: template.id,
+        templateVersionId: version.id,
+        documentType: 'INVOICE',
         status: 'SENT', // already sent — must block regeneration
+        title: 'Test Regenerate Doc',
+        sourceScope: 'SINGLE_ROOM',
+        roomNo: room.roomNo,
         year: 2026,
         month: 3,
-        generatedBy: 'test',
       },
     });
 
@@ -403,8 +430,8 @@ describe('delivery_order_send_updates_item_status_to_sent', () => {
     const order = await (lib.prisma as any).deliveryOrder.create({
       data: {
         id: uuidv4(),
-        title: 'Test DO',
         description: 'Test',
+        documentType: 'INVOICE',
         status: 'SENDING',
         sentCount: 0,
         failedCount: 0,
@@ -462,8 +489,8 @@ describe('delivery_order_send_failure_updates_item_status_to_failed', () => {
     const order = await (lib.prisma as any).deliveryOrder.create({
       data: {
         id: uuidv4(),
-        title: 'Test DO Fail',
         description: 'Test',
+        documentType: 'INVOICE',
         status: 'SENDING',
         sentCount: 0,
         failedCount: 0,

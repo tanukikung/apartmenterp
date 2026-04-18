@@ -5,7 +5,7 @@ import { asyncHandler, ApiResponse, AppError, BadRequestError, NotFoundError } f
 import { logger } from '@/lib/utils/logger';
 import { getOutboxProcessor } from '@/lib/outbox';
 import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
-import type { Json } from '@/types/prisma-json';
+
 import { logAudit } from '@/modules/audit';
 import { prisma } from '@/lib/db/client';
 import { isLineConfigured } from '@/lib/line';
@@ -81,7 +81,7 @@ export const POST = asyncHandler(
         roomNumber: input.roomNumber,
         amount: input.amount,
         paidDate: input.paidDate,
-      } as any
+      }
     );
 
     await logAudit({

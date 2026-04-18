@@ -318,8 +318,8 @@ export function asyncHandler<
 >(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: any,
-): any {
-  return async (...args: unknown[]): Promise<NextResponse | void> => {
+): (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse> {
+  return (async (...args: unknown[]): Promise<NextResponse | void> => {
     try {
       const [req, resOrContext] = args as [unknown, unknown?];
 
@@ -410,7 +410,7 @@ export function asyncHandler<
         status: response.error.statusCode,
       });
     }
-  };
+  }) as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>;
 }
 
 /**

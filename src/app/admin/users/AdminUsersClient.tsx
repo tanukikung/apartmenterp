@@ -210,7 +210,7 @@ export default function AdminUsersClient() {
     }
   }
 
-  async function rejectRequest(request: PendingRequestRow) {
+  async function _rejectRequest(request: PendingRequestRow) {
     setWorking(`reject:${request.id}`);
     setError(null);
     setMessage(null);

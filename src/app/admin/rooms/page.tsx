@@ -6,7 +6,7 @@ import { LayoutGrid, List, Plus, X, DoorOpen, Search, ExternalLink } from 'lucid
 import { useApiData } from '@/hooks/useApi';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CardGrid } from '@/components/ui/card-grid';
-import { ModernTable, ColumnDef } from '@/components/ui/modern-table';
+import { ModernTable } from '@/components/ui/modern-table';
 import { StatusBadge, roomStatusVariant } from '@/components/ui/status-badge';
 
 type Room = {
@@ -257,7 +257,7 @@ export default function AdminRoomsPage() {
     });
   }
 
-  async function updateStatus(roomNo: string, nextStatus: Room['roomStatus']) {
+  async function _updateStatus(roomNo: string, nextStatus: Room['roomStatus']) {
     if (nextStatus === 'MAINTENANCE' || nextStatus === 'OWNER_USE') {
       setConfirmDialog({
         open: true,

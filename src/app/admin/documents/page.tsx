@@ -36,7 +36,7 @@ export default function DocumentsPage() {
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<GeneratedDocument | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [_actionError, setActionError] = useState<string | null>(null);
 
   const { data: docsData, isLoading, error: fetchError } = useQuery<{ data: GeneratedDocument[] }>({
     queryKey: ['documents'],

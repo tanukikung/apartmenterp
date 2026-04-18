@@ -1,17 +1,6 @@
 import { prisma, logger } from '@/lib';
-import {
-  CreateExpenseInput,
-  UpdateExpenseInput,
-  ListExpensesQuery,
-  ExpenseResponse,
-  ExpenseListResponse,
-  MonthlyExpenseSummary,
-  ProfitLossReport,
-  ExpenseCategory,
-  EXPENSE_CATEGORY_LABELS,
-  EXPENSE_CATEGORIES,
-} from './types';
-import { NotFoundError, BadRequestError } from '@/lib/utils/errors';
+import { CreateExpenseInput, UpdateExpenseInput, ListExpensesQuery, ExpenseResponse, ExpenseListResponse, MonthlyExpenseSummary, ProfitLossReport, ExpenseCategory, EXPENSE_CATEGORY_LABELS } from './types';
+import { NotFoundError } from '@/lib/utils/errors';
 import { Decimal } from '@prisma/client/runtime/library';
 
 // ============================================================================

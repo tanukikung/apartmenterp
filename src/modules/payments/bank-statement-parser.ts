@@ -157,8 +157,8 @@ export class BankStatementParser {
       dateFormat?: string;
     }
   ): BankStatementEntry | null {
-    const dateValue = row[columns.dateCol] as unknown;
-    const amountValue = row[columns.amountCol] as unknown;
+    const dateValue = row[columns.dateCol] as any;
+    const amountValue = row[columns.amountCol] as any;
 
     if (!dateValue || amountValue === undefined || amountValue === null) {
       return null;
@@ -225,15 +225,15 @@ export class BankStatementParser {
     // Parse time if available
     let time: string | undefined;
     if (columns.timeCol && row[columns.timeCol]) {
-      time = (row[columns.timeCol] as unknown as string).toString().trim();
+      time = (row[columns.timeCol] as any as string).toString().trim();
     }
 
     return {
       date,
       time,
       amount,
-      description: columns.descCol ? sanitizeBankText((row[columns.descCol] as unknown as string | undefined)?.toString().trim()) : undefined,
-      reference: columns.refCol ? sanitizeBankText((row[columns.refCol] as unknown as string | undefined)?.toString().trim()) : undefined,
+      description: columns.descCol ? sanitizeBankText((row[columns.descCol] as any as string | undefined)?.toString().trim()) : undefined,
+      reference: columns.refCol ? sanitizeBankText((row[columns.refCol] as any as string | undefined)?.toString().trim()) : undefined,
     };
   }
 

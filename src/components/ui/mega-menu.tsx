@@ -3,38 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Building2,
-  DoorOpen,
-  Users,
-  UserPlus,
-  Receipt,
-  FileText,
-  FilePlus,
-  CreditCard,
-  AlertTriangle,
-  MessageSquare,
-  FileEdit,
-  PieChart,
-  Settings,
-  ClipboardList,
-  Server,
-  Layers,
-  Cpu,
-  ScrollText,
-  Upload,
-  Send,
-  Bell,
-  FileBarChart,
-  Menu,
-  X,
-  ChevronDown,
-  Wrench,
-  LogOut,
-  Home,
-  Shield,
-} from "lucide-react";
+import { LayoutDashboard, Building2, DoorOpen, Users, UserPlus, Receipt, FileText, FilePlus, CreditCard, AlertTriangle, MessageSquare, FileEdit, PieChart, Settings, ClipboardList, Layers, Cpu, ScrollText, Upload, Send, Bell, FileBarChart, Menu, X, ChevronDown, Wrench, Home, Shield } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type IconComponent = React.ElementType;

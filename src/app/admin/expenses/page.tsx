@@ -2,20 +2,10 @@
 
 import { useCallback, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
+
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import React from 'react';
-import {
-  AlertTriangle,
-  ChevronDown,
-  FileSpreadsheet,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-  Edit2,
-} from 'lucide-react';
+import { ChevronDown, FileSpreadsheet, Loader2, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -102,7 +92,7 @@ function formatBaht(n: number): string {
   return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function thaiMonthYear(year: number, month: number): string {
+function _thaiMonthYear(year: number, month: number): string {
   const m = THAI_MONTHS[month - 1] ?? String(month);
   return `${m} ${year + 543}`;
 }
@@ -128,7 +118,7 @@ function CategoryBadge({ category }: { category: ExpenseCategory }) {
 export default function AdminExpensesPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [totalPages, _setTotalPages] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState<ExpenseCategory | 'ALL'>('ALL');
   const [monthFilter, setMonthFilter] = useState<string>('ALL');
   const [search, setSearch] = useState('');
@@ -138,8 +128,8 @@ export default function AdminExpensesPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [formLoading, setFormLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [_formLoading, _setFormLoading] = useState(false);
+  const [formError, _setFormError] = useState<string | null>(null);
 
   const monthOptions = getMonthOptions();
 
@@ -176,7 +166,7 @@ export default function AdminExpensesPage() {
   });
 
   const expenses: Expense[] = expensesData?.data ?? [];
-  const total = expensesData?.total ?? 0;
+  const _total = expensesData?.total ?? 0;
 
   // ---------------------------------------------------------------------------
   // Filtered list

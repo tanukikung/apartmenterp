@@ -5,9 +5,9 @@
 import { prisma } from '@/lib/db/client';
 import { EventTypes } from '@/lib/events';
 import { logger } from '@/lib/utils/logger';
-import { getLineClient } from '@/lib/line';
+
 import { v4 as uuidv4 } from 'uuid';
-import { Json } from '@/types/prisma-json';
+
 
 // Default day offsets for fallback reminder logic (when no ReminderConfig records exist)
 // Can be overridden via environment variables:
@@ -80,7 +80,7 @@ export class ReminderService {
       return this.runDailyDefault(today);
     }
 
-    const now = new Date();
+    const _now = new Date();
     const openStatuses = ['GENERATED', 'SENT', 'VIEWED'] as const;
 
     let scheduled = 0;
@@ -143,7 +143,7 @@ export class ReminderService {
                 messageTh: config.messageTh,
                 messageEn: config.messageEn,
                 dueDate: inv.dueDate.toISOString().split('T')[0],
-              } as any,
+              },
               retryCount: 0,
             },
           });
@@ -219,7 +219,7 @@ export class ReminderService {
             aggregateType: 'Invoice',
             aggregateId: inv.id,
             eventType: EventTypes.INVOICE_REMINDER_DUE_SOON,
-            payload: { invoiceId: inv.id, dueDate: inv.dueDate.toISOString().split('T')[0] } as any,
+            payload: { invoiceId: inv.id, dueDate: inv.dueDate.toISOString().split('T')[0] },
             retryCount: 0,
           },
         });
@@ -237,7 +237,7 @@ export class ReminderService {
             aggregateType: 'Invoice',
             aggregateId: inv.id,
             eventType: EventTypes.INVOICE_REMINDER_DUE_TODAY,
-            payload: { invoiceId: inv.id, dueDate: inv.dueDate.toISOString().split('T')[0] } as any,
+            payload: { invoiceId: inv.id, dueDate: inv.dueDate.toISOString().split('T')[0] },
             retryCount: 0,
           },
         });
@@ -255,7 +255,7 @@ export class ReminderService {
             aggregateType: 'Invoice',
             aggregateId: inv.id,
             eventType: EventTypes.INVOICE_REMINDER_OVERDUE,
-            payload: { invoiceId: inv.id, dueDate: inv.dueDate.toISOString().split('T')[0], daysOverdue: DEFAULT_OVERDUE_DAYS } as any,
+            payload: { invoiceId: inv.id, dueDate: inv.dueDate.toISOString().split('T')[0], daysOverdue: DEFAULT_OVERDUE_DAYS },
             retryCount: 0,
           },
         });

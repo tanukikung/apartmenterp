@@ -28,7 +28,7 @@ describe('Integration: Maintenance workflow', () => {
         defaultRentAmount: 5000,
         hasFurniture: false,
         defaultFurnitureAmount: 0,
-        roomStatus: 'ACTIVE',
+        roomStatus: 'VACANT',
       },
     });
     const tenant = await prisma.tenant.create({

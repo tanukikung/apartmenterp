@@ -104,7 +104,7 @@ export async function middleware(req: NextRequest) {
     if (process.env.NODE_ENV !== 'test') {
       const sessionToken = req.cookies.get('auth_session')?.value;
       const secret = resolveAuthSecret();
-      let session = sessionToken && secret ? await verifySessionTokenEdge(sessionToken, secret) : null;
+      const session = sessionToken && secret ? await verifySessionTokenEdge(sessionToken, secret) : null;
       // Sliding expiration: refresh session if within 5-minute window
       if (session) {
         const refreshed = refreshSessionEdgeIfNeeded(session, 60 * 5);

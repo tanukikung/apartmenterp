@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AlertCircle, Plus, RefreshCw, ChevronRight } from 'lucide-react';
+import { AlertCircle, RefreshCw, ChevronRight } from 'lucide-react';
 import type { ContractOption } from './types';
 import { EMPTY_NEW_FORM } from './types';
 

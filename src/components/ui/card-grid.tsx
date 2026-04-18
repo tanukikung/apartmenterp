@@ -142,7 +142,6 @@ export function CardGrid<T extends object>({
   idKey = 'id',
   className = '',
   loading = false,
-  loadingCount = 8,
   empty,
 }: CardGridProps<T>) {
   const gridClass = {

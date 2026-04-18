@@ -4,7 +4,7 @@
 # ║  ใช้ไฟล์นี้เมื่อ deploy ผ่าน Coolify เท่านั้น                    ║
 # ║  ตั้งค่า env vars ทั้งหมดใน Coolify UI (ไม่ต้องใช้ .env file)   ║
 # ║                                                                  ║
-# ║  Services: PostgreSQL · Redis · OnlyOffice · ERP App             ║
+# ║  Services: PostgreSQL · Redis · ERP App                          ║
 # ╚══════════════════════════════════════════════════════════════════╝
 
 version: '3.8'
@@ -40,25 +40,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── OnlyOffice Document Server ────────────────────────────────────
-  # RAM requirement: 2 GB minimum, 4 GB recommended
-  # First boot takes ~60-120 seconds to initialize
-  onlyoffice:
-    image: onlyoffice/documentserver:latest
-    restart: unless-stopped
-    environment:
-      JWT_ENABLED: "true"
-      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET}
-      JWT_HEADER: Authorization
-      JWT_IN_BODY: "true"
-    volumes:
-      - onlyoffice_data:/var/www/onlyoffice/Data
-      - onlyoffice_logs:/var/log/onlyoffice
-      - onlyoffice_db:/var/lib/postgresql
-    # Coolify จะ expose port นี้ให้อัตโนมัติผ่าน domain/subdomain
-    expose:
-      - "80"
-
   # ── ERP Application ───────────────────────────────────────────────
   app:
     build:
@@ -88,14 +69,6 @@ services:
       # ── Cron ──
       CRON_SECRET: ${CRON_SECRET}
 
-      # ── OnlyOffice ──
-      # URL ที่ browser ใช้เข้าถึง OnlyOffice (domain/subdomain ที่ตั้งใน Coolify)
-      ONLYOFFICE_DOCUMENT_SERVER_URL: ${ONLYOFFICE_DOCUMENT_SERVER_URL}
-      ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET}
-      # URL ที่ OnlyOffice ใช้ callback กลับมาหา app (ใช้ชื่อ service ภายใน Docker)
-      ONLYOFFICE_CALLBACK_BASE_URL: http://app:3000
-      ONLYOFFICE_ENABLED: "true"
-
       # ── LINE Integration (ไม่บังคับ) ──
       LINE_CHANNEL_ID: ${LINE_CHANNEL_ID:-}
       LINE_CHANNEL_SECRET: ${LINE_CHANNEL_SECRET:-}
@@ -117,6 +90,3 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  onlyoffice_data:
-  onlyoffice_logs:
-  onlyoffice_db:

@@ -2,20 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import {
-  Home,
-  AlertTriangle,
-  DollarSign,
-  Wrench,
-  Receipt,
-  ClipboardCheck,
-  FileText,
-  Megaphone,
-  ArrowRight,
-  Clock,
-  CheckCircle2,
-  XCircle,
-} from 'lucide-react';
+import { Home, AlertTriangle, DollarSign, Wrench, Receipt, ClipboardCheck, FileText, Megaphone, ArrowRight, Clock, CheckCircle2 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -71,7 +58,7 @@ type ExpiringContract = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function money(amount: number): string {
+function _money(amount: number): string {
   return new Intl.NumberFormat('th-TH', {
     style: 'currency',
     currency: 'THB',
@@ -107,7 +94,7 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hrs / 24)} วันที่แล้ว`;
 }
 
-function invoiceAmount(inv: Invoice): number {
+function _invoiceAmount(inv: Invoice): number {
   return inv.totalAmount ?? inv.total ?? 0;
 }
 

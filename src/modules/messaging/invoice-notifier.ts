@@ -27,7 +27,7 @@ async function handleInvoiceGenerated(event: InvoiceGenerated) {
     },
   });
   if (!invoice || !invoice.room) return;
-  const tenant = (invoice.room as unknown as RoomWithTenants).tenants?.[0]?.tenant;
+  const tenant = (invoice.room as any as RoomWithTenants).tenants?.[0]?.tenant;
   const lineUserId = tenant?.lineUserId;
   if (!lineUserId) {
     logger.warn({ type: 'invoice_notification_skipped_no_line', invoiceId });

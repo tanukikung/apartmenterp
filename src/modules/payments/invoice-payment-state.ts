@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Prisma } from '@prisma/client';
 import { EventTypes } from '@/lib';
 import { NotFoundError } from '@/lib/utils/errors';
-import type { Json } from '@/types/prisma-json';
+
 
 type InvoicePaymentSnapshot = {
   id: string;
@@ -34,7 +34,7 @@ export async function syncInvoicePaymentState(
   // Using raw query because Prisma.TransactionClient type doesn't expose `for: 'update'`.
   // $queryRaw returns an array — destructure to get the single row.
   type InvoiceRow = { id: string; status: string; totalAmount: Prisma.Decimal; paidAt: Date | null };
-  const [invoice] = await (tx as unknown as { $queryRaw: (strings: TemplateStringsArray, ...args: unknown[]) => Promise<InvoiceRow[]> }).$queryRaw`
+  const [invoice] = await (tx as any as { $queryRaw: (strings: TemplateStringsArray, ...args: unknown[]) => Promise<InvoiceRow[]> }).$queryRaw`
     SELECT id, status, "totalAmount", "paidAt"
     FROM invoices
     WHERE id = ${input.invoiceId}
@@ -89,7 +89,7 @@ export async function syncInvoicePaymentState(
           paidAt: (totals._max.paidAt ?? input.paidAt).toISOString(),
           amount: input.paymentAmount,
           totalPaid,
-        } as any,
+        },
         retryCount: 0,
       },
     });

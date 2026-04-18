@@ -7,7 +7,7 @@ import { isLineConfigured } from '@/lib/line';
 import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
-import { Json } from '@/types/prisma-json';
+
 import {
   GenerateInvoiceInput,
   SendInvoiceInput,
@@ -208,7 +208,7 @@ export class InvoiceService {
             totalAmount: Number(inv.totalAmount),
             dueDate: dueDate.toISOString().split('T')[0],
             generatedBy,
-          } as any,
+          },
           retryCount: 0,
         },
       });
@@ -596,7 +596,7 @@ export class InvoiceService {
                   })
                 : '',
             },
-          } as any,
+          },
           retryCount: 0,
         },
       });
@@ -654,7 +654,7 @@ export class InvoiceService {
             sentBy: sentBy || 'system',
             sentByName: sentBy || 'system',
             sentAt: sentAt.toISOString(),
-          } as any,
+          },
           retryCount: 0,
         },
       });
@@ -1041,7 +1041,7 @@ export class InvoiceService {
       tenants?: Array<{ tenant?: { id?: string; firstName?: string; lastName?: string; phone?: string; lineUserId?: string | null } | null }>;
       roomTenants?: Array<{ tenant?: { id?: string; firstName?: string; lastName?: string; phone?: string; lineUserId?: string | null } | null }>;
     };
-    const room = invoice.room as unknown as RoomWithTenants | undefined;
+    const room = invoice.room as any as RoomWithTenants | undefined;
     const primaryTenant = room?.tenants?.[0]?.tenant ?? room?.roomTenants?.[0]?.tenant;
     const tenantName = primaryTenant
       ? `${primaryTenant.firstName ?? ''} ${primaryTenant.lastName ?? ''}`.trim() || null

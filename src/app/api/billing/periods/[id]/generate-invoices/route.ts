@@ -97,7 +97,7 @@ export const POST = asyncHandler(
                 totalAmount:   Number(inv.totalAmount),
                 dueDate:       dueDate.toISOString().split('T')[0],
                 generatedBy:   session.sub,
-              } as unknown as Prisma.InputJsonValue,
+              } as any as Prisma.InputJsonValue,
               retryCount: 0,
             },
           });

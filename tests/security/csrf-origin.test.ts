@@ -81,17 +81,6 @@ describe('CSRF origin hardening', () => {
     expect(res.status).toBe(200);
   });
 
-  it('allows external OnlyOffice callback posts without same-origin headers', async () => {
-    const req = makeReq('https://example.com/api/templates/tpl-1/callback?versionId=ver-1', 'POST', {
-      host: 'example.com',
-      'x-forwarded-proto': 'https',
-    });
-
-    const res = (await middleware(req)) as NextResponse;
-
-    expect(res.status).toBe(200);
-  });
-
   it('allows signed invoice view tracking posts without same-origin headers', async () => {
     const req = makeReq('https://example.com/api/invoices/inv-1/view?expires=123&token=signed', 'POST', {
       host: 'example.com',

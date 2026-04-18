@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getVerifiedActor, requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, AppError, BadRequestError, NotFoundError } from '@/lib/utils/errors';
 import { getOutboxProcessor } from '@/lib/outbox';
-import type { Json } from '@/types/prisma-json';
+
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
 import { prisma } from '@/lib/db/client';
@@ -96,7 +96,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       conversationId: input.conversationId,
       text: resolvedBody,
       templateId: resolvedTemplateId,
-    } as any
+    }
   );
 
   await logAudit({

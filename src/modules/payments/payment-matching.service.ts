@@ -198,7 +198,7 @@ export class PaymentMatchingService {
     for (const inv of unpaidInvoices) {
       const candidate = this.evaluateMatch(
         {
-          amount: Number((transaction as unknown as { amount: unknown }).amount as number),
+          amount: Number((transaction as any as { amount: unknown }).amount as number),
           description: transaction.description ?? undefined,
           reference: transaction.reference ?? undefined,
         },
@@ -207,7 +207,7 @@ export class PaymentMatchingService {
           total: Number(inv.totalAmount),
           room: {
             roomNumber: inv.roomNo,
-            roomTenants: ((inv.room as unknown as { tenants?: Array<{ tenant?: { firstName?: string; lastName?: string } | null }> })?.tenants ?? []).map((rt) => ({
+            roomTenants: ((inv.room as any as { tenants?: Array<{ tenant?: { firstName?: string; lastName?: string } | null }> })?.tenants ?? []).map((rt) => ({
               tenant: {
                 firstName: rt.tenant?.firstName ?? '',
                 lastName: rt.tenant?.lastName ?? '',

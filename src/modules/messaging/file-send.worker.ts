@@ -29,7 +29,7 @@ async function handleFileSend(payload: LineSendFileRequested): Promise<void> {
       data: {
         metadata: {
           status: 'SENT',
-        } as unknown as Prisma.InputJsonValue,
+        } as any as Prisma.InputJsonValue,
       },
     });
 
@@ -41,7 +41,7 @@ async function handleFileSend(payload: LineSendFileRequested): Promise<void> {
         metadata: {
           status: 'FAILED',
           error: err instanceof Error ? err.message : 'Failed to send',
-        } as unknown as Prisma.InputJsonValue,
+        } as any as Prisma.InputJsonValue,
       },
     });
     logger.error({

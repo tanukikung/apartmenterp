@@ -16,7 +16,7 @@ const RICH_MENU_SIZE = { width: 2500, height: 843 };
  * A simple tap-area covering the full menu.
  * label+chatText are metadata only — not shown on the UI.
  */
-function fullAreaAction(areaIndex: number): object {
+function _fullAreaAction(areaIndex: number): object {
   return {
     bounds: { x: 0, y: 0, width: 2500, height: 843 },
     action: {

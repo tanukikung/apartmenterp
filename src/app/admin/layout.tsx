@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+
 import { motion, AnimatePresence } from 'framer-motion';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ToastProvider } from '@/components/providers/ToastProvider';
@@ -242,7 +243,6 @@ function IconNavGroup({
   group: Extract<NavItem, { type: 'group' }>;
   pathname: string | null;
 }) {
-  const { createPortal } = require('react-dom') as typeof import('react-dom');
   const hasActiveChild = group.items.some((item) => isActive(pathname, item));
   const activeItem = group.items.find((item) => isActive(pathname, item));
   const triggerRef = useRef<HTMLButtonElement>(null);

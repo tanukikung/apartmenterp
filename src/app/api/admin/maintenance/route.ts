@@ -36,7 +36,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
   // Use raw prisma to avoid casting issues with the MaintenanceService wrapper
   const [tickets, total] = await Promise.all([
-    (prisma as unknown as {
+    (prisma as any as {
       maintenanceTicket: {
         findMany(args: { where: WhereClause; include: { room: boolean; tenant: boolean }; orderBy: { createdAt: 'desc' }; take: number }): Promise<unknown[]>;
       };
@@ -46,7 +46,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
       orderBy: { createdAt: 'desc' },
       take: pageSize,
     }),
-    (prisma as unknown as {
+    (prisma as any as {
       maintenanceTicket: {
         count(args: { where: WhereClause }): Promise<number>;
       };

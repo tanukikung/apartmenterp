@@ -20,7 +20,7 @@ describe('room capacity validation', () => {
       defaultAccountId: 'acc-1',
       defaultRuleCode: 'RULE-1',
       defaultRentAmount: 5000,
-      roomStatus: 'ACTIVE',
+      roomStatus: 'VACANT',
     });
     expect(parsed.success).toBe(false);
   });

@@ -185,16 +185,16 @@ export async function createBillingImportPreviewBatch(input: {
         uploadedFileId: input.uploadedFileId ?? null,
         parseErrors: allErrors.slice(0, 50),
         warningCount: warnings.length,
-        accounts: accounts as unknown as Prisma.InputJsonValue,
-        rules: rules as unknown as Prisma.InputJsonValue,
-        rows: allRows as unknown as Prisma.InputJsonValue,
+        accounts: accounts as any as Prisma.InputJsonValue,
+        rules: rules as any as Prisma.InputJsonValue,
+        rows: allRows as any as Prisma.InputJsonValue,
       },
       importedBy: input.importedBy ?? 'system',
     },
   });
 
   return {
-    rows: allRows as unknown[],
+    rows: allRows as any[],
     preview,
     warnings,
     batch: {
@@ -298,8 +298,8 @@ export async function executeBillingImportBatch(
 
     if (hasStoredRows) {
       // Use stored accounts/rules from errorLog if available, otherwise parse from buffer
-      const accounts = (errorLogObj['accounts'] as unknown as Array<Record<string, unknown>>) ?? [];
-      const rules = (errorLogObj['rules'] as unknown as Array<Record<string, unknown>>) ?? [];
+      const accounts = (errorLogObj['accounts'] as any as Array<Record<string, unknown>>) ?? [];
+      const rules = (errorLogObj['rules'] as any as Array<Record<string, unknown>>) ?? [];
 
       // Get billingPeriod from stored rows (use first row's metadata) or parse from config
       const rows = storedRows as Array<Record<string, unknown>>;
@@ -416,7 +416,7 @@ export async function executeBillingImportBatch(
           if (existingBilling) {
             await prisma.roomBilling.update({
               where: { id: existingBilling.id },
-              data: billingData as unknown as Parameters<typeof prisma.roomBilling.update>[0]['data'],
+              data: billingData as any as Parameters<typeof prisma.roomBilling.update>[0]['data'],
             });
           } else {
             const createData = {

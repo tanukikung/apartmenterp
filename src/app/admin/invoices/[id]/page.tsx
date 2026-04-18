@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -137,7 +137,7 @@ function RecordPaymentForm({
   invoiceId: string;
   onSuccess: () => void;
 }) {
-  const queryClient = useQueryClient();
+  const _queryClient = useQueryClient();
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('CASH');
   const [reference, setReference] = useState('');

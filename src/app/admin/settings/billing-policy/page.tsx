@@ -97,7 +97,7 @@ export default function BillingPolicyPage() {
   }, [queryData, queryError]);
 
   // Replace load() with invalidate + refetch
-  const load = useCallback(() => {
+  const _load = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
   }, [queryClient]);
 

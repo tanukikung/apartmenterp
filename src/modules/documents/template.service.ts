@@ -393,30 +393,24 @@ export class DocumentTemplateService {
   }
 
   async uploadTemplateVersion(id: string, file: File, actorId?: string | null) {
-    // Only DOCX files are accepted as template source. HTML uploads are no longer
-    // supported — templates must be authored through the OnlyOffice/DOCX workflow.
+    // Templates are authored as HTML and edited in the built-in Tiptap editor.
     const fileNameLower = file.name.toLowerCase();
-    if (!fileNameLower.endsWith('.docx')) {
-      throw new BadRequestError(
-        'Template source must be a .docx file. Please upload a DOCX document edited in OnlyOffice.',
-      );
+    if (!fileNameLower.endsWith('.html') && !fileNameLower.endsWith('.htm')) {
+      throw new BadRequestError('Template upload currently supports HTML files only');
     }
 
     const template = await this.getTemplateById(id);
     const activeVersionNumber = template.versions?.[0]?.version ?? 0;
     const versionNumber = activeVersionNumber + 1;
     const contentBuffer = Buffer.from(await file.arrayBuffer());
+    const body = serializeTemplateDocument(parseTemplateDocument(contentBuffer.toString('utf8')));
     const uploadedFile = await storeDocumentFile({
       keyPrefix: `document-templates/${id}/versions`,
       filename: file.name,
-      content: contentBuffer,
-      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      content: Buffer.from(body, 'utf8'),
+      mimeType: 'text/html; charset=utf-8',
       uploadedBy: actorId ?? null,
     });
-
-    // For DOCX uploads the body is left empty — OnlyOffice will fill it on first edit.
-    // The stored DOCX file is the source of truth.
-    const body = '<p></p>';
 
     const version = await prisma.documentTemplateVersion.create({
       data: {
@@ -426,7 +420,7 @@ export class DocumentTemplateService {
         subject: template.subject,
         body,
         status: DocumentTemplateVersionStatus.DRAFT,
-        fileType: 'docx',
+        fileType: 'html',
         fileName: uploadedFile.originalName,
         storageKey: uploadedFile.storageKey,
         checksum: hashBody(body),
@@ -455,11 +449,8 @@ export class DocumentTemplateService {
    * Validates that a template version is ready to be published/activated.
    *
    * Rules:
-   * - DOCX templates: require OnlyOffice to be configured and body to have been
-   *   populated through the OnlyOffice save callback (editing in OnlyOffice and saving).
-   *   An empty body means OnlyOffice has not been used to populate content yet.
-   * - HTML templates: body must have real content (≥10 chars of HTML).
-   * - Both must have a sourceFileId.
+   * - HTML body must have real content (≥10 chars).
+   * - Version must have a stored source file.
    *
    * Returns { valid: true } or { valid: false, errors: string[] }.
    */
@@ -473,24 +464,13 @@ export class DocumentTemplateService {
     }
 
     const errors: string[] = [];
-    const isDocx = version.fileType === 'docx';
 
-    // Must have a source file
     if (!version.storageKey || !version.sourceFileId) {
-      errors.push('No source file uploaded. Upload an HTML file as the template source.');
+      errors.push('No source file stored. Save the template before publishing.');
     }
 
-    if (isDocx) {
-      // DOCX templates are no longer supported since OnlyOffice was removed
-      errors.push('DOCX templates are no longer supported. Please use HTML templates instead.');
-      if (!version.body || version.body.trim().length < 10) {
-        errors.push('Template body is empty. HTML templates require body content before publishing.');
-      }
-    } else {
-      // HTML templates must have body content
-      if (!version.body || version.body.trim().length < 10) {
-        errors.push('Template body is empty. Add content before publishing.');
-      }
+    if (!version.body || version.body.trim().length < 10) {
+      errors.push('Template body is empty. Add content before publishing.');
     }
 
     if (errors.length > 0) {
@@ -673,54 +653,6 @@ export class DocumentTemplateService {
         sourceFile,
       },
     };
-  }
-
-  async saveOnlyOfficeVersionBody(templateId: string, versionId: string, body: string, actorId?: string | null) {
-    const editorVersion = await this.getEditorVersion(templateId, versionId, actorId ?? null);
-    const normalizedBody = serializeTemplateDocument(parseTemplateDocument(body));
-    const uploadedFile = await storeDocumentFile({
-      keyPrefix: `document-templates/${templateId}/versions`,
-      filename: templateFilename(editorVersion.template.name, editorVersion.version.version),
-      content: Buffer.from(normalizedBody, 'utf8'),
-      mimeType: 'text/html; charset=utf-8',
-      uploadedBy: actorId ?? null,
-    });
-
-    const updatedVersion = await prisma.documentTemplateVersion.update({
-      where: { id: versionId },
-      data: {
-        body: normalizedBody,
-        sourceFileId: uploadedFile.id,
-        storageKey: uploadedFile.storageKey,
-        fileName: uploadedFile.originalName,
-        fileType: 'html',
-        checksum: hashBody(normalizedBody),
-      },
-    });
-
-    if (editorVersion.template.activeVersionId === versionId) {
-      await prisma.documentTemplate.update({
-        where: { id: templateId },
-        data: {
-          body: normalizedBody,
-          updatedById: actorId ?? null,
-        },
-      });
-    }
-
-    await logAudit({
-      actorId: actorId ?? 'system',
-      actorRole: 'ADMIN',
-      action: 'DOCUMENT_TEMPLATE_VERSION_SAVED',
-      entityType: 'DOCUMENT_TEMPLATE_VERSION',
-      entityId: updatedVersion.id,
-      metadata: {
-        templateId,
-        version: updatedVersion.version,
-      },
-    });
-
-    return updatedVersion;
   }
 
   async previewTemplate(templateId: string, request: TemplatePreviewRequest, actorId?: string | null) {

@@ -1,21 +1,8 @@
 'use client';
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  FileText,
-  Search,
-  Plus,
-  X,
-  ChevronRight,
-  FileSignature,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  Pencil,
-  RefreshCw,
-} from 'lucide-react';
+import { FileText, Search, Plus, X, ChevronRight, FileSignature, AlertCircle, CheckCircle2, Clock, XCircle, Pencil, RefreshCw } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

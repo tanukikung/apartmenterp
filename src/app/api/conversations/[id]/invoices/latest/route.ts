@@ -25,7 +25,7 @@ export const GET = asyncHandler(async (_req: NextRequest, { params }: { params: 
   const data: LatestInvoice | null = inv
     ? {
         id: inv.id,
-        status: (inv.status as unknown as string),
+        status: (inv.status as any as string),
         dueDate: inv.dueDate ? inv.dueDate.toISOString() : null,
         totalAmount: Number(inv.totalAmount),
       }

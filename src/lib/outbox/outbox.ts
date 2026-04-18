@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma as sharedPrisma } from '../db/client';
 import { logger } from '../utils/logger';
@@ -20,7 +20,7 @@ export class Outbox {
   private prisma: PrismaClient;
 
   constructor(prismaClient?: PrismaClient) {
-    this.prisma = prismaClient || (sharedPrisma as unknown as PrismaClient);
+    this.prisma = prismaClient || (sharedPrisma as any as PrismaClient);
   }
 
   /**
@@ -38,12 +38,12 @@ export class Outbox {
         aggregateType,
         aggregateId,
         eventType,
-        payload: payload as any,
+        payload: payload as Prisma.InputJsonValue,
         retryCount: 0,
       },
     });
 
-    return outboxEvent as unknown as OutboxEvent;
+    return outboxEvent as any as OutboxEvent;
   }
 
   /**
@@ -66,14 +66,14 @@ export class Outbox {
             aggregateType: event.aggregateType,
             aggregateId: event.aggregateId,
             eventType: event.eventType,
-            payload: event.payload as any,
+            payload: event.payload as Prisma.InputJsonValue,
             retryCount: 0,
           },
         })
-      ) as any
+      )
     );
 
-    return createdEvents as unknown as OutboxEvent[];
+    return createdEvents as any as OutboxEvent[];
   }
 
   /**

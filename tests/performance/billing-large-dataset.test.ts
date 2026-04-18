@@ -60,7 +60,7 @@ describe('Billing large dataset import', () => {
           electricMode: 'NORMAL' as const, electricPrev: null, electricCurr: null, electricUnitsManual: null,
           electricUnits: 0, electricUsageCharge: 0, electricServiceFeeManual: null, electricServiceFee: 0, electricTotal: 0,
           furnitureFee: 0, otherFee: 0, totalDue: 1000,
-          note: null, checkNotes: null, roomStatus: 'ACTIVE' as const,
+          note: null, checkNotes: null, roomStatus: 'VACANT' as const,
         })),
       }],
       totalRows: rooms.length,

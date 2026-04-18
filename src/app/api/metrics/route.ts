@@ -11,8 +11,12 @@ import {
  * GET /api/metrics
  *
  * Prometheus-compatible metrics endpoint.
- * No authentication — intended for scraping by Prometheus server
- * on the same private network.
+ * Intended for scraping by a Prometheus server on the same private network.
+ *
+ * Authentication:
+ *   - If METRICS_TOKEN env var is set, requests must include
+ *     `Authorization: Bearer <METRICS_TOKEN>` header (production hardening).
+ *   - If unset, the endpoint is open (dev / private-network convention).
  *
  * Exposes:
  *   http_requests_total{method, route, status}
@@ -24,6 +28,15 @@ import {
  *   jobs_last_run_duration_seconds{job_id}
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
+  const expected = process.env.METRICS_TOKEN;
+  if (expected) {
+    const header = req.headers.get('authorization') ?? '';
+    const supplied = header.startsWith('Bearer ') ? header.slice(7) : '';
+    if (supplied !== expected) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+  }
+
   // Collect fresh values from dynamic sources
   await Promise.all([collectDbMetrics(), collectOutboxMetrics()]);
   collectJobMetrics();

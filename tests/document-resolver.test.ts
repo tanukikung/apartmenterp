@@ -13,7 +13,7 @@ describe('document resolver service', () => {
       {
         roomNo: '3201',
         floorNo: 3,
-        roomStatus: 'ACTIVE',
+        roomStatus: 'VACANT',
         tenants: [
           {
             tenant: {

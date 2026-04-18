@@ -129,7 +129,7 @@ export const PUT = asyncHandler(
     requireRole(req, ['ADMIN']);
 
     const body = await req.json();
-    const { updates, actorId: _actorId } = body as {
+    const { updates, actorId: __actorId } = body as {
       updates: Array<{ invoiceId: string; lateFeeAmount: number; note?: string }>;
       actorId: string;
     };

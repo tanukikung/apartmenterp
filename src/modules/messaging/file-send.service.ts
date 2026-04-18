@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/lib/db/client';
 import { buildFileAccessUrl } from '@/lib/files/access';
 import { BadRequestError, NotFoundError } from '@/lib/utils/errors';
-import type { Json } from '@/types/prisma-json';
+
 
 type QueueConversationFileSendInput = {
   conversationId: string;
@@ -55,7 +55,7 @@ export async function queueConversationFileSend(input: QueueConversationFileSend
         metadata: {
           status: 'QUEUED',
           kind: 'file',
-        } as any,
+        },
         sentAt: now,
       },
     });
@@ -78,7 +78,7 @@ export async function queueConversationFileSend(input: QueueConversationFileSend
           fileUrl,
           contentType,
           name,
-        } as any,
+        },
       },
     });
 

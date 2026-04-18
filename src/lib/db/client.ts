@@ -1,7 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { logger } from '../utils/logger';
 
-const globalForPrisma = globalThis as unknown as {
+const globalForPrisma = globalThis as any as {
   prisma: PrismaClient | undefined;
 };
 
@@ -50,17 +50,17 @@ export const prisma =
 
 // Set up query logging in development
 if (process.env.NODE_ENV === 'development') {
-  (prisma as unknown as { $on: (event: string, cb: (e: unknown) => void) => void }).$on(
+  (prisma as any as { $on: (event: string, cb: (e: unknown) => void) => void }).$on(
     'query',
     (e: unknown) => logQuery(e as QueryEventLike)
   );
 }
 
-(prisma as unknown as { $on: (event: string, cb: (e: unknown) => void) => void }).$on(
+(prisma as any as { $on: (event: string, cb: (e: unknown) => void) => void }).$on(
   'warn',
   (e: unknown) => logError('warn', (e as { message: string }).message)
 );
-(prisma as unknown as { $on: (event: string, cb: (e: unknown) => void) => void }).$on(
+(prisma as any as { $on: (event: string, cb: (e: unknown) => void) => void }).$on(
   'error',
   (e: unknown) => logError('error', (e as { message: string }).message)
 );
@@ -122,7 +122,7 @@ export async function withTransaction<T>(
  * Raw query helper
  */
 export async function rawQuery<T>(query: string, ...args: unknown[]): Promise<T> {
-  return prisma.$queryRawUnsafe(query, ...args) as unknown as T;
+  return prisma.$queryRawUnsafe(query, ...args) as any as T;
 }
 
 // Re-export all Prisma types for convenience

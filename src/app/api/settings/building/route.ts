@@ -47,7 +47,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     logoUrl: readString(configs, 'building.logoUrl'),
     updatedAt: configs.length > 0
       ? configs.reduce<string | null>((latest, c) => {
-          const ts = (c as unknown as { updatedAt?: Date }).updatedAt;
+          const ts = (c as any as { updatedAt?: Date }).updatedAt;
           if (!ts) return latest;
           const iso = ts instanceof Date ? ts.toISOString() : String(ts);
           if (!latest) return iso;
