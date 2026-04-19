@@ -346,7 +346,40 @@ export default function AdminTenantsPage() {
         </div>
       ) : (
         <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile card view */}
+          <div className="md:hidden divide-y divide-outline-variant/10">
+            {filtered.map((t) => {
+              const name = t.fullName || 'ไม่ระบุชื่อ';
+              return (
+                <button
+                  key={`m-${t.id}`}
+                  onClick={() => openTenantDrawer(t)}
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-surface-container-lowest transition-colors"
+                >
+                  <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-sm font-bold ${avatarColor(name)}`}>
+                    {initials(name)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-on-surface truncate">{name}</span>
+                      {t.lineUserId && (
+                        <CheckCircle size={12} className="text-emerald-600 shrink-0" aria-label="LINE เชื่อมแล้ว" />
+                      )}
+                    </div>
+                    <div className="mt-0.5 text-xs text-on-surface-variant">{t.phone || '—'}</div>
+                    {t.roomTenants?.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {t.roomTenants.map((rt) => (
+                          <span key={rt.id} className="inline-flex items-center px-2 py-0.5 bg-primary-container/10 text-primary-container text-[10px] font-bold rounded-full">{rt.roomNo}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-surface-container-low/50">

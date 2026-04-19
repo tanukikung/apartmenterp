@@ -112,6 +112,8 @@ export default function DeliveriesPage() {
   const [sending, setSending] = useState<string | null>(null);
   const [selectedFailedItems, setSelectedFailedItems] = useState<Set<string>>(new Set());
   const [bulkResending, setBulkResending] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [bulkSendingOrders, setBulkSendingOrders] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setSearchDebounced(search.trim()), 300);
@@ -225,6 +227,49 @@ export default function DeliveriesPage() {
     });
   }
 
+  function toggleOrder(id: string) {
+    setSelectedOrders((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllDrafts() {
+    const draftIds = orders.filter((o) => o.status === 'DRAFT').map((o) => o.id);
+    const allSelected = draftIds.length > 0 && draftIds.every((id) => selectedOrders.has(id));
+    if (allSelected) setSelectedOrders(new Set());
+    else setSelectedOrders(new Set(draftIds));
+  }
+
+  async function handleBulkSendOrders() {
+    if (!isLineConfigured()) {
+      toastError('LINE ไม่ได้รับการตั้งค่า ไม่สามารถส่งได้');
+      return;
+    }
+    const ids = Array.from(selectedOrders);
+    if (ids.length === 0) return;
+    setBulkSendingOrders(true);
+    let ok = 0;
+    let fail = 0;
+    for (const id of ids) {
+      try {
+        const res = await fetch(`/api/delivery-orders/${id}/send`, { method: 'POST' });
+        const json = await res.json();
+        if (json.success) ok++;
+        else fail++;
+      } catch {
+        fail++;
+      }
+    }
+    setBulkSendingOrders(false);
+    setSelectedOrders(new Set());
+    if (ok > 0) success(`กำลังส่ง ${ok} รายการ`);
+    if (fail > 0) toastError(`ส่งไม่สำเร็จ ${fail} รายการ`);
+    void refetch();
+  }
+
   return (
     <main className="space-y-6">
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
@@ -252,6 +297,18 @@ export default function DeliveriesPage() {
           {fetchError instanceof Error ? fetchError.message : String(fetchError)}
         </div>
       )}
+
+      <BulkActions
+        count={selectedOrders.size}
+        onClear={() => setSelectedOrders(new Set())}
+        actions={[
+          {
+            label: bulkSendingOrders ? 'กำลังส่ง...' : 'ส่งที่เลือก',
+            icon: <Send className="h-3.5 w-3.5" />,
+            onClick: () => void handleBulkSendOrders(),
+          },
+        ]}
+      />
 
       <BulkActions
         count={selectedFailedItems.size}
@@ -312,8 +369,38 @@ export default function DeliveriesPage() {
           />
         ) : (
           <div className="divide-y divide-outline-variant">
+            {orders.some((o) => o.status === 'DRAFT') && (
+              <div className="flex items-center gap-3 px-4 py-2 bg-surface-container/40">
+                <input
+                  type="checkbox"
+                  aria-label="เลือกฉบับร่างทั้งหมด"
+                  checked={(() => {
+                    const drafts = orders.filter((o) => o.status === 'DRAFT');
+                    return drafts.length > 0 && drafts.every((o) => selectedOrders.has(o.id));
+                  })()}
+                  onChange={toggleAllDrafts}
+                  className="h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
+                />
+                <span className="text-xs text-on-surface-variant">เลือกฉบับร่างทั้งหมดเพื่อส่งเป็นกลุ่ม</span>
+              </div>
+            )}
             {orders.map((order) => (
-              <div key={order.id}>
+              <div key={order.id} className="flex items-start">
+                {order.status === 'DRAFT' ? (
+                  <div className="pl-4 pt-4">
+                    <input
+                      type="checkbox"
+                      aria-label={`เลือก ${order.documentType}`}
+                      checked={selectedOrders.has(order.id)}
+                      onChange={() => toggleOrder(order.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
+                    />
+                  </div>
+                ) : (
+                  <div className="pl-4 w-8" />
+                )}
+                <div className="flex-1 min-w-0">
                 <button
                   onClick={() => void toggleExpand(order.id)}
                   className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-container transition-colors"
@@ -412,6 +499,7 @@ export default function DeliveriesPage() {
                     )}
                   </div>
                 )}
+                </div>
               </div>
             ))}
           </div>

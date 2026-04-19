@@ -196,7 +196,7 @@ export default function AdminContractsPage() {
     },
   });
 
-  const contracts = contractsData?.data ?? [];
+  const contracts = useMemo(() => contractsData?.data ?? [], [contractsData?.data]);
   const total = contractsData?.total ?? 0;
   const loading = contractsLoading;
   const error = contractsError?.message ?? null;

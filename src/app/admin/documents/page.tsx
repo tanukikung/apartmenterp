@@ -48,6 +48,7 @@ export default function DocumentsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkSending, setBulkSending] = useState(false);
 
   const [search, setSearch] = useUrlState('q', '');
   const [searchDebounced, setSearchDebounced] = useState(search);
@@ -101,6 +102,32 @@ export default function DocumentsPage() {
     } finally {
       setDeleting(false);
     }
+  }
+
+  async function bulkSend() {
+    if (selected.size === 0) return;
+    setBulkSending(true);
+    const ids = Array.from(selected).filter((id) => {
+      const doc = documents.find((d) => d.id === id);
+      return doc && doc.status !== 'SENT' && doc.files.some((f) => f.role === 'PDF');
+    });
+    let okCount = 0;
+    let failCount = 0;
+    for (const id of ids) {
+      try {
+        const res = await fetch(`/api/documents/${id}/send`, { method: 'POST' });
+        const json = await res.json();
+        if (res.ok && json.success) okCount++;
+        else failCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    setBulkSending(false);
+    setSelected(new Set());
+    if (okCount > 0) toast.success(`ส่งเอกสารแล้ว ${okCount} รายการ`);
+    if (failCount > 0) toast.error(`ส่งไม่สำเร็จ ${failCount} รายการ`);
+    void queryClient.invalidateQueries({ queryKey: ['documents'] });
   }
 
   async function bulkDelete() {
@@ -177,6 +204,11 @@ export default function DocumentsPage() {
         count={selected.size}
         onClear={() => setSelected(new Set())}
         actions={[
+          {
+            label: bulkSending ? 'กำลังส่ง...' : 'ส่ง PDF ที่เลือก',
+            icon: <Send className="h-3.5 w-3.5" />,
+            onClick: () => void bulkSend(),
+          },
           {
             label: 'ลบที่เลือก',
             variant: 'danger',

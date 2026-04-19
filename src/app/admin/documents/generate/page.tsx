@@ -125,7 +125,7 @@ export default function GenerateDocumentsPage() {
 
   const templates: TemplateOption[] = (templatesRaw?.data ?? []).filter((t: TemplateOption) => t.activeVersionId);
   const floors: FloorOption[] = floorsRaw?.data ?? [];
-  const rooms: RoomOption[] = roomsRaw?.data ?? [];
+  const rooms: RoomOption[] = useMemo(() => roomsRaw?.data ?? [], [roomsRaw?.data]);
   const isLoading = templatesLoading || floorsLoading || roomsLoading;
 
   if (!initRef.current && templates.length > 0 && !selectedTemplateId) {

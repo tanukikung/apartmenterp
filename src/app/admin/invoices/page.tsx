@@ -442,8 +442,81 @@ export default function AdminInvoicesPage() {
           </div>
         )}
 
+        {/* Mobile card view */}
+        {!loading && invoices.length > 0 && (
+          <div className="md:hidden divide-y divide-outline-variant/10">
+            {filtered.map((inv) => {
+              const meta = STATUS_META[inv.status];
+              const canSend = SENDABLE.includes(inv.status);
+              const isSending = sending === inv.id;
+              return (
+                <div key={`m-${inv.id}`} className="p-3">
+                  <div className="flex items-start gap-2">
+                    {canSend && (
+                      <input
+                        type="checkbox"
+                        aria-label={`เลือกใบแจ้งหนี้ ${inv.invoiceNumber}`}
+                        checked={selected.has(inv.id)}
+                        onChange={() => toggleSelect(inv.id)}
+                        className="mt-1 h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <Link href={`/admin/invoices/${inv.id}`} className="font-mono text-xs font-medium text-primary hover:underline truncate">
+                          {inv.invoiceNumber}
+                        </Link>
+                        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold shrink-0 ${meta?.cls ?? 'bg-surface-container text-on-surface-variant'}`}>
+                          {meta?.label ?? inv.status}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-2 text-sm">
+                        <span className="font-semibold text-on-surface">ห้อง {roomNum(inv)}</span>
+                        <span className={`tabular-nums font-semibold ${
+                          inv.status === 'PAID' ? 'text-on-tertiary-container'
+                            : inv.status === 'OVERDUE' ? 'text-on-error-container'
+                            : 'text-on-surface'
+                        }`}>
+                          {money(inv.totalAmount)}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-xs text-on-surface-variant">
+                        {fmtPeriod(inv.year, inv.month)}
+                        {inv.tenantName ? ` · ${inv.tenantName}` : ''}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {inv.status !== 'CANCELLED' && (
+                          <a
+                            href={`/api/invoices/${inv.id}/pdf`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1 text-xs font-medium text-on-surface hover:bg-surface-container"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            PDF
+                          </a>
+                        )}
+                        {canSend && (
+                          <button
+                            onClick={() => void sendInvoice(inv.id)}
+                            disabled={isSending || sending !== null}
+                            className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1 text-xs font-medium text-on-surface hover:bg-surface-container disabled:opacity-60"
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                            {isSending ? 'กำลังส่ง…' : 'ส่ง'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {(loading || invoices.length > 0) && (
-          <div className="overflow-auto">
+          <div className="hidden md:block overflow-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b border-outline-variant">

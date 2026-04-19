@@ -26,6 +26,7 @@ import { useQuery } from '@tanstack/react-query';
 import { exportToCsv } from '@/lib/utils/export-csv';
 import { ModernTable } from '@/components/ui/modern-table';
 import { useToast } from '@/components/providers/ToastProvider';
+import { useUrlState } from '@/hooks/useUrlState';
 
 
 // ============================================================================
@@ -343,10 +344,16 @@ function PaymentsPanel({ payments, loading, selectedPaymentId, onSelect, onRefre
   payments: Payment[]; loading: boolean; selectedPaymentId: string | null;
   onSelect: (p: Payment | null) => void; onRefresh: () => void;
 }) {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useUrlState('pq', '');
+  // Debounce the search term so URL updates don't happen on every keystroke.
+  const [searchDebounced, setSearchDebounced] = useState(search);
+  useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
   const filtered = payments.filter((p) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
+    if (!searchDebounced) return true;
+    const q = searchDebounced.toLowerCase();
     return p.reference?.toLowerCase().includes(q) || String(p.amount).includes(q) || p.description?.toLowerCase().includes(q);
   });
 
@@ -395,12 +402,18 @@ function InvoicesPanel({ invoices, loading, selectedPayment, onMatchRequest, onR
   invoices: Invoice[]; loading: boolean; selectedPayment: Payment | null;
   onMatchRequest: (invoice: Invoice) => void; onRefresh: () => void;
 }) {
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'ALL' | 'SENT' | 'OVERDUE'>('ALL');
+  const [search, setSearch] = useUrlState('iq', '');
+  const [filter, setFilter] = useUrlState<'ALL' | 'SENT' | 'OVERDUE'>('istatus', 'ALL');
+  // Debounce the search so URL updates don't happen on every keystroke.
+  const [searchDebounced, setSearchDebounced] = useState(search);
+  useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
   const filtered = invoices.filter((inv) => {
     if (filter !== 'ALL' && inv.status !== filter) return false;
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
+    if (!searchDebounced) return true;
+    const q = searchDebounced.toLowerCase();
     const rn = (inv.room?.roomNumber ?? inv.room?.roomNo ?? '').toLowerCase();
     return inv.invoiceNumber.toLowerCase().includes(q) || rn.includes(q)
       || (inv.tenant?.fullName ?? inv.tenantName ?? '').toLowerCase().includes(q);
@@ -961,7 +974,7 @@ function UploadTab() {
 // ============================================================================
 
 export default function AdminPaymentsIndexPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('review');
+  const [activeTab, setActiveTab] = useUrlState<Tab>('tab', 'review');
 
   return (
     <main className="space-y-6">
