@@ -242,11 +242,13 @@ describe('concurrent_lock_all_idempotent', () => {
     const successes = [r1, r2].filter(r => r.status === 'fulfilled');
     expect(successes.length).toBeGreaterThan(0);
 
-    // Period is now locked
-    const updatedPeriod = await prisma.billingPeriod.findUnique({
-      where: { year_month: { year: 2026, month: 3 } },
+    // Billing record is now LOCKED (lockBillingRecord operates at the
+    // RoomBilling level; the parent BillingPeriod is locked separately by
+    // lockBillingPeriod).
+    const updated = await prisma.roomBilling.findUnique({
+      where: { id: roomBilling.id },
     });
-    expect(updatedPeriod?.status).toBe('LOCKED');
+    expect(updated?.status).toBe('LOCKED');
 
     // Exactly one BILLING_LOCKED event for this billing record
     const lockEvents = await prisma.outboxEvent.findMany({
@@ -303,9 +305,24 @@ describe('regenerate_sent_document_blocked', () => {
       },
     });
 
+    // GeneratedDocument.roomNo is a required FK → Room.roomNo; must exist first.
+    await (prisma as any).room.create({
+      data: {
+        roomNo: 'TEST-999',
+        floorNo: 1,
+        defaultAccountId: 'ACC_F1',
+        defaultRuleCode: 'STANDARD',
+        defaultRentAmount: 5000,
+        hasFurniture: false,
+        defaultFurnitureAmount: 0,
+        roomStatus: 'VACANT',
+      },
+    });
+
     const doc = await (prisma as any).generatedDocument.create({
       data: {
         id: uuidv4(),
+        templateId: template.id,
         templateVersionId: templateVersion.id,
         documentType: 'INVOICE',
         status: 'SENT', // already sent — must block regeneration
@@ -449,6 +466,8 @@ describe('delivery_order_send_updates_item_status_to_sent', () => {
         orderId: order.id,
         lineUserId: 'U00000000000000000000000000000000',
         roomNo: 'TEST-101',
+        documentTitle: 'Test Invoice',
+        pdfUrl: 'https://example.com/test.pdf',
       }
     );
 
@@ -508,6 +527,8 @@ describe('delivery_order_send_failure_updates_item_status_to_failed', () => {
         orderId: order.id,
         lineUserId: 'U00000000000000000000000000000000',
         roomNo: 'TEST-102',
+        documentTitle: 'Test Invoice',
+        pdfUrl: 'https://example.com/test.pdf',
       }
     );
 
