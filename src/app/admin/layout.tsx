@@ -453,8 +453,28 @@ function TopBar({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  // Global "/" shortcut → focus the search input
+  useEffect(() => {
+    function handleShortcut(e: KeyboardEvent) {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) {
+          return;
+        }
+      }
+      e.preventDefault();
+      searchInputRef.current?.focus();
+      setShowSearch(true);
+    }
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, []);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -586,14 +606,26 @@ function TopBar({
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-color-text-3 pointer-events-none" />
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="ค้นหาห้อง, ผู้เช่า, ใบแจ้งหนี้..."
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
             onFocus={() => setShowSearch(true)}
             onBlur={() => setTimeout(() => setShowSearch(false), 150)}
-            className="w-full h-9 pl-9 pr-4 rounded-xl border border-color-border bg-color-bg text-sm text-color-text placeholder:text-color-text-3 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setShowSearch(false);
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            aria-label="ค้นหาทั่วระบบ (กด / เพื่อโฟกัส)"
+            className="w-full h-9 pl-9 pr-12 rounded-xl border border-color-border bg-color-bg text-sm text-color-text placeholder:text-color-text-3 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
           />
+          {/* Keyboard hint */}
+          <kbd className="pointer-events-none hidden md:flex absolute right-2.5 top-1/2 -translate-y-1/2 h-5 items-center rounded border border-color-border bg-color-surface px-1.5 text-[10px] font-medium text-color-text-3">
+            /
+          </kbd>
         </div>
 
         {/* Search results dropdown */}
