@@ -3,7 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ClientOnly } from '@/components/ui/ClientOnly';
-import { Search } from 'lucide-react';
+import { ClipboardList, Search } from 'lucide-react';
+import { SkeletonTable } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { useUrlState } from '@/hooks/useUrlState';
 
 type AuditRow = {
   id: string;
@@ -30,8 +33,8 @@ async function fetchAuditLogs(action: string, q: string): Promise<{ rows: AuditR
 }
 
 export default function AdminAuditLogsPage() {
-  const [action, setAction] = useState('');
-  const [search, setSearch] = useState('');
+  const [action, setAction] = useUrlState('action', '');
+  const [search, setSearch] = useUrlState('q', '');
   const [searchDebounced, setSearchDebounced] = useState('');
   useEffect(() => {
     const t = setTimeout(() => setSearchDebounced(search.trim()), 300);
@@ -85,36 +88,43 @@ export default function AdminAuditLogsPage() {
             {error instanceof Error ? error.message : String(error)}
           </div>
         )}
-        <div className="overflow-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-surface-container">
-              <tr>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เวลา</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ผู้ใช้</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">การดำเนินการ</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เอนทิตี</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รายละเอียด</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={5} className="px-3 py-6 text-center text-slate-500">กำลังโหลดบันทึกกิจกรรม...</td></tr>
-              ) : !rows.length ? (
-                <tr><td colSpan={5} className="px-3 py-6 text-center text-slate-500">ไม่พบบันทึกกิจกรรม</td></tr>
-              ) : (
-                rows.map((row) => (
+        {isLoading ? (
+          <div className="p-5">
+            <SkeletonTable rows={8} />
+          </div>
+        ) : !rows.length ? (
+          <EmptyState
+            icon={<ClipboardList className="h-7 w-7" />}
+            title="ไม่พบบันทึกกิจกรรม"
+            description={searchDebounced || action ? 'ลองปรับคำค้นหาหรือล้างตัวกรองเพื่อดูรายการทั้งหมด' : 'ยังไม่มีบันทึกกิจกรรมในระบบ'}
+            action={(searchDebounced || action) ? { label: 'ล้างตัวกรอง', onClick: () => { setSearch(''); setAction(''); } } : undefined}
+          />
+        ) : (
+          <div className="overflow-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-surface-container">
+                <tr>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เวลา</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ผู้ใช้</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">การดำเนินการ</th>
+                  <th className="hidden md:table-cell px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เอนทิตี</th>
+                  <th className="hidden lg:table-cell px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รายละเอียด</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
                   <tr key={row.id}>
                     <td><ClientOnly fallback="-">{new Date(row.createdAt).toLocaleString('th-TH')}</ClientOnly></td>
                     <td>{row.userName || row.userId}</td>
                     <td>{row.action}</td>
-                    <td>{row.entityType}:{' '}{row.entityId}</td>
-                    <td className="max-w-[420px] truncate">{row.details ? JSON.stringify(row.details) : '-'}</td>
+                    <td className="hidden md:table-cell">{row.entityType}:{' '}{row.entityId}</td>
+                    <td className="hidden lg:table-cell max-w-[420px] truncate">{row.details ? JSON.stringify(row.details) : '-'}</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </main>
   );

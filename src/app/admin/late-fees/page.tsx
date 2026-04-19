@@ -3,6 +3,8 @@
 import { useCallback, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, Search, ThumbsUp, X } from 'lucide-react';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 
 type LateFeeInvoice = {
@@ -202,6 +204,8 @@ export default function LateFeesPage() {
   const hasChanges = data?.invoices.some(
     (inv) => editState[inv.id]?.lateFeeAmount !== inv.lateFeeAmount
   ) ?? false;
+
+  useUnsavedChanges(hasChanges);
 
   return (
     <main className="space-y-6">
@@ -433,12 +437,10 @@ export default function LateFeesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min={0}
-                            step={1}
+                          <CurrencyInput
                             value={editState[inv.id]?.lateFeeAmount ?? inv.lateFeeAmount}
-                            onChange={(e) => handleAmountChange(inv.id, parseFloat(e.target.value) || 0)}
+                            onChange={(n) => handleAmountChange(inv.id, n ?? 0)}
+                            ariaLabel="ค่าปรับล่าช้า"
                             className={`w-24 rounded-lg border px-2 py-1 text-sm focus:outline-none focus:ring-1 ${
                               isEdited
                                 ? 'border-amber-400 bg-amber-50 focus:border-amber-500 focus:ring-amber-500/30'

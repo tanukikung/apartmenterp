@@ -25,6 +25,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     page: url.searchParams.get('page') || '1',
     pageSize: url.searchParams.get('pageSize') || '20',
     search: url.searchParams.get('search') || undefined,
+    q: url.searchParams.get('q') || undefined,
     sortBy: url.searchParams.get('sortBy') || 'roomNo',
     sortOrder: url.searchParams.get('sortOrder') || 'asc',
   };

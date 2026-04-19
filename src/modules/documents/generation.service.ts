@@ -599,6 +599,25 @@ export class DocumentGenerationService {
     if (query.year) where.year = query.year;
     if (query.month) where.month = query.month;
 
+    // Free-text search over roomNo, document title, tenant first/last name,
+    // and the underlying template name ("filename"/"type" by template).
+    if (query.q) {
+      const trimmed = query.q.trim();
+      where.OR = [
+        { roomNo: { contains: trimmed, mode: 'insensitive' } },
+        { title: { contains: trimmed, mode: 'insensitive' } },
+        { template: { name: { contains: trimmed, mode: 'insensitive' } } },
+        {
+          tenant: {
+            OR: [
+              { firstName: { contains: trimmed, mode: 'insensitive' } },
+              { lastName: { contains: trimmed, mode: 'insensitive' } },
+            ],
+          },
+        },
+      ];
+    }
+
     const [total, documents] = await Promise.all([
       prisma.generatedDocument.count({ where }),
       prisma.generatedDocument.findMany({

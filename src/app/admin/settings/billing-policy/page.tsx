@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, ArrowLeft, CalendarDays, CheckCircle2, Save } from 'lucide-react';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 type BillingSettings = {
   billingDay: number;
@@ -102,6 +103,8 @@ export default function BillingPolicyPage() {
   }, [queryClient]);
 
   const isDirty = JSON.stringify(fields) !== JSON.stringify(originalFields);
+
+  useUnsavedChanges(isDirty);
 
   async function handleSave() {
     setSaving(true);

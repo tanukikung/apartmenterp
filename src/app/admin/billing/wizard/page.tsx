@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import {
   ArrowLeft,
   CheckCircle,
@@ -141,6 +142,15 @@ export default function BillingWizardPage(): JSX.Element {
       setActionLoading(false);
     }
   }
+
+  // Treat the wizard as "dirty" while an action is in flight or while the
+  // period is mid-flow (records imported but invoices not yet fully sent).
+  const wizardDirty =
+    actionLoading ||
+    (!!data?.period &&
+      data.period.totalRecords > 0 &&
+      data.period.sentInvoices < data.period.invoiceCount);
+  useUnsavedChanges(wizardDirty);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 

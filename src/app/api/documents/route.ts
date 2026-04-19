@@ -15,6 +15,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     month: url.searchParams.get('month') ?? undefined,
     roomId: url.searchParams.get('roomId') ?? undefined,
     billingCycleId: url.searchParams.get('billingCycleId') ?? undefined,
+    q: url.searchParams.get('q') ?? undefined,
     page: url.searchParams.get('page') ?? undefined,
     pageSize: url.searchParams.get('pageSize') ?? undefined,
   });

@@ -18,6 +18,26 @@ type Serializable = Primitive | boolean;
  * Falsy values (empty string, 0, null, undefined, false) are omitted from the
  * URL to keep it clean.
  */
+// Overloads widen common literal defaults so callers don't need to write
+// `useUrlState<string>('q', '')` — TS would otherwise narrow `''` to `""`.
+export function useUrlState(
+  key: string,
+  defaultValue: string,
+): [string, (next: string) => void];
+export function useUrlState(
+  key: string,
+  defaultValue: number,
+  parse?: (raw: string) => number,
+): [number, (next: number) => void];
+export function useUrlState(
+  key: string,
+  defaultValue: boolean,
+): [boolean, (next: boolean) => void];
+export function useUrlState<T extends Serializable>(
+  key: string,
+  defaultValue: T,
+  parse?: (raw: string) => T,
+): [T, (next: T) => void];
 export function useUrlState<T extends Serializable>(
   key: string,
   defaultValue: T,

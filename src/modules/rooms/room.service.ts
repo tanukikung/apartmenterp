@@ -137,7 +137,7 @@ export class RoomService {
    * List rooms with filtering and pagination
    */
   async listRooms(query: ListRoomsQuery): Promise<RoomListResponse> {
-    const { floorNo, roomStatus, page, pageSize, search, sortBy, sortOrder } = query;
+    const { floorNo, roomStatus, page, pageSize, search, q, sortBy, sortOrder } = query;
 
     // Build where clause
     const where: Record<string, unknown> = {};
@@ -155,6 +155,27 @@ export class RoomService {
         contains: search,
         mode: 'insensitive',
       };
+    }
+
+    // Free-text search: roomNo OR active tenant first/last name.
+    if (q) {
+      const trimmed = q.trim();
+      where.OR = [
+        { roomNo: { contains: trimmed, mode: 'insensitive' } },
+        {
+          tenants: {
+            some: {
+              moveOutDate: null,
+              tenant: {
+                OR: [
+                  { firstName: { contains: trimmed, mode: 'insensitive' } },
+                  { lastName: { contains: trimmed, mode: 'insensitive' } },
+                ],
+              },
+            },
+          },
+        },
+      ];
     }
 
     // Get total count
