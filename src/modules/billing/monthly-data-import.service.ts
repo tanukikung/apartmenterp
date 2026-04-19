@@ -409,7 +409,6 @@ export async function createMonthlyDataImportPreviewBatch(input: {
 
 export async function executeMonthlyDataImportBatch(
   batchId: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _importedBy?: string
 ): Promise<{ batchId: string; cycleId: string; totalImported: number; warnings: MonthlyDataWarning[] }> {
   // 1. Find the PENDING batch

@@ -175,7 +175,7 @@ export class ContractService {
       EventTypes.CONTRACT_CREATED,
       'Contract',
       contract.id,
-      payload as any,
+      payload,
       { userId: createdBy }
     );
 
@@ -429,7 +429,7 @@ export class ContractService {
       EventTypes.CONTRACT_RENEWED,
       'Contract',
       newContract.id,
-      payload as any,
+      payload,
       { userId: renewedBy }
     );
 
@@ -511,7 +511,7 @@ export class ContractService {
       EventTypes.CONTRACT_TERMINATED,
       'Contract',
       updated.id,
-      payload as any,
+      payload,
       { userId: terminatedBy }
     );
 

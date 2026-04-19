@@ -237,7 +237,7 @@ export class BillingService {
       EventTypes.BILLING_RECORD_CREATED,
       'RoomBilling',
       roomBilling.id,
-      payload as any,
+      payload,
       { userId: createdBy }
     );
 

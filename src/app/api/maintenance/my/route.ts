@@ -10,7 +10,6 @@ const querySchema = z.object({
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   // Auth required; actorId not recorded for ticket queries.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _session = requireAuthSession(req);
   const url = new URL(req.url);
 

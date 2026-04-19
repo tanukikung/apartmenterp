@@ -237,8 +237,7 @@ export class OutboxProcessor {
               event.eventType,
               event.aggregateType,
               event.aggregateId,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              payload as any
+              payload
             );
 
             result.processed++;

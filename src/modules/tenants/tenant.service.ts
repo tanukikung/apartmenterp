@@ -113,7 +113,7 @@ export class TenantService {
       EventTypes.TENANT_CREATED,
       'Tenant',
       tenant.id,
-      payload as any,
+      payload,
       { userId: createdBy }
     );
 
@@ -310,7 +310,7 @@ export class TenantService {
         EventTypes.TENANT_UPDATED,
         'Tenant',
         tenant.id,
-        payload as any,
+        payload,
         { userId: updatedBy }
       );
     }
@@ -496,7 +496,7 @@ export class TenantService {
       EventTypes.TENANT_ASSIGNED_TO_ROOM,
       'Tenant',
       tenant.id,
-      payload as any,
+      payload,
       { userId: assignedBy }
     );
 
@@ -585,7 +585,7 @@ export class TenantService {
       EventTypes.TENANT_REMOVED_FROM_ROOM,
       'Tenant',
       tenantId,
-      payload as any,
+      payload,
       { userId: removedBy }
     );
   }
@@ -644,7 +644,7 @@ export class TenantService {
       EventTypes.TENANT_LINE_LINKED,
       'Tenant',
       tenantId,
-      payload as any,
+      payload,
       { userId: linkedBy }
     );
 

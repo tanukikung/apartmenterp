@@ -1,12 +1,10 @@
 // Shared utility functions for move-outs components
 
 import type { MoveOutStatus } from './types';
+import { formatDate, formatDateTime } from '@/lib/utils';
 
-export function fmtDate(d: string | Date | null | undefined): string {
-  if (!d) return '—';
-  const date = typeof d === 'string' ? new Date(d) : d;
-  return date.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+// Re-export for backward compatibility
+export { formatDate as fmtDate, formatDateTime as fmtDateTime };
 
 export function fmtMoney(n: number): string {
   return n.toLocaleString('th-TH', { minimumFractionDigits: 0 }) + ' ฿';

@@ -8,7 +8,6 @@ export const POST = asyncHandler(async (
   { params }: { params: { id: string; versionId: string } },
 ): Promise<NextResponse> => {
   // Auth required; actorId not recorded for pure validation checks.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _session = requireRole(req, ['ADMIN', 'STAFF']);
   const service = getDocumentTemplateService();
 

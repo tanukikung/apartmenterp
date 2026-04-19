@@ -762,7 +762,7 @@ export class InvoiceService {
       EventTypes.INVOICE_VIEWED,
       'Invoice',
       invoice.id,
-      payload as any
+      payload
     );
 
     return this.formatInvoiceResponse(updated);
@@ -867,7 +867,7 @@ export class InvoiceService {
           EventTypes.INVOICE_MARKED_OVERDUE,
           'Invoice',
           invoice.id,
-          payload as any
+          payload
         );
       })
     );

@@ -96,7 +96,7 @@ export class RoomService {
       EventTypes.ROOM_CREATED,
       'Room',
       room.roomNo,
-      payload as any,
+      payload,
       { userId: createdBy }
     );
 
@@ -302,7 +302,7 @@ export class RoomService {
         EventTypes.ROOM_UPDATED,
         'Room',
         room.roomNo,
-        payload as any,
+        payload,
         { userId: updatedBy }
       );
     }
@@ -404,7 +404,7 @@ export class RoomService {
       EventTypes.ROOM_STATUS_CHANGED,
       'Room',
       room.roomNo,
-      payload as any,
+      payload,
       { userId: changedBy }
     );
 

@@ -176,7 +176,6 @@ export class DeliveryService {
     return order;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async executeOrder(orderId: string, _actorId?: string | null) {
     const order = await prisma.deliveryOrder.findUnique({
       where: { id: orderId },

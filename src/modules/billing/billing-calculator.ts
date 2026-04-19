@@ -272,7 +272,6 @@ export function computeCheckNotes(
     | 'electricCurr'
     | 'electricUnitsManual'
   >,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _computed: Pick<ComputedBilling, 'waterUnits' | 'electricUnits'>
 ): string | null {
   const warnings: string[] = [];
