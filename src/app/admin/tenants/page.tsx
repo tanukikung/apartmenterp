@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, Plus, Home, Search, Inbox, CheckCircle, MessageCircle, XCircle } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { SkeletonTable } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { useUrlState } from '@/hooks/useUrlState';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -55,7 +58,7 @@ export default function AdminTenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useUrlState<string>('q', '');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState<string | null>(null);
@@ -329,14 +332,17 @@ export default function AdminTenantsPage() {
 
       {/* Tenant List */}
       {loading ? (
-        <div className="space-y-3">
-          {[1,2,3,4,5].map(i => <div key={i} className="skeleton h-16 rounded-lg" />)}
-        </div>
+        <SkeletonTable rows={6} />
       ) : filtered.length === 0 ? (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-12 text-center">
-          <Inbox size={40} className="mx-auto text-on-surface-variant mb-4" />
-          <div className="text-sm font-semibold text-on-surface-variant">ไม่พบผู้เช่า</div>
-          <div className="text-xs text-on-surface-variant mt-1">{search.trim() ? 'ลองป้อนคำค้นอื่น' : 'เพิ่มผู้เช่าใหม่เพื่อเริ่มต้น'}</div>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+          <EmptyState
+            icon={<Inbox className="h-7 w-7" />}
+            title={search.trim() ? `ไม่พบผู้เช่าที่ตรงกับ "${search}"` : 'ยังไม่มีผู้เช่า'}
+            description={search.trim() ? 'ลองป้อนคำค้นอื่นหรือล้างการค้นหา' : 'เพิ่มผู้เช่าใหม่เพื่อเริ่มต้น'}
+            action={search.trim()
+              ? { label: 'ล้างคำค้นหา', onClick: () => setSearch('') }
+              : { label: 'เพิ่มผู้เช่า', onClick: () => setShowCreate(true) }}
+          />
         </div>
       ) : (
         <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
@@ -345,10 +351,10 @@ export default function AdminTenantsPage() {
               <thead>
                 <tr className="bg-surface-container-low/50">
                   <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ผู้เช่า</th>
-                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เบอร์โทร</th>
-                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">อีเมล</th>
+                  <th className="hidden md:table-cell px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เบอร์โทร</th>
+                  <th className="hidden lg:table-cell px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">อีเมล</th>
                   <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
-                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">LINE</th>
+                  <th className="hidden lg:table-cell px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">LINE</th>
                   <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant"></th>
                 </tr>
               </thead>
@@ -365,8 +371,8 @@ export default function AdminTenantsPage() {
                           <span className="text-sm font-semibold text-on-surface">{name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-on-surface">{t.phone || '—'}</td>
-                      <td className="px-6 py-4 text-sm text-on-surface">{t.email || '—'}</td>
+                      <td className="hidden md:table-cell px-6 py-4 text-sm text-on-surface">{t.phone || '—'}</td>
+                      <td className="hidden lg:table-cell px-6 py-4 text-sm text-on-surface">{t.email || '—'}</td>
                       <td className="px-6 py-4">
                         {t.roomTenants?.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
@@ -378,7 +384,7 @@ export default function AdminTenantsPage() {
                           <span className="text-xs text-on-surface-variant">ไม่มี</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="hidden lg:table-cell px-6 py-4">
                         {t.lineUserId ? (
                           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-600">
                             <CheckCircle size={12} />

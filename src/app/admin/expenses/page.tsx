@@ -13,6 +13,7 @@ import { SkeletonTable } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/components/providers/ToastProvider';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { useUrlState } from '@/hooks/useUrlState';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -124,11 +125,11 @@ function CategoryBadge({ category }: { category: ExpenseCategory }) {
 
 export default function AdminExpensesPage() {
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useUrlState<number>('page', 1);
   const [totalPages, _setTotalPages] = useState(1);
-  const [categoryFilter, setCategoryFilter] = useState<ExpenseCategory | 'ALL'>('ALL');
-  const [monthFilter, setMonthFilter] = useState<string>('ALL');
-  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useUrlState<ExpenseCategory | 'ALL'>('category', 'ALL');
+  const [monthFilter, setMonthFilter] = useUrlState<string>('month', 'ALL');
+  const [search, setSearch] = useUrlState<string>('q', '');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);

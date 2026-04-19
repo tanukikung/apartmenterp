@@ -19,6 +19,7 @@ import { exportToCsv } from '@/lib/utils/export-csv';
 import { BulkActions } from '@/components/ui/bulk-actions';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/providers/ToastProvider';
+import { useUrlState } from '@/hooks/useUrlState';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -134,11 +135,11 @@ export default function AdminInvoicesPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [sending, setSending] = useState<string | null>(null);
 
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
-  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useUrlState<StatusFilter>('status', 'ALL');
+  const [search, setSearch] = useUrlState<string>('q', '');
 
   const PAGE_SIZE = 50;
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useUrlState<number>('page', 1);
   const [total, setTotal] = useState(0);
 
   const [statusTotals, setStatusTotals] = useState<Partial<Record<InvoiceStatus, number>>>({});
@@ -195,6 +196,8 @@ export default function AdminInvoicesPage() {
     } finally {
       setLoading(false);
     }
+  // setPage is stable (from useUrlState)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { void load(1, statusFilter, searchDebounced); }, [load, statusFilter, searchDebounced]);

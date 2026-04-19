@@ -4,7 +4,10 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { LayoutGrid, List, Plus, X, DoorOpen, Search, ExternalLink } from 'lucide-react';
 import { useApiData } from '@/hooks/useApi';
+import { useUrlState } from '@/hooks/useUrlState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { EmptyState } from '@/components/ui/empty-state';
+import { SkeletonKPICard } from '@/components/ui/skeleton';
 import { CardGrid } from '@/components/ui/card-grid';
 import { ModernTable } from '@/components/ui/modern-table';
 import { StatusBadge, roomStatusVariant } from '@/components/ui/status-badge';
@@ -67,7 +70,7 @@ export default function AdminRoomsPage() {
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [rules, setRules] = useState<BillingRule[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useUrlState<string>('q', '');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [floorFilter, setFloorFilter] = useState<number | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
@@ -418,14 +421,17 @@ export default function AdminRoomsPage() {
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="skeleton h-32 rounded-xl" />
+            <SkeletonKPICard key={i} index={i} />
           ))}
         </div>
       ) : !filteredRooms.length ? (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-12 text-center">
-          <DoorOpen size={40} className="mx-auto text-on-surface-variant mb-4" />
-          <div className="text-sm font-semibold text-on-surface-variant">ไม่พบห้อง</div>
-          <div className="text-xs text-on-surface-variant mt-1">ลองเปลี่ยนตัวกรองหรือเพิ่มห้องใหม่</div>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+          <EmptyState
+            icon={<DoorOpen className="h-7 w-7" />}
+            title={search.trim() ? `ไม่พบห้องที่ตรงกับ "${search}"` : 'ไม่พบห้อง'}
+            description={search.trim() ? 'ลองป้อนคำค้นอื่นหรือล้างการค้นหา' : 'ลองเปลี่ยนตัวกรองหรือเพิ่มห้องใหม่'}
+            action={search.trim() ? { label: 'ล้างคำค้นหา', onClick: () => setSearch('') } : undefined}
+          />
         </div>
       ) : viewMode === 'grid' ? (
         <CardGrid
