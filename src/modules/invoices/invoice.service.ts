@@ -392,7 +392,7 @@ export class InvoiceService {
    * List invoices
    */
   async listInvoices(query: ListInvoicesQuery): Promise<InvoicesListResponse> {
-    const { roomNo, year, month, status, page, pageSize, sortBy, sortOrder } = query;
+    const { q, roomNo, year, month, status, page, pageSize, sortBy, sortOrder } = query;
 
     const where: Record<string, unknown> = {};
 
@@ -400,6 +400,31 @@ export class InvoiceService {
     if (year) where.year = year;
     if (month) where.month = month;
     if (status) where.status = status;
+
+    // Free-text search: matches on roomNo OR id (prefix), OR tenant firstName/lastName
+    // via the nested room → roomTenants → tenant relation. Case-insensitive.
+    if (q) {
+      const trimmed = q.trim();
+      where.OR = [
+        { roomNo: { contains: trimmed, mode: 'insensitive' } },
+        { id: { startsWith: trimmed } },
+        {
+          room: {
+            tenants: {
+              some: {
+                moveOutDate: null,
+                tenant: {
+                  OR: [
+                    { firstName: { contains: trimmed, mode: 'insensitive' } },
+                    { lastName: { contains: trimmed, mode: 'insensitive' } },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      ];
+    }
 
     const SORT_FIELD_MAP: Record<string, string> = { totalAmount: 'totalAmount' };
     const prismaOrderField = SORT_FIELD_MAP[sortBy] ?? sortBy;

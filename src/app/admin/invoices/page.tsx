@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle,
@@ -11,10 +11,14 @@ import {
   FileText,
   Inbox,
   RefreshCw,
+  ScrollText,
   Search,
   Send,
 } from 'lucide-react';
 import { exportToCsv } from '@/lib/utils/export-csv';
+import { BulkActions } from '@/components/ui/bulk-actions';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/providers/ToastProvider';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -139,7 +143,21 @@ export default function AdminInvoicesPage() {
 
   const [statusTotals, setStatusTotals] = useState<Partial<Record<InvoiceStatus, number>>>({});
 
-  const load = useCallback(async (pg = 1, status: StatusFilter = 'ALL') => {
+  // Bulk selection
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkSendConfirm, setBulkSendConfirm] = useState(false);
+  const [bulkSending, setBulkSending] = useState(false);
+  const toast = useToast();
+
+  // Debounce the search term so typing doesn't hammer the API. We keep `search`
+  // for the input's controlled value and `searchDebounced` for the fetch.
+  const [searchDebounced, setSearchDebounced] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const load = useCallback(async (pg = 1, status: StatusFilter = 'ALL', q = '') => {
     setLoading(true);
     setError(null);
     try {
@@ -148,6 +166,7 @@ export default function AdminInvoicesPage() {
         sortBy: 'createdAt', sortOrder: 'desc',
       });
       if (status !== 'ALL') params.set('status', status);
+      if (q) params.set('q', q);
 
       // Fetch the list page AND the per-status totals (for KPI cards) in parallel.
       const STATUSES: InvoiceStatus[] = ['GENERATED', 'SENT', 'VIEWED', 'PAID', 'OVERDUE'];
@@ -178,7 +197,7 @@ export default function AdminInvoicesPage() {
     }
   }, []);
 
-  useEffect(() => { void load(1, statusFilter); }, [load, statusFilter]);
+  useEffect(() => { void load(1, statusFilter, searchDebounced); }, [load, statusFilter, searchDebounced]);
 
   async function sendInvoice(id: string) {
     // LINE configuration check is done server-side; proceed and let API return error if not configured
@@ -193,7 +212,7 @@ export default function AdminInvoicesPage() {
 
       if (!res.success) throw new Error(res.error?.message ?? 'ไม่สามารถส่งใบแจ้งหนี้');
       setMessage(`ส่งใบแจ้งหนี้ทาง LINE แล้ว`);
-      void load(page, statusFilter);
+      void load(page, statusFilter, searchDebounced);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถส่งใบแจ้งหนี้');
     } finally {
@@ -201,16 +220,57 @@ export default function AdminInvoicesPage() {
     }
   }
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return invoices;
-    return invoices.filter(
-      (inv) =>
-        roomNum(inv).toLowerCase().includes(q) ||
-        (inv.tenantName ?? '').toLowerCase().includes(q) ||
-        inv.invoiceNumber.toLowerCase().includes(q),
-    );
-  }, [invoices, search]);
+  // Send LINE to every selected invoice. Runs sequentially to avoid LINE rate
+  // limits and to surface a partial success count in the toast.
+  async function bulkSendInvoices() {
+    setBulkSendConfirm(false);
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    setBulkSending(true);
+    let ok = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        const res = await fetch(`/api/invoices/${id}/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: 'LINE' }),
+        }).then((r) => r.json());
+        if (res.success) ok += 1;
+        else failed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    setBulkSending(false);
+    setSelected(new Set());
+    if (failed === 0) toast.success(`ส่งสำเร็จ ${ok} ใบ`);
+    else toast.warning(`ส่งสำเร็จ ${ok} ใบ · ล้มเหลว ${failed} ใบ`);
+    void load(page, statusFilter, searchDebounced);
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = () => {
+    setSelected((prev) => {
+      const sendableIds = invoices.filter((inv) => SENDABLE.includes(inv.status)).map((inv) => inv.id);
+      const allSelected = sendableIds.every((id) => prev.has(id)) && sendableIds.length > 0;
+      if (allSelected) return new Set();
+      return new Set(sendableIds);
+    });
+  };
+
+  // Search is now server-side (via `searchDebounced`). We display whatever the
+  // server returns without additional client-side filtering so pagination totals
+  // stay accurate.
+  const filtered = invoices;
 
   // KPI cards show totals across the entire dataset, not just the current page.
   const kpi = statusTotals;
@@ -263,7 +323,7 @@ export default function AdminInvoicesPage() {
             ส่งออก CSV
           </button>
           <button
-            onClick={() => void load(page, statusFilter)}
+            onClick={() => void load(page, statusFilter, searchDebounced)}
             disabled={loading}
             className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
@@ -323,9 +383,32 @@ export default function AdminInvoicesPage() {
         </div>
 
         <span className="text-sm text-on-surface-variant">
-          {search.trim() ? `${filtered.length} รายการ` : `${total} ใบแจ้งหนี้`}
+          {total} ใบแจ้งหนี้{searchDebounced ? ` (ค้นหา "${searchDebounced}")` : ''}
         </span>
       </section>
+
+      {/* Bulk action bar (shows when at least one invoice is selected) */}
+      <BulkActions
+        count={selected.size}
+        onClear={() => setSelected(new Set())}
+        actions={[
+          {
+            label: bulkSending ? 'กำลังส่ง…' : 'ส่ง LINE',
+            icon: <Send className="h-3.5 w-3.5" />,
+            onClick: () => setBulkSendConfirm(true),
+          },
+        ]}
+      />
+
+      <ConfirmDialog
+        open={bulkSendConfirm}
+        title={`ส่งใบแจ้งหนี้ ${selected.size} ใบทาง LINE?`}
+        description="ระบบจะส่งข้อความทีละใบตามลำดับ อาจใช้เวลาสักครู่"
+        confirmLabel="ส่งเลย"
+        onConfirm={() => void bulkSendInvoices()}
+        onCancel={() => setBulkSendConfirm(false)}
+        loading={bulkSending}
+      />
 
       {/* Invoice table */}
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
@@ -361,28 +444,45 @@ export default function AdminInvoicesPage() {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b border-outline-variant">
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">เลขใบแจ้งหนี้</th>
+                  <th className="w-10 px-3 py-3">
+                    <input
+                      type="checkbox"
+                      aria-label="เลือกทั้งหมด"
+                      checked={(() => {
+                        const sendable = invoices.filter((i) => SENDABLE.includes(i.status));
+                        return sendable.length > 0 && sendable.every((i) => selected.has(i.id));
+                      })()}
+                      onChange={toggleSelectAllVisible}
+                      className="h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
+                    />
+                  </th>
+                  <th className="hidden md:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">เลขใบแจ้งหนี้</th>
                   <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">ห้อง</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">ผู้เช่า</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">เดือน</th>
+                  <th className="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">ผู้เช่า</th>
+                  <th className="hidden md:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">เดือน</th>
                   <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">สถานะ</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">วันครบกำหนด</th>
+                  <th className="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">วันครบกำหนด</th>
                   <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">จำนวน</th>
                   <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">จัดการ</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-on-surface-variant">
-                      <RefreshCw className="mx-auto mb-2 h-5 w-5 animate-spin text-outline" />
-                      กำลังโหลดใบแจ้งหนี้...
-                    </td>
-                  </tr>
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={`skl-${i}`} className="border-b border-outline-variant/10">
+                      <td colSpan={9} className="px-4 py-3">
+                        <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
+                      </td>
+                    </tr>
+                  ))
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-sm text-on-surface-variant">
-                      ไม่พบใบแจ้งหนี้ที่ตรงกับการค้นหา
+                    <td colSpan={9} className="px-4 py-16 text-center text-sm text-on-surface-variant">
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-container">
+                        <ScrollText className="h-5 w-5 text-outline" />
+                      </div>
+                      <p className="mt-3 font-semibold text-on-surface">ไม่พบใบแจ้งหนี้ที่ตรงกับตัวกรอง</p>
+                      <p className="mt-1 text-xs">ลองปรับตัวกรองหรือล้างการค้นหา</p>
                     </td>
                   </tr>
                 ) : (
@@ -393,8 +493,20 @@ export default function AdminInvoicesPage() {
 
                     return (
                       <tr key={inv.id} className="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors">
+                        {/* Select checkbox — only meaningful for invoices that can be sent */}
+                        <td className="px-3 py-3">
+                          {canSend ? (
+                            <input
+                              type="checkbox"
+                              aria-label={`เลือกใบแจ้งหนี้ ${inv.invoiceNumber}`}
+                              checked={selected.has(inv.id)}
+                              onChange={() => toggleSelect(inv.id)}
+                              className="h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
+                            />
+                          ) : null}
+                        </td>
                         {/* Invoice number */}
-                        <td className="px-4 py-3">
+                        <td className="hidden md:table-cell px-4 py-3">
                           <Link href={`/admin/invoices/${inv.id}`} className="font-mono text-xs font-medium text-primary hover:underline">
                             {inv.invoiceNumber}
                           </Link>
@@ -406,10 +518,10 @@ export default function AdminInvoicesPage() {
                         </td>
 
                         {/* Tenant */}
-                        <td className="px-4 py-3 text-on-surface-variant">{inv.tenantName ?? '—'}</td>
+                        <td className="hidden lg:table-cell px-4 py-3 text-on-surface-variant">{inv.tenantName ?? '—'}</td>
 
                         {/* Period */}
-                        <td className="px-4 py-3 text-on-surface-variant">{fmtPeriod(inv.year, inv.month)}</td>
+                        <td className="hidden md:table-cell px-4 py-3 text-on-surface-variant">{fmtPeriod(inv.year, inv.month)}</td>
 
                         {/* Status */}
                         <td className="px-4 py-3">
@@ -425,7 +537,7 @@ export default function AdminInvoicesPage() {
                         </td>
 
                         {/* Due date */}
-                        <td className="px-4 py-3">
+                        <td className="hidden lg:table-cell px-4 py-3">
                           <span className={inv.status === 'OVERDUE' ? 'font-semibold text-on-error-container' : 'text-on-surface-variant'}>
                             {fmtDate(inv.dueDate)}
                           </span>
@@ -494,14 +606,14 @@ export default function AdminInvoicesPage() {
             </span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => void load(page - 1, statusFilter)}
+                onClick={() => void load(page - 1, statusFilter, searchDebounced)}
                 disabled={page <= 1 || loading}
                 className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container disabled:opacity-40"
               >
                 ← ก่อนหน้า
               </button>
               <button
-                onClick={() => void load(page + 1, statusFilter)}
+                onClick={() => void load(page + 1, statusFilter, searchDebounced)}
                 disabled={page >= totalPages || loading}
                 className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container disabled:opacity-40"
               >

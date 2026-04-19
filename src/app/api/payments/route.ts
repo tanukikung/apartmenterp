@@ -13,8 +13,11 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   requireAuthSession(req);
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status');
-  const pageSize = Math.min(parseInt(searchParams.get('pageSize') ?? '20'), 100);
-  const page = Math.max(parseInt(searchParams.get('page') ?? '1'), 1);
+  const q = (searchParams.get('q') ?? '').trim().slice(0, 100);
+  const rawSize = parseInt(searchParams.get('pageSize') ?? '20', 10);
+  const rawPage = parseInt(searchParams.get('page') ?? '1', 10);
+  const pageSize = Number.isFinite(rawSize) && rawSize > 0 ? Math.min(rawSize, 100) : 20;
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
   const skip = (page - 1) * pageSize;
 
   const where: Record<string, unknown> = {};
@@ -26,6 +29,16 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
       );
     }
     where.status = status;
+  }
+
+  // Free-text search: description, reference, sourceFile, or exact id prefix.
+  if (q) {
+    where.OR = [
+      { description: { contains: q, mode: 'insensitive' } },
+      { reference: { contains: q, mode: 'insensitive' } },
+      { sourceFile: { contains: q, mode: 'insensitive' } },
+      { id: { startsWith: q } },
+    ];
   }
 
   const [payments, total] = await Promise.all([

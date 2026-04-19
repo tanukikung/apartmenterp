@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Home, AlertTriangle, DollarSign, Wrench, Receipt, ClipboardCheck, FileText, Megaphone, ArrowRight, Clock, CheckCircle2 } from 'lucide-react';
+import { CountUp, MagneticCard, FadeIn, StaggerList, StaggerItem } from '@/components/motion/motion-primitives';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -137,40 +139,90 @@ function SkeletonCard({ className = '' }: { className?: string }) {
 function KpiCard({
   label,
   value,
+  numericValue,
   sub,
   icon: Icon,
   accent,
   href,
+  prefix,
+  suffix,
 }: {
   label: string;
   value: string | number;
+  /** When provided, the value animates from 0 via CountUp. */
+  numericValue?: number;
+  /** Optional formatter for numericValue (e.g. moneyCompact). */
   sub?: string;
   icon: React.ElementType;
   accent: 'green' | 'red' | 'yellow' | 'blue';
   href?: string;
+  prefix?: string;
+  suffix?: string;
 }) {
   const colors = {
-    green: { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: 'bg-emerald-100 text-emerald-600', text: 'text-emerald-600' },
-    red: { bg: 'bg-red-50', border: 'border-red-200', icon: 'bg-red-100 text-red-600', text: 'text-red-600' },
-    yellow: { bg: 'bg-amber-50', border: 'border-amber-200', icon: 'bg-amber-100 text-amber-600', text: 'text-amber-600' },
-    blue: { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'bg-blue-100 text-blue-600', text: 'text-blue-600' },
+    green: {
+      bg: 'from-emerald-50 to-white dark:from-emerald-500/10 dark:to-emerald-500/5',
+      border: 'border-emerald-200/70 dark:border-emerald-500/30',
+      icon: 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-emerald-500/30',
+      text: 'text-emerald-700 dark:text-emerald-300',
+      glow: 'group-hover:shadow-emerald-500/20',
+    },
+    red: {
+      bg: 'from-red-50 to-white dark:from-red-500/10 dark:to-red-500/5',
+      border: 'border-red-200/70 dark:border-red-500/30',
+      icon: 'bg-gradient-to-br from-red-400 to-red-600 text-white shadow-red-500/30',
+      text: 'text-red-700 dark:text-red-300',
+      glow: 'group-hover:shadow-red-500/20',
+    },
+    yellow: {
+      bg: 'from-amber-50 to-white dark:from-amber-500/10 dark:to-amber-500/5',
+      border: 'border-amber-200/70 dark:border-amber-500/30',
+      icon: 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-amber-500/30',
+      text: 'text-amber-700 dark:text-amber-300',
+      glow: 'group-hover:shadow-amber-500/20',
+    },
+    blue: {
+      bg: 'from-blue-50 to-white dark:from-blue-500/10 dark:to-blue-500/5',
+      border: 'border-blue-200/70 dark:border-blue-500/30',
+      icon: 'bg-gradient-to-br from-blue-400 to-blue-600 text-white shadow-blue-500/30',
+      text: 'text-blue-700 dark:text-blue-300',
+      glow: 'group-hover:shadow-blue-500/20',
+    },
   }[accent];
 
   const card = (
-    <div className={`${colors.bg} ${colors.border} border rounded-xl p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer`}>
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">{label}</span>
-        <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${colors.icon}`}>
-          <Icon size={16} strokeWidth={2} />
+    <MagneticCard tilt={3} lift={3} magnet={0.1} className="h-full">
+      <div
+        className={`group relative h-full bg-gradient-to-br ${colors.bg} ${colors.border} border rounded-2xl p-5 transition-all duration-300 hover:shadow-xl ${colors.glow} overflow-hidden`}
+      >
+        {/* Subtle radial highlight */}
+        <div className="absolute inset-0 bg-[radial-gradient(120%_60%_at_50%_0%,rgba(255,255,255,0.45),transparent_60%)] dark:bg-[radial-gradient(120%_60%_at_50%_0%,rgba(255,255,255,0.04),transparent_60%)] pointer-events-none" />
+        <div className="relative">
+          <div className="flex items-start justify-between gap-2 mb-4">
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">{label}</span>
+            <motion.div
+              whileHover={{ rotate: -6, scale: 1.08 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+              className={`h-10 w-10 rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/20 ${colors.icon}`}
+            >
+              <Icon size={18} strokeWidth={2} />
+            </motion.div>
+          </div>
+          <div className={`text-3xl font-extrabold tracking-tight ${colors.text} leading-none mb-1 tabular-nums`}>
+            {numericValue !== undefined ? (
+              <CountUp value={numericValue} prefix={prefix} suffix={suffix} duration={1.1} />
+            ) : (
+              <>{value}</>
+            )}
+          </div>
+          {sub && <div className="text-xs text-on-surface-variant mt-1.5">{sub}</div>}
         </div>
       </div>
-      <div className={`text-2xl font-extrabold tracking-tight ${colors.text} leading-none mb-1`}>{value}</div>
-      {sub && <div className="text-xs text-on-surface-variant mt-1">{sub}</div>}
-    </div>
+    </MagneticCard>
   );
 
   if (href) {
-    return <Link href={href} className="block">{card}</Link>;
+    return <Link href={href} className="block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-2xl">{card}</Link>;
   }
   return card;
 }
@@ -189,19 +241,27 @@ function ActionButton({
   href: string;
 }) {
   const colors = {
-    blue: 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200',
-    green: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200',
-    red: 'bg-red-600 hover:bg-red-700 text-white shadow-red-200',
+    blue: 'bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white shadow-blue-500/40',
+    green: 'bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white shadow-emerald-500/40',
+    red: 'bg-gradient-to-br from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white shadow-red-500/40',
   }[color];
 
   return (
-    <Link
-      href={href}
-      className={`flex flex-col items-center justify-center gap-2 rounded-xl py-4 px-6 font-bold text-sm shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${colors}`}
+    <motion.div
+      whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 22 }}
     >
-      <Icon size={22} strokeWidth={2} />
-      {label}
-    </Link>
+      <Link
+        href={href}
+        className={`group relative flex flex-col items-center justify-center gap-2 rounded-2xl py-5 px-6 font-bold text-sm shadow-lg transition-shadow duration-200 hover:shadow-xl ring-1 ring-white/10 overflow-hidden ${colors}`}
+      >
+        {/* Shine sweep on hover */}
+        <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
+        <Icon size={24} strokeWidth={2} className="relative z-10 drop-shadow" />
+        <span className="relative z-10 tracking-tight">{label}</span>
+      </Link>
+    </motion.div>
   );
 }
 
@@ -231,10 +291,10 @@ function TaskCard({
   icon: React.ElementType;
 }) {
   const colors = {
-    green: { bg: 'bg-white', border: 'border-emerald-200', header: 'bg-emerald-50 text-emerald-700', count: 'bg-emerald-100 text-emerald-700', icon: 'text-emerald-500' },
-    red: { bg: 'bg-white', border: 'border-red-200', header: 'bg-red-50 text-red-700', count: 'bg-red-100 text-red-700', icon: 'text-red-500' },
-    yellow: { bg: 'bg-white', border: 'border-amber-200', header: 'bg-amber-50 text-amber-700', count: 'bg-amber-100 text-amber-700', icon: 'text-amber-500' },
-    blue: { bg: 'bg-white', border: 'border-blue-200', header: 'bg-blue-50 text-blue-700', count: 'bg-blue-100 text-blue-700', icon: 'text-blue-500' },
+    green: { bg: 'bg-surface-container-lowest', border: 'border-emerald-200 dark:border-emerald-500/30', header: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300', count: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200', icon: 'text-emerald-500 dark:text-emerald-400' },
+    red: { bg: 'bg-surface-container-lowest', border: 'border-red-200 dark:border-red-500/30', header: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300', count: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200', icon: 'text-red-500 dark:text-red-400' },
+    yellow: { bg: 'bg-surface-container-lowest', border: 'border-amber-200 dark:border-amber-500/30', header: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300', count: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200', icon: 'text-amber-500 dark:text-amber-400' },
+    blue: { bg: 'bg-surface-container-lowest', border: 'border-blue-200 dark:border-blue-500/30', header: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300', count: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200', icon: 'text-blue-500 dark:text-blue-400' },
   }[accent];
 
   return (
@@ -275,12 +335,12 @@ function TaskCard({
               href={actionHref}
               className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                 accent === 'green'
-                  ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20'
                   : accent === 'red'
-                  ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                  ? 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20'
                   : accent === 'yellow'
-                  ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                  ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20'
+                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/20'
               }`}
             >
               {actionLabel} <ArrowRight size={10} />
@@ -440,183 +500,255 @@ export default function AdminDashboardPage() {
   }));
 
   return (
-    <main className="min-h-screen bg-gray-50/50">
-      {/* ── Page Header ─────────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-primary to-primary/80 px-6 py-6 shadow-lg">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-extrabold tracking-tight text-white">
-            {greeting} 👋
-          </h1>
-          <p className="text-sm text-white/80 font-medium">{date}</p>
-        </div>
+    <main className="relative min-h-screen bg-gradient-to-b from-surface-container-low/50 to-surface">
+      {/* ── Page Hero with Aurora Background ─────────────────────── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-500 to-purple-600 px-6 py-10 shadow-xl shadow-indigo-600/20">
+        {/* Aurora blobs */}
+        <div className="aurora-bg" />
+        {/* Noise texture */}
+        <div className="noise-overlay absolute inset-0" />
+        {/* Decorative circles */}
+        <div className="absolute top-6 right-8 h-32 w-32 rounded-full bg-white/5 blur-2xl float-slow pointer-events-none" />
+        <div className="absolute -bottom-6 right-40 h-24 w-24 rounded-full bg-white/10 blur-xl pointer-events-none" />
+
+        <FadeIn className="relative z-10 max-w-screen-xl mx-auto">
+          <div className="flex flex-col gap-2">
+            <motion.div
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
+              className="text-[11px] uppercase tracking-[0.2em] font-semibold text-white/70"
+            >
+              Apartment ERP · Console
+            </motion.div>
+            <motion.h1
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.08 }}
+              className="text-3xl md:text-4xl font-extrabold tracking-tight text-white"
+            >
+              {greeting}{' '}
+              <motion.span
+                initial={{ rotate: -20, scale: 0.6, opacity: 0 }}
+                animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 14, delay: 0.25 }}
+                className="inline-block origin-bottom-right"
+              >
+                👋
+              </motion.span>
+            </motion.h1>
+            <p className="text-sm md:text-base text-white/80 font-medium">{date}</p>
+          </div>
+        </FadeIn>
       </div>
 
       <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
         {/* ── KPI Row ─────────────────────────────────────────────── */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StaggerList stagger={0.07} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {loading ? (
             <>
-              <SkeletonCard className="h-28" />
-              <SkeletonCard className="h-28" />
-              <SkeletonCard className="h-28" />
-              <SkeletonCard className="h-28" />
+              <SkeletonCard className="h-32" />
+              <SkeletonCard className="h-32" />
+              <SkeletonCard className="h-32" />
+              <SkeletonCard className="h-32" />
             </>
           ) : (
             <>
-              <KpiCard
-                label="ห้องว่าง"
-                value={occupancy?.vacantRooms ?? 0}
-                sub={`จาก ${occupancy?.totalRooms ?? 0} ห้อง`}
-                icon={Home}
-                accent="green"
-                href="/admin/rooms"
-              />
-              <KpiCard
-                label="ค้างชำระ"
-                value={summary?.overdueInvoices ?? 0}
-                sub="เกินกำหนดชำระ"
-                icon={AlertTriangle}
-                accent="red"
-                href="/admin/overdue"
-              />
-              <KpiCard
-                label="รายได้เดือนนี้"
-                value={moneyCompact(summary?.monthlyRevenue ?? 0)}
-                sub="รายรับรวม"
-                icon={DollarSign}
-                accent="blue"
-              />
-              <KpiCard
-                label="แจ้งซ่อมรอดำเนินการ"
-                value={pendingMaintenanceCount}
-                sub={`${pendingMaintenanceCount} รายการ`}
-                icon={Wrench}
-                accent="yellow"
-                href="/admin/maintenance"
-              />
+              <StaggerItem>
+                <KpiCard
+                  label="ห้องว่าง"
+                  numericValue={occupancy?.vacantRooms ?? 0}
+                  value={occupancy?.vacantRooms ?? 0}
+                  sub={`จาก ${occupancy?.totalRooms ?? 0} ห้อง`}
+                  icon={Home}
+                  accent="green"
+                  href="/admin/rooms"
+                />
+              </StaggerItem>
+              <StaggerItem>
+                <KpiCard
+                  label="ค้างชำระ"
+                  numericValue={summary?.overdueInvoices ?? 0}
+                  value={summary?.overdueInvoices ?? 0}
+                  sub="เกินกำหนดชำระ"
+                  icon={AlertTriangle}
+                  accent="red"
+                  href="/admin/overdue"
+                />
+              </StaggerItem>
+              <StaggerItem>
+                <KpiCard
+                  label="รายได้เดือนนี้"
+                  value={moneyCompact(summary?.monthlyRevenue ?? 0)}
+                  sub="รายรับรวม"
+                  icon={DollarSign}
+                  accent="blue"
+                />
+              </StaggerItem>
+              <StaggerItem>
+                <KpiCard
+                  label="แจ้งซ่อมรอดำเนินการ"
+                  numericValue={pendingMaintenanceCount}
+                  value={pendingMaintenanceCount}
+                  sub={`${pendingMaintenanceCount} รายการ`}
+                  icon={Wrench}
+                  accent="yellow"
+                  href="/admin/maintenance"
+                />
+              </StaggerItem>
             </>
           )}
-        </section>
+        </StaggerList>
 
         {/* ── 3 Big Action Buttons ────────────────────────────────── */}
-        <section className="grid grid-cols-3 gap-4">
-          <ActionButton
-            label="ตรวจสลิป"
-            icon={ClipboardCheck}
-            color="blue"
-            href="/admin/payments/review"
-          />
-          <ActionButton
-            label="วางบิล"
-            icon={Receipt}
-            color="green"
-            href="/admin/billing"
-          />
-          <ActionButton
-            label="ดูค้างชำระ"
-            icon={FileText}
-            color="red"
-            href="/admin/overdue"
-          />
-        </section>
+        <StaggerList stagger={0.08} delay={0.15} className="grid grid-cols-3 gap-4">
+          <StaggerItem>
+            <ActionButton
+              label="ตรวจสลิป"
+              icon={ClipboardCheck}
+              color="blue"
+              href="/admin/payments/review"
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <ActionButton
+              label="วางบิล"
+              icon={Receipt}
+              color="green"
+              href="/admin/billing"
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <ActionButton
+              label="ดูค้างชำระ"
+              icon={FileText}
+              color="red"
+              href="/admin/overdue"
+            />
+          </StaggerItem>
+        </StaggerList>
 
         {/* ── Task Cards + Recent Activity ─────────────────────────── */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Left: Task Cards Grid */}
-          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StaggerList stagger={0.06} delay={0.25} className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
 
             {/* รอตรวจสลิป */}
-            <TaskCard
-              title="รอตรวจสลิป"
-              count={unmatchedPayments}
-              icon={ClipboardCheck}
-              accent="blue"
-              actionLabel="ตรวจเลย"
-              actionHref="/admin/payments/review"
-            />
+            <StaggerItem>
+              <TaskCard
+                title="รอตรวจสลิป"
+                count={unmatchedPayments}
+                icon={ClipboardCheck}
+                accent="blue"
+                actionLabel="ตรวจเลย"
+                actionHref="/admin/payments/review"
+              />
+            </StaggerItem>
 
             {/* ค้างชำระ 3+ วัน */}
-            <TaskCard
-              title="ค้างชำระ"
-              count={overdueCount}
-              icon={AlertTriangle}
-              accent="red"
-              items={overdueItems}
-              actionLabel="ดูทั้งหมด"
-              actionHref="/admin/overdue"
-            />
+            <StaggerItem>
+              <TaskCard
+                title="ค้างชำระ"
+                count={overdueCount}
+                icon={AlertTriangle}
+                accent="red"
+                items={overdueItems}
+                actionLabel="ดูทั้งหมด"
+                actionHref="/admin/overdue"
+              />
+            </StaggerItem>
 
             {/* แจ้งซ่อมใหม่ */}
-            <TaskCard
-              title="แจ้งซ่อมใหม่"
-              count={pendingMaintenanceCount}
-              icon={Wrench}
-              accent="yellow"
-              items={maintenanceItems}
-              actionLabel="ดู"
-              actionHref="/admin/maintenance"
-            />
+            <StaggerItem>
+              <TaskCard
+                title="แจ้งซ่อมใหม่"
+                count={pendingMaintenanceCount}
+                icon={Wrench}
+                accent="yellow"
+                items={maintenanceItems}
+                actionLabel="ดู"
+                actionHref="/admin/maintenance"
+              />
+            </StaggerItem>
 
             {/* สัญญาใกล้หมด */}
-            <TaskCard
-              title="สัญญาใกล้หมด"
-              count={expiringContracts.length}
-              icon={FileText}
-              accent="yellow"
-              items={contractItems}
-              actionLabel="ต่อสัญญา"
-              actionHref="/admin/contracts"
-            />
+            <StaggerItem>
+              <TaskCard
+                title="สัญญาใกล้หมด"
+                count={expiringContracts.length}
+                icon={FileText}
+                accent="yellow"
+                items={contractItems}
+                actionLabel="ต่อสัญญา"
+                actionHref="/admin/contracts"
+              />
+            </StaggerItem>
 
             {/* ประกาศ */}
-            <TaskCard
-              title="ประกาศ"
-              icon={Megaphone}
-              accent="blue"
-              actionLabel="ส่งประกาศ"
-              actionHref="/admin/broadcast"
-            />
+            <StaggerItem>
+              <TaskCard
+                title="ประกาศ"
+                icon={Megaphone}
+                accent="blue"
+                actionLabel="ส่งประกาศ"
+                actionHref="/admin/broadcast"
+              />
+            </StaggerItem>
 
-          </div>
+          </StaggerList>
 
           {/* Right: Recent Activity */}
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <FadeIn delay={0.4} className="glass-card rounded-2xl overflow-hidden hover:shadow-xl transition-shadow duration-300">
+            <div className="px-5 py-4 border-b border-outline-variant/30 flex items-center justify-between bg-gradient-to-r from-primary/5 to-transparent">
               <div className="flex items-center gap-2">
-                <Clock size={14} className="text-gray-400" />
+                <span className="pulse-dot" />
+                <Clock size={14} className="text-on-surface-variant" />
                 <span className="text-sm font-bold text-on-surface">กิจกรรมล่าสุด</span>
               </div>
               <Link
                 href="/admin/audit-logs"
-                className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 transition-colors group"
               >
-                ดูทั้งหมด <ArrowRight size={10} />
+                ดูทั้งหมด
+                <ArrowRight size={10} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
 
             <div className="p-4">
               {loading ? (
                 <div className="space-y-3">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="skeleton h-10 rounded-lg" />
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="shimmer-wave h-10 rounded-lg"
+                      style={{ animationDelay: `${i * 80}ms` }}
+                    />
                   ))}
                 </div>
               ) : auditLogs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <CheckCircle2 size={28} className="text-gray-300 mb-2" />
-                  <p className="text-sm font-medium text-gray-400">ไม่มีกิจกรรมล่าสุด</p>
+                  <motion.div
+                    initial={{ scale: 0.6, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+                  >
+                    <CheckCircle2 size={32} className="text-emerald-400 mb-2" />
+                  </motion.div>
+                  <p className="text-sm font-medium text-on-surface-variant">ไม่มีกิจกรรมล่าสุด</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100">
+                <StaggerList stagger={0.04} className="divide-y divide-outline-variant/20">
                   {auditLogs.map((log) => (
-                    <ActivityItem key={log.id} log={log} />
+                    <StaggerItem key={log.id}>
+                      <ActivityItem log={log} />
+                    </StaggerItem>
                   ))}
-                </div>
+                </StaggerList>
               )}
             </div>
-          </div>
+          </FadeIn>
 
         </section>
 

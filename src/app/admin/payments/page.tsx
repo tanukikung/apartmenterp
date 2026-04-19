@@ -25,6 +25,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { exportToCsv } from '@/lib/utils/export-csv';
 import { ModernTable } from '@/components/ui/modern-table';
+import { useToast } from '@/components/providers/ToastProvider';
 
 
 // ============================================================================
@@ -643,6 +644,7 @@ function MatchWorkstationTab() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [matchedTodayCount, setMatchedTodayCount] = useState(0);
   const matchRef = useRef<(() => void) | null>(null);
+  const toast = useToast();
 
   const { data: paymentsData, isLoading: paymentsLoading, isError: paymentsError, error: paymentsErr, refetch: refetchPayments } = useQuery<{ data: { transactions: Payment[] } }>({
     queryKey: ['payments-for-match'],
@@ -701,8 +703,12 @@ function MatchWorkstationTab() {
       setMatchedTodayCount((c) => c + 1);
       setPayments((prev) => prev.filter((p) => p.id !== selectedPayment.id));
       setInvoices((prev) => prev.filter((i) => i.id !== selectedInvoice.id));
+      toast.success('จับคู่การชำระเงินสำเร็จ');
       return result;
-    } catch { return null; }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ไม่สามารถยืนยันการจับคู่ได้');
+      return null;
+    }
   }
 
   useEffect(() => {

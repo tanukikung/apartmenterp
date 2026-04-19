@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { prisma } from '@/lib';
 import { requireAuthSession } from '@/lib/auth/guards';
+import { parsePagination } from '@/lib/utils/pagination';
 
 type DeliveryWithInvoice = {
   id: string;
@@ -34,9 +35,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const { searchParams } = new URL(req.url);
   const channel = searchParams.get('channel') || 'LINE';
   const status = searchParams.get('status');
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const pageSize = parseInt(searchParams.get('pageSize') || '50', 10);
-  const skip = (page - 1) * pageSize;
+  const { page, pageSize, skip } = parsePagination(req, { defaultSize: 50 });
 
   const where: Record<string, unknown> = { channel };
   if (status) {

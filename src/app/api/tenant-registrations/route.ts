@@ -12,43 +12,75 @@ export type RegistrationWarning =
   | 'ROOM_FULL'                // room has reached maxResidents active occupants
   | 'NO_PRIMARY_TENANT';       // room exists but has no active PRIMARY occupant
 
-async function computeWarnings(reg: {
-  lineUserId: string;
-  claimedRoom: string | null;
-}): Promise<RegistrationWarning[]> {
-  const warnings: RegistrationWarning[] = [];
+/**
+ * Batch-compute warnings for a list of registrations.
+ *
+ * Avoids the original N+1 pattern (3 DB queries per registration) by issuing
+ * exactly 2 queries regardless of list size:
+ *   - one `tenant.findMany` over all distinct lineUserIds
+ *   - one `room.findMany` over all distinct claimedRoom numbers
+ *
+ * For a 100-row page this is 2 queries instead of 300.
+ */
+async function computeWarningsForBatch(
+  regs: { id: string; lineUserId: string; claimedRoom: string | null }[]
+): Promise<Map<string, RegistrationWarning[]>> {
+  const result = new Map<string, RegistrationWarning[]>();
+  if (regs.length === 0) return result;
 
-  // 1. Duplicate LINE account
-  const existingTenant = await prisma.tenant.findUnique({
-    where: { lineUserId: reg.lineUserId },
-    select: { id: true },
-  });
-  if (existingTenant) warnings.push('DUPLICATE_LINE_ACCOUNT');
+  const lineUserIds = Array.from(new Set(regs.map((r) => r.lineUserId).filter(Boolean)));
+  const claimedRooms = Array.from(
+    new Set(regs.map((r) => r.claimedRoom).filter((v): v is string => !!v))
+  );
 
-  // 2–4. Claimed room validations
-  const claimedRoomNo = reg.claimedRoom;
-  if (claimedRoomNo) {
-    const room = await prisma.room.findFirst({
-      where: { roomNo: claimedRoomNo, roomStatus: 'VACANT' },
-      select: {
-        roomNo: true,
-        maxResidents: true,
-        tenants: {
-          where: { moveOutDate: null },
-          select: { role: true },
-        },
-      },
-    });
+  // Batch 1: existing tenants by lineUserId
+  const existingTenants =
+    lineUserIds.length > 0
+      ? await prisma.tenant.findMany({
+          where: { lineUserId: { in: lineUserIds } },
+          select: { lineUserId: true },
+        })
+      : [];
+  const takenLineIds = new Set(existingTenants.map((t) => t.lineUserId).filter(Boolean) as string[]);
 
-    if (!room) {
-      warnings.push('CLAIMED_ROOM_MISMATCH');
-    } else {
-      if (!room.tenants.some((rt) => rt.role === 'PRIMARY')) warnings.push('NO_PRIMARY_TENANT');
-      if (room.tenants.length >= room.maxResidents) warnings.push('ROOM_FULL');
+  // Batch 2: claimed rooms + their active occupants
+  const rooms =
+    claimedRooms.length > 0
+      ? await prisma.room.findMany({
+          where: { roomNo: { in: claimedRooms }, roomStatus: 'VACANT' },
+          select: {
+            roomNo: true,
+            maxResidents: true,
+            tenants: {
+              where: { moveOutDate: null },
+              select: { role: true },
+            },
+          },
+        })
+      : [];
+  const roomByNo = new Map(rooms.map((r) => [r.roomNo, r]));
+
+  for (const reg of regs) {
+    const warnings: RegistrationWarning[] = [];
+
+    if (reg.lineUserId && takenLineIds.has(reg.lineUserId)) {
+      warnings.push('DUPLICATE_LINE_ACCOUNT');
     }
+
+    if (reg.claimedRoom) {
+      const room = roomByNo.get(reg.claimedRoom);
+      if (!room) {
+        warnings.push('CLAIMED_ROOM_MISMATCH');
+      } else {
+        if (!room.tenants.some((rt) => rt.role === 'PRIMARY')) warnings.push('NO_PRIMARY_TENANT');
+        if (room.tenants.length >= room.maxResidents) warnings.push('ROOM_FULL');
+      }
+    }
+
+    result.set(reg.id, warnings);
   }
 
-  return warnings;
+  return result;
 }
 
 // ── GET /api/tenant-registrations ─────────────────────────────────────────────
@@ -86,16 +118,15 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     prisma.tenantRegistration.count({ where }),
   ]);
 
-  // Compute warnings only for actionable records
-  const data = await Promise.all(
-    rows.map(async (reg) => {
-      const warnings =
-        reg.status === 'PENDING' || reg.status === 'CORRECTION_REQUESTED'
-          ? await computeWarnings({ lineUserId: reg.lineUserId, claimedRoom: reg.claimedRoom })
-          : [];
-      return { ...reg, warnings };
-    })
+  // Compute warnings only for actionable records — batched to avoid N+1
+  const actionable = rows.filter(
+    (r) => r.status === 'PENDING' || r.status === 'CORRECTION_REQUESTED'
   );
+  const warningsByRegId = await computeWarningsForBatch(actionable);
+  const data = rows.map((reg) => ({
+    ...reg,
+    warnings: warningsByRegId.get(reg.id) ?? [],
+  }));
 
   return NextResponse.json({
     success: true,

@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import { prisma } from '@/lib/db/client';
+import LoginForm from './LoginForm';
 
 export default async function LoginPage({
   searchParams,
@@ -12,68 +12,29 @@ export default async function LoginPage({
 
   return (
     <main className="auth-shell">
+      {/* Layered aurora background */}
+      <div className="aurora-bg" />
       <div className="soft-orb soft-orb-pink left-[10%] top-[12%] h-44 w-44" />
       <div className="soft-orb soft-orb-blue bottom-[14%] right-[12%] h-40 w-40" />
-      <section className="auth-card">
-        <div className="auth-brand">
-          <div className="auth-brand-mark">
-            <span className="text-sm font-bold tracking-tight leading-none">AE</span>
-          </div>
-          <div>
-            <div className="auth-brand-title">Apartment ERP</div>
-            <div className="auth-brand-subtitle">Admin Access · v2</div>
-          </div>
-        </div>
 
-        <div className="auth-header">
-          <h1>Sign in</h1>
-          <p>Access the operations console with your owner or approved staff account.</p>
-        </div>
+      {/* Subtle grid pattern */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-[0.04]"
+        style={{
+          backgroundImage:
+            'linear-gradient(to right, hsl(var(--color-text)) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--color-text)) 1px, transparent 1px)',
+          backgroundSize: '48px 48px',
+          maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 75%)',
+          WebkitMaskImage: 'radial-gradient(ellipse at center, black 30%, transparent 75%)',
+        }}
+      />
 
-        <form action="/api/auth/login" method="post" className="auth-form">
-          <label className="auth-label">
-            <span>Username or Email</span>
-            <input
-              className="auth-input"
-              name="username"
-              placeholder="Enter your username"
-              autoComplete="username"
-              required
-              minLength={1}
-            />
-          </label>
-
-          <label className="auth-label">
-            <span>Password</span>
-            <input
-              className="auth-input"
-              name="password"
-              type="password"
-              placeholder="Enter your password"
-              autoComplete="current-password"
-              required
-              minLength={1}
-            />
-          </label>
-
-          {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
-
-          <button type="submit" className="auth-button auth-button-primary">
-            Sign In
-          </button>
-        </form>
-
-        <div className="auth-links">
-          <Link href="/forgot-password">Forgot password?</Link>
-          {firstUserSetup ? (
-            <Link href="/sign-up">Create first owner</Link>
-          ) : requiresOwnerApproval ? (
-            <Link href="/sign-up">Register as staff</Link>
-          ) : (
-            <span>Accounts are created by owners</span>
-          )}
-        </div>
-      </section>
+      <LoginForm
+        firstUserSetup={firstUserSetup}
+        requiresOwnerApproval={requiresOwnerApproval}
+        error={error}
+      />
     </main>
   );
 }

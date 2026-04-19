@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { motion } from 'framer-motion';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,14 +58,18 @@ function CardSkeleton({ columns = 4 }: { columns?: 1 | 2 | 3 | 4 }) {
 
   return (
     <div className={`grid gap-4 ${gridClass}`}>
-      {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div key={i} className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <div
+          key={i}
+          className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden anim-fade-in"
+          style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
+        >
           <div className="p-5 space-y-3">
-            <div className="skeleton h-4 w-24 rounded" />
-            <div className="skeleton h-3 w-16 rounded" />
+            <div className="shimmer-wave h-4 w-24 rounded" style={{ animationDelay: `${i * 60}ms` }} />
+            <div className="shimmer-wave h-3 w-16 rounded" style={{ animationDelay: `${i * 60 + 80}ms` }} />
             <div className="mt-4 flex justify-between">
-              <div className="skeleton h-5 w-20 rounded" />
-              <div className="skeleton h-5 w-16 rounded" />
+              <div className="shimmer-wave h-5 w-20 rounded" style={{ animationDelay: `${i * 60 + 160}ms` }} />
+              <div className="shimmer-wave h-5 w-16 rounded" style={{ animationDelay: `${i * 60 + 240}ms` }} />
             </div>
           </div>
         </div>
@@ -84,21 +89,31 @@ interface SingleCardProps<T extends object> {
   hoverable?: boolean;
 }
 
-function Card<T extends object>({ item, meta, onCardClick, hoverable = true }: SingleCardProps<T>) {
+function Card<T extends object>({ item, meta, onCardClick, hoverable = true, index = 0 }: SingleCardProps<T> & { index?: number }) {
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.32), ease: [0.2, 0.8, 0.2, 1] }}
+      whileHover={hoverable ? { y: -4 } : undefined}
       onClick={onCardClick ? () => onCardClick(item) : undefined}
       className={
-        `group bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden` +
-        ` transition-all duration-200` +
-        (hoverable ? ' hover:shadow-xl hover:-translate-y-0.5 hover:border-primary/20 cursor-pointer' : '')
+        `group relative bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden` +
+        ` transition-[box-shadow,border-color] duration-200` +
+        (hoverable
+          ? ' hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30 cursor-pointer'
+          : '')
       }
     >
-      <div className="p-5">
+      {/* Subtle gradient wash on hover */}
+      {hoverable && (
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/0 via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      )}
+      <div className="relative p-5">
         {/* Header: title + badge */}
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-bold text-primary truncate">{meta.title}</h3>
+            <h3 className="text-lg font-bold text-primary truncate group-hover:text-primary transition-colors">{meta.title}</h3>
             {meta.subtitle && (
               <p className="text-xs text-on-surface-variant mt-0.5 truncate">{meta.subtitle}</p>
             )}
@@ -125,7 +140,7 @@ function Card<T extends object>({ item, meta, onCardClick, hoverable = true }: S
           <div className="pt-3 border-t border-outline-variant/10">{meta.footer}</div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -161,13 +176,14 @@ export function CardGrid<T extends object>({
 
   return (
     <div className={`grid gap-4 ${gridClass} ${className}`}>
-      {items.map((item) => (
+      {items.map((item, index) => (
         <Card
           key={String((item as Record<string, unknown>)[idKey] ?? '')}
           item={item}
           meta={getCardMeta(item)}
           onCardClick={onCardClick}
           hoverable={hoverable}
+          index={index}
         />
       ))}
     </div>

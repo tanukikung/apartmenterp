@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import { ExternalLink, FileOutput, FolderOpen, Layers3, Send, Trash2 } from 'lucide-react';
+import { useToast } from '@/components/providers/ToastProvider';
 
 type GeneratedDocument = {
   id: string;
@@ -33,10 +34,10 @@ async function fetchDocuments(): Promise<{ data: GeneratedDocument[] }> {
 
 export default function DocumentsPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<GeneratedDocument | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [_actionError, setActionError] = useState<string | null>(null);
 
   const { data: docsData, isLoading, error: fetchError } = useQuery<{ data: GeneratedDocument[] }>({
     queryKey: ['documents'],
@@ -47,16 +48,16 @@ export default function DocumentsPage() {
 
   async function sendDocument(documentId: string) {
     setSendingIds((prev) => new Set(prev).add(documentId));
-    setActionError(null);
     try {
       const response = await fetch(`/api/documents/${documentId}/send`, { method: 'POST' });
       const json = await response.json();
       if (!response.ok || !json.success) {
         throw new Error(json.error?.message ?? 'ไม่สามารถส่งเอกสาร');
       }
+      toast.success('ส่งเอกสารแล้ว');
       void queryClient.invalidateQueries({ queryKey: ['documents'] });
     } catch (nextError) {
-      setActionError(nextError instanceof Error ? nextError.message : 'ไม่สามารถส่งเอกสาร');
+      toast.error(nextError instanceof Error ? nextError.message : 'ไม่สามารถส่งเอกสาร');
     } finally {
       setSendingIds((prev) => {
         const next = new Set(prev);
@@ -69,17 +70,17 @@ export default function DocumentsPage() {
   async function deleteDocument() {
     if (!deleteTarget) return;
     setDeleting(true);
-    setActionError(null);
     try {
       const response = await fetch(`/api/documents/${deleteTarget.id}`, { method: 'DELETE' });
       const json = await response.json();
       if (!response.ok || !json.success) {
         throw new Error(json.error?.message ?? 'ไม่สามารถลบเอกสาร');
       }
+      toast.success('ลบเอกสารแล้ว');
       setDeleteTarget(null);
       void queryClient.invalidateQueries({ queryKey: ['documents'] });
     } catch (nextError) {
-      setActionError(nextError instanceof Error ? nextError.message : 'ไม่สามารถลบเอกสาร');
+      toast.error(nextError instanceof Error ? nextError.message : 'ไม่สามารถลบเอกสาร');
     } finally {
       setDeleting(false);
     }
