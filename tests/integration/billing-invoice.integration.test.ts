@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 
 vi.doUnmock('@/lib/db/client');
 vi.resetModules();
@@ -25,7 +25,6 @@ describe('Integration: Billing → Invoice', () => {
       return;
     }
 
-    // New schema: no building/floor models, Room PK is roomNo (string)
     const roomNo = `TEST-BI-${crypto.randomUUID().slice(0, 8)}`;
     await (prisma as any).room.create({
       data: {
@@ -40,8 +39,12 @@ describe('Integration: Billing → Invoice', () => {
       },
     });
 
+    // Use a randomized year/month to avoid the (year, month) unique constraint
+    // colliding with sibling tests sharing the same Postgres test DB.
+    const year = 3000 + Math.floor(Math.random() * 1000);
+    const month = 1 + Math.floor(Math.random() * 12);
     const period = await (prisma as any).billingPeriod.create({
-      data: { year: 2026, month: 3, status: 'LOCKED', dueDay: 5 },
+      data: { year, month, status: 'LOCKED', dueDay: 5 },
     });
     const billing = await (prisma as any).roomBilling.create({
       data: {

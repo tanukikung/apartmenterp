@@ -2,22 +2,9 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Banknote,
-  Calendar,
-  CheckCircle2,
-  ChevronRight,
-  CreditCard,
-  FileText,
-  Hash,
-  Link2,
-  RefreshCw,
-  Upload,
-} from 'lucide-react';
+import { ArrowLeft, Banknote, Calendar, CheckCircle2, ChevronRight, CreditCard, FileText, Hash, Link2, RefreshCw, Upload } from 'lucide-react';
 import { getPaymentInvoiceHref } from '../payment-detail-links';
 
 // ---------------------------------------------------------------------------

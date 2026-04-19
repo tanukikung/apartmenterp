@@ -5,14 +5,6 @@ import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Eye, FileCode2, Layers3, Sparkles } from 'lucide-react';
 
-type OnlyOfficeStatus = {
-  enabled: boolean;
-  configured: boolean;
-  connected: boolean;
-  usable: boolean;
-  error?: string;
-};
-
 type TemplateField = {
   id?: string;
   key: string;
@@ -60,7 +52,6 @@ export default function TemplateDetailPage() {
   const [loading, setLoading] = useState(true);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [onlyofficeStatus, setOnlyofficeStatus] = useState<OnlyOfficeStatus | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -109,26 +100,6 @@ export default function TemplateDetailPage() {
     void loadPreview();
   }, [params.id, template]);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const res = await fetch('/api/health/onlyoffice', { cache: 'no-store' });
-        const json = await res.json();
-        if (json?.success && json?.data) {
-          setOnlyofficeStatus({
-            enabled: json.data.enabled,
-            configured: json.data.configured,
-            connected: json.data.connected,
-            usable: json.data.usable,
-            error: json.data.error,
-          });
-        }
-      } catch {
-        // Silently fail - detail page still works without OnlyOffice
-      }
-    })();
-  }, []);
-
   const groupedFields = useMemo(() => {
     const groups = new Map<string, TemplateField[]>();
     for (const field of template?.fields ?? []) {
@@ -158,26 +129,6 @@ export default function TemplateDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {onlyofficeStatus ? (
-              <div className="flex items-center gap-2">
-                {onlyofficeStatus.usable ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-200 border border-emerald-400/30">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                    ONLYOFFICE
-                  </span>
-                ) : onlyofficeStatus.configured ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-200 border border-amber-400/30">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                    ONLYOFFICE Unreachable
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-500/20 px-3 py-1 text-xs font-medium text-slate-300 border border-slate-400/30">
-                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                    ONLYOFFICE Not Configured
-                  </span>
-                )}
-              </div>
-            ) : null}
             <Link href={`/admin/templates/${params.id}/edit`} className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30">
               เปิดพื้นที่แก้ไข
             </Link>

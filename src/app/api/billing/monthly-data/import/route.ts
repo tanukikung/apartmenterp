@@ -57,6 +57,16 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       throw new ValidationError('year, month, filename, and fileBase64 are required');
     }
 
+    // Size guard for base64 payload (decoded size ≈ 3/4 of base64 length)
+    const MAX_IMPORT_SIZE = 20 * 1024 * 1024;
+    if (typeof fileBase64 !== 'string' || fileBase64.length * 0.75 > MAX_IMPORT_SIZE) {
+      throw new ValidationError('Import file too large (max 20 MB)');
+    }
+    const lowerFilename = String(filename).toLowerCase();
+    if (!lowerFilename.endsWith('.xlsx') && !lowerFilename.endsWith('.xls')) {
+      throw new ValidationError('Only .xlsx or .xls files are supported');
+    }
+
     const fileBuffer = Buffer.from(fileBase64, 'base64');
 
     const result = await createMonthlyDataImportPreviewBatch({
@@ -91,6 +101,16 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
   if (!Number.isFinite(year) || !Number.isFinite(month)) {
     throw new ValidationError('year and month must be valid numbers');
+  }
+
+  // Validation: XLSX/XLS only, max 20 MB
+  const lowerName = file.name.toLowerCase();
+  if (!lowerName.endsWith('.xlsx') && !lowerName.endsWith('.xls')) {
+    throw new ValidationError('Only .xlsx or .xls files are supported');
+  }
+  const MAX_IMPORT_SIZE = 20 * 1024 * 1024;
+  if (file.size > MAX_IMPORT_SIZE) {
+    throw new ValidationError('Import file too large (max 20 MB)');
   }
 
   const arrayBuffer = await file.arrayBuffer();

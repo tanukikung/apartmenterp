@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib';
 import { asyncHandler } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
+import { parsePagination } from '@/lib/utils/pagination';
 
 // ============================================================================
 // Types
@@ -35,7 +36,7 @@ type LateFeeListResponse = {
 };
 
 type LateFeeUpdateResult =
-  | { invoiceId: string; success: true; lateFeeAmount: number }
+  | { invoiceId: string; success: true; lateFeeAmount: number; alreadyApplied?: boolean }
   | { invoiceId: string; success: false; error: string };
 
 // ============================================================================
@@ -49,9 +50,7 @@ export const GET = asyncHandler(
     const url = new URL(req.url);
     const status = url.searchParams.get('status'); // OVERDUE, PAID, all
     const roomNo = url.searchParams.get('roomNo');
-    const page = parseInt(url.searchParams.get('page') ?? '1', 10);
-    const pageSize = parseInt(url.searchParams.get('pageSize') ?? '50', 10);
-    const skip = (page - 1) * pageSize;
+    const { page, pageSize, skip } = parsePagination(req, { defaultSize: 50 });
 
     const where: Record<string, unknown> = {};
     if (status === 'OVERDUE') {
@@ -129,7 +128,7 @@ export const PUT = asyncHandler(
     requireRole(req, ['ADMIN']);
 
     const body = await req.json();
-    const { updates, actorId: _actorId } = body as {
+    const { updates, actorId: __actorId } = body as {
       updates: Array<{ invoiceId: string; lateFeeAmount: number; note?: string }>;
       actorId: string;
     };
@@ -141,25 +140,41 @@ export const PUT = asyncHandler(
       );
     }
 
-    const results: LateFeeUpdateResult[] = [];
-    for (const update of updates) {
-      const { invoiceId, lateFeeAmount, note } = update;
-      const current = await prisma.invoice.findUnique({ where: { id: invoiceId } });
-      if (!current) {
-        results.push({ invoiceId, success: false, error: 'Invoice not found' });
-        continue;
-      }
+    // Wrap in transaction so a partial failure rolls back the whole batch.
+    // Also skip invoices that already had a late fee applied — defends against
+    // double-click duplicate application and preserves the original timestamp.
+    const results: LateFeeUpdateResult[] = await prisma.$transaction(async (tx) => {
+      const out: LateFeeUpdateResult[] = [];
+      for (const update of updates) {
+        const { invoiceId, lateFeeAmount, note } = update;
+        const current = await tx.invoice.findUnique({ where: { id: invoiceId } });
+        if (!current) {
+          out.push({ invoiceId, success: false, error: 'Invoice not found' });
+          continue;
+        }
+        if (current.lateFeeAppliedAt) {
+          // Idempotent: already applied. Report the existing amount unchanged.
+          out.push({
+            invoiceId,
+            success: true,
+            lateFeeAmount: Number(current.lateFeeAmount),
+            alreadyApplied: true,
+          });
+          continue;
+        }
 
-      const updated = await prisma.invoice.update({
-        where: { id: invoiceId },
-        data: {
-          lateFeeAmount,
-          note: note ?? current.note,
-          lateFeeAppliedAt: new Date(),
-        },
-      });
-      results.push({ invoiceId, success: true, lateFeeAmount: Number(updated.lateFeeAmount) });
-    }
+        const updated = await tx.invoice.update({
+          where: { id: invoiceId },
+          data: {
+            lateFeeAmount,
+            note: note ?? current.note,
+            lateFeeAppliedAt: new Date(),
+          },
+        });
+        out.push({ invoiceId, success: true, lateFeeAmount: Number(updated.lateFeeAmount) });
+      }
+      return out;
+    });
 
     return NextResponse.json({ success: true, data: { results } });
   }

@@ -3,14 +3,14 @@ import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { prisma } from '@/lib';
 import { withTiming } from '@/lib/performance/timingMiddleware';
+import { parsePagination } from '@/lib/utils/pagination';
 
 export const dynamic = 'force-dynamic';
 
 const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   requireRole(req, ['ADMIN', 'STAFF']);
   const url = new URL(req.url);
-  const page = parseInt(url.searchParams.get('page') || '1', 10);
-  const pageSize = parseInt(url.searchParams.get('pageSize') || '20', 10);
+  const { page, pageSize } = parsePagination(req);
   const lineUserId = url.searchParams.get('lineUserId');
   const tenantId = url.searchParams.get('tenantId');
 

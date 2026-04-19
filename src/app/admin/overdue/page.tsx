@@ -94,7 +94,7 @@ export default function AdminOverduePage() {
   const [range, setRange] = useState<OverdueRange>('all');
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const { data: overdueData, isLoading, error: fetchError, refetch } = useApiData<{ success: boolean; data?: { data: OverdueInvoice[] } }>('/api/invoices?status=OVERDUE&pageSize=100', ['overdue-invoices']);
+  const { data: overdueData, isLoading, error: _fetchError, refetch } = useApiData<{ success: boolean; data?: { data: OverdueInvoice[] } }>('/api/invoices?status=OVERDUE&pageSize=100', ['overdue-invoices']);
 
   const invoices: OverdueInvoice[] = overdueData?.data?.data ?? [];
 

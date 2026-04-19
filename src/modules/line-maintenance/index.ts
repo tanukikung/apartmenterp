@@ -91,7 +91,7 @@ async function resolveImageAttachments(messageIds: string[]): Promise<Array<{ fi
       // The LINE SDK returns Buffer in Node.js — normalize to Buffer
       const rawBuffer = Buffer.isBuffer(buffer)
         ? buffer
-        : Buffer.from(buffer as unknown as Uint8Array);
+        : Buffer.from(buffer as any as Uint8Array);
 
       // Compute a content-type hint from the first bytes (JPEG vs PNG)
       const mimeType = rawBuffer[0] === 0xff && rawBuffer[1] === 0xd8
@@ -297,7 +297,7 @@ export async function getMaintenanceRequestState(lineUserId: string): Promise<Li
     return undefined;
   }
 
-  const data = dbState.requestData as unknown as LineMaintenanceRequestData;
+  const data = dbState.requestData as any as LineMaintenanceRequestData;
 
   // Prune if expired
   const age = Date.now() - data.createdAt;
@@ -345,8 +345,8 @@ export async function startMaintenanceRequest(lineUserId: string): Promise<{ rep
 
   await prisma.lineMaintenanceState.upsert({
     where: { lineUserId },
-    create: { lineUserId, currentStep: 'AWAITING_DESCRIPTION', requestData: state as unknown as Prisma.InputJsonValue },
-    update: { currentStep: 'AWAITING_DESCRIPTION', requestData: state as unknown as Prisma.InputJsonValue },
+    create: { lineUserId, currentStep: 'AWAITING_DESCRIPTION', requestData: state as any as Prisma.InputJsonValue },
+    update: { currentStep: 'AWAITING_DESCRIPTION', requestData: state as any as Prisma.InputJsonValue },
   });
   _maintenanceRequestCache.set(lineUserId, state);
 
@@ -401,8 +401,8 @@ export async function handleMaintenanceRequestMessage(
     };
     await prisma.lineMaintenanceState.upsert({
       where: { lineUserId },
-      create: { lineUserId, currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as unknown as Prisma.InputJsonValue },
-      update: { currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as unknown as Prisma.InputJsonValue },
+      create: { lineUserId, currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as any as Prisma.InputJsonValue },
+      update: { currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as any as Prisma.InputJsonValue },
     });
     _maintenanceRequestCache.set(lineUserId, updatedState);
 
@@ -436,8 +436,8 @@ export async function handleMaintenanceRequestMessage(
     };
     await prisma.lineMaintenanceState.upsert({
       where: { lineUserId },
-      create: { lineUserId, currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as unknown as Prisma.InputJsonValue },
-      update: { currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as unknown as Prisma.InputJsonValue },
+      create: { lineUserId, currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as any as Prisma.InputJsonValue },
+      update: { currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as any as Prisma.InputJsonValue },
     });
     _maintenanceRequestCache.set(lineUserId, updatedState);
 
@@ -481,8 +481,8 @@ export async function handleMaintenanceRequestImage(
     };
     await prisma.lineMaintenanceState.upsert({
       where: { lineUserId },
-      create: { lineUserId, currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as unknown as Prisma.InputJsonValue },
-      update: { currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as unknown as Prisma.InputJsonValue },
+      create: { lineUserId, currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as any as Prisma.InputJsonValue },
+      update: { currentStep: 'DESCRIPTION_PROVIDED', requestData: updatedState as any as Prisma.InputJsonValue },
     });
     _maintenanceRequestCache.set(lineUserId, updatedState);
 

@@ -1,8 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ClientOnly } from '@/components/ui/ClientOnly';
+import { ClipboardList, Search } from 'lucide-react';
+import { SkeletonTable } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { useUrlState } from '@/hooks/useUrlState';
 
 type AuditRow = {
   id: string;
@@ -15,10 +19,11 @@ type AuditRow = {
   createdAt: string;
 };
 
-async function fetchAuditLogs(action: string): Promise<{ rows: AuditRow[] }> {
+async function fetchAuditLogs(action: string, q: string): Promise<{ rows: AuditRow[] }> {
   const query = new URLSearchParams({
     limit: '100',
     ...(action ? { action } : {}),
+    ...(q ? { q } : {}),
   });
   const res = await fetch(`/api/audit-logs?${query.toString()}`, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch audit logs');
@@ -28,11 +33,17 @@ async function fetchAuditLogs(action: string): Promise<{ rows: AuditRow[] }> {
 }
 
 export default function AdminAuditLogsPage() {
-  const [action, setAction] = useState('');
+  const [action, setAction] = useUrlState('action', '');
+  const [search, setSearch] = useUrlState('q', '');
+  const [searchDebounced, setSearchDebounced] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const { data, isLoading, error } = useQuery<{ rows: AuditRow[] }>({
-    queryKey: ['audit-logs', action],
-    queryFn: () => fetchAuditLogs(action),
+    queryKey: ['audit-logs', action, searchDebounced],
+    queryFn: () => fetchAuditLogs(action, searchDebounced),
   });
 
   const rows: AuditRow[] = data?.rows ?? [];
@@ -44,13 +55,25 @@ export default function AdminAuditLogsPage() {
           <h1 className="text-xl font-semibold text-on-primary">บันทึกกิจกรรม</h1>
           <p className="text-sm text-on-primary/80">รายการกิจกรรมจากระบบจริงแทนข้อมูลตัวอย่าง</p>
         </div>
-        <div className="flex items-center gap-2 mt-4">
+        <div className="flex flex-wrap items-center gap-2 mt-4">
           <input
             value={action}
             onChange={(e) => setAction(e.target.value)}
             className="w-[240px] rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             placeholder="กรองตามการดำเนินการ"
+            aria-label="กรองตามการดำเนินการ"
           />
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ค้นหาผู้ใช้, เอนทิตี, หรือ ID..."
+              aria-label="ค้นหา"
+              className="w-full rounded-xl border border-outline bg-surface-container-lowest py-2.5 pl-9 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
         </div>
       </section>
 
@@ -65,36 +88,43 @@ export default function AdminAuditLogsPage() {
             {error instanceof Error ? error.message : String(error)}
           </div>
         )}
-        <div className="overflow-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-surface-container">
-              <tr>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เวลา</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ผู้ใช้</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">การดำเนินการ</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เอนทิตี</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รายละเอียด</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={5} className="px-3 py-6 text-center text-slate-500">กำลังโหลดบันทึกกิจกรรม...</td></tr>
-              ) : !rows.length ? (
-                <tr><td colSpan={5} className="px-3 py-6 text-center text-slate-500">ไม่พบบันทึกกิจกรรม</td></tr>
-              ) : (
-                rows.map((row) => (
+        {isLoading ? (
+          <div className="p-5">
+            <SkeletonTable rows={8} />
+          </div>
+        ) : !rows.length ? (
+          <EmptyState
+            icon={<ClipboardList className="h-7 w-7" />}
+            title="ไม่พบบันทึกกิจกรรม"
+            description={searchDebounced || action ? 'ลองปรับคำค้นหาหรือล้างตัวกรองเพื่อดูรายการทั้งหมด' : 'ยังไม่มีบันทึกกิจกรรมในระบบ'}
+            action={(searchDebounced || action) ? { label: 'ล้างตัวกรอง', onClick: () => { setSearch(''); setAction(''); } } : undefined}
+          />
+        ) : (
+          <div className="overflow-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-surface-container">
+                <tr>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เวลา</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ผู้ใช้</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">การดำเนินการ</th>
+                  <th className="hidden md:table-cell px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เอนทิตี</th>
+                  <th className="hidden lg:table-cell px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รายละเอียด</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
                   <tr key={row.id}>
                     <td><ClientOnly fallback="-">{new Date(row.createdAt).toLocaleString('th-TH')}</ClientOnly></td>
                     <td>{row.userName || row.userId}</td>
                     <td>{row.action}</td>
-                    <td>{row.entityType}:{' '}{row.entityId}</td>
-                    <td className="max-w-[420px] truncate">{row.details ? JSON.stringify(row.details) : '-'}</td>
+                    <td className="hidden md:table-cell">{row.entityType}:{' '}{row.entityId}</td>
+                    <td className="hidden lg:table-cell max-w-[420px] truncate">{row.details ? JSON.stringify(row.details) : '-'}</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </main>
   );

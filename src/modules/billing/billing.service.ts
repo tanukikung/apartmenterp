@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { prisma, EventBus, logger, EventTypes } from '@/lib';
-import { Json } from '@/types/prisma-json';
+
 import {
   CreateBillingRecordInput,
   LockBillingInput,
@@ -220,7 +220,7 @@ export class BillingService {
           year: input.year,
           month: input.month,
           createdBy,
-        } as any,
+        },
         retryCount: 0,
       },
     });
@@ -372,7 +372,7 @@ export class BillingService {
                 year,
                 month,
                 importedBy,
-              } as any,
+              },
               retryCount: 0,
             },
           });
@@ -510,7 +510,7 @@ export class BillingService {
                 roomNo,
                 billingPeriodId,
                 importedBy,
-              } as any,
+              },
               retryCount: 0,
             },
           });
@@ -1176,7 +1176,7 @@ export class BillingService {
         rowsImported: imported,
         rowsSkipped: skipped,
         rowsErrored: errors,
-        errorLog: errorLog.length > 0 ? (errorLog as unknown as import('@prisma/client').Prisma.InputJsonValue) : undefined,
+        errorLog: errorLog.length > 0 ? (errorLog as any as import('@prisma/client').Prisma.InputJsonValue) : undefined,
       },
     });
 
@@ -1200,4 +1200,16 @@ export class BillingService {
 
 export function createBillingService(eventBus?: EventBus): BillingService {
   return new BillingService(eventBus);
+}
+
+/**
+ * Cached singleton accessor used by route handlers, workers, and integration
+ * tests that need a BillingService without plumbing through the DI container.
+ */
+let _billingServiceSingleton: BillingService | null = null;
+export function getBillingService(): BillingService {
+  if (!_billingServiceSingleton) {
+    _billingServiceSingleton = new BillingService();
+  }
+  return _billingServiceSingleton;
 }

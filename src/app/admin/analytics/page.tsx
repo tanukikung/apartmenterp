@@ -61,7 +61,7 @@ function monthLabel(year: number, month: number) {
   return `${THAI_MONTHS[month - 1]} ${String(year).slice(2)}`;
 }
 
-async function safeJson(url: string): Promise<Record<string, unknown> | null> {
+async function _safeJson(url: string): Promise<Record<string, unknown> | null> {
   try {
     const r = await fetch(url);
     if (!r.ok) return null;

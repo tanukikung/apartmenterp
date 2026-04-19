@@ -16,6 +16,7 @@ import { TemplateWordEditor } from '@/components/document-editor/TemplateWordEdi
 import { createRepeatBlockMarkup, createScalarFieldMarkup } from '@/modules/documents/field-catalog';
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import { ErrorBoundary } from '@/components/error/ErrorBoundary';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 type TemplateField = {
   key: string;
@@ -72,6 +73,7 @@ export default function TemplateEditPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [versionContent, setVersionContent] = useState<string>('<p></p>');
+  const [initialVersionContent, setInitialVersionContent] = useState<string>('<p></p>');
   const [versionSubject, setVersionSubject] = useState<string>('');
   const [form, setForm] = useState({
     name: '',
@@ -125,7 +127,9 @@ export default function TemplateEditPage() {
         const res = await fetch(`/api/templates/${tid}/versions/${vid}/content`, { cache: 'no-store' });
         const json = await res.json();
         if (cancelled || !json.success) return;
-        setVersionContent(json.data.body ?? '<p></p>');
+        const body = json.data.body ?? '<p></p>';
+        setVersionContent(body);
+        setInitialVersionContent(body);
         setVersionSubject(json.data.subject ?? '');
       } catch {
         // silently fail — content will stay as-is
@@ -153,6 +157,9 @@ export default function TemplateEditPage() {
       }
     }, 1500);
   }
+
+  // Mark dirty when the editor content differs from the loaded version content.
+  useUnsavedChanges(!isNew && versionContent !== initialVersionContent);
 
   const groupedFields = useMemo(() => {
     const groups = new Map<string, TemplateField[]>();

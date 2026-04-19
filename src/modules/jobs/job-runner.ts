@@ -440,7 +440,7 @@ export async function runDocumentCleanup(): Promise<JobResult> {
 // Deletes files from storage only (not DB) for files in /_archived/ prefix
 // that have been archived for more than 5 days. Keeps DB records for audit trail.
 export async function runBackupCleanup(): Promise<JobResult> {
-  const storage = await import('@/infrastructure/storage');
+  const _storage = await import('@/infrastructure/storage');
   const driver = (process.env.STORAGE_DRIVER || 'local').toLowerCase();
   const backupAgeDays = 5;
   const backupCutoff = new Date(Date.now() - backupAgeDays * 24 * 60 * 60 * 1000);
@@ -472,7 +472,7 @@ export async function runBackupCleanup(): Promise<JobResult> {
           }
         }
       }
-    } catch (err) {
+    } catch (_err) {
       // Archive directory may not exist — nothing to clean
       logger.info({ archivedPrefix }, 'backup-cleanup: archive directory not found, skipping');
     }

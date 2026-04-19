@@ -21,7 +21,10 @@ describe('Integration: Payment flow', () => {
       return;
     }
 
-    // New schema: no building/floor models, Room PK is roomNo
+    // Randomize year to avoid BillingPeriod (year, month) uniqueness clashes
+    const year = 3000 + Math.floor(Math.random() * 1000);
+    const month = 1 + Math.floor(Math.random() * 12);
+
     const roomNo = `TEST-P-${crypto.randomUUID().slice(0, 8)}`;
     const room = await (prisma as any).room.create({
       data: {
@@ -36,7 +39,7 @@ describe('Integration: Payment flow', () => {
       },
     });
     const period = await (prisma as any).billingPeriod.create({
-      data: { year: 2026, month: 3, status: 'LOCKED', dueDay: 5 },
+      data: { year, month, status: 'LOCKED', dueDay: 5 },
     });
     const billing = await (prisma as any).roomBilling.create({
       data: {
@@ -68,9 +71,9 @@ describe('Integration: Payment flow', () => {
     const paymentSvc = container.paymentService;
     const result = await paymentSvc.createPayment({
       invoiceId: invoice.id,
-      amount: invoice.totalAmount,
+      amount: Number(invoice.totalAmount),
       method: 'PROMPTPAY',
-      referenceNumber: 'R-123',
+      referenceNumber: `R-${crypto.randomUUID().slice(0, 8)}`,
     } as any);
 
     expect(result.invoice.status).toBe('PAID');

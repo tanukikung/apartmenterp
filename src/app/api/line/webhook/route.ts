@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
-import { verifyLineSignature, sendReplyMessage, getLineClient, sendLineMessage, sendFlexMessage, getLineUserProfile } from '@/lib/line/client';
+import { verifyLineSignature, sendReplyMessage, sendFlexMessage, getLineUserProfile } from '@/lib/line/client';
 import { prisma, logger, UnauthorizedError } from '@/lib';
 import { v4 as uuidv4 } from 'uuid';
 import type { WebhookEvent } from '@line/bot-sdk';

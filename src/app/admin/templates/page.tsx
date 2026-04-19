@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import { ExternalLink, FilePlus2, Layers3, PencilLine } from 'lucide-react';
 import { useApiData } from '@/hooks/useApi';
@@ -44,7 +44,7 @@ type TemplateRow = {
 };
 
 export default function TemplatesPage() {
-  const { data: templatesData, isLoading, error: fetchError, refetch } = useApiData<{ success: boolean; data?: { data: TemplateRow[] } }>('/api/templates?pageSize=100', ['templates']);
+  const { data: templatesData, isLoading, error: fetchError } = useApiData<{ success: boolean; data?: { data: TemplateRow[] } }>('/api/templates?pageSize=100', ['templates']);
 
   const templates: TemplateRow[] = templatesData?.data?.data ?? [];
 

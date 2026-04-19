@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+
 import { motion, AnimatePresence } from 'framer-motion';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ToastProvider } from '@/components/providers/ToastProvider';
@@ -91,11 +92,15 @@ const PAGE_TITLES: Array<{ prefix: string; label: string }> = [
   { prefix: '/admin/settings/integrations', label: 'ตั้งค่า — LINE' },
   { prefix: '/admin/system-health', label: 'สถานะระบบ' },
   { prefix: '/admin/system-jobs', label: 'งานเบื้องหลัง' },
+  { prefix: '/admin/outbox', label: 'Dead-Letter Queue' },
 ];
+
+// Sort most-specific first so /admin/billing/import wins over /admin/billing
+const PAGE_TITLES_SORTED = [...PAGE_TITLES].sort((a, b) => b.prefix.length - a.prefix.length);
 
 function getPageTitle(pathname: string | null): string {
   if (!pathname) return 'Apartment ERP';
-  for (const { prefix, label } of PAGE_TITLES) {
+  for (const { prefix, label } of PAGE_TITLES_SORTED) {
     if (pathname === prefix || pathname.startsWith(prefix + '/')) {
       return label;
     }
@@ -172,6 +177,7 @@ const nav: NavItem[] = [
       { type: 'link', href: '/admin/settings/automation', label: 'อัตโนมัติ', icon: Cpu },
       { type: 'link', href: '/admin/settings/integrations', label: 'LINE', icon: MessageSquare },
       { type: 'link', href: '/admin/system-health', label: 'สถานะระบบ', icon: Server },
+      { type: 'link', href: '/admin/outbox', label: 'DLQ', icon: AlertTriangle },
     ],
   },
 ];
@@ -218,17 +224,32 @@ function IconNavItem({
   const active = isActive(pathname, item);
   return (
     <div className="relative group">
-      <Link
-        href={item.href}
-        className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200
-          ${active
-            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
-            : 'text-color-text-3 hover:bg-color-surface/10 hover:text-color-text-2'
-          }`}
-        title={item.label}
+      <motion.div
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.92 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 26 }}
       >
-        <IconComponent icon={item.icon} size={18} strokeWidth={active ? 2.2 : 1.8} />
-      </Link>
+        <Link
+          href={item.href}
+          className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-colors duration-150
+            ${active
+              ? 'text-white'
+              : 'text-color-text-3 hover:bg-white/5 hover:text-color-text-2'
+            }`}
+          title={item.label}
+        >
+          {active && (
+            <motion.span
+              layoutId="sidebar-active-pill"
+              className="absolute inset-0 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/40"
+              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            />
+          )}
+          <span className="relative z-10">
+            <IconComponent icon={item.icon} size={18} strokeWidth={active ? 2.2 : 1.8} />
+          </span>
+        </Link>
+      </motion.div>
       <Tooltip label={item.label} />
     </div>
   );
@@ -242,7 +263,6 @@ function IconNavGroup({
   group: Extract<NavItem, { type: 'group' }>;
   pathname: string | null;
 }) {
-  const { createPortal } = require('react-dom') as typeof import('react-dom');
   const hasActiveChild = group.items.some((item) => isActive(pathname, item));
   const activeItem = group.items.find((item) => isActive(pathname, item));
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -311,21 +331,33 @@ function IconNavGroup({
       onMouseEnter={openDropdown}
       onMouseLeave={hideDropdown}
     >
-      <button
+      <motion.button
         ref={triggerRef}
-        className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200
-          ${hasActiveChild ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30' : 'text-sidebar-text hover:bg-white/10 hover:text-white'}`}
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.92 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 26 }}
+        className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-colors duration-150
+          ${hasActiveChild ? 'text-white' : 'text-sidebar-text hover:bg-white/5 hover:text-white'}`}
         title={group.label}
       >
-        {activeItem ? (
-          <IconComponent icon={activeItem.icon} size={18} strokeWidth={hasActiveChild ? 2.2 : 1.8} />
-        ) : (
-          <IconComponent icon={group.items[0].icon} size={18} />
+        {hasActiveChild && (
+          <motion.span
+            layoutId="sidebar-active-pill"
+            className="absolute inset-0 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/40"
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+          />
         )}
-        <span className={`absolute bottom-1 right-1 text-[8px] transition-transform duration-200 ${dropdownPos ? 'rotate-90' : ''}`}>
+        <span className="relative z-10">
+          {activeItem ? (
+            <IconComponent icon={activeItem.icon} size={18} strokeWidth={hasActiveChild ? 2.2 : 1.8} />
+          ) : (
+            <IconComponent icon={group.items[0].icon} size={18} />
+          )}
+        </span>
+        <span className={`absolute z-10 bottom-1 right-1 text-[8px] transition-transform duration-200 ${dropdownPos ? 'rotate-90' : ''} ${hasActiveChild ? 'text-white/80' : 'text-color-text-3'}`}>
           ▶
         </span>
-      </button>
+      </motion.button>
       {dropdown}
     </div>
   );
@@ -384,9 +416,15 @@ function IconSidebar({ pathname }: { pathname: string | null }) {
     <div className="w-16 flex flex-col bg-sidebar-bg text-sidebar-text-active h-full">
       {/* Logo */}
       <div className="flex items-center justify-center h-16 border-b border-color-border">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/30">
-          <Building2 size={18} className="text-white" strokeWidth={2.5} />
-        </div>
+        <motion.div
+          whileHover={{ rotate: -8, scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+          className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 shadow-lg shadow-indigo-500/40 ring-1 ring-white/20"
+        >
+          <Building2 size={18} className="text-white relative z-10" strokeWidth={2.5} />
+          <span className="absolute inset-0 rounded-xl bg-gradient-to-br from-white/20 to-transparent" />
+        </motion.div>
       </div>
 
       <nav className="flex-1 py-4 px-2 flex flex-col items-center space-y-1">
@@ -415,8 +453,28 @@ function TopBar({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  // Global "/" shortcut → focus the search input
+  useEffect(() => {
+    function handleShortcut(e: KeyboardEvent) {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) {
+          return;
+        }
+      }
+      e.preventDefault();
+      searchInputRef.current?.focus();
+      setShowSearch(true);
+    }
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, []);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -497,7 +555,7 @@ function TopBar({
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-color-border bg-color-surface/95 backdrop-blur-sm px-4 md:px-6 gap-4">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-color-border bg-color-surface/80 backdrop-blur-xl backdrop-saturate-150 px-4 md:px-6 gap-4">
       {/* Left: hamburger + logo + page title */}
       <div className="flex items-center gap-3 min-w-0">
         {/* Mobile hamburger */}
@@ -510,12 +568,17 @@ function TopBar({
         </button>
 
         {/* Brand */}
-        <Link href="/admin/dashboard" className="flex items-center gap-2.5 flex-shrink-0">
-          <div className="hidden sm:flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/30">
+        <Link href="/admin/dashboard" className="flex items-center gap-2.5 flex-shrink-0 group">
+          <motion.div
+            whileHover={{ rotate: -6, scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+            className="hidden sm:flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 shadow-lg shadow-indigo-500/40 ring-1 ring-white/20"
+          >
             <Building2 size={16} className="text-white" strokeWidth={2.5} />
-          </div>
+          </motion.div>
           <div className="hidden lg:block">
-            <div className="text-sm font-semibold text-color-text leading-tight tracking-tight">Apartment ERP</div>
+            <div className="text-sm font-semibold leading-tight tracking-tight gradient-text">Apartment ERP</div>
             <div className="text-[10px] uppercase tracking-[0.12em] text-color-text-3">Console</div>
           </div>
         </Link>
@@ -523,8 +586,19 @@ function TopBar({
         {/* Divider */}
         <div className="h-5 w-px bg-color-border hidden md:block" />
 
-        {/* Page title */}
-        <span className="text-sm font-medium text-color-text truncate">{getPageTitle(pathname)}</span>
+        {/* Page title — animates on route change */}
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={pathname}
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="text-sm font-medium text-color-text truncate"
+          >
+            {getPageTitle(pathname)}
+          </motion.span>
+        </AnimatePresence>
       </div>
 
       {/* Center: Global Search */}
@@ -532,14 +606,26 @@ function TopBar({
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-color-text-3 pointer-events-none" />
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="ค้นหาห้อง, ผู้เช่า, ใบแจ้งหนี้..."
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
             onFocus={() => setShowSearch(true)}
             onBlur={() => setTimeout(() => setShowSearch(false), 150)}
-            className="w-full h-9 pl-9 pr-4 rounded-xl border border-color-border bg-color-bg text-sm text-color-text placeholder:text-color-text-3 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setShowSearch(false);
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            aria-label="ค้นหาทั่วระบบ (กด / เพื่อโฟกัส)"
+            className="w-full h-9 pl-9 pr-12 rounded-xl border border-color-border bg-color-bg text-sm text-color-text placeholder:text-color-text-3 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
           />
+          {/* Keyboard hint */}
+          <kbd className="pointer-events-none hidden md:flex absolute right-2.5 top-1/2 -translate-y-1/2 h-5 items-center rounded border border-color-border bg-color-surface px-1.5 text-[10px] font-medium text-color-text-3">
+            /
+          </kbd>
         </div>
 
         {/* Search results dropdown */}
@@ -714,6 +800,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Sync the browser tab title to the current page
+  useEffect(() => {
+    const title = getPageTitle(pathname);
+    if (typeof document !== 'undefined') {
+      document.title = title === 'Apartment ERP' ? title : `${title} · Apartment ERP`;
+    }
+  }, [pathname]);
+
   return (
     <ThemeProvider>
     <div className="min-h-screen bg-color-bg flex">
@@ -811,10 +905,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={pathname}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
+                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
+                    transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
                   >
                     {children}
                   </motion.div>

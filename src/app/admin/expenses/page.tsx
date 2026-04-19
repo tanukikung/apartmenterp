@@ -2,20 +2,18 @@
 
 import { useCallback, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
+
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import React from 'react';
-import {
-  AlertTriangle,
-  ChevronDown,
-  FileSpreadsheet,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-  Edit2,
-} from 'lucide-react';
+import { ChevronDown, FileSpreadsheet, Loader2, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { BulkActions } from '@/components/ui/bulk-actions';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
+import { SkeletonTable } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { useToast } from '@/components/providers/ToastProvider';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { useUrlState } from '@/hooks/useUrlState';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -102,7 +100,7 @@ function formatBaht(n: number): string {
   return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function thaiMonthYear(year: number, month: number): string {
+function _thaiMonthYear(year: number, month: number): string {
   const m = THAI_MONTHS[month - 1] ?? String(month);
   return `${m} ${year + 543}`;
 }
@@ -127,19 +125,25 @@ function CategoryBadge({ category }: { category: ExpenseCategory }) {
 
 export default function AdminExpensesPage() {
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [categoryFilter, setCategoryFilter] = useState<ExpenseCategory | 'ALL'>('ALL');
-  const [monthFilter, setMonthFilter] = useState<string>('ALL');
-  const [search, setSearch] = useState('');
+  const [page, setPage] = useUrlState<number>('page', 1);
+  const [totalPages, _setTotalPages] = useState(1);
+  const [categoryFilter, setCategoryFilter] = useUrlState<ExpenseCategory | 'ALL'>('category', 'ALL');
+  const [monthFilter, setMonthFilter] = useUrlState<string>('month', 'ALL');
+  const [search, setSearch] = useUrlState<string>('q', '');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [formLoading, setFormLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [_formLoading, _setFormLoading] = useState(false);
+  const [formError, _setFormError] = useState<string | null>(null);
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const toast = useToast();
 
   const monthOptions = getMonthOptions();
 
@@ -176,7 +180,7 @@ export default function AdminExpensesPage() {
   });
 
   const expenses: Expense[] = expensesData?.data ?? [];
-  const total = expensesData?.total ?? 0;
+  const _total = expensesData?.total ?? 0;
 
   // ---------------------------------------------------------------------------
   // Filtered list
@@ -216,6 +220,38 @@ export default function AdminExpensesPage() {
     }
   }
 
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkDeleting(true);
+    let ok = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        const res = await fetch(`/api/expenses/${id}`, { method: 'DELETE' });
+        if (res.ok) ok += 1;
+        else failed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    setBulkDeleting(false);
+    setBulkDeleteConfirm(false);
+    setSelectedIds(new Set());
+    if (failed === 0) toast.success(`ลบรายการ ${ok} ชิ้น สำเร็จ`);
+    else toast.warning(`ลบสำเร็จ ${ok} · ล้มเหลว ${failed}`);
+    void queryClient.invalidateQueries({ queryKey: ['expenses'] });
+  }
+
+  const toggleSelectExpense = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -239,6 +275,8 @@ export default function AdminExpensesPage() {
           <button
             onClick={() => void refetch()}
             disabled={isLoading}
+            aria-label="รีเฟรช"
+            title="รีเฟรช"
             className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -317,33 +355,62 @@ export default function AdminExpensesPage() {
         </div>
       )}
 
+      {/* Bulk Actions */}
+      <BulkActions
+        count={selectedIds.size}
+        onClear={() => setSelectedIds(new Set())}
+        actions={[
+          {
+            label: 'ลบที่เลือก',
+            variant: 'danger',
+            icon: <Trash2 className="h-3.5 w-3.5" />,
+            onClick: () => setBulkDeleteConfirm(true),
+          },
+        ]}
+      />
+
       {/* Table */}
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <SkeletonTable rows={6} />
         ) : filteredExpenses.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <FileSpreadsheet className="mb-3 h-12 w-12 text-outline-variant" />
-            <p className="font-semibold text-on-surface">ยังไม่มีรายจ่าย</p>
-            <p className="mt-1 text-sm text-on-surface-variant">เพิ่มรายจ่ายเพื่อติดตามการเงิน</p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4" />
-              เพิ่มรายจ่าย
-            </button>
-          </div>
+          <EmptyState
+            icon={<FileSpreadsheet className="h-7 w-7" />}
+            title={search || categoryFilter !== 'ALL' || monthFilter !== 'ALL' ? 'ไม่พบรายการที่ตรงกับตัวกรอง' : 'ยังไม่มีรายจ่าย'}
+            description={search || categoryFilter !== 'ALL' || monthFilter !== 'ALL' ? 'ลองปรับตัวกรองหรือล้างการค้นหา' : 'เพิ่มรายจ่ายเพื่อติดตามการเงิน'}
+            action={{ label: 'เพิ่มรายจ่าย', onClick: () => setShowForm(true) }}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b border-outline-variant">
-                  {['วันที่', 'หมวดหมู่', 'รายละเอียด', 'จ่ายให้', 'เลขที่ใบเสร็จ', 'จำนวน', 'จัดการ'].map((h) => (
-                    <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
-                      {h}
+                  <th className="w-10 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      aria-label="เลือกทั้งหมด"
+                      className="h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
+                      checked={filteredExpenses.length > 0 && filteredExpenses.every((e) => selectedIds.has(e.id))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedIds(new Set(filteredExpenses.map((x) => x.id)));
+                        } else {
+                          setSelectedIds(new Set());
+                        }
+                      }}
+                    />
+                  </th>
+                  {[
+                    { key: 'วันที่', cls: '' },
+                    { key: 'หมวดหมู่', cls: '' },
+                    { key: 'รายละเอียด', cls: '' },
+                    { key: 'จ่ายให้', cls: 'hidden lg:table-cell' },
+                    { key: 'เลขที่ใบเสร็จ', cls: 'hidden lg:table-cell' },
+                    { key: 'จำนวน', cls: '' },
+                    { key: 'จัดการ', cls: '' },
+                  ].map(({ key, cls }) => (
+                    <th key={key} className={`whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant ${cls}`}>
+                      {key}
                     </th>
                   ))}
                 </tr>
@@ -353,6 +420,15 @@ export default function AdminExpensesPage() {
                   const d = new Date(expense.date);
                   return (
                     <tr key={expense.id} className="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors">
+                      <td className="w-10 px-4 py-3">
+                        <input
+                          type="checkbox"
+                          aria-label={`เลือก ${expense.description}`}
+                          className="h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
+                          checked={selectedIds.has(expense.id)}
+                          onChange={() => toggleSelectExpense(expense.id)}
+                        />
+                      </td>
                       <td className="px-4 py-3 text-on-surface whitespace-nowrap">
                         <ClientOnly fallback={<span className="text-outline">—</span>}>
                           {d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -364,10 +440,10 @@ export default function AdminExpensesPage() {
                       <td className="px-4 py-3 text-on-surface max-w-xs truncate">
                         {expense.description}
                       </td>
-                      <td className="px-4 py-3 text-on-surface-variant">
+                      <td className="hidden lg:table-cell px-4 py-3 text-on-surface-variant">
                         {expense.paidTo ?? <span className="text-outline">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-on-surface-variant font-mono text-xs">
+                      <td className="hidden lg:table-cell px-4 py-3 text-on-surface-variant font-mono text-xs">
                         {expense.receiptNo ?? <span className="text-outline">—</span>}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-on-surface whitespace-nowrap">
@@ -447,6 +523,19 @@ export default function AdminExpensesPage() {
         </div>
       )}
 
+      {/* Bulk Delete Confirm */}
+      <ConfirmDialog
+        open={bulkDeleteConfirm}
+        title={`ลบรายการ ${selectedIds.size} รายการ?`}
+        description="การลบไม่สามารถย้อนกลับได้"
+        confirmLabel="ลบทั้งหมด"
+        cancelLabel="ยกเลิก"
+        dangerous
+        loading={bulkDeleting}
+        onConfirm={() => void handleBulkDelete()}
+        onCancel={() => setBulkDeleteConfirm(false)}
+      />
+
       {/* Add/Edit Form Modal */}
       {showForm && (
         <ExpenseFormModal
@@ -473,7 +562,7 @@ function ExpenseFormModal({
   onSuccess: () => void;
 }) {
   const [category, setCategory] = useState<ExpenseCategory>('OTHER');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState<number | null>(null);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
   const [paidTo, setPaidTo] = useState('');
@@ -481,17 +570,24 @@ function ExpenseFormModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Warn on unload while user has drafted an expense
+  const dirty = !loading && (amount !== null || description !== '' || paidTo !== '' || receiptNo !== '');
+  useUnsavedChanges(dirty);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
+      if (amount === null || amount <= 0) {
+        throw new Error('กรุณากรอกจำนวนเงิน');
+      }
       const res = await fetch('/api/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           category,
-          amount: parseFloat(amount),
+          amount,
           date,
           description,
           paidTo: paidTo || undefined,
@@ -535,13 +631,11 @@ function ExpenseFormModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-on-surface-variant mb-1">จำนวน (บาท)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
+              <CurrencyInput
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={setAmount}
                 required
+                ariaLabel="จำนวนเงิน"
                 className="w-full rounded-lg border border-outline bg-surface-container-lowest py-2 px-3 text-sm text-on-surface focus:border-primary focus:outline-none"
               />
             </div>

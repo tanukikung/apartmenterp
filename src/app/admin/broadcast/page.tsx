@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useToast } from '@/components/providers/ToastProvider';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import {
   AlertCircle,
   CheckCircle2,
@@ -52,6 +53,9 @@ export default function BroadcastPage() {
   const [selectedFloors, setSelectedFloors] = useState<number[]>([]);
   const [message, setMessage] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Warn on unload if user has an unsent message drafted
+  useUnsavedChanges(message.trim().length > 0 && !sending);
 
   const load = useCallback(async () => {
     setLoading(true);

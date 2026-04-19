@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { getOutboxProcessor } from '@/lib/outbox';
-import type { Json } from '@/types/prisma-json';
+
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
 import { prisma } from '@/lib/db/client';
@@ -158,7 +158,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
           text: personalisedText,
           templateId: resolvedTemplateId,
           metadata: { invoiceId: invoice.id, roomNo: invoice.roomNo },
-        } as any,
+        },
       );
       results.sent++;
     } catch {

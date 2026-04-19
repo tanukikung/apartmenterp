@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FileOutput, Layers3, Search, Wand2 } from 'lucide-react';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 type TemplateOption = {
   id: string;
@@ -124,7 +125,7 @@ export default function GenerateDocumentsPage() {
 
   const templates: TemplateOption[] = (templatesRaw?.data ?? []).filter((t: TemplateOption) => t.activeVersionId);
   const floors: FloorOption[] = floorsRaw?.data ?? [];
-  const rooms: RoomOption[] = roomsRaw?.data ?? [];
+  const rooms: RoomOption[] = useMemo(() => roomsRaw?.data ?? [], [roomsRaw?.data]);
   const isLoading = templatesLoading || floorsLoading || roomsLoading;
 
   if (!initRef.current && templates.length > 0 && !selectedTemplateId) {
@@ -135,6 +136,18 @@ export default function GenerateDocumentsPage() {
   const filteredRooms = useMemo(() => {
     return rooms.filter((room) => room.roomNo.toLowerCase().includes(search.toLowerCase()));
   }, [rooms, search]);
+
+  // Mark dirty when the user has selected templates or rooms (non-empty).
+  // Avoid the auto-selected first template causing a false positive by also
+  // requiring rooms or scope-specific values.
+  const generateDirty =
+    selectedRoomIds.length > 0 ||
+    !!selectedRoomId ||
+    floorNumber !== '' ||
+    working !== null ||
+    job !== null ||
+    preview !== null;
+  useUnsavedChanges(generateDirty);
 
   const requestBody = useMemo(() => ({
     templateId: selectedTemplateId,

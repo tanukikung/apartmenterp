@@ -23,6 +23,19 @@ export const POST = asyncHandler(
       return NextResponse.json({ success: false, error: 'Billing period not found' }, { status: 404 });
     }
 
+    // Idempotency guard: if the period is already CLOSED, invoices were
+    // previously generated and this request is a duplicate. Return a
+    // no-op success so clicking the button twice doesn't regenerate or
+    // error out. (The inner unique-key on invoice.roomBillingId would
+    // catch it anyway, but we can skip the wasted work entirely.)
+    if (period.status === 'CLOSED') {
+      return NextResponse.json({
+        success: true,
+        data: { generated: 0, skipped: 0, errors: 0, errorDetails: [] },
+        message: 'Period already CLOSED — invoices were previously generated.',
+      } as ApiResponse<{ generated: number; skipped: number; errors: number; errorDetails: string[] }>);
+    }
+
     // Find all LOCKED RoomBillings that don't have an invoice yet
     const billings = await prisma.roomBilling.findMany({
       where: {
@@ -97,7 +110,7 @@ export const POST = asyncHandler(
                 totalAmount:   Number(inv.totalAmount),
                 dueDate:       dueDate.toISOString().split('T')[0],
                 generatedBy:   session.sub,
-              } as unknown as Prisma.InputJsonValue,
+              } as any as Prisma.InputJsonValue,
               retryCount: 0,
             },
           });

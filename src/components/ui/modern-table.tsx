@@ -206,7 +206,11 @@ export function ModernTable<T extends object>({
   const totalPages = pagination ? Math.ceil(pagination.total / pagination.pageSize) : 0;
 
   return (
-    <div className={cn('bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden', className)}>
+    <div className={cn(
+      'bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden',
+      'shadow-sm transition-shadow duration-300 hover:shadow-md anim-fade-in',
+      className,
+    )}>
       {/* Optional header bar */}
       {header && (
         <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
@@ -243,11 +247,17 @@ export function ModernTable<T extends object>({
             {loading && Array.from({ length: loadingRows }).map((_, i) => (
               <tr key={i} className="border-b border-outline-variant/5">
                 {selectable && (
-                  <td className="px-4 py-3"><div className="skeleton h-4 w-4 rounded" /></td>
+                  <td className="px-4 py-3"><div className="shimmer-wave h-4 w-4 rounded" /></td>
                 )}
                 {columns.map((col) => (
                   <td key={col.key} className="px-4 py-3">
-                    <div className="skeleton h-4 rounded" style={{ width: `${Math.random() * 40 + 40}%` }} />
+                    <div
+                      className="shimmer-wave h-4 rounded"
+                      style={{
+                        width: `${40 + ((i * 17 + col.key.length * 7) % 40)}%`,
+                        animationDelay: `${i * 80}ms`,
+                      }}
+                    />
                   </td>
                 ))}
                 {actions && <td />}
@@ -278,9 +288,11 @@ export function ModernTable<T extends object>({
                 <tr
                   key={rowId}
                   className={cn(
-                    'border-b border-outline-variant/5 transition-colors',
+                    'group border-b border-outline-variant/5 transition-all duration-200',
                     rowIdx % 2 === 1 ? 'bg-surface-container-low/30' : '',
-                    isSelected ? 'bg-primary-container/10' : 'hover:bg-surface-container/50',
+                    isSelected
+                      ? 'bg-primary-container/20 shadow-[inset_2px_0_0_0_hsl(var(--color-primary))]'
+                      : 'hover:bg-surface-container/60 hover:shadow-[inset_2px_0_0_0_hsl(var(--color-primary)/0.3)]',
                     onRowClick && 'cursor-pointer',
                   )}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}

@@ -1,0 +1,22 @@
+# Normalize line endings on checkin. Keep working directory CRLF on Windows.
+* text=auto eol=lf
+
+# Prisma/SQL/config — always LF
+*.prisma  text eol=lf
+*.sql     text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.json    text eol=lf
+
+# Shell scripts must stay LF
+*.sh      text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

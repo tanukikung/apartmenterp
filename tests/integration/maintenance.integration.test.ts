@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { makeRequestLike } from '../helpers/auth';
 
 vi.doUnmock('@/lib/db/client');
 vi.resetModules();
@@ -34,24 +35,47 @@ describe('Integration: Maintenance workflow', () => {
       },
     });
     const tenant = await prisma.tenant.create({
-      data: { id: crypto.randomUUID(), firstName: 'Jane', lastName: 'Doe', phone: '12345' },
+      data: { id: crypto.randomUUID(), firstName: 'Jane', lastName: 'Doe', phone: `09${Math.floor(Math.random() * 100000000)}` },
+    });
+    // Maintenance create endpoint requires the tenant to be linked to the room.
+    await (prisma as any).roomTenant.create({
+      data: {
+        roomNo: (room as any).roomNo,
+        tenantId: tenant.id,
+        role: 'PRIMARY',
+        moveInDate: new Date(),
+      },
     });
 
-    const body = {
-      roomId: (room as any).roomNo,
-      tenantId: tenant.id,
-      title: 'Aircon broken',
-      description: 'Not cooling',
-      priority: 'HIGH',
-      attachments: [{ fileUrl: 'https://example.com/p.jpg', fileType: 'image' }],
-    };
-    const reqCreate: any = { json: async () => body };
+    // Create endpoint is public — plain request-like is enough
+    const reqCreate = makeRequestLike({
+      url: 'http://localhost/api/maintenance/create',
+      method: 'POST',
+      body: {
+        roomId: (room as any).roomNo,
+        tenantId: tenant.id,
+        title: 'Aircon broken',
+        description: 'Not cooling',
+        priority: 'HIGH',
+        attachments: [{ fileUrl: 'https://example.com/p.jpg', fileType: 'image' }],
+      },
+    });
     const resCreate: Response = await (createMod as any).POST(reqCreate);
-    expect(resCreate.ok).toBe(true);
     const created = await resCreate.json();
+    if (!resCreate.ok) {
+      // eslint-disable-next-line no-console
+      console.error('[maintenance-create] non-ok response', resCreate.status, created);
+    }
+    expect(resCreate.ok).toBe(true);
     const ticketId = created.data.id;
 
-    const reqUpdate: any = { json: async () => ({ ticketId, status: 'CLOSED', actorId: 'admin' }) };
+    // Update-status requires ADMIN session (requireRole + getVerifiedActor)
+    const reqUpdate = makeRequestLike({
+      url: 'http://localhost/api/admin/maintenance/update-status',
+      method: 'POST',
+      role: 'ADMIN',
+      body: { ticketId, status: 'CLOSED' },
+    });
     const resUpdate: Response = await (updateMod as any).POST(reqUpdate);
     expect(resUpdate.ok).toBe(true);
 

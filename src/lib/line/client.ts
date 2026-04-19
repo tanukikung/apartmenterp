@@ -495,7 +495,7 @@ export function parseWebhookEvent(event: WebhookEvent): {
   replyToken: string | undefined;
   timestamp: number;
 } {
-  const e = event as unknown as {
+  const e = event as any as {
     source?: { userId?: string };
     message?: { id?: string; type?: string; text?: string };
     replyToken?: string;

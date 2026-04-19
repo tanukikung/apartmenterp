@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { asyncHandler, ApiResponse, UnauthorizedError } from '@/lib/utils/errors';
 import { prisma } from '@/lib/db/client';
-import { verifyPassword } from '@/lib/auth/password';
+import { verifyPassword, hashPassword, needsRehash } from '@/lib/auth/password';
+import { logger } from '@/lib/utils/logger';
 import { setAuthCookies } from '@/lib/auth/session';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
@@ -38,7 +39,9 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     },
   });
 
-  if (!user || !user.isActive || !verifyPassword(body.password, user.passwordHash)) {
+  const passwordOk = user && user.isActive && verifyPassword(body.password, user.passwordHash);
+
+  if (!passwordOk) {
     if (isForm) {
       // 303 See Other forces the browser to GET the redirect target (Post/Redirect/Get).
       // Default 307 would re-POST, which Next.js 14 misidentifies as a URL-encoded
@@ -46,6 +49,22 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       return NextResponse.redirect(new URL('/login?error=Invalid%20username%20or%20password', req.url), 303);
     }
     throw new UnauthorizedError('Invalid username or password');
+  }
+
+  // Opportunistic rehash: if stored hash uses weaker cost parameters than
+  // current policy, upgrade it now while we have the plaintext password.
+  if (needsRehash(user.passwordHash)) {
+    try {
+      const upgradedHash = hashPassword(body.password);
+      await prisma.adminUser.update({
+        where: { id: user.id },
+        data: { passwordHash: upgradedHash },
+      });
+      logger.info({ userId: user.id, type: 'password_hash_upgraded' }, 'Upgraded password hash to current cost');
+    } catch (err) {
+      // Don't fail the login if rehash storage fails — log and continue
+      logger.warn({ userId: user.id, err }, 'Password rehash failed; continuing with login');
+    }
   }
 
   const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 12;

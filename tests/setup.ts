@@ -65,9 +65,13 @@ afterAll(async () => {
   if (client && client.isOpen) {
     await client.quit().catch(() => undefined);
   }
+  // Guard against hanging afterAll — some test files import modules that
+  // pin handles (e.g. timers from instrumentation.ts). Cap cleanup at 2s.
+  const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T | void> =>
+    Promise.race([p, new Promise<void>((resolve) => setTimeout(resolve, ms))]);
   try {
     const { prisma } = await import('@/lib/db/client');
-    await prisma.$disconnect();
+    await withTimeout(prisma.$disconnect(), 2000);
   } catch {
     // ignore
   }

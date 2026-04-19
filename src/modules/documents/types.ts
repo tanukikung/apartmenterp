@@ -80,6 +80,7 @@ export const documentListQuerySchema = z.object({
   month: z.coerce.number().int().min(1).max(12).optional(),
   roomId: z.string().optional(),
   billingCycleId: z.string().optional(),
+  q: z.string().trim().min(1).max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });

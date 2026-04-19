@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { prisma, EventBus, logger, EventTypes } from '@/lib';
-import { Json } from '@/types/prisma-json';
+
 import {
   CreateTenantInput,
   UpdateTenantInput,
@@ -80,7 +80,7 @@ export class TenantService {
             email: created.email || undefined,
             lineUserId: created.lineUserId || undefined,
             createdBy,
-          } as any,
+          },
           retryCount: 0,
         },
       });
@@ -475,7 +475,7 @@ export class TenantService {
             role: input.role,
             moveInDate: input.moveInDate,
             assignedBy,
-          } as any,
+          },
           retryCount: 0,
         },
       });
@@ -565,7 +565,7 @@ export class TenantService {
             role: roomTenant.role,
             moveOutDate: input.moveOutDate,
             removedBy,
-          } as any,
+          },
           retryCount: 0,
         },
       });

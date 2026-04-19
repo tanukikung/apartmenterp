@@ -29,7 +29,14 @@ export async function createRoom(
   const { prisma: shared } = await import('@/lib/db/client');
   const db = (tx || shared) as unknown as Prisma.TransactionClient & typeof shared;
 
-  const roomNo = overrides.roomNo ?? overrides.roomNumber ?? `R${Date.now()}-${Math.floor(Math.random() * 90000) + 1000}`;
+  // Append a random suffix to keep test rooms unique even when the caller
+  // passes a fixed prefix like "B101"; prevents P2002 collisions when the
+  // same test name appears across files that share the test DB.
+  const baseNo =
+    overrides.roomNo ?? overrides.roomNumber ?? `${Math.floor(Math.random() * 900) + 100}`;
+  const roomNo = overrides.roomNo
+    ? overrides.roomNo
+    : `${baseNo}-${Math.random().toString(36).slice(2, 8)}`;
   const floorNo = overrides.floorNo ?? 1;
 
   return db.room.create({

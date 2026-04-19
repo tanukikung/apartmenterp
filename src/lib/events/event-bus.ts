@@ -113,7 +113,7 @@ export class EventBus {
     eventType: string,
     aggregateType: string,
     aggregateId: string,
-    payload: T['payload'],
+    payload: Record<string, unknown>,
     options: EventBusOptions = {}
   ): Promise<T> {
     const event = {
@@ -186,7 +186,7 @@ export class EventBus {
       eventType: string;
       aggregateType: string;
       aggregateId: string;
-      payload: T['payload'];
+      payload: Record<string, unknown>;
     }>
   ): Promise<T[]> {
     const results: T[] = [];
@@ -328,7 +328,7 @@ export class EventBuilder {
     eventType: string,
     aggregateType: string,
     aggregateId: string,
-    payload: T['payload']
+    payload: Record<string, unknown>
   ): Promise<T> {
     return this.eventBus.publish<T>(
       eventType,

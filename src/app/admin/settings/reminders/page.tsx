@@ -13,24 +13,11 @@
  *   appliesTo   — ALL / OVERDUE / DUE_SOON
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useToast } from '@/components/providers/ToastProvider';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import {
-  AlertCircle,
-  AlertTriangle,
-  ArrowLeft,
-  Bell,
-  CheckCircle2,
-  Clock,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Save,
-  Trash2,
-  XCircle,
-} from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Bell, CheckCircle2, Loader2, Plus, RefreshCw, Save, Trash2, XCircle } from 'lucide-react';
 import { useApiData } from '@/hooks/useApi';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -101,7 +88,7 @@ export default function ReminderConfigPage() {
     onConfirm: () => void;
   }>({ open: false, title: '', onConfirm: () => {} });
 
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [_actionError, setActionError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Form state for adding new config

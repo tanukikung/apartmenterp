@@ -248,14 +248,14 @@ export function formatError(
     )
   ) {
     const e = error as { name: string; message: string };
-    logger.error({ type: 'prisma_client_error', name: e.name, message: e.message });
+    logger.error({ type: 'prisma_client_error', name: e.name, message: e.message, requestId });
+    // Never leak raw Prisma messages to clients — they can reveal schema,
+    // field names, query structure. Always log server-side, return generic.
     return {
       success: false,
       error: {
         name: 'DatabaseError',
-        message: process.env.NODE_ENV === 'production'
-          ? 'Database operation failed'
-          : e.message,
+        message: 'Database operation failed',
         code: e.name,
         statusCode: 500,
         requestId,
@@ -278,22 +278,24 @@ export function formatError(
     };
   }
 
-  // Handle unknown errors
+  // Handle unknown errors — always return generic message to the client.
+  // Full details (including stack) go to server logs only. Leaking stack
+  // traces or raw error messages can reveal file paths, library names,
+  // internal function names — useful to attackers.
   const unknownError = error as Error;
   logger.error({
     type: 'unhandled_error',
     name: unknownError.name,
     message: unknownError.message,
     stack: unknownError.stack,
+    requestId,
   });
 
   return {
     success: false,
     error: {
       name: 'InternalServerError',
-      message: process.env.NODE_ENV === 'production'
-        ? 'An unexpected error occurred'
-        : unknownError.message,
+      message: 'An unexpected error occurred',
       code: 'INTERNAL_ERROR',
       statusCode: 500,
       requestId,
@@ -318,8 +320,8 @@ export function asyncHandler<
 >(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: any,
-): any {
-  return async (...args: unknown[]): Promise<NextResponse | void> => {
+): (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse> {
+  return (async (...args: unknown[]): Promise<NextResponse | void> => {
     try {
       const [req, resOrContext] = args as [unknown, unknown?];
 
@@ -410,7 +412,7 @@ export function asyncHandler<
         status: response.error.statusCode,
       });
     }
-  };
+  }) as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>;
 }
 
 /**

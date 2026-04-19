@@ -3,15 +3,9 @@ import { describe, it, expect, vi } from 'vitest';
 vi.doUnmock('@/lib/db/client');
 vi.resetModules();
 process.env.USE_PRISMA_TEST_DB = 'true';
-process.env.USE_PRISMA_TEST_DB = 'true';
 
 describe('Integration: Billing Engine', () => {
-  // TODO: tests/factories/billing.factory.ts is a no-op stub after schema
-  // migration removed BillingRecord/BillingItem models. createBillingRecordForRoom
-  // returns a fake object and addOtherItem does nothing, so downstream
-  // lockBillingRecord + invoice generation fail. Rewrite this integration test
-  // against the RoomBilling schema before re-enabling.
-  it.skip('generates invoice with correct items and subtotal', async () => {
+  it('locks RoomBilling and generates an invoice with matching totalAmount', async () => {
     vi.doUnmock('@/lib/db/client');
     vi.resetModules();
     const [
@@ -25,39 +19,29 @@ describe('Integration: Billing Engine', () => {
       import('../factories/invoice.factory'),
       import('@/modules/billing/billing.service'),
     ]);
-      const { prisma } = await import('@/lib/db/client');
-      try {
-        await prisma.$connect();
-      } catch {
-        return;
-      }
-      const building = await roomFactory.createBuilding();
-      const floor = await roomFactory.createFloor(building.id);
-      const room = await roomFactory.createRoom(floor.id, { roomNumber: 'B101' });
+    const { prisma } = await import('@/lib/db/client');
+    try {
+      await prisma.$connect();
+    } catch {
+      return;
+    }
 
-      const { id: billingId } = await billingFactory.createBillingRecordForRoom((room as any).roomNo ?? (room as any).id, {
-        year: 2026,
-        month: 3,
-      });
+    // Build a room + RoomBilling with rent + extra "other" charges.
+    const room = await roomFactory.createRoom('stub-floor-1', { roomNumber: 'B101' });
+    const billing = await billingFactory.createBillingRecordForRoom(
+      (room as any).roomNo,
+      { year: 2026, month: 3, rentAmount: 5000 }
+    );
+    await billingFactory.addOtherItem(billing.id, 3000, 'Water');
+    await billingFactory.addOtherItem(billing.id, 2000, 'Electric');
 
-      await billingFactory.addOtherItem(billingId, 3000, 'Water');
-      await billingFactory.addOtherItem(billingId, 2000, 'Electric');
+    // Lock through the real service path to exercise the same code production uses.
+    const billingSvc = (billingMod as any).getBillingService();
+    await billingSvc.lockBillingRecord(billing.id, { force: false }, 'tester');
 
-      const { getBillingService } = billingMod as any;
-      const billingSvc = getBillingService();
-      await billingSvc.lockBillingRecord(billingId, { force: false }, 'tester');
-
-      const invoice = await invoiceFactory.createInvoiceFromBilling(billingId);
-      expect(invoice).toBeTruthy();
-      expect(invoice.totalAmount).toBeGreaterThan(0);
-      expect(invoice.items.length).toBeGreaterThanOrEqual(1);
-
-      const sum = invoice.items.reduce((a, b) => a + Number(b.total), 0);
-      expect(Number(invoice.totalAmount)).toBe(sum);
-
-      // ensure line items contain our descriptions
-      const descs = invoice.items.map((i) => i.description);
-      expect(descs.join(' ')).toContain('Water');
-      expect(descs.join(' ')).toContain('Electric');
+    const invoice = await invoiceFactory.createInvoiceFromBilling(billing.id);
+    expect(invoice).toBeTruthy();
+    expect(invoice.roomBillingId).toBe(billing.id);
+    expect(Number(invoice.totalAmount)).toBe(5000 + 3000 + 2000);
   });
 });

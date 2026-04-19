@@ -802,9 +802,9 @@ export function TemplateWordEditor({
                     const [spacing, value] = event.target.value.split(':');
                     const chain = activeEditor.chain().focus();
                     if (spacing === 'lh') {
-                      void (chain as unknown as { setLineHeight(v: string): { run(): boolean } }).setLineHeight(value).run();
+                      void (chain as any as { setLineHeight(v: string): { run(): boolean } }).setLineHeight(value).run();
                     } else if (spacing === 'pa') {
-                      void (chain as unknown as { setParagraphSpacing(v: string): { run(): boolean } }).setParagraphSpacing(value).run();
+                      void (chain as any as { setParagraphSpacing(v: string): { run(): boolean } }).setParagraphSpacing(value).run();
                     }
                   }}
                 >

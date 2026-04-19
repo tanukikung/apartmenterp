@@ -5,7 +5,7 @@ import { asyncHandler, ApiResponse, AppError, BadRequestError, NotFoundError } f
 import { logger } from '@/lib/utils/logger';
 import { getOutboxProcessor } from '@/lib/outbox';
 import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
-import type { Json } from '@/types/prisma-json';
+
 import { logAudit } from '@/modules/audit';
 import { prisma } from '@/lib/db/client';
 import { isLineConfigured } from '@/lib/line';
@@ -69,6 +69,38 @@ export const POST = asyncHandler(
     }
     const downloadLink = normalizeReceiptDownloadLink(id, input.downloadLink);
 
+    // Idempotency guard: suppress rapid duplicate sends.
+    // If we already queued a ReceiptSendRequested for this receipt+conversation
+    // in the last 5 minutes AND it's still pending or was recently delivered,
+    // return the existing request instead of enqueuing another.
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const existingEvent = await prisma.outboxEvent.findFirst({
+      where: {
+        aggregateType: 'Receipt',
+        aggregateId: id,
+        eventType: 'ReceiptSendRequested',
+        createdAt: { gte: fiveMinutesAgo },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (existingEvent) {
+      const payloadConv = (existingEvent.payload as { conversationId?: string } | null)?.conversationId;
+      if (payloadConv === input.conversationId) {
+        logger.info({
+          type: 'receipt_send_duplicate_suppressed',
+          receiptId: id,
+          existingEventId: existingEvent.id,
+        });
+        return NextResponse.json(
+          {
+            success: true,
+            data: { receiptId: id, duplicateSuppressed: true, existingEventId: existingEvent.id },
+          } as ApiResponse<{ receiptId: string; duplicateSuppressed: true; existingEventId: string }>,
+          { status: 202 },
+        );
+      }
+    }
+
     const processor = getOutboxProcessor();
     await processor.writeOne(
       'Receipt',
@@ -81,7 +113,7 @@ export const POST = asyncHandler(
         roomNumber: input.roomNumber,
         amount: input.amount,
         paidDate: input.paidDate,
-      } as any
+      }
     );
 
     await logAudit({

@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { prisma, EventBus, logger, EventTypes } from '@/lib';
-import { Json } from '@/types/prisma-json';
+
 import {
   CreateContractInput,
   UpdateContractInput,
@@ -151,7 +151,7 @@ export class ContractService {
             rentAmount: Number(created.monthlyRent),
             depositAmount: Number(created.deposit || 0),
             createdBy,
-          } as any,
+          },
           retryCount: 0,
         },
       });
@@ -405,7 +405,7 @@ export class ContractService {
             newRentAmount: input.newRentAmount,
             newDepositAmount: input.newDepositAmount,
             renewedBy,
-          } as any,
+          },
           retryCount: 0,
         },
       });
@@ -489,7 +489,7 @@ export class ContractService {
             terminationDate: input.terminationDate,
             terminationReason: input.terminationReason,
             terminatedBy,
-          } as any,
+          },
           retryCount: 0,
         },
       });

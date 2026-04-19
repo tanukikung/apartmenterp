@@ -6,7 +6,7 @@ import { asyncHandler, ApiResponse, ConflictError } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
 import { logger, prisma, isLineConfigured } from '@/lib';
 import { getOutboxProcessor } from '@/lib/outbox';
-import type { Json } from '@/types/prisma-json';
+
 
 export const dynamic = 'force-dynamic';
 
@@ -90,7 +90,7 @@ If you have any questions, please contact us.`;
       moveOutId: moveOut.id,
       tenantId: moveOut.contract.primaryTenant.id,
       roomNo: moveOut.contract.roomNo,
-    } as any,
+    },
   );
 
   // Update lineNoticeSentAt timestamp

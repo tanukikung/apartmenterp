@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
 import { EventBus, getEventBus, EventTypes } from '../events';
@@ -236,6 +237,7 @@ export class OutboxProcessor {
               event.eventType,
               event.aggregateType,
               event.aggregateId,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               payload as any
             );
 
@@ -297,7 +299,7 @@ export class OutboxProcessor {
                   retryCount: event.retryCount,
                   lastError: errorMessage,
                   failedAt: new Date(),
-                } as any
+                }
               );
             } else {
               await tx.outboxEvent.update({
@@ -354,7 +356,7 @@ export class OutboxProcessor {
             aggregateType: event.aggregateType,
             aggregateId: event.aggregateId,
             eventType: event.eventType,
-            payload: event.payload as any,
+            payload: event.payload as Prisma.InputJsonValue,
             retryCount: 0,
           },
         })

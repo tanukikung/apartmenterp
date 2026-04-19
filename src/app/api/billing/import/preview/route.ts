@@ -26,6 +26,22 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     return NextResponse.json({ success: false, error: { name: 'BadRequest', message: 'Missing file', code: 'BAD_REQUEST', statusCode: 400 } }, { status: 400 });
   }
 
+  // Validation: XLSX/XLS only, max 20 MB (utility workbooks are normally <5 MB)
+  const lowerName = file.name.toLowerCase();
+  if (!lowerName.endsWith('.xlsx') && !lowerName.endsWith('.xls')) {
+    return NextResponse.json(
+      { success: false, error: { name: 'BadRequest', message: 'Only .xlsx or .xls files are supported', code: 'BAD_REQUEST', statusCode: 400 } },
+      { status: 400 },
+    );
+  }
+  const MAX_IMPORT_SIZE = 20 * 1024 * 1024;
+  if (file.size > MAX_IMPORT_SIZE) {
+    return NextResponse.json(
+      { success: false, error: { name: 'BadRequest', message: 'Import file too large (max 20 MB)', code: 'BAD_REQUEST', statusCode: 400 } },
+      { status: 400 },
+    );
+  }
+
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
   const safeName = file.name.replace(/[^\w.\-]/g, '_');

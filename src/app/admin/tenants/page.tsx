@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, Plus, Home, Search, Inbox, CheckCircle, MessageCircle, XCircle } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { SkeletonTable } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { useUrlState } from '@/hooks/useUrlState';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -55,7 +58,7 @@ export default function AdminTenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useUrlState<string>('q', '');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState<string | null>(null);
@@ -329,26 +332,62 @@ export default function AdminTenantsPage() {
 
       {/* Tenant List */}
       {loading ? (
-        <div className="space-y-3">
-          {[1,2,3,4,5].map(i => <div key={i} className="skeleton h-16 rounded-lg" />)}
-        </div>
+        <SkeletonTable rows={6} />
       ) : filtered.length === 0 ? (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-12 text-center">
-          <Inbox size={40} className="mx-auto text-on-surface-variant mb-4" />
-          <div className="text-sm font-semibold text-on-surface-variant">ไม่พบผู้เช่า</div>
-          <div className="text-xs text-on-surface-variant mt-1">{search.trim() ? 'ลองป้อนคำค้นอื่น' : 'เพิ่มผู้เช่าใหม่เพื่อเริ่มต้น'}</div>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+          <EmptyState
+            icon={<Inbox className="h-7 w-7" />}
+            title={search.trim() ? `ไม่พบผู้เช่าที่ตรงกับ "${search}"` : 'ยังไม่มีผู้เช่า'}
+            description={search.trim() ? 'ลองป้อนคำค้นอื่นหรือล้างการค้นหา' : 'เพิ่มผู้เช่าใหม่เพื่อเริ่มต้น'}
+            action={search.trim()
+              ? { label: 'ล้างคำค้นหา', onClick: () => setSearch('') }
+              : { label: 'เพิ่มผู้เช่า', onClick: () => setShowCreate(true) }}
+          />
         </div>
       ) : (
         <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile card view */}
+          <div className="md:hidden divide-y divide-outline-variant/10">
+            {filtered.map((t) => {
+              const name = t.fullName || 'ไม่ระบุชื่อ';
+              return (
+                <button
+                  key={`m-${t.id}`}
+                  onClick={() => openTenantDrawer(t)}
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-surface-container-lowest transition-colors"
+                >
+                  <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-sm font-bold ${avatarColor(name)}`}>
+                    {initials(name)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-on-surface truncate">{name}</span>
+                      {t.lineUserId && (
+                        <CheckCircle size={12} className="text-emerald-600 shrink-0" aria-label="LINE เชื่อมแล้ว" />
+                      )}
+                    </div>
+                    <div className="mt-0.5 text-xs text-on-surface-variant">{t.phone || '—'}</div>
+                    {t.roomTenants?.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {t.roomTenants.map((rt) => (
+                          <span key={rt.id} className="inline-flex items-center px-2 py-0.5 bg-primary-container/10 text-primary-container text-[10px] font-bold rounded-full">{rt.roomNo}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-surface-container-low/50">
                   <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ผู้เช่า</th>
-                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เบอร์โทร</th>
-                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">อีเมล</th>
+                  <th className="hidden md:table-cell px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เบอร์โทร</th>
+                  <th className="hidden lg:table-cell px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">อีเมล</th>
                   <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
-                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">LINE</th>
+                  <th className="hidden lg:table-cell px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">LINE</th>
                   <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant"></th>
                 </tr>
               </thead>
@@ -365,8 +404,8 @@ export default function AdminTenantsPage() {
                           <span className="text-sm font-semibold text-on-surface">{name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-on-surface">{t.phone || '—'}</td>
-                      <td className="px-6 py-4 text-sm text-on-surface">{t.email || '—'}</td>
+                      <td className="hidden md:table-cell px-6 py-4 text-sm text-on-surface">{t.phone || '—'}</td>
+                      <td className="hidden lg:table-cell px-6 py-4 text-sm text-on-surface">{t.email || '—'}</td>
                       <td className="px-6 py-4">
                         {t.roomTenants?.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
@@ -378,7 +417,7 @@ export default function AdminTenantsPage() {
                           <span className="text-xs text-on-surface-variant">ไม่มี</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="hidden lg:table-cell px-6 py-4">
                         {t.lineUserId ? (
                           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-600">
                             <CheckCircle size={12} />

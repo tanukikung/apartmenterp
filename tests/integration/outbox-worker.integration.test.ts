@@ -30,11 +30,17 @@ describe('Integration: Outbox worker', () => {
       },
     });
 
-    const processor = createOutboxProcessor({ enabled: true, batchSize: 10 });
-    const res = await processor.process();
-    expect(res.processed + res.failed).toBeGreaterThan(0);
-
-    const updated = await prisma.outboxEvent.findUnique({ where: { id: event.id } });
+    // Multiple parallel forks run their own outbox processors against the shared
+    // test DB; with FOR UPDATE SKIP LOCKED our event may not land in the first
+    // batch we claim. Retry until our specific event is marked processed.
+    const processor = createOutboxProcessor({ enabled: true, batchSize: 100 });
+    let updated: any = null;
+    for (let i = 0; i < 10; i++) {
+      await processor.process();
+      updated = await prisma.outboxEvent.findUnique({ where: { id: event.id } });
+      if (updated?.processedAt) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
     expect(updated?.processedAt).not.toBeNull();
   });
 });

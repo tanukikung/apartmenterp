@@ -81,6 +81,18 @@ const EXPLICIT_POLICIES: ApiRoutePolicy[] = [
     guardApplied: 'public',
   },
   {
+    pattern: '/api/health/live',
+    methods: ['GET'],
+    accessClass: 'public',
+    guardApplied: 'public',
+  },
+  {
+    pattern: '/api/health/ready',
+    methods: ['GET'],
+    accessClass: 'public',
+    guardApplied: 'public',
+  },
+  {
     pattern: '/api/health/deep',
     methods: ['GET'],
     accessClass: 'operator',
@@ -101,6 +113,12 @@ const EXPLICIT_POLICIES: ApiRoutePolicy[] = [
   {
     pattern: '/api/admin/setup/reset',
     methods: ['POST'],
+    accessClass: 'operator',
+    guardApplied: 'requireRole(ADMIN)',
+  },
+  {
+    pattern: '/api/admin/outbox/dead-letter',
+    methods: ['GET', 'POST', 'DELETE'],
     accessClass: 'operator',
     guardApplied: 'requireRole(ADMIN)',
   },

@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { prisma, logger } from '@/lib';
-import type { Json } from '@/types/prisma-json';
+
 import type { MoveOutStatus, MoveOutItemCondition } from './types';
 import {
   CreateMoveOutInput,
@@ -25,7 +25,7 @@ export class MoveOutService {
   /**
    * Create a new move-out record
    */
-  async createMoveOut(input: CreateMoveOutInput, createdBy?: string): Promise<MoveOutResponse> {
+  async createMoveOut(input: CreateMoveOutInput, _createdBy?: string): Promise<MoveOutResponse> {
     logger.info({ type: 'moveout_create', contractId: input.contractId });
 
     // Check if contract exists

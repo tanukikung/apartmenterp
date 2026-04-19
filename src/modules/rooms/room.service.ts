@@ -1,6 +1,7 @@
+import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma, EventBus, logger, EventTypes } from '@/lib';
-import { Json } from '@/types/prisma-json';
+
 import {
   CreateRoomInput,
   UpdateRoomInput,
@@ -75,7 +76,7 @@ export class RoomService {
             defaultAccountId: created.defaultAccountId,
             defaultRuleCode: created.defaultRuleCode,
             createdBy,
-          } as any,
+          },
           retryCount: 0,
         },
       });
@@ -136,7 +137,7 @@ export class RoomService {
    * List rooms with filtering and pagination
    */
   async listRooms(query: ListRoomsQuery): Promise<RoomListResponse> {
-    const { floorNo, roomStatus, page, pageSize, search, sortBy, sortOrder } = query;
+    const { floorNo, roomStatus, page, pageSize, search, q, sortBy, sortOrder } = query;
 
     // Build where clause
     const where: Record<string, unknown> = {};
@@ -154,6 +155,27 @@ export class RoomService {
         contains: search,
         mode: 'insensitive',
       };
+    }
+
+    // Free-text search: roomNo OR active tenant first/last name.
+    if (q) {
+      const trimmed = q.trim();
+      where.OR = [
+        { roomNo: { contains: trimmed, mode: 'insensitive' } },
+        {
+          tenants: {
+            some: {
+              moveOutDate: null,
+              tenant: {
+                OR: [
+                  { firstName: { contains: trimmed, mode: 'insensitive' } },
+                  { lastName: { contains: trimmed, mode: 'insensitive' } },
+                ],
+              },
+            },
+          },
+        },
+      ];
     }
 
     // Get total count
@@ -260,7 +282,7 @@ export class RoomService {
               roomNo: updated.roomNo,
               changes,
               updatedBy,
-            } as any,
+            } as Prisma.InputJsonValue,
             retryCount: 0,
           },
         });
@@ -362,7 +384,7 @@ export class RoomService {
             newStatus: input.roomStatus,
             reason: input.reason,
             changedBy,
-          } as any,
+          },
           retryCount: 0,
         },
       });

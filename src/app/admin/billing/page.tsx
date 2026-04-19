@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import React from 'react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -256,7 +256,7 @@ export default function AdminBillingPage() {
   const cycles: BillingCycle[] = cyclesData?.data?.data ?? [];
 
   // TanStack Query for invoices (lazy — only runs when activeTab === 'invoices')
-  const { data: invoicesData, isLoading: invoiceLoading, isError: invoicesError, refetch: refetchInvoices } = useQuery<{ data: { data: Invoice[] } }>({
+  const { data: invoicesData, isLoading: invoiceLoading, isError: _invoicesError, refetch: refetchInvoices } = useQuery<{ data: { data: Invoice[] } }>({
     queryKey: ['billing-invoices'],
     queryFn: async () => {
       const params = new URLSearchParams({ pageSize: '50', sortBy: 'createdAt', sortOrder: 'desc' });

@@ -7,7 +7,7 @@ import { isLineConfigured } from '@/lib/line';
 import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
-import { Json } from '@/types/prisma-json';
+
 import {
   GenerateInvoiceInput,
   SendInvoiceInput,
@@ -208,7 +208,7 @@ export class InvoiceService {
             totalAmount: Number(inv.totalAmount),
             dueDate: dueDate.toISOString().split('T')[0],
             generatedBy,
-          } as any,
+          },
           retryCount: 0,
         },
       });
@@ -392,7 +392,7 @@ export class InvoiceService {
    * List invoices
    */
   async listInvoices(query: ListInvoicesQuery): Promise<InvoicesListResponse> {
-    const { roomNo, year, month, status, page, pageSize, sortBy, sortOrder } = query;
+    const { q, roomNo, year, month, status, page, pageSize, sortBy, sortOrder } = query;
 
     const where: Record<string, unknown> = {};
 
@@ -400,6 +400,31 @@ export class InvoiceService {
     if (year) where.year = year;
     if (month) where.month = month;
     if (status) where.status = status;
+
+    // Free-text search: matches on roomNo OR id (prefix), OR tenant firstName/lastName
+    // via the nested room → roomTenants → tenant relation. Case-insensitive.
+    if (q) {
+      const trimmed = q.trim();
+      where.OR = [
+        { roomNo: { contains: trimmed, mode: 'insensitive' } },
+        { id: { startsWith: trimmed } },
+        {
+          room: {
+            tenants: {
+              some: {
+                moveOutDate: null,
+                tenant: {
+                  OR: [
+                    { firstName: { contains: trimmed, mode: 'insensitive' } },
+                    { lastName: { contains: trimmed, mode: 'insensitive' } },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      ];
+    }
 
     const SORT_FIELD_MAP: Record<string, string> = { totalAmount: 'totalAmount' };
     const prismaOrderField = SORT_FIELD_MAP[sortBy] ?? sortBy;
@@ -596,7 +621,7 @@ export class InvoiceService {
                   })
                 : '',
             },
-          } as any,
+          },
           retryCount: 0,
         },
       });
@@ -654,7 +679,7 @@ export class InvoiceService {
             sentBy: sentBy || 'system',
             sentByName: sentBy || 'system',
             sentAt: sentAt.toISOString(),
-          } as any,
+          },
           retryCount: 0,
         },
       });
@@ -1051,7 +1076,7 @@ export class InvoiceService {
       tenants?: Array<{ tenant?: { id?: string; firstName?: string; lastName?: string; phone?: string; lineUserId?: string | null } | null }>;
       roomTenants?: Array<{ tenant?: { id?: string; firstName?: string; lastName?: string; phone?: string; lineUserId?: string | null } | null }>;
     };
-    const room = invoice.room as unknown as RoomWithTenants | undefined;
+    const room = invoice.room as any as RoomWithTenants | undefined;
     const primaryTenant = room?.tenants?.[0]?.tenant ?? room?.roomTenants?.[0]?.tenant;
     const tenantName = primaryTenant
       ? `${primaryTenant.firstName ?? ''} ${primaryTenant.lastName ?? ''}`.trim() || null

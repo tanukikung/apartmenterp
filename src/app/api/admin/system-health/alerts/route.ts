@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
-import { getAlerts, clearAlerts, getActiveAlertCount, type Alert } from '@/lib/metrics/alerts';
+import { getAlerts, clearAlerts, getActiveAlertCount } from '@/lib/metrics/alerts';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   requireRole(req, ['ADMIN']);

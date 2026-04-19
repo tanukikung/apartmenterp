@@ -31,7 +31,6 @@ APP_HOST=localhost          # VPS: ใส่ IP เช่น 103.21.45.67
 DB_PASSWORD=ตั้งรหัสเอง
 REDIS_PASSWORD=ตั้งรหัสเอง
 NEXTAUTH_SECRET=ตั้งรหัสเอง
-ONLYOFFICE_JWT_SECRET=ตั้งรหัสเอง
 ```
 
 ### 3. Build และรัน
@@ -47,7 +46,6 @@ docker compose up -d --build
 | | URL |
 |---|---|
 | ERP System | `http://localhost:3001` |
-| OnlyOffice | `http://localhost:8080` |
 
 **Default credentials** (เปลี่ยนทันทีหลัง login):
 
@@ -163,7 +161,6 @@ make backup        dump PostgreSQL backup
 | `DB_PASSWORD` | ✅ | รหัส PostgreSQL |
 | `REDIS_PASSWORD` | ✅ | รหัส Redis |
 | `NEXTAUTH_SECRET` | ✅ | Secret สำหรับ session (random string) |
-| `ONLYOFFICE_JWT_SECRET` | ✅ | JWT secret สำหรับ OnlyOffice |
 | `LINE_CHANNEL_ID` | optional | LINE OA integration |
 | `LINE_CHANNEL_SECRET` | optional | LINE OA integration |
 | `LINE_ACCESS_TOKEN` | optional | LINE OA integration |
@@ -191,7 +188,7 @@ apartment_erp/
 │   └── public/
 │       └── billing_template.xlsx  # Excel template สำหรับ import บิล
 ├── docs/                    # Architecture, schema, runbooks
-├── docker-compose.yml       # 4 services: postgres, redis, onlyoffice, app
+├── docker-compose.yml       # 3 services: postgres, redis, app
 ├── .env.example             # Template สำหรับ copy เป็น .env
 ├── Makefile
 └── setup.mjs                # Interactive setup wizard
@@ -207,7 +204,7 @@ apartment_erp/
 | API | Next.js App Router API routes |
 | Database | PostgreSQL 15+ with Prisma ORM |
 | Messaging | LINE Official Account API |
-| Document Editor | OnlyOffice Document Server |
+| Document Editor | Tiptap (built-in) |
 | Infrastructure | Docker, Redis |
 
 ---

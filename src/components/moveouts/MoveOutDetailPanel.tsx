@@ -2,20 +2,9 @@
 
 import React from 'react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import {
-  XCircle,
-  Send,
-  Calculator,
-  CheckCircle2,
-  Trash2,
-} from 'lucide-react';
-import type {
-  MoveOutRecord,
-  MoveOutItemRecord,
-} from './types';
-import {
-  EMPTY_DEDUCTION_FORM,
-} from './types';
+import { XCircle, Send, Calculator, CheckCircle2, Trash2 } from 'lucide-react';
+import type { MoveOutRecord } from './types';
+import { EMPTY_DEDUCTION_FORM } from './types';
 import { fmtDate, fmtMoney } from './utils';
 import { MoveOutStatusBadge } from './MoveOutStatusBadge';
 

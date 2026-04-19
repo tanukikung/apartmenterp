@@ -68,7 +68,7 @@ function statusBadge(status: BatchStatus) {
 export default function BillingBatchesPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<BatchStatus | 'ALL'>('ALL');
-  const queryClient = useQueryClient();
+  const _queryClient = useQueryClient();
 
   const { data: batchesData, isLoading: loading, error, refetch } = useQuery<{ success: boolean; data: { batches: ImportBatch[] } }>({
     queryKey: ['billing-batches', status],

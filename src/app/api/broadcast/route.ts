@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireRole } from '@/lib/auth/guards';
-import { asyncHandler, ApiResponse, NotFoundError } from '@/lib/utils/errors';
+import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit';
 import { prisma } from '@/lib/db/client';
 import { getLineClient } from '@/lib/line';
@@ -148,7 +148,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
           type: 'text',
           text: input.message,
         });
-        lineMessageId = (result as unknown as { messageId?: string }).messageId;
+        lineMessageId = (result as any as { messageId?: string }).messageId;
         sent++;
       } catch (err: unknown) {
         const error = err as { status?: number; message?: string; headers?: { get?: (name: string) => string | null } };
@@ -163,7 +163,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
               type: 'text',
               text: input.message,
             });
-            lineMessageId = (result as unknown as { messageId?: string }).messageId;
+            lineMessageId = (result as any as { messageId?: string }).messageId;
             sent++;
           } catch (retryErr) {
             logger.warn({ type: 'broadcast_send_error_retry', userId, error: String(retryErr) });

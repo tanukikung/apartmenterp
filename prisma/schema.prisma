@@ -622,9 +622,14 @@ model AdminUser {
   isActive            Boolean              @default(true)
   forcePasswordChange Boolean              @default(false)
   lineUserId          String?
-  // buildingId: Reserved for multi-tenant/building isolation.
-  // Currently not enforced at API layer - ADMIN users can access all buildings' data.
-  // TODO: Add proper relations when Building model is introduced.
+  // buildingId: SINGLE-BUILDING SYSTEM — informational field only, NOT a
+  // security boundary. Tenants communicate exclusively via LINE (no tenant
+  // login exists) and all admin users may access all data for this property.
+  //
+  // If expansion to multi-building is ever pursued, EVERY admin API query
+  // must be audited and filtered by buildingId first. Until that enforcement
+  // layer is implemented, do not add code that assumes buildingId provides
+  // isolation — it does not.
   buildingId          String?
   createdAt           DateTime @default(now()) @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @db.Timestamptz(6)

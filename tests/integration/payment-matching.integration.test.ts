@@ -3,7 +3,6 @@ import { describe, it, expect, vi } from 'vitest';
 vi.doUnmock('@/lib/db/client');
 vi.resetModules();
 process.env.USE_PRISMA_TEST_DB = 'true';
-process.env.USE_PRISMA_TEST_DB = 'true';
 
 describe('Integration: Payment Matching', () => {
   // TODO: depends on broken billing.factory stubs + non-existent
@@ -26,44 +25,52 @@ describe('Integration: Payment Matching', () => {
       import('@/modules/billing/billing.service'),
       import('@/modules/payments/payment-matching.service'),
     ]);
-      try {
-        await prisma.$connect();
-      } catch {
-        return;
-      }
-      const building = await roomFactory.createBuilding();
-      const floor = await roomFactory.createFloor(building.id);
-      const room = await roomFactory.createRoom(floor.id, { roomNumber: 'C202' });
+    try {
+      await prisma.$connect();
+    } catch {
+      return;
+    }
 
-      const { id: billingId } = await billingFactory.createBillingRecordForRoom((room as any).roomNo ?? (room as any).id);
-      await billingFactory.addOtherItem(billingId, 5000, 'Monthly');
+    // Randomize year to sidestep (year, month) uniqueness across parallel forks
+    const year = 3000 + Math.floor(Math.random() * 1000);
+    const month = 1 + Math.floor(Math.random() * 12);
 
-      const { getBillingService } = billingMod as any;
-      const billingSvc = getBillingService();
-      await billingSvc.lockBillingRecord(billingId, { force: false }, 'tester');
-      const invoice = await invoiceFactory.createInvoiceFromBilling(billingId);
+    const room = await roomFactory.createRoom('stub-floor-1', { roomNumber: 'PMATCH' });
 
-      const tx = await prisma.paymentTransaction.create({
-        data: {
-          amount: Number(invoice.totalAmount),
-          transactionDate: new Date(),
-          description: `Invoice ${invoice.id}`,
-          reference: 'MATCH-OK',
-          sourceFile: 'test',
-          status: 'PENDING',
-        } as any,
-      });
+    const billing = await billingFactory.createBillingRecordForRoom(
+      (room as any).roomNo,
+      { year, month, rentAmount: 5000 }
+    );
+    await billingFactory.addOtherItem(billing.id, 3000, 'Extra');
 
-      const { getPaymentMatchingService } = matchingMod as any;
-      const matcher = getPaymentMatchingService();
-      await matcher.confirmMatch(tx.id, invoice.id, 'tester');
+    const { getBillingService } = billingMod as any;
+    const billingSvc = getBillingService();
+    await billingSvc.lockBillingRecord(billing.id, { force: false }, 'tester');
 
-      const updated = await prisma.invoice.findUnique({ where: { id: invoice.id } });
-      expect(updated?.status).toBe('PAID');
+    const invoice = await invoiceFactory.createInvoiceFromBilling(billing.id);
 
-      const outbox = await prisma.outboxEvent.findFirst({
-        where: { aggregateId: invoice.id, eventType: 'InvoicePaid' },
-      });
-      expect(outbox).toBeTruthy();
+    const tx = await prisma.paymentTransaction.create({
+      data: {
+        amount: Number(invoice.totalAmount),
+        transactionDate: new Date(),
+        description: `Invoice ${invoice.id}`,
+        reference: 'MATCH-OK',
+        sourceFile: 'test',
+        status: 'PENDING',
+        confidenceScore: 0.9,
+      } as any,
+    });
+
+    const { getPaymentMatchingService } = matchingMod as any;
+    const matcher = getPaymentMatchingService();
+    await matcher.confirmMatch(tx.id, invoice.id, 'tester');
+
+    const updated = await prisma.invoice.findUnique({ where: { id: invoice.id } });
+    expect(updated?.status).toBe('PAID');
+
+    const outbox = await prisma.outboxEvent.findFirst({
+      where: { aggregateId: invoice.id, eventType: 'InvoicePaid' },
+    });
+    expect(outbox).toBeTruthy();
   });
 });

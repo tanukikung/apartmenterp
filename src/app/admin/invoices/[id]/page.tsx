@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -15,6 +15,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { isLineConfigured } from '@/lib/line/is-configured';
 
 // ---------------------------------------------------------------------------
@@ -137,8 +138,8 @@ function RecordPaymentForm({
   invoiceId: string;
   onSuccess: () => void;
 }) {
-  const queryClient = useQueryClient();
-  const [amount, setAmount] = useState('');
+  const _queryClient = useQueryClient();
+  const [amount, setAmount] = useState<number | null>(null);
   const [method, setMethod] = useState('CASH');
   const [reference, setReference] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -157,14 +158,14 @@ function RecordPaymentForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           invoiceId,
-          amount: parseFloat(amount),
+          amount: amount ?? 0,
           method,
           referenceNumber: reference || undefined,
         }),
       }).then(r => r.json());
       if (res.success) {
         setMessage(res.message || 'บันทึกการชำระแล้ว');
-        setAmount('');
+        setAmount(null);
         setReference('');
         onSuccess();
       } else {
@@ -185,13 +186,12 @@ function RecordPaymentForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="text-xs font-medium text-slate-600">จำนวน (บาท)</label>
-          <input
-            type="number"
+          <CurrencyInput
             value={amount}
-            onChange={e => setAmount(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-outline bg-white px-3 py-2 text-sm"
+            onChange={setAmount}
+            ariaLabel="จำนวน (บาท)"
             required
-            min="1"
+            className="mt-1 w-full rounded-lg border border-outline bg-white px-3 py-2 text-sm"
           />
         </div>
         <div>

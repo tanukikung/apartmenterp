@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ClientOnly } from '@/components/ui/ClientOnly';
-import {
-  Wrench, RefreshCw, ChevronDown, User, Home, AlertTriangle,
-  Clock, CheckCircle2, XCircle, Loader2, MessageSquare,
-} from 'lucide-react';
+import { Wrench, RefreshCw, User, Home, AlertTriangle, Clock, CheckCircle2, XCircle, Loader2, MessageSquare, Search } from 'lucide-react';
+import { useUrlState } from '@/hooks/useUrlState';
+import { SkeletonTable } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -55,9 +55,12 @@ const ALL_STATUSES: Status[] = ['OPEN', 'IN_PROGRESS', 'WAITING_PARTS', 'DONE', 
 
 // ─── API helpers ─────────────────────────────────────────────────────────────
 
-async function fetchTickets(status?: string): Promise<{ data: Ticket[]; total: number }> {
-  const q = status && status !== 'ALL' ? `?status=${status}` : '';
-  const res = await fetch(`/api/admin/maintenance${q}`);
+async function fetchTickets(status?: string, q?: string): Promise<{ data: Ticket[]; total: number }> {
+  const params = new URLSearchParams();
+  if (status && status !== 'ALL') params.set('status', status);
+  if (q && q.trim()) params.set('q', q.trim());
+  const qs = params.toString();
+  const res = await fetch(`/api/admin/maintenance${qs ? `?${qs}` : ''}`);
   const json = await res.json();
   if (!json.success) throw new Error(json.error?.message || 'โหลดข้อมูลไม่ได้');
   return json.data;
@@ -97,16 +100,24 @@ async function addComment(ticketId: string, message: string) {
 
 function MaintenancePage() {
   const qc = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useUrlState('status', 'ALL');
+  const [search, setSearch] = useUrlState('q', '');
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [comment, setComment] = useState('');
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
+  // Debounce search so typing doesn't hammer the API / bust the query cache.
+  const [searchDebounced, setSearchDebounced] = useState(search);
+  useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['maintenance', statusFilter],
-    queryFn: () => fetchTickets(statusFilter),
+    queryKey: ['maintenance', statusFilter, searchDebounced],
+    queryFn: () => fetchTickets(statusFilter, searchDebounced),
     refetchInterval: 30000,
   });
 
@@ -174,19 +185,31 @@ function MaintenancePage() {
         </div>
       </div>
 
-      {/* Filter */}
-      <div className="flex gap-2 flex-wrap">
-        {(['ALL', ...ALL_STATUSES] as const).map(s => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium border transition ${
-              statusFilter === s ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            {s === 'ALL' ? 'ทั้งหมด' : STATUS_LABEL[s as Status]}
-          </button>
-        ))}
+      {/* Filter + Search */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-2 flex-wrap">
+          {(['ALL', ...ALL_STATUSES] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium border transition ${
+                statusFilter === s ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {s === 'ALL' ? 'ทั้งหมด' : STATUS_LABEL[s as Status]}
+            </button>
+          ))}
+        </div>
+        <div className="relative sm:w-72">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="ค้นหาห้อง, ผู้เช่า, หัวข้อ..."
+            className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          />
+        </div>
       </div>
 
       {/* Main layout */}
@@ -194,12 +217,13 @@ function MaintenancePage() {
         {/* Ticket list */}
         <div className="lg:col-span-2 space-y-3">
           {isLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
+            <SkeletonTable rows={6} />
           ) : tickets.length === 0 ? (
-            <div className="bg-white border rounded-lg p-12 text-center text-gray-400">
-              <Wrench className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>ไม่พบรายการแจ้งซ่อม</p>
-            </div>
+            <EmptyState
+              icon={<Wrench className="h-7 w-7" />}
+              title="ไม่พบรายการแจ้งซ่อม"
+              description={searchDebounced || statusFilter !== 'ALL' ? 'ลองเปลี่ยนตัวกรองหรือล้างการค้นหา' : 'ยังไม่มีการแจ้งซ่อมในระบบ'}
+            />
           ) : tickets.map(ticket => (
             <div
               key={ticket.id}

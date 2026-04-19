@@ -6,7 +6,7 @@ import { getOutboxProcessor } from '@/lib/outbox';
 import { logAudit } from '@/modules/audit';
 import { logger, prisma } from '@/lib';
 import { applyPlainTextTemplateVariables } from '@/lib/templates/document-template';
-import type { Json } from '@/types/prisma-json';
+
 
 const schema = z.object({
   type: z.literal('overdue_reminder').default('overdue_reminder'),
@@ -106,7 +106,7 @@ export const POST = asyncHandler(
         text,
         templateId,
         reminderType: input.type,
-      } as any,
+      },
     );
 
     await logAudit({

@@ -1,5 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterAll, describe, it, expect, vi, beforeEach } from 'vitest';
 import { prisma } from '@/lib';
+
+// Fake timers here must not leak into the global afterAll in tests/setup.ts,
+// which uses setTimeout() to cap prisma.$disconnect(). Without the cleanup
+// below, that setTimeout never fires and the hook times out (30s).
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 vi.mock('@/lib/line/client', () => ({
   getLineClient: vi.fn(),
@@ -62,7 +69,7 @@ vi.mock('@/lib', async () => {
       },
       room: {
         count: vi.fn(),
-        findMany: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
       },
       roomBilling: {
         aggregate: vi.fn(),
@@ -135,13 +142,7 @@ describe('Analytics API', () => {
       .mockResolvedValueOnce(20) // occupied
       .mockResolvedValueOnce(10) // vacant
       .mockResolvedValueOnce(0)  // maintenance
-      .mockResolvedValueOnce(0); // owner use
-    (prisma.room.findMany as any).mockResolvedValue(
-      Array.from({ length: 30 }, (_, i) => ({
-        roomStatus: i < 20 ? 'OCCUPIED' : 'VACANT',
-        floorNo: Math.floor(i / 10) + 1,
-      })),
-    );
+      .mockResolvedValueOnce(0); // ownerUse
     const mod = await import('@/app/api/analytics/occupancy/route');
     const res: Response = await (mod as any).GET({} as any);
     expect(res.ok).toBe(true);

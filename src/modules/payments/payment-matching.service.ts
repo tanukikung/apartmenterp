@@ -204,7 +204,7 @@ export class PaymentMatchingService {
     for (const inv of unpaidInvoices) {
       const candidate = this.evaluateMatch(
         {
-          amount: Number((transaction as unknown as { amount: unknown }).amount as number),
+          amount: Number((transaction as any as { amount: unknown }).amount as number),
           description: transaction.description ?? undefined,
           reference: transaction.reference ?? undefined,
         },
@@ -213,7 +213,7 @@ export class PaymentMatchingService {
           total: Number(inv.totalAmount),
           room: {
             roomNumber: inv.roomNo,
-            roomTenants: ((inv.room as unknown as { tenants?: Array<{ tenant?: { firstName?: string; lastName?: string } | null }> })?.tenants ?? []).map((rt) => ({
+            roomTenants: ((inv.room as any as { tenants?: Array<{ tenant?: { firstName?: string; lastName?: string } | null }> })?.tenants ?? []).map((rt) => ({
               tenant: {
                 firstName: rt.tenant?.firstName ?? '',
                 lastName: rt.tenant?.lastName ?? '',
@@ -854,4 +854,16 @@ export class PaymentMatchingService {
 
 export function createPaymentMatchingService(): PaymentMatchingService {
   return new PaymentMatchingService();
+}
+
+let _paymentMatchingSingleton: PaymentMatchingService | null = null;
+/**
+ * Cached singleton accessor used by route handlers and integration tests
+ * that don't go through the DI container.
+ */
+export function getPaymentMatchingService(): PaymentMatchingService {
+  if (!_paymentMatchingSingleton) {
+    _paymentMatchingSingleton = new PaymentMatchingService();
+  }
+  return _paymentMatchingSingleton;
 }

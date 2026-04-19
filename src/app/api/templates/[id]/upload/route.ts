@@ -23,6 +23,13 @@ export const POST = asyncHandler(async (
       { status: 400 },
     );
   }
+  const MAX_TEMPLATE_SIZE = 5 * 1024 * 1024; // 5 MB — HTML templates should be small
+  if (file.size > MAX_TEMPLATE_SIZE) {
+    return NextResponse.json(
+      { success: false, error: { name: 'BadRequest', message: 'Template file too large (max 5 MB)', code: 'BAD_REQUEST', statusCode: 400 } },
+      { status: 400 },
+    );
+  }
 
   const service = getDocumentTemplateService();
   const result = await service.uploadTemplateVersion(params.id, file, session.sub);

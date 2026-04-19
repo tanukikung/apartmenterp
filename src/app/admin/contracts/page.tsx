@@ -1,21 +1,10 @@
 'use client';
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  FileText,
-  Search,
-  Plus,
-  X,
-  ChevronRight,
-  FileSignature,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  Pencil,
-  RefreshCw,
-} from 'lucide-react';
+import { FileText, Search, Plus, X, ChevronRight, FileSignature, AlertCircle, CheckCircle2, Clock, XCircle, Pencil, RefreshCw } from 'lucide-react';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
+import { ThaiDateInput } from '@/components/ui/ThaiDateInput';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -207,7 +196,7 @@ export default function AdminContractsPage() {
     },
   });
 
-  const contracts = contractsData?.data ?? [];
+  const contracts = useMemo(() => contractsData?.data ?? [], [contractsData?.data]);
   const total = contractsData?.total ?? 0;
   const loading = contractsLoading;
   const error = contractsError?.message ?? null;
@@ -788,24 +777,24 @@ function NewContractForm({
           <label className="mb-1 block text-[12px] font-semibold text-on-surface">
             วันที่เริ่ม <span className="text-red-500">*</span>
           </label>
-          <input
-            type="date"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
+          <ThaiDateInput
+            ariaLabel="วันที่เริ่ม"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             required
             value={form.startDate}
-            onChange={(e) => patch('startDate', e.target.value)}
+            onChange={(iso) => patch('startDate', iso)}
           />
         </div>
         <div>
           <label className="mb-1 block text-[12px] font-semibold text-on-surface">
             วันที่สิ้นสุด <span className="text-red-500">*</span>
           </label>
-          <input
-            type="date"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
+          <ThaiDateInput
+            ariaLabel="วันที่สิ้นสุด"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             required
             value={form.endDate}
-            onChange={(e) => patch('endDate', e.target.value)}
+            onChange={(iso) => patch('endDate', iso)}
           />
         </div>
       </div>
@@ -816,31 +805,25 @@ function NewContractForm({
           <label className="mb-1 block text-[12px] font-semibold text-on-surface">
             ค่าเช่ารายเดือน (฿) <span className="text-red-500">*</span>
           </label>
-          <input
-            type="number"
-            min="1"
-            max="999999"
-            step="0.01"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
+          <CurrencyInput
+            ariaLabel="ค่าเช่ารายเดือน"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             required
             placeholder="e.g. 8000"
-            value={form.rentAmount}
-            onChange={(e) => patch('rentAmount', e.target.value)}
+            value={form.rentAmount === '' ? null : Number(form.rentAmount)}
+            onChange={(n) => patch('rentAmount', n === null ? '' : String(n))}
           />
         </div>
         <div>
           <label className="mb-1 block text-[12px] font-semibold text-on-surface">
             เงินมัดจำ (฿)
           </label>
-          <input
-            type="number"
-            min="0"
-            max="999999"
-            step="0.01"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
+          <CurrencyInput
+            ariaLabel="เงินมัดจำ"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             placeholder="e.g. 16000"
-            value={form.depositAmount}
-            onChange={(e) => patch('depositAmount', e.target.value)}
+            value={form.depositAmount === '' ? null : Number(form.depositAmount)}
+            onChange={(n) => patch('depositAmount', n === null ? '' : String(n))}
           />
         </div>
       </div>
@@ -953,22 +936,22 @@ function EditContractForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="mb-1 block text-[12px] font-semibold text-on-surface">วันที่เริ่ม</label>
-          <input
-            type="date"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
+          <ThaiDateInput
+            ariaLabel="วันที่เริ่ม"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             disabled={contract.status !== 'ACTIVE'}
             value={form.startDate}
-            onChange={(e) => patch('startDate', e.target.value)}
+            onChange={(iso) => patch('startDate', iso)}
           />
         </div>
         <div>
           <label className="mb-1 block text-[12px] font-semibold text-on-surface">วันที่สิ้นสุด</label>
-          <input
-            type="date"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
+          <ThaiDateInput
+            ariaLabel="วันที่สิ้นสุด"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             disabled={contract.status !== 'ACTIVE'}
             value={form.endDate}
-            onChange={(e) => patch('endDate', e.target.value)}
+            onChange={(iso) => patch('endDate', iso)}
           />
         </div>
       </div>
@@ -977,28 +960,22 @@ function EditContractForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="mb-1 block text-[12px] font-semibold text-on-surface">ค่าเช่ารายเดือน (฿)</label>
-          <input
-            type="number"
-            min="1"
-            max="999999"
-            step="0.01"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
+          <CurrencyInput
+            ariaLabel="ค่าเช่ารายเดือน"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             disabled={contract.status !== 'ACTIVE'}
-            value={form.rentAmount}
-            onChange={(e) => patch('rentAmount', e.target.value)}
+            value={form.rentAmount === '' ? null : Number(form.rentAmount)}
+            onChange={(n) => patch('rentAmount', n === null ? '' : String(n))}
           />
         </div>
         <div>
           <label className="mb-1 block text-[12px] font-semibold text-on-surface">เงินมัดจำ (฿)</label>
-          <input
-            type="number"
-            min="0"
-            max="999999"
-            step="0.01"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
+          <CurrencyInput
+            ariaLabel="เงินมัดจำ"
+            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             disabled={contract.status !== 'ACTIVE'}
-            value={form.depositAmount}
-            onChange={(e) => patch('depositAmount', e.target.value)}
+            value={form.depositAmount === '' ? null : Number(form.depositAmount)}
+            onChange={(n) => patch('depositAmount', n === null ? '' : String(n))}
           />
         </div>
       </div>

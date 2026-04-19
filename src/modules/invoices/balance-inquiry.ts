@@ -1,4 +1,4 @@
-import { Prisma, InvoiceStatus } from '@prisma/client';
+import { InvoiceStatus } from '@prisma/client';
 import { prisma } from '@/lib/db/client';
 import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
 import { logger } from '@/lib/utils/logger';
