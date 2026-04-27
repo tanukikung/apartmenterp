@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/lib/db/client';
 import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, NotFoundError, ConflictError, BadRequestError } from '@/lib/utils/errors';
-import { logAudit } from '@/modules/audit/audit.service';
+import { getOutboxProcessor } from '@/lib/outbox';
+import { logAudit } from '@/modules/audit';
 
 type Params = { params: { id: string } };
 
@@ -18,66 +20,181 @@ export const POST = asyncHandler(async (req: NextRequest, context: Params): Prom
     throw new BadRequestError(`Registration is already ${reg.status.toLowerCase()} and cannot be approved`);
   }
 
-  // Validation 1: duplicate LINE account
-  const existingTenant = await prisma.tenant.findUnique({
-    where: { lineUserId: reg.lineUserId },
-    select: { id: true, firstName: true, lastName: true },
-  });
-  if (existingTenant) {
-    throw new ConflictError(
-      `LINE account ${reg.lineUserId} is already linked to tenant ${existingTenant.firstName} ${existingTenant.lastName} (id: ${existingTenant.id})`
-    );
-  }
-
-  // Validation 2: claimed room must resolve to an actual room
+  // Validation: claimed room must be provided
   if (!reg.claimedRoom) {
     throw new BadRequestError('Registration has no claimed room number. Request a correction before approving.');
   }
 
+  // Fetch room with current tenants
   const room = await prisma.room.findFirst({
-    where: { roomNo: reg.claimedRoom, roomStatus: 'VACANT' },
-    select: { roomNo: true, maxResidents: true, tenants: { where: { moveOutDate: null }, select: { tenantId: true, role: true } } },
+    where: { roomNo: reg.claimedRoom },
+    include: {
+      tenants: { where: { moveOutDate: null }, include: { tenant: true } },
+    },
   });
 
   if (!room) {
-    throw new BadRequestError(`Claimed room "${reg.claimedRoom}" does not match any active room. Request a correction before approving.`);
+    throw new BadRequestError(`Claimed room "${reg.claimedRoom}" does not exist.`);
   }
 
-  // Validation 3: room must not be full
+  // Check capacity
   if (room.tenants.length >= room.maxResidents) {
-    throw new BadRequestError(`Room ${room.roomNo} is full (${room.maxResidents}/${room.maxResidents} occupants). Cannot approve additional registration.`);
+    throw new BadRequestError(`Room ${room.roomNo} is full (${room.maxResidents}/${room.maxResidents} occupants).`);
   }
 
-  // Validation 4: room must have a primary tenant
-  const hasPrimary = room.tenants.some((rt) => rt.role === 'PRIMARY');
-  if (!hasPrimary) {
-    throw new BadRequestError(`Room ${room.roomNo} has no primary tenant. Assign a primary tenant to the room before approving a secondary registration.`);
-  }
+  // ─── CASE A: Room has no tenants (new primary tenant registration) ─
+  if (room.tenants.length === 0) {
+    // Parse name from lineDisplayName or fallback to phone
+    const displayName = reg.lineDisplayName || reg.phone || 'ผู้เช่า';
+    const nameParts = displayName.trim().split(/\s+/);
+    const firstName = nameParts[0] || displayName;
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-  const primaryRoomTenant = room.tenants.find((rt) => rt.role === 'PRIMARY');
+    let createdTenantId: string | undefined;
 
-  // Single atomic transaction with row lock
-  const approved = await prisma.$transaction(async (tx) => {
-    const lockedReg = await tx.tenantRegistration.findUnique({ where: { id } });
-    if (!lockedReg) throw new NotFoundError('TenantRegistration', id);
-    if (lockedReg.status !== 'PENDING' && lockedReg.status !== 'CORRECTION_REQUESTED') {
-      throw new BadRequestError(`Registration is already ${lockedReg.status.toLowerCase()} and cannot be approved`);
-    }
+    // Atomic: create tenant + room tenant + update registration + link LINE
+    await prisma.$transaction(async (tx) => {
+      // Step 1: Create new tenant record
+      const newTenant = await tx.tenant.create({
+        data: {
+          id: uuidv4(),
+          firstName,
+          lastName,
+          phone: reg.phone || '',
+          lineUserId: reg.lineUserId,
+        },
+      });
+      createdTenantId = newTenant.id;
 
-    if (primaryRoomTenant) {
-      const primaryTenant = await tx.tenant.findUnique({ where: { id: primaryRoomTenant.tenantId }, select: { id: true, lineUserId: true } });
-      if (primaryTenant && !primaryTenant.lineUserId) {
-        await tx.tenant.update({ where: { id: primaryRoomTenant.tenantId }, data: { lineUserId: reg.lineUserId } });
-      }
-    }
+      // Step 2: Assign tenant to room as PRIMARY — this also marks room OCCUPIED
+      await tx.roomTenant.create({
+        data: {
+          id: uuidv4(),
+          roomNo: room.roomNo,
+          tenantId: newTenant.id,
+          role: 'PRIMARY',
+          moveInDate: new Date(),
+        },
+      });
 
-    return tx.tenantRegistration.update({
-      where: { id },
-      data: { status: 'APPROVED', resolvedRoomNo: room.roomNo, resolvedTenantId: primaryRoomTenant?.tenantId ?? null, reviewedById: session.sub, reviewedAt: new Date(), updatedAt: new Date() },
+      // Step 3: Mark room as OCCUPIED
+      await tx.room.update({
+        where: { roomNo: room.roomNo },
+        data: { roomStatus: 'OCCUPIED' },
+      });
+
+      // Step 4: Update registration to APPROVED
+      await tx.tenantRegistration.update({
+        where: { id },
+        data: {
+          status: 'APPROVED',
+          resolvedRoomNo: room.roomNo,
+          resolvedTenantId: newTenant.id,
+          reviewedById: session.sub,
+          reviewedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      // Step 5: Create LINE conversation for future messaging
+      await tx.conversation.create({
+        data: {
+          id: uuidv4(),
+          lineUserId: reg.lineUserId,
+          tenantId: newTenant.id,
+          roomNo: room.roomNo,
+          lastMessageAt: new Date(),
+          unreadCount: 0,
+          status: 'ACTIVE',
+        },
+      });
     });
-  }, { timeout: 10_000 });
 
-  await logAudit({ actorId: session.sub, actorRole: session.role, action: 'TENANT_REGISTRATION_APPROVED', entityType: 'TenantRegistration', entityId: id, metadata: { lineUserId: reg.lineUserId, resolvedRoomNo: room.roomNo, resolvedTenantId: primaryRoomTenant?.tenantId } });
+    // Step 6: Write welcome message to outbox (non-blocking)
+    const processor = getOutboxProcessor();
+    await processor.writeOne(
+      'Conversation',
+      reg.lineUserId, // aggregateId — conversation not created yet, use lineUserId
+      'RegistrationApproved',
+      {
+        tenantId: createdTenantId,
+        lineUserId: reg.lineUserId,
+        roomNo: room.roomNo,
+        tenantName: `${firstName} ${lastName}`.trim(),
+        messageType: 'welcome',
+      },
+    );
 
-  return NextResponse.json({ success: true, data: approved, message: 'Registration approved' } as ApiResponse<typeof approved>);
+    await logAudit({
+      actorId: session.sub,
+      actorRole: session.role,
+      action: 'TENANT_REGISTRATION_APPROVED',
+      entityType: 'TenantRegistration',
+      entityId: id,
+      metadata: { lineUserId: reg.lineUserId, roomNo: room.roomNo, tenantId: createdTenantId },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: { registrationId: id, tenantId: createdTenantId, roomNo: room.roomNo },
+      message: 'Registration approved — tenant created and assigned to room',
+    } as ApiResponse<{ registrationId: string; tenantId: string; roomNo: string }>);
+  }
+
+  // ─── CASE B: Room already has a primary tenant (secondary registration) ─
+  const primaryRT = room.tenants.find((rt) => rt.role === 'PRIMARY');
+  if (!primaryRT) {
+    throw new BadRequestError(
+      `Room ${room.roomNo} has no primary tenant. Assign a primary tenant before approving secondary registrations.`
+    );
+  }
+
+  // Check duplicate LINE account — can't register the same LINE twice
+  if (reg.lineUserId) {
+    const existingTenant = await prisma.tenant.findUnique({
+      where: { lineUserId: reg.lineUserId },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    if (existingTenant) {
+      throw new ConflictError(
+        `LINE account is already linked to tenant ${existingTenant.firstName} ${existingTenant.lastName}`
+      );
+    }
+  }
+
+  // Link LINE account to existing primary tenant
+  if (reg.lineUserId && primaryRT.tenant && !primaryRT.tenant.lineUserId) {
+    await prisma.tenant.update({
+      where: { id: primaryRT.tenantId },
+      data: { lineUserId: reg.lineUserId },
+    });
+  }
+
+  // Update registration
+  const approved = await prisma.tenantRegistration.update({
+    where: { id },
+    data: {
+      status: 'APPROVED',
+      resolvedRoomNo: room.roomNo,
+      resolvedTenantId: primaryRT.tenantId,
+      reviewedById: session.sub,
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+
+  await logAudit({
+    actorId: session.sub,
+    actorRole: session.role,
+    action: 'TENANT_REGISTRATION_APPROVED',
+    entityType: 'TenantRegistration',
+    entityId: id,
+    metadata: { lineUserId: reg.lineUserId, roomNo: room.roomNo, resolvedTenantId: primaryRT.tenantId },
+  });
+
+  return NextResponse.json({
+    success: true,
+    data: approved,
+    message: 'Registration approved — LINE account linked to existing primary tenant',
+  } as ApiResponse<typeof approved>);
 });

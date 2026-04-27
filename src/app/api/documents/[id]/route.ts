@@ -5,6 +5,7 @@ import { getDocumentGenerationService } from '@/modules/documents/generation.ser
 import { getStorage } from '@/infrastructure/storage';
 import { logAudit } from '@/modules/audit';
 import { prisma } from '@/lib/db/client';
+import { logger } from '@/lib/utils/logger';
 
 export const GET = asyncHandler(async (
   req: NextRequest,
@@ -40,8 +41,9 @@ export const DELETE = asyncHandler(async (
   for (const file of document.files) {
     try {
       await storage.deleteFile(file.uploadedFile.storageKey);
-    } catch {
-      // File may already be deleted — continue
+    } catch (err) {
+      // File may already be deleted — continue but log the issue
+      logger.warn({ type: 'document_file_delete_failed', storageKey: file.uploadedFile.storageKey, error: err instanceof Error ? err.message : String(err) });
     }
   }
 

@@ -37,28 +37,48 @@ const STATUS_LABELS: Record<RoomStatus, string> = {
   UNAVAILABLE: 'ไม่พร้อม',
 };
 
-const STATUS_CARD_STYLE: Record<RoomStatus, string> = {
-  VACANT: 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100',
-  OCCUPIED: 'border-indigo-200 bg-indigo-50 hover:bg-indigo-100',
-  MAINTENANCE: 'border-amber-200 bg-amber-50 hover:bg-amber-100',
-  SELF_USE: 'border-slate-200 bg-slate-50 hover:bg-slate-100',
-  UNAVAILABLE: 'border-red-200 bg-red-50 hover:bg-red-100',
+const STATUS_CARD_STYLE: Record<RoomStatus, { border: string; bg: string; hover: string }> = {
+  VACANT: {
+    border: 'border-emerald-500/30 hover:border-emerald-500/50',
+    bg: 'bg-emerald-500/5',
+    hover: 'hover:shadow-[0_0_20px_rgba(34,197,94,0.15)]',
+  },
+  OCCUPIED: {
+    border: 'border-blue-500/30 hover:border-blue-500/50',
+    bg: 'bg-blue-500/5',
+    hover: 'hover:shadow-[0_0_20px_rgba(59,130,246,0.15)]',
+  },
+  MAINTENANCE: {
+    border: 'border-amber-500/30 hover:border-amber-500/50',
+    bg: 'bg-amber-500/5',
+    hover: 'hover:shadow-[0_0_20px_rgba(251,191,36,0.15)]',
+  },
+  SELF_USE: {
+    border: 'border-[hsl(var(--color-border))] hover:border-white/20',
+    bg: 'bg-[hsl(var(--color-surface))]',
+    hover: 'hover:shadow-[0_0_20px_rgba(0,0,0,0.2)]',
+  },
+  UNAVAILABLE: {
+    border: 'border-red-500/30 hover:border-red-500/50',
+    bg: 'bg-red-500/5',
+    hover: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.15)]',
+  },
 };
 
 const STATUS_BADGE_STYLE: Record<RoomStatus, string> = {
-  VACANT: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  OCCUPIED: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-  MAINTENANCE: 'bg-amber-100 text-amber-700 border-amber-200',
-  SELF_USE: 'bg-slate-100 text-slate-600 border-slate-200',
-  UNAVAILABLE: 'bg-red-100 text-red-700 border-red-200',
+  VACANT: 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20',
+  OCCUPIED: 'bg-blue-500/10 text-blue-600 border border-blue-500/20',
+  MAINTENANCE: 'bg-amber-500/10 text-amber-600 border border-amber-500/20',
+  SELF_USE: 'bg-white/10 text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))]',
+  UNAVAILABLE: 'bg-red-500/10 text-red-400 border border-red-500/20',
 };
 
 const STATUS_NUMBER_COLOR: Record<RoomStatus, string> = {
-  VACANT: 'text-emerald-800',
-  OCCUPIED: 'text-indigo-800',
-  MAINTENANCE: 'text-amber-800',
-  SELF_USE: 'text-slate-700',
-  UNAVAILABLE: 'text-red-800',
+  VACANT: 'text-emerald-600',
+  OCCUPIED: 'text-blue-600',
+  MAINTENANCE: 'text-amber-600',
+  SELF_USE: 'text-[hsl(var(--on-surface))]',
+  UNAVAILABLE: 'text-red-400',
 };
 
 const FILTER_TABS: { key: FilterTab; label: string }[] = [
@@ -70,10 +90,10 @@ const FILTER_TABS: { key: FilterTab; label: string }[] = [
 
 function SkeletonRoomCard() {
   return (
-    <div className="animate-pulse rounded-2xl border border-slate-200 bg-slate-50 p-3">
-      <div className="mb-2 h-5 w-12 rounded-full bg-slate-200" />
-      <div className="mb-1 h-3 w-16 rounded-full bg-slate-200" />
-      <div className="h-3 w-10 rounded-full bg-slate-200" />
+    <div className="animate-pulse rounded-xl border border-white/5 bg-[hsl(var(--color-surface))] backdrop-blur p-3">
+      <div className="mb-2 h-5 w-12 rounded-full bg-[hsl(var(--color-surface))]" />
+      <div className="mb-1 h-3 w-16 rounded-full bg-[hsl(var(--color-surface))]" />
+      <div className="h-3 w-10 rounded-full bg-[hsl(var(--color-surface))]" />
     </div>
   );
 }
@@ -137,30 +157,32 @@ export default function FloorDetailPage() {
   return (
     <main className="space-y-6">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-        <Link href="/admin/dashboard" className="hover:text-primary">
+      <nav className="flex items-center gap-1.5 text-sm text-[hsl(var(--on-surface-variant))]">
+        <Link href="/admin/dashboard" className="hover:text-primary transition-colors opacity-70">
           แดชบอร์ด
         </Link>
-        <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
-        <Link href="/admin/floors" className="hover:text-primary">
+        <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 opacity-40" />
+        <Link href="/admin/floors" className="hover:text-primary transition-colors opacity-70">
           ชั้น
         </Link>
-        <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
-        <span className="font-medium text-on-surface">{floorLabel}</span>
+        <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 opacity-40" />
+        <span className="font-medium text-[hsl(var(--on-surface))]">{floorLabel}</span>
       </nav>
 
       {/* Page header */}
-      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
+      <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-6 py-5"
+        style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.04)' }}
+      >
         <div className="flex items-center gap-4">
           <Link
             href="/admin/floors"
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-colors hover:border-primary/30 hover:bg-surface-container"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] transition-all duration-200 hover:border-primary/30 hover:bg-primary/10 active:scale-[0.98]"
           >
-            <ArrowLeft className="h-4 w-4 text-on-primary" />
+            <ArrowLeft className="h-4 w-4 text-[hsl(var(--on-surface))]" />
           </Link>
           <div>
-            <h1 className="text-xl font-semibold text-on-primary">{floorLabel}</h1>
-            <p className="text-sm text-on-primary/80">
+            <h1 className="text-xl font-semibold text-[hsl(var(--on-surface))]">{floorLabel}</h1>
+            <p className="text-sm text-[hsl(var(--on-surface-variant))] opacity-70">
               {loading ? 'กำลังโหลดห้อง...' : `ห้องทั้งหมด ${stats.total} ห้อง`}
             </p>
           </div>
@@ -173,50 +195,50 @@ export default function FloorDetailPage() {
 
       {/* Stats row */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้องทั้งหมด</div>
-              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : stats.total}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">ห้องทั้งหมด</div>
+              <div className="text-xl font-semibold text-[hsl(var(--on-surface))] mt-0.5">{loading ? '...' : stats.total}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 shadow-sm">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 shadow-[0_0_12px_rgba(99,102,241,0.15)]">
               <DoorOpen className="h-5 w-5 text-primary" />
             </div>
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+        <div className="rounded-xl border border-emerald-500/20 bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(34,197,94,0.15)]">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">มีผู้เช่า</div>
-              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : stats.occupied}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">มีผู้เช่า</div>
+              <div className="text-xl font-semibold text-emerald-600 mt-0.5">{loading ? '...' : stats.occupied}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 shadow-[0_0_12px_rgba(34,197,94,0.15)]">
               <Users className="h-5 w-5 text-emerald-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+        <div className="rounded-xl border border-blue-500/20 bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(59,130,246,0.15)]">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ว่าง</div>
-              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : stats.vacant}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">ว่าง</div>
+              <div className="text-xl font-semibold text-blue-600 mt-0.5">{loading ? '...' : stats.vacant}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 shadow-sm">
-              <Building2 className="h-5 w-5 text-sky-500" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-500/20 bg-blue-500/10 shadow-[0_0_12px_rgba(59,130,246,0.15)]">
+              <Building2 className="h-5 w-5 text-blue-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+        <div className="rounded-xl border border-amber-500/20 bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(251,191,36,0.15)]">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ซ่อมบำรุง</div>
-              <div className="text-xl font-semibold text-on-surface mt-0.5">{loading ? '...' : stats.maintenance}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">ซ่อมบำรุง</div>
+              <div className="text-xl font-semibold text-amber-600 mt-0.5">{loading ? '...' : stats.maintenance}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 shadow-sm">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10 shadow-[0_0_12px_rgba(251,191,36,0.15)]">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
             </div>
           </div>
         </div>
@@ -234,16 +256,16 @@ export default function FloorDetailPage() {
             <button
               key={tab.key}
               onClick={() => setActiveFilter(tab.key)}
-              className={`flex items-center gap-1.5 rounded-2xl border px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.98] ${
                 isActive
-                  ? 'border-indigo-300 bg-indigo-100 text-indigo-700 shadow-sm'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600'
+                  ? 'border-primary/40 bg-primary/15 text-primary shadow-[0_0_12px_rgba(99,102,241,0.15)]'
+                  : 'border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur text-[hsl(var(--on-surface-variant))] hover:border-white/20 hover:bg-[hsl(var(--color-surface))]'
               }`}
             >
               {tab.label}
               <span
                 className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${
-                  isActive ? 'bg-indigo-200 text-indigo-800' : 'bg-slate-100 text-slate-500'
+                  isActive ? 'bg-primary/20 text-primary' : 'bg-[hsl(var(--color-surface))] text-[hsl(var(--on-surface-variant))] opacity-60'
                 }`}
               >
                 {count}
@@ -258,35 +280,40 @@ export default function FloorDetailPage() {
         {loading ? (
           Array.from({ length: 20 }).map((_, i) => <SkeletonRoomCard key={i} />)
         ) : filteredRooms.length === 0 ? (
-          <div className="col-span-5 rounded-3xl border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-sm">
+          <div className="col-span-5 rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-10 text-center text-[hsl(var(--on-surface-variant))]">
             ไม่มีห้องที่ตรงกับตัวกรองที่เลือก
           </div>
         ) : (
-          filteredRooms.map((room) => (
-            <Link
-              key={room.id}
-              href={`/admin/rooms/${room.id}`}
-              className={`group flex flex-col rounded-2xl border p-3 shadow-sm transition-all hover:shadow-md ${STATUS_CARD_STYLE[room.roomStatus as RoomStatus]}`}
-            >
-              {/* Room number */}
-              <div className={`mb-1.5 text-lg font-bold leading-tight ${STATUS_NUMBER_COLOR[room.roomStatus as RoomStatus]}`}>
-                {room.roomNumber}
-              </div>
-
-              {/* Status badge */}
-              <span
-                className={`mb-2 inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_STYLE[room.roomStatus as RoomStatus]}`}
+          filteredRooms.map((room) => {
+            const status = room.roomStatus as RoomStatus;
+            const style = STATUS_CARD_STYLE[status] ?? STATUS_CARD_STYLE.SELF_USE;
+            return (
+              <Link
+                key={room.id}
+                href={`/admin/rooms/${room.id}`}
+                className={`group flex flex-col rounded-xl border ${style.border} ${style.bg} backdrop-blur p-3 transition-all duration-200 active:scale-[0.98] ${style.hover}`}
+                style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.04)' }}
               >
-                {STATUS_LABELS[room.roomStatus as RoomStatus]}
-              </span>
+                {/* Room number */}
+                <div className={`mb-1.5 text-lg font-bold leading-tight ${STATUS_NUMBER_COLOR[status]}`}>
+                  {room.roomNumber}
+                </div>
 
-              {/* Capacity */}
-              <div className="mt-auto flex items-center gap-1 text-xs text-slate-500">
-                <Users className="h-3 w-3 flex-shrink-0" />
-                <span>ความจุ {room.capacity}</span>
-              </div>
-            </Link>
-          ))
+                {/* Status badge */}
+                <span
+                  className={`mb-2 inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_STYLE[status]}`}
+                >
+                  {STATUS_LABELS[status]}
+                </span>
+
+                {/* Capacity */}
+                <div className="mt-auto flex items-center gap-1 text-xs text-[hsl(var(--on-surface-variant))] opacity-60">
+                  <Users className="h-3 w-3 flex-shrink-0" />
+                  <span>ความจุ {room.capacity}</span>
+                </div>
+              </Link>
+            );
+          })
         )}
       </section>
     </main>

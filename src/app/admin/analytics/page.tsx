@@ -61,14 +61,19 @@ function monthLabel(year: number, month: number) {
   return `${THAI_MONTHS[month - 1]} ${String(year).slice(2)}`;
 }
 
-async function _safeJson(url: string): Promise<Record<string, unknown> | null> {
-  try {
-    const r = await fetch(url);
-    if (!r.ok) return null;
-    return (await r.json()) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
+// ─── Glass Card ──────────────────────────────────────────────────────────────────
+
+function GlassCard({ children, className = '', hover = false }: { children: React.ReactNode; className?: string; hover?: boolean }) {
+  return (
+    <div className={[
+      'rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur',
+      'shadow-[0_8px_32px_hsl(240_6%_10%/_0.06),0_0_0_1px_hsl(var(--color-border))]',
+      hover ? 'hover:bg-[hsl(var(--color-surface))] hover:shadow-[0_12px_40px_hsl(var(--color-primary)/_0.08),0_0_0_1px_hsl(var(--color-primary)/_0.15)] hover:scale-[1.01] transition-all duration-200 cursor-pointer' : '',
+      className,
+    ].join(' ')}>
+      {children}
+    </div>
+  );
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -78,25 +83,29 @@ function KpiCard({
   value,
   sub,
   icon: Icon,
-  color,
+  colorClass,
+  glowClass,
 }: {
   label: string;
   value: string;
   sub?: string;
   icon: React.ElementType;
-  color: string;
+  colorClass: string;
+  glowClass: string;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-start gap-4">
-      <div className={`flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
-        <Icon size={18} className="text-white" />
+    <GlassCard className="p-5" hover>
+      <div className="flex items-start gap-4">
+        <div className={`flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-xl border ${colorClass} ${glowClass}`}>
+          <Icon size={18} className="text-[hsl(var(--on-surface))]" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs text-[hsl(var(--on-surface-variant))] font-medium truncate">{label}</p>
+          <p className="text-xl font-bold text-[hsl(var(--on-surface))] mt-0.5">{value}</p>
+          {sub && <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">{sub}</p>}
+        </div>
       </div>
-      <div className="min-w-0">
-        <p className="text-xs text-slate-500 font-medium truncate">{label}</p>
-        <p className="text-xl font-bold text-slate-800 mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
-      </div>
-    </div>
+    </GlassCard>
   );
 }
 
@@ -142,7 +151,6 @@ export default function AnalyticsPage() {
     queryFn: fetchAnalyticsOccupancy,
   });
 
-  const loading = isLoading;
   const refreshing = false;
 
   const load = () => {
@@ -160,8 +168,8 @@ export default function AnalyticsPage() {
   // Occupancy pie data
   const pieData = occupancy
     ? [
-        { name: 'มีผู้เช่า', value: occupancy.occupiedRooms, fill: '#6366f1' },
-        { name: 'ว่าง',     value: occupancy.vacantRooms,   fill: '#e2e8f0' },
+        { name: 'มีผู้เช่า', value: occupancy.occupiedRooms, fill: 'hsl(217, 55%, 24%)' },
+        { name: 'ว่าง',     value: occupancy.vacantRooms,   fill: 'rgba(255,255,255,0.15)' },
       ]
     : [];
 
@@ -171,82 +179,92 @@ export default function AnalyticsPage() {
   return (
     <main className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-800">การวิเคราะห์</h1>
-          <p className="text-sm text-slate-500 mt-0.5">ภาพรวมสถิติและตัวชี้วัดหลัก</p>
+      <div className="relative overflow-hidden rounded-2xl bg-[hsl(var(--primary))] px-6 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.08)] backdrop-blur">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--color-surface)/0.15)] ring-1 ring-[hsl(var(--color-border))] shadow-[var(--glow-primary)]">
+              <TrendingUp className="h-5 w-5 text-[hsl(var(--on-primary))]" strokeWidth={1.75} />
+            </div>
+            <div>
+              <h1 className="text-base font-semibold text-[hsl(var(--on-primary))]">การวิเคราะห์</h1>
+              <p className="text-xs text-[hsl(var(--on-primary)/0.7)] mt-0.5">ภาพรวมสถิติและตัวชี้วัดหลัก</p>
+            </div>
+          </div>
+          <button
+            onClick={() => void load()}
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface)/0.15)] px-4 py-2 text-sm font-medium text-[hsl(var(--on-primary))] shadow-sm transition-all hover:bg-[hsl(var(--color-surface)/0.25)] active:scale-95"
+          >
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? 'กำลังรีเฟรช…' : 'รีเฟรช'}
+          </button>
         </div>
-        <button
-          onClick={() => void load()}
-          disabled={refreshing}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
-        >
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-          {refreshing ? 'กำลังรีเฟรช…' : 'รีเฟรช'}
-        </button>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <AlertCircle size={16} className="shrink-0" />
-          {error.message}
-        </div>
+        <GlassCard className="p-4">
+          <div className="flex items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+            <AlertCircle size={16} className="shrink-0" />
+            {error.message}
+          </div>
+        </GlassCard>
       )}
 
       {/* KPI Cards */}
-      {loading ? (
+      {isLoading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-24 rounded-xl border border-slate-200 bg-white animate-pulse" />
+            <div key={i} className="h-24 rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] animate-pulse" />
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="รายรับเดือนนี้"   value={money(summary?.monthlyRevenue ?? 0)} icon={TrendingUp}   color="bg-indigo-500" />
-          <KpiCard label="อัตราการเข้าพัก" value={`${occRate}%`}
+          <KpiCard label="รายรับเดือนนี้"   value={money(summary?.monthlyRevenue ?? 0)} icon={TrendingUp}   colorClass="border-blue-500/30 bg-blue-500/10" glowClass="shadow-[0_4px_16px_rgba(59,130,246,0.15)]" />
+          <KpiCard label="อัตราการเข้าพัก" value={`${occRate}%`
+            }
             sub={occupancy ? `${occupancy.occupiedRooms}/${occupancy.totalRooms} ห้อง` : undefined}
-            icon={Building2}  color="bg-emerald-500" />
-          <KpiCard label="Invoice ชำระแล้ว" value={String(summary?.paidInvoices ?? 0)}    icon={CheckCircle} color="bg-sky-500" />
-          <KpiCard label="ค้างชำระ"         value={String(summary?.overdueInvoices ?? 0)} icon={AlertCircle} color="bg-rose-500" />
+            icon={Building2}  colorClass="border-emerald-500/30 bg-emerald-500/10" glowClass="shadow-[0_4px_16px_rgba(34,197,94,0.15)]" />
+          <KpiCard label="Invoice ชำระแล้ว" value={String(summary?.paidInvoices ?? 0)}    icon={CheckCircle} colorClass="border-indigo-500/30 bg-indigo-500/10" glowClass="shadow-[0_4px_16px_rgba(99,102,241,0.15)]" />
+          <KpiCard label="ค้างชำระ"         value={String(summary?.overdueInvoices ?? 0)} icon={AlertCircle} colorClass="border-amber-500/30 bg-amber-500/10" glowClass="shadow-[0_4px_16px_rgba(251,191,36,0.15)]" />
         </div>
       )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Revenue Bar */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">รายรับ 12 เดือนล่าสุด (บาท)</h2>
-          {loading ? (
-            <div className="h-48 rounded-lg bg-slate-100 animate-pulse" />
+        <GlassCard className="p-5 lg:col-span-2">
+          <h2 className="text-sm font-semibold text-[hsl(var(--on-surface))] mb-4">รายรับ 12 เดือนล่าสุด (บาท)</h2>
+          {isLoading ? (
+            <div className="h-48 rounded-xl bg-[hsl(var(--color-surface))] animate-pulse" />
           ) : chartData.length === 0 ? (
-            <div className="h-48 flex items-center justify-center text-sm text-slate-400">ยังไม่มีข้อมูลรายรับ</div>
+            <div className="h-48 flex items-center justify-center text-sm text-[hsl(var(--on-surface-variant))]">ยังไม่มีข้อมูลรายรับ</div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--color-border))" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--on-surface-variant))' }} />
                 <YAxis
-                  tick={{ fontSize: 11, fill: '#94a3b8' }}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--on-surface-variant))' }}
                   tickFormatter={(v: number) => v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)}
                 />
                 <Tooltip
                   formatter={(v: unknown) => [money(Number(v) || 0), 'รายรับ']}
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                  contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--color-border))', background: 'hsl(var(--color-surface))', backdropFilter: 'blur(20px)', color: 'hsl(var(--on-surface))' }}
                 />
-                <Bar dataKey="รายรับ" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="รายรับ" fill="hsl(217, 55%, 24%)" radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           )}
-        </div>
+        </GlassCard>
 
         {/* Occupancy Pie */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">อัตราการเข้าพัก</h2>
-          {loading ? (
-            <div className="h-48 rounded-lg bg-slate-100 animate-pulse" />
+        <GlassCard className="p-5">
+          <h2 className="text-sm font-semibold text-[hsl(var(--on-surface))] mb-4">อัตราการเข้าพัก</h2>
+          {isLoading ? (
+            <div className="h-48 rounded-xl bg-[hsl(var(--color-surface))] animate-pulse" />
           ) : !occupancy ? (
-            <div className="h-48 flex items-center justify-center text-sm text-slate-400">ไม่มีข้อมูล</div>
+            <div className="h-48 flex items-center justify-center text-sm text-[hsl(var(--on-surface-variant))]">ไม่มีข้อมูล</div>
           ) : (
             <div className="flex flex-col items-center">
               <ResponsiveContainer width="100%" height={160}>
@@ -256,51 +274,51 @@ export default function AnalyticsPage() {
                   </Pie>
                   <Tooltip
                     formatter={(v: unknown) => [`${String(v)} ห้อง`]}
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--color-border))', background: 'hsl(var(--color-surface))', backdropFilter: 'blur(20px)', color: 'hsl(var(--on-surface))' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="flex gap-4 text-xs text-slate-500 mt-2">
+              <div className="flex gap-4 text-xs text-[hsl(var(--on-surface-variant))] mt-2">
                 {pieData.map((d, i) => (
                   <span key={i} className="flex items-center gap-1.5">
-                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: d.fill }} />
+                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: d.fill === 'rgba(255,255,255,0.15)' ? 'hsl(217, 55%, 24%)' : d.fill as string }} />
                     {d.name} ({d.value})
                   </span>
                 ))}
               </div>
             </div>
           )}
-        </div>
+        </GlassCard>
       </div>
 
       {/* Quick links to detail reports */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <h2 className="text-sm font-semibold text-slate-700 mb-3">รายงานรายละเอียด</h2>
+      <GlassCard className="p-5">
+        <h2 className="text-sm font-semibold text-[hsl(var(--on-surface))] mb-3">รายงานรายละเอียด</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {([
-            { href: '/admin/reports/revenue',     label: 'รายรับ',          icon: BarChart2 },
-            { href: '/admin/reports/occupancy',   label: 'การเข้าพัก',      icon: Building2 },
-            { href: '/admin/reports/collections', label: 'การชำระเงิน',     icon: CreditCard },
-            { href: '/admin/audit-logs',          label: 'ประวัติกิจกรรม',  icon: ClipboardList },
+            { href: '/admin/reports?tab=revenue',     label: 'รายรับ',          icon: BarChart2 },
+            { href: '/admin/reports?tab=occupancy',   label: 'การเข้าพัก',      icon: Building2 },
+            { href: '/admin/reports?tab=collections', label: 'การชำระเงิน',     icon: CreditCard },
+            { href: '/admin/audit-logs',              label: 'ประวัติกิจกรรม',  icon: ClipboardList },
           ] as const).map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
-              className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition-colors group"
+              className="flex items-center justify-between gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-3 text-sm font-medium text-[hsl(var(--on-surface-variant))] transition-all hover:scale-[1.02] hover:bg-[hsl(var(--color-surface))] hover:text-[hsl(var(--on-surface))] active:scale-[0.98] group"
             >
               <span className="flex items-center gap-2">
-                <Icon size={15} className="text-slate-400 group-hover:text-indigo-500" />
+                <Icon size={15} className="text-[hsl(var(--primary))]" />
                 {label}
               </span>
-              <ArrowRight size={13} className="text-slate-300 group-hover:text-indigo-400" />
+              <ArrowRight size={13} className="text-[hsl(var(--on-surface-variant))] group-hover:text-[hsl(var(--primary))] transition-colors" />
             </Link>
           ))}
         </div>
-      </div>
+      </GlassCard>
 
       {/* Full reports link */}
       <div className="flex justify-end">
-        <Link href="/admin/reports" className="inline-flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+        <Link href="/admin/reports" className="inline-flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-500 font-medium transition-colors">
           <FileBarChart size={14} />
           ดูรายงานทั้งหมด →
         </Link>

@@ -7,6 +7,10 @@ export interface InvoiceTemplateData {
   dueDate: string;
   invoiceNumber: string;
   paymentLink?: string;
+  bankAccountNo?: string;
+  bankName?: string;
+  bankAccountName?: string;
+  qrImageId?: string; // LINE CDN imageId for QR code
 }
 
 export interface ReminderTemplateData {
@@ -40,37 +44,46 @@ export function buildInvoiceFlex(data: InvoiceTemplateData): object {
       type: 'box',
       layout: 'vertical',
       contents: [
-        { type: 'text', text: 'Invoice', weight: 'bold', size: 'xl' },
+        { type: 'text', text: '📄 ใบแจ้งหนี้', weight: 'bold', size: 'xl', color: '#1B4D4D' },
         {
           type: 'box',
           layout: 'vertical',
           margin: 'lg',
           spacing: 'sm',
           contents: [
-            { type: 'text', text: `Room ${data.roomNumber}`, size: 'md' },
-            { type: 'text', text: `Invoice #${data.invoiceNumber}`, size: 'sm', color: '#888888' },
-            { type: 'text', text: `Amount: ${data.amount}`, size: 'md', weight: 'bold' },
-            { type: 'text', text: `Due: ${data.dueDate}`, size: 'sm', color: '#EA4335' },
+            { type: 'text', text: `🏠 ห้อง ${data.roomNumber}`, size: 'md', color: '#444444' },
+            { type: 'text', text: `เลขที่ใบแจ้งหนี้ #${data.invoiceNumber}`, size: 'sm', color: '#888888' },
+            { type: 'text', text: `💰 ยอดชำระ ${data.amount}`, size: 'md', weight: 'bold', color: '#D4AF37' },
+            { type: 'text', text: `📅 กำหนดชำระ ${data.dueDate}`, size: 'sm', color: '#888888' },
           ],
         },
+        ...(data.bankAccountNo || data.bankName ? [
+          {
+            type: 'box',
+            layout: 'vertical',
+            margin: 'lg',
+            paddingAll: 'md',
+            backgroundColor: '#F5F5F5',
+            cornerRadius: '8px',
+            contents: [
+              { type: 'text', text: '🏦 ข้อมูลบัญชีโอนเงิน', weight: 'bold', size: 'sm', color: '#555555' },
+              ...(data.bankName ? [{ type: 'text', text: `ธนาคาร: ${data.bankName}`, size: 'sm', color: '#333333', margin: 'xs' }] : []),
+              ...(data.bankAccountNo ? [{ type: 'text', text: `เลขบัญชี: ${data.bankAccountNo}`, size: 'sm', color: '#333333', margin: 'xs' }] : []),
+              ...(data.bankAccountName ? [{ type: 'text', text: `ชื่อบัญชี: ${data.bankAccountName}`, size: 'sm', color: '#333333', margin: 'xs' }] : []),
+              ...(data.qrImageId ? [
+                {
+                  type: 'image',
+                  url: `https://api-data.line.me/v2/bot/message/${data.qrImageId}/content`,
+                  size: 'md',
+                  aspectRatio: '1:1',
+                  margin: 'md',
+                },
+                { type: 'text', text: '📱 สแกน QR เพื่อชำระ', size: 'xs', color: '#888888', align: 'center', margin: 'xs' },
+              ] : []),
+            ],
+          },
+        ] : []),
       ],
-    },
-    footer: {
-      type: 'box',
-      layout: 'vertical',
-      spacing: 'sm',
-      contents: [
-        ...(data.paymentLink
-          ? [
-              {
-                type: 'button',
-                style: 'primary',
-                action: { type: 'uri', label: 'Pay Now', uri: data.paymentLink },
-              },
-            ]
-          : []),
-      ],
-      flex: 0,
     },
   };
 }
@@ -171,4 +184,3 @@ export async function sendReceiptMessage(
   const alt = `Receipt - Room ${data.roomNumber} - ${data.amount} on ${data.paidDate}`;
   return sendFlexMessage(userId, alt, { type: 'carousel', contents: [buildReceiptFlex(data)] }, options);
 }
-

@@ -1,0 +1,345 @@
+<!--template-meta:{"pageSize":"A4","orientation":"PORTRAIT","marginPreset":"narrow","fontFamily":"sarabun","fontSize":"base","lineHeight":"relaxed"}-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: 'Sarabun', 'Noto Sans Thai', 'DejaVu Sans', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #1a1a1a;
+    background: #fff;
+    -webkit-font-smoothing: antialiased;
+  }
+  @page { size: A4 portrait; margin: 0; }
+  body { width: 210mm; min-height: 297mm; overflow: hidden; position: relative; }
+
+  /* ── Page wrapper ────────────────────────────────────────── */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  .header {
+    background: #1c3860;
+    color: #fff;
+    padding: 14px 50px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    position: relative;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: #f29d21;
+  }
+  .header-title { font-size: 20px; font-weight: 700; color: #f29d21; }
+  .header-sub { font-size: 13px; color: #c8d4ee; margin-top: 4px; }
+
+  /* ── Content padding ─────────────────────────────────────── */
+  .content { padding: 14px 50px 0; }
+
+  /* ── Section ─────────────────────────────────────────────── */
+  .section-title {
+    font-size: 18px; font-weight: 700; color: #1c3860;
+    border-bottom: 2px solid #f29d21; padding-bottom: 4px; margin-bottom: 10px;
+  }
+
+  /* ── Info grid ──────────────────────────────────────────── */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 28px;
+    margin-bottom: 10px;
+  }
+  .info-row { display: flex; gap: 10px; font-size: 16px; line-height: 1.5; }
+  .info-label { color: #555; min-width: 120px; }
+  .info-value { font-weight: 700; color: #1a1a1a; }
+
+  /* ── Room detail box ─────────────────────────────────────── */
+  .room-box {
+    background: #e8ecf5;
+    border: 1.5px solid #1c3860;
+    border-radius: 8px;
+    padding: 12px 18px;
+    margin: 0 0 10px;
+  }
+  .room-box-title { font-size: 12px; color: #888; margin-bottom: 6px; }
+  .room-box-grid { display: flex; gap: 24px; font-size: 16px; }
+  .room-box-item { display: flex; flex-direction: column; gap: 2px; }
+  .room-box-label { font-size: 12px; color: #888; }
+  .room-box-value { font-size: 16px; font-weight: 700; color: #1c3860; }
+
+  /* ── Parties ─────────────────────────────────────────────── */
+  .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 0 0 10px; }
+  .party { background: #f4f5fb; border: 1px solid #d0d0e0; border-radius: 6px; padding: 10px 14px; }
+  .party-label { font-size: 12px; color: #888; font-weight: 700; margin-bottom: 4px; }
+  .party-name { font-size: 16px; font-weight: 700; color: #1c3860; }
+  .party-detail { font-size: 14px; color: #444; margin-top: 2px; }
+
+  /* ── Divider ─────────────────────────────────────────────── */
+  .divider { border: none; border-top: 1px solid #1c3860; margin: 6px 0; }
+
+  /* ── Clauses ─────────────────────────────────────────────── */
+  .clause-list { }
+  .clause { display: flex; gap: 10px; margin-bottom: 8px; font-size: 16px; line-height: 1.6; }
+  .clause-num { font-weight: 700; color: #1c3860; min-width: 26px; flex-shrink: 0; }
+  .clause-text { flex: 1; }
+  .clause-text strong { color: #1c3860; }
+
+  /* ── Image placeholder ───────────────────────────────────── */
+  .image-placeholder {
+    border: 2px dashed #c0c8d8;
+    border-radius: 6px;
+    padding: 20px;
+    text-align: center;
+    color: #888;
+    font-size: 14px;
+    margin: 8px 0;
+    background: #f8f9fb;
+  }
+  .image-placeholder img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+  .image-placeholder img:not([src]), .image-placeholder img[src=""] { display: none; }
+  /* Hide entire placeholder when no image */
+  .image-placeholder:has(img[src=""]), .image-placeholder:has(img:not([src])) { display: none; }
+
+  /* ── Signature ──────────────────────────────────────────── */
+  .signature-section {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 0 0;
+    gap: 50px;
+  }
+  .signature-box { text-align: center; flex: 1; }
+  .signature-line { border-top: 1px solid #aaa; margin-top: 60px; padding-top: 4px; font-size: 14px; color: #555; }
+  .signature-name { font-size: 16px; font-weight: 700; color: #1c3860; }
+  .signature-role { font-size: 14px; color: #888; }
+
+  /* ── Page wrapper ────────────────────────────────────────── */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    position: relative;
+    overflow: hidden;
+    padding-bottom: 50px; /* space for footer */
+  }
+
+  /* ── Footer ─────────────────────────────────────────────── */
+  .footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #1c3860;
+    padding: 7px 50px;
+  }
+  .footer::before {
+    content: ''; display: block; height: 2px; background: #f29d21;
+    margin-bottom: 7px;
+  }
+  .footer-text { font-size: 10px; color: #c8d4ee; }
+  .footer-id { font-size: 9px; color: #7a8ab0; }
+
+  /* ── Page breaks ────────────────────────────────────────── */
+  .page-break { page-break-before: always; }
+  .no-break { page-break-inside: avoid; }
+</style>
+
+<!-- ═══ PAGE 1 ═══════════════════════════════════════════════════ -->
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title">สัญญาเช่าที่พักอาศัย</div>
+      <div class="header-sub">LEASE AGREEMENT FOR RESIDENTIAL ACCOMMODATION</div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- Contract Info -->
+    <div class="section-title">ข้อมูลสัญญา</div>
+    <div class="info-grid">
+      <div class="info-row">
+        <span class="info-label">เลขที่สัญญา</span>
+        <span class="info-value" data-template-field="contract.id">{{contract.id}}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">วันที่ทำสัญญา</span>
+        <span class="info-value" data-template-field="contract.signDate">{{contract.signDate}}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">วันที่เริ่มสัญญา</span>
+        <span class="info-value" data-template-field="contract.startDate">{{contract.startDate}}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">วันที่สิ้นสุดสัญญา</span>
+        <span class="info-value" data-template-field="contract.endDate">{{contract.endDate}}</span>
+      </div>
+    </div>
+
+    <!-- Room Detail -->
+    <div class="room-box">
+      <div class="room-box-title">รายละเอียดห้องพัก</div>
+      <div class="room-box-grid">
+        <div class="room-box-item">
+          <span class="room-box-label">ห้อง</span>
+          <span class="room-box-value" data-template-field="room.number">{{room.number}}</span>
+        </div>
+        <div class="room-box-item">
+          <span class="room-box-label">ชั้น</span>
+          <span class="room-box-value" data-template-field="room.floorNumber">{{room.floorNumber}}</span>
+        </div>
+        <div class="room-box-item">
+          <span class="room-box-label">ค่าเช่ารายเดือน</span>
+          <span class="room-box-value" data-template-field="contract.monthlyRent">{{contract.monthlyRent}}</span>
+        </div>
+        <div class="room-box-item">
+          <span class="room-box-label">เงินมัดจำ</span>
+          <span class="room-box-value" data-template-field="contract.deposit">{{contract.deposit}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parties -->
+    <div class="section-title" style="margin-top:6px;">คู่สัญญา</div>
+    <div class="parties">
+      <div class="party">
+        <div class="party-label">ผู้ให้เช่า (LANDLORD)</div>
+        <div class="party-name" data-template-field="contract.landlordName">{{contract.landlordName}}</div>
+        <div class="party-detail" data-template-field="contract.landlordAddress">{{contract.landlordAddress}}</div>
+        <div class="party-detail">โทร. <span data-template-field="contract.landlordPhone">{{contract.landlordPhone}}</span></div>
+      </div>
+      <div class="party">
+        <div class="party-label">ผู้เช่า (TENANT)</div>
+        <div class="party-name" data-template-field="tenant.fullName">{{tenant.fullName}}</div>
+        <div class="party-detail">เลขประจำตัวประชาชน: ____________________</div>
+        <div class="party-detail">โทร. <span data-template-field="tenant.phone">{{tenant.phone}}</span></div>
+      </div>
+    </div>
+
+    <!-- Clauses 1–7 -->
+    <div class="section-title">ข้อสัญญา</div>
+    <div class="clause-list">
+      <div class="clause no-break">
+        <span class="clause-num">๑.</span>
+        <span class="clause-text">ผู้ให้เช่าตกลงให้และผู้เช่าตกลงเช่าทรัพย์สินอาศัยตามที่ระบุไว้ในข้อ ๒ โดยผู้เช่ายินยอมชำระค่าเช่าและค่าสาธารณูปโภคตามที่กำหนดในสัญญานี้</span>
+      </div>
+      <div class="clause no-break">
+        <span class="clause-num">๒.</span>
+        <span class="clause-text">ทรัพย์สินที่เช่าคือ <strong>ห้องเลขที่ <span data-template-field="room.number">{{room.number}}</span></strong> ตั้งอยู่ในอาคารชุดที่ <span data-template-field="apartment.name">{{apartment.name}}</span> ที่อยู่ <span data-template-field="apartment.address">{{apartment.address}}</span> พร้อมสิ่งอำนวยความสะดวกตามที่เป็นอยู่ในขณะทำสัญญา</span>
+      </div>
+      <div class="clause no-break">
+        <span class="clause-num">๓.</span>
+        <span class="clause-text">ผู้เช่าตกลงชำระค่าเช่าทุกเดือน จำนวน <strong><span data-template-field="contract.monthlyRent">{{contract.monthlyRent}}</span> บาท</strong> โดยชำระล่วงหน้าภายในวันที่ ๑–๗ ของทุกเดือน ผ่านการโอนเงินเข้าบัญชีที่ผู้ให้เช่ากำหนด และจะส่งสลิปยืนยันการโอนเงินผ่าน LINE ให้ผู้ให้เช่าภายในวันที่กำหนด</span>
+      </div>
+      <div class="clause no-break">
+        <span class="clause-num">๔.</span>
+        <span class="clause-text">ผู้เช่าตกลงวางเงินมัดจำจำนวน <strong><span data-template-field="contract.deposit">{{contract.deposit}}</span> บาท</strong> ไว้กับผู้ให้เช่าในวันทำสัญญา เงินมัดจำนี้จะได้รับคืนเมื่อครบกำหนดสัญญาเช่าและผู้เช่าได้ชำระค่าเช่าและค่าใช้จ่ายครบถ้วนแล้ว</span>
+      </div>
+      <div class="clause no-break">
+        <span class="clause-num">๕.</span>
+        <span class="clause-text">หากผู้เช่าไม่ชำระค่าเช่าภายในวันที่ ๗ ของเดือน ถือว่าผู้เช่าสละสิทธิ์การเช่าโดยอัตโนมัติ และผู้ให้เช่ามีสิทธิ์ระงับการใช้น้ำและไฟฟ้าได้ทันที รวมถึงมีสิทธิ์เรียกคืนห้องพักภายในวันที่ ๘ เวลา ๐๘:๐๐ น.</span>
+      </div>
+      <div class="clause no-break">
+        <span class="clause-num">๖.</span>
+        <span class="clause-text">ผู้เช่าสามารถขอเลื่อนการชำระค่าเช่าได้ถึงวันที่ ๑๕ โดยชำระค่าปรับเพิ่ม ดังนี้ — ห้องชั้น ๑ และห้องแอร์ <strong>๒๐๐ บาท/วัน</strong>, ห้องชั้น ๒–๘ <strong>๑๐๐ บาท/วัน</strong> นับตั้งแต่วันที่ ๘ จนถึงวันที่ชำระครบ</span>
+      </div>
+      <div class="clause no-break">
+        <span class="clause-num">๗.</span>
+        <span class="clause-text">ผู้เช่าที่โอนเงินแล้วแต่ไม่ส่งสลิปยืนยันทาง LINE ภายในวันที่ ๗ ต้องชำระค่าปรับ <strong>๑๐๐ บาทต่อครั้ง</strong> กรณีโอนเงินผิดจำนวนต้องโอนส่วนที่ขาดเพิ่มให้ครบภายในวันที่ ๗ มิฉะนั้นจะถูกปรับตามข้อ ๖</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer page 1 -->
+  <div class="footer">
+    <div class="footer-text">สัญญาเช่าที่พักอาศัย  •  Lease Agreement — หน้า ๑ จาก ๒</div>
+  </div>
+
+</div>
+
+<!-- ═══ PAGE 2 ═══════════════════════════════════════════════════ -->
+<div class="page page-break">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title">สัญญาเช่าที่พักอาศัย</div>
+      <div class="header-sub">LEASE AGREEMENT FOR RESIDENTIAL ACCOMMODATION</div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <div class="image-placeholder" data-template-field="contract.image">
+      <img src="{{contract.image}}" alt="Contract Illustration" />
+    </div>
+
+    <!-- Clauses 8–15 -->
+    <div class="section-title">ข้อสัญญา (ต่อ)</div>
+    <div class="clause-list">
+      <div class="clause no-break">
+        <span class="clause-num">๘.</span>
+        <span class="clause-text">ผู้เช่าตกลงรับผิดชอบค่าใช้จ่ายสาธารณูปโภค ได้แก่ ค่าน้ำประปาและค่าไฟฟ้า ตามจำนวนที่กำหนดในใบแจ้งหนี้ประจำเดือน โดยชำระพร้อมค่าเช่า</span>
+      </div>
+      <div class="clause no-break">
+        <span class="clause-num">๙.</span>
+        <span class="clause-text">ผู้เช่าตกลงดูแลรักษาทรัพย์สินที่เช่าให้อยู่ในสภาพดี ห้ามดัดแปลงหรือเปลี่ยนแปลงสิ่งใดโดยไม่ได้รับอนุญาตจากผู้ให้เช่าเป็นลายลักษณ์อักษร การซ่อมแซมที่เกิดจากการเสื่อมสภาพตามปกติให้ผู้ให้เช่าเป็นผู้รับผิดชอบ</span>
+      </div>
+      <div class="clause no-break">
+        <span class="clause-num">๑๐.</span>
+        <span class="clause-text">ห้ามผู้เช่าปล่อยให้บุคคลอื่นเข้าพักอาศัยในทรัพย์สินที่เช่าโดยไม่ได้รับอนุญาตจากผู้ให้เช่าเป็นลายลักษณ์อักษร การอนุญาตให้ผู้มาพักชั่วคราวไม่เกิน ๗ วันต้องแจ้งผู้ให้เช่าล่วงหน้า</span>
+      </div>
+      <div class="clause no-break">
+        <span class="clause-num">๑๑.</span>
+        <span class="clause-text">ผู้เช่าห้ามทำกิจการใดๆ ในทรัพย์สินที่เช่าโดยเด็ดขาด ห้ามเก็บของมีค่าหรือวัตถุอันตรายไว้ในห้อง ห้ามใช้ห้องในทางที่ผิดกฎหมายหรือศีลธรรมอันดี</span>
+      </div>
+      <div class="clause no-break">
+        <span class="clause-num">๑๒.</span>
+        <span class="clause-text">เมื่อครบกำหนดสัญญาเช่า ผู้เช่าตกลงส่งมอบทรัพย์สินคืนให้ผู้ให้เช่าในสภาพที่ดีตามปกติ พร้อมส่งกุญแจและรีโมทให้ครบ หากทรัพย์สินเสียหายจากการใช้งาน ผู้เช่าตกลงชดใช้ค่าเสียหายจากเงินมัดจำ</span>
+      </div>
+      <div class="clause no-break">
+        <span class="clause-num">๑๓.</span>
+        <span class="clause-text">การบอกเลิกสัญญาก่อนครบกำหนด ฝ่ายใดฝ่ายหนึ่งต้องแจ้งเป็นลายลักษณ์อักษรล่วงหน้าไม่น้อยกว่า ๓๐ วัน มิฉะนั้นฝ่ายที่บอกเลิกต้องชดใช้ค่าเสียหาย ๑ เดือนของค่าเช่า</span>
+      </div>
+      <div class="clause no-break">
+        <span class="clause-num">๑๔.</span>
+        <span class="clause-text">คู่สัญญาตกลงว่าหากมีข้อพิพาทใดๆ อันเกิดจากสัญญานี้ ให้เจรจากันโดยสุจริตก่อน หากเจรจาไม่ได้ให้ขึ้นศาลที่มีเขตอำนาจเป็นสถานที่ทำสัญญานี้เป็นศาลที่มีอำนาจพิจารณาข้อพิพาทนั้น</span>
+      </div>
+      <div class="clause no-break">
+        <span class="clause-num">๑๕.</span>
+        <span class="clause-text">สัญญานี้ทำขึ้นสองฉบับ มีข้อความถูกต้องตรงกัน คู่สัญญาทั้งสองฝ่ายได้อ่านและเข้าใจข้อความในสัญญาโดยตลอดแล้ว จึงลงมือชื่อไว้เป็นสำคัญต่อหน้าพยาน</span>
+      </div>
+    </div>
+
+    <!-- Signatures -->
+    <div class="signature-section">
+      <div class="signature-box">
+        <div class="signature-name" data-template-field="contract.landlordName">{{contract.landlordName}}</div>
+        <div class="signature-role">ผู้ให้เช่า / Landlord</div>
+        <div class="signature-line">ลงชื่อ _____________________ วันที่ ____/____/______</div>
+      </div>
+      <div class="signature-box">
+        <div class="signature-name" data-template-field="tenant.fullName">{{tenant.fullName}}</div>
+        <div class="signature-role">ผู้เช่า / Tenant</div>
+        <div class="signature-line">ลงชื่อ _____________________ วันที่ ____/____/______</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer page 2 -->
+  <div class="footer">
+    <div class="footer-text">สัญญาเช่าที่พักอาศัย  •  Lease Agreement — หน้า ๒ จาก ๒</div>
+  </div>
+
+</div>

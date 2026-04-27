@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db/client';
 import LoginForm from './LoginForm';
 
+export const dynamic = 'force-dynamic';
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -14,8 +16,8 @@ export default async function LoginPage({
     <main className="auth-shell">
       {/* Layered aurora background */}
       <div className="aurora-bg" />
-      <div className="soft-orb soft-orb-pink left-[10%] top-[12%] h-44 w-44" />
-      <div className="soft-orb soft-orb-blue bottom-[14%] right-[12%] h-40 w-40" />
+      <div className="soft-orb soft-orb-navy left-[10%] top-[12%] h-44 w-44" />
+      <div className="soft-orb soft-orb-gold bottom-[14%] right-[12%] h-40 w-40" />
 
       {/* Subtle grid pattern */}
       <div

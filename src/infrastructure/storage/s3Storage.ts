@@ -62,7 +62,7 @@ export class S3Storage implements StorageDriver {
     if (Buffer.isBuffer(body)) return body;
     if (body instanceof Readable) return streamToBuffer(body);
     // In some runtimes, Body can be a different stream-like object with transformToByteArray
-    const anyBody = body as any as { transformToByteArray?: () => Promise<Uint8Array> };
+    const anyBody = body as unknown as { transformToByteArray?: () => Promise<Uint8Array> };
     if (anyBody.transformToByteArray) {
       const arr = await anyBody.transformToByteArray();
       return Buffer.from(arr);

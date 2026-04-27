@@ -87,6 +87,59 @@ export function startCronIfEnabled(): void {
     }
   });
 
+  // Stale maintenance check — runs daily at 9:30am.
+  // Flags rooms that have been in MAINTENANCE status for more than 14 days
+  // without a resolved ticket. Alerts the owner so they can investigate
+  // whether the room is genuinely awaiting repair or is a ghost-booking risk.
+  cron.schedule('30 9 * * *', async () => {
+    try {
+      const staleDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+      const staleTickets = await prisma.maintenanceTicket.findMany({
+        where: {
+          status: { in: ['OPEN', 'IN_PROGRESS'] },
+          createdAt: { lt: staleDate },
+        },
+        select: {
+          id: true,
+          roomNo: true,
+          createdAt: true,
+          title: true,
+          priority: true,
+        },
+      });
+      if (staleTickets.length === 0) {
+        logger.info({ type: 'cron_stale_maintenance_done', staleCount: 0 });
+        return;
+      }
+      // Write an outbox event for each stale ticket so admins are alerted.
+      // The outbox processor will surface these as DLQ events for manual review.
+      const { v4: uuidv4 } = await import('uuid');
+      const events = staleTickets.map((t) => ({
+        aggregateType: 'MaintenanceTicket' as const,
+        aggregateId: t.id,
+        eventType: 'MAINTENANCE_TICKET_STALE' as const,
+        payload: {
+          roomNo: t.roomNo,
+          ticketId: t.id,
+          title: t.title,
+          priority: t.priority,
+          staleDays: Math.floor((Date.now() - t.createdAt.getTime()) / 86_400_000),
+          detectedAt: new Date().toISOString(),
+        },
+        retryCount: 0,
+        id: uuidv4(),
+      }));
+      await prisma.outboxEvent.createMany({ data: events });
+      logger.warn({
+        type: 'cron_stale_maintenance_alert',
+        staleCount: staleTickets.length,
+        rooms: staleTickets.map((t) => t.roomNo),
+      });
+    } catch (e) {
+      logger.error({ type: 'cron_stale_maintenance_error', error: e instanceof Error ? e.message : String(e) });
+    }
+  });
+
   // Audit log rotation — weekly Sunday 02:00.
   // Deletes rows older than AUDIT_LOG_RETENTION_DAYS (default 365). Keeps the
   // table bounded so indexes stay fast. Set retention to 0 to disable.

@@ -30,11 +30,11 @@ function _fullAreaAction(areaIndex: number): object {
 /**
  * Build the "ดูยอดค้าง" rich menu JSON.
  *
- * Layout (2500w × 843h):
+ * Layout (2500w × 843h, 2 rows × 2 cols):
  *   [   ดูยอดค้าง   ] [  ยืนยันชำระเงิน  ]
  *   [  ดูใบแจ้งหนี้   ] [   ส่งใบเสร็จ     ]
  *
- * Each cell is approximately 1250 × 843.
+ * Each cell is 1250 × 421 (half height for 2 rows).
  */
 function buildBalanceRichMenuBody(): object {
   return {
@@ -45,7 +45,7 @@ function buildBalanceRichMenuBody(): object {
     areas: [
       // Top-left: ดูยอดค้าง
       {
-        bounds: { x: 0, y: 0, width: 1250, height: 843 },
+        bounds: { x: 0, y: 0, width: 1250, height: 421 },
         action: {
           type: 'message',
           label: 'ดูยอดค้าง',
@@ -54,11 +54,29 @@ function buildBalanceRichMenuBody(): object {
       },
       // Top-right: ยืนยันชำระเงิน
       {
-        bounds: { x: 1250, y: 0, width: 1250, height: 843 },
+        bounds: { x: 1250, y: 0, width: 1250, height: 421 },
         action: {
           type: 'postback',
           label: 'ยืนยันชำระเงิน',
           data: 'action=confirm_payment_inquiry',
+        },
+      },
+      // Bottom-left: ดูใบแจ้งหนี้ → triggers balance inquiry then user selects invoice
+      {
+        bounds: { x: 0, y: 421, width: 1250, height: 422 },
+        action: {
+          type: 'postback',
+          label: 'ดูใบแจ้งหนี้',
+          data: 'action=view_invoice_menu',
+        },
+      },
+      // Bottom-right: ส่งใบเสร็จ → triggers balance inquiry then user selects receipt
+      {
+        bounds: { x: 1250, y: 421, width: 1250, height: 422 },
+        action: {
+          type: 'postback',
+          label: 'ส่งใบเสร็จ',
+          data: 'action=send_receipt_menu',
         },
       },
     ],

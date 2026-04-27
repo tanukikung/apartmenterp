@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { verifyLineSignature, sendReplyMessage, sendFlexMessage, getLineUserProfile } from '@/lib/line/client';
 import { prisma, logger, UnauthorizedError } from '@/lib';
+import { broadcastLineMessage } from '@/lib/sse/broadcaster';
 import { v4 as uuidv4 } from 'uuid';
 import type { WebhookEvent } from '@line/bot-sdk';
 import type { Prisma } from '@prisma/client';
@@ -33,7 +34,7 @@ type IncomingMessage = {
 function extractIncomingMessage(event: WebhookEvent): IncomingMessage | null {
   const evt = event as {
     type?: string;
-    message?: { id?: string; type?: string; text?: string; stickerId?: string; packageId?: string };
+    message?: { id?: string; type?: string; text?: string; stickerId?: string; packageId?: string; duration?: number; contentLength?: number; contentProvider?: { type?: string; originalFileName?: string } };
     postback?: { data?: string };
     replyToken?: string;
   };
@@ -94,6 +95,11 @@ function extractIncomingMessage(event: WebhookEvent): IncomingMessage | null {
     lineMessageId: evt.message.id,
     type: 'SYSTEM',
     content: `[${evt.message.type}]`,
+    metadata: {
+      duration: evt.message.duration ?? null,
+      fileSize: evt.message.contentLength ?? null,
+      originalFileName: evt.message.contentProvider?.originalFileName ?? null,
+    } as Prisma.InputJsonValue,
   };
 }
 
@@ -164,6 +170,16 @@ async function handlePostback(data: string, replyToken: string, conversationId: 
     const userId = (await prisma.conversation.findUnique({ where: { id: conversationId } }))?.lineUserId ?? '';
     await handleBalanceInquiry(userId, replyToken, conversationId);
 
+  } else if (action === 'view_invoice_menu') {
+    // Rich menu "ดูใบแจ้งหนี้" — show outstanding invoices via balance inquiry (user selects one)
+    const userId = (await prisma.conversation.findUnique({ where: { id: conversationId } }))?.lineUserId ?? '';
+    await handleBalanceInquiry(userId, replyToken, conversationId);
+
+  } else if (action === 'send_receipt_menu') {
+    // Rich menu "ส่งใบเสร็จ" — show outstanding invoices then user picks to request receipt
+    const userId = (await prisma.conversation.findUnique({ where: { id: conversationId } }))?.lineUserId ?? '';
+    await handleBalanceInquiry(userId, replyToken, conversationId);
+
   } else if (action === 'view_invoice') {
     const invoiceId = params.get('invoiceId');
     if (!invoiceId) {
@@ -189,17 +205,61 @@ async function handlePostback(data: string, replyToken: string, conversationId: 
       await sendReplyMessage(replyToken, '❌ ไม่พบใบเสร็จที่จะส่ง กรุณาติดต่อเจ้าหน้าที่');
       return;
     }
-    const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
-    if (!invoice) {
+
+    // Fetch signed URL for this invoice (same auth as /pdf route)
+    const baseUrl = process.env.APP_BASE_URL || '';
+    const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    const { createSignedInvoiceAccessToken } = await import('@/lib/invoices/access');
+    const token = createSignedInvoiceAccessToken({
+      invoiceId,
+      action: 'pdf',
+      expiresAt,
+    });
+    const signedUrl = `${baseUrl}/api/invoices/${encodeURIComponent(invoiceId)}/pdf?expires=${expiresAt}&token=${token}`;
+
+    // Look up tenant's LINE user ID
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        room: {
+          include: {
+            tenants: {
+              where: { role: 'PRIMARY', moveOutDate: null },
+              include: { tenant: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!invoice || !invoice.room) {
       await sendReplyMessage(replyToken, '❌ ไม่พบใบเสร็จ กรุณาติดต่อเจ้าหน้าที่');
       return;
     }
-    const baseUrl = process.env.APP_BASE_URL || '';
-    const pdfUrl = `${baseUrl}/api/invoices/${invoiceId}/pdf`;
-    await sendReplyMessage(
-      replyToken,
-      `📋 ดาวน์โหลดใบเสร็จ: ${pdfUrl}`
-    );
+
+    const tenant = invoice.room.tenants?.[0]?.tenant;
+    const lineUserId = tenant?.lineUserId;
+
+    if (!lineUserId) {
+      await sendReplyMessage(replyToken, '❌ ผู้เช่าไม่ได้ลงทะเบียน LINE กรุณาติดต่อเจ้าหน้าที่');
+      return;
+    }
+
+    // Send Flex receipt card via LINE using the same pattern as payment-notifier
+    const paidDate = invoice.paidAt
+      ? new Date(invoice.paidAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })
+      : new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    const { sendReceiptMessage } = await import('@/modules/messaging');
+    await sendReceiptMessage(lineUserId, {
+      roomNumber: invoice.roomNo,
+      amount: `฿${Number(invoice.totalAmount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}`,
+      paidDate,
+      invoiceNumber: invoice.id.slice(-8).toUpperCase(),
+      downloadLink: signedUrl,
+    });
+
+    await sendReplyMessage(replyToken, `📋 ส่งใบเสร็จให้ท่านแล้วค่ะ กรุณาตรวจสอบที่หน้าต่าง LINE ของท่านได้เลยค่ะ 😊`);
     logger.info({ type: 'postback_send_receipt', invoiceId, conversationId });
 
   } else {
@@ -235,7 +295,9 @@ async function handleBalanceInquiry(
     return;
   }
 
-  const amount = `฿${result.totalAmount!.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+  // totalAmount from invoice query already includes lateFeeAmount when invoice is OVERDUE
+  const effectiveAmount = result.totalAmount!;
+  const amount = `฿${effectiveAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
   const statusLabel: Record<string, string> = {
     GENERATED: 'รอดำเนินการ',
     SENT: 'รอชำระ',
@@ -441,7 +503,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
       // ── LINE Maintenance Request handling ──────────────────────────────────
       // Check if user has an in-progress maintenance request
-      const hasMaintenanceRequest = getMaintenanceRequestState(userId) !== undefined;
+      const hasMaintenanceRequest = await getMaintenanceRequestState(userId) !== undefined;
 
       if (incoming.type === 'TEXT' && incoming.replyToken) {
         const text = (incoming.content || '').trim();
@@ -482,10 +544,11 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       if (existingMessage) continue;
 
       const sentAt = new Date((event as { timestamp?: number }).timestamp || Date.now());
+      const messageId = uuidv4();
 
       await prisma.message.create({
         data: {
-          id: uuidv4(),
+          id: messageId,
           conversation: { connect: { id: conversation.id } },
           lineMessageId: incoming.lineMessageId,
           direction: 'INCOMING',
@@ -503,6 +566,17 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
           lastMessageAt: sentAt,
           unreadCount: { increment: 1 },
         },
+      });
+
+      // Broadcast to SSE clients so chat UI updates in real-time
+      broadcastLineMessage({
+        id: messageId,
+        type: incoming.type,
+        roomNo: conversation.roomNo,
+        content: incoming.content,
+        createdAt: sentAt.toISOString(),
+        tenantId: conversation.tenantId,
+        lineMessageId: incoming.lineMessageId,
       });
     } catch (err) {
       logger.error({

@@ -56,7 +56,8 @@ const MENU_CATEGORIES: NavCategory[] = [
       { type: "link", href: "/admin/invoices", label: "ใบแจ้งหนี้", icon: ScrollText },
       { type: "link", href: "/admin/billing/import", label: "นำเข้าข้อมูล", icon: Upload },
       { type: "link", href: "/admin/expenses", label: "รายจ่าย", icon: CreditCard },
-      { type: "link", href: "/admin/settings/billing-policy", label: "กติกาค่าบริการ", icon: FileEdit },
+      { type: "link", href: "/admin/settings/billing-policy", label: "ปฏิทินบิล", icon: Receipt },
+      { type: "link", href: "/admin/settings/billing-rules", label: "กติกาค่าบริการ", icon: FileEdit },
     ],
   },
   {
@@ -141,10 +142,10 @@ function MegaMenuDropdown({
   onClose: () => void;
 }) {
   return (
-    <div className="absolute top-full left-0 mt-2 w-[560px] rounded-xl bg-white shadow-xl border border-slate-200/80 p-4 z-50 animate-fade-in">
-      <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-100">
-        <category.icon size={16} className="text-indigo-500" />
-        <span className="text-sm font-semibold text-slate-800">{category.name}</span>
+    <div className="absolute top-full left-0 mt-2 w-[560px] max-w-[calc(100vw-2rem)] rounded-xl bg-[hsl(var(--color-surface))] shadow-xl border-[hsl(var(--color-border))]/80 p-4 z-50 animate-fade-in">
+      <div className="flex items-center gap-2 mb-3 pb-3 border-b border-[hsl(var(--color-border))]/50">
+        <category.icon size={16} className="text-[hsl(var(--primary))]" />
+        <span className="text-sm font-semibold text-[hsl(var(--color-text))]">{category.name}</span>
       </div>
       <div className="grid grid-cols-2 gap-1">
         {category.items.map((item) => {
@@ -156,13 +157,13 @@ function MegaMenuDropdown({
               onClick={onClose}
               className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors duration-150 ${
                 active
-                  ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-[hsl(var(--primary))] text-[hsl(var(--on-primary))] shadow-sm shadow-[hsl(var(--primary))]/30"
+                  : "text-[hsl(var(--color-text-2))] hover:bg-[hsl(var(--color-bg))] hover:text-[hsl(var(--color-text))]"
               }`}
             >
               <item.icon
                 size={14}
-                className={active ? "text-white" : "text-slate-400"}
+                className={active ? "text-[hsl(var(--on-primary))]" : "text-[hsl(var(--color-text-3))]"}
                 strokeWidth={active ? 2.5 : 1.8}
               />
               {item.label}
@@ -231,7 +232,7 @@ export default function MegaMenu() {
       {/* ── Desktop Mega Menu Bar ── */}
       <div
         ref={dropdownRef}
-        className="relative hidden md:flex items-center gap-0 h-12 bg-white border-b border-slate-200 px-4"
+        className="relative hidden md:flex items-center gap-0 h-12 bg-[hsl(var(--color-surface))] border-b border-[hsl(var(--color-border))] px-4"
       >
         {/* Quick links */}
         {QUICK_LINKS.map((item) => {
@@ -241,7 +242,7 @@ export default function MegaMenu() {
               key={item.href}
               href={item.href}
               className={`flex items-center gap-2 px-4 h-12 text-[13px] font-medium transition-colors duration-150 ${
-                active ? "text-indigo-600" : "text-slate-500 hover:text-slate-800"
+                active ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--color-text-3))] hover:text-[hsl(var(--color-text))]"
               }`}
             >
               <item.icon size={15} strokeWidth={active ? 2.5 : 1.8} />
@@ -250,7 +251,7 @@ export default function MegaMenu() {
           );
         })}
 
-        <div className="h-4 w-px bg-slate-200 mx-1" />
+        <div className="h-4 w-px bg-[hsl(var(--color-border))] mx-1" />
 
         {/* Category nav items */}
         {MENU_CATEGORIES.map((cat) => {
@@ -266,15 +267,15 @@ export default function MegaMenu() {
                 onClick={() => setOpenCategory(isOpen ? null : cat.name)}
                 className={`flex items-center gap-1.5 h-12 px-3 text-[13px] font-medium transition-colors duration-150 ${
                   isOpen
-                    ? "text-indigo-600 border-b-2 border-indigo-600"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? "text-[hsl(var(--primary))] border-b-2 border-[hsl(var(--primary))]"
+                    : "text-[hsl(var(--color-text-3))] hover:text-[hsl(var(--color-text))]"
                 }`}
               >
                 <cat.icon size={14} strokeWidth={isOpen ? 2.5 : 1.8} />
                 {cat.name}
                 <ChevronDown
                   size={12}
-                  className={`text-slate-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                  className={`text-[hsl(var(--color-text-3))] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                 />
               </button>
 
@@ -306,20 +307,20 @@ export default function MegaMenu() {
             onClick={() => setMobileOpen(false)}
           />
           <aside
-            className="fixed inset-y-0 left-0 z-50 w-[280px] flex flex-col bg-white text-slate-800 md:hidden shadow-xl"
+            className="fixed inset-y-0 left-0 z-50 w-[280px] flex flex-col bg-[hsl(var(--color-surface))] text-[hsl(var(--color-text))] md:hidden shadow-xl"
             style={{ animation: "slide-in-left 250ms cubic-bezier(0.16, 1, 0.3, 1)" }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-4 border-b border-slate-200">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-[hsl(var(--color-border))]">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 shadow">
-                  <Building2 size={14} className="text-white" strokeWidth={2.5} />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--primary))] shadow-sm">
+                  <Building2 size={14} className="text-[hsl(var(--on-primary))]" strokeWidth={2.5} />
                 </div>
-                <span className="text-sm font-semibold text-slate-800">Apartment ERP</span>
+                <span className="text-sm font-semibold text-[hsl(var(--color-text))]">Apartment ERP</span>
               </div>
               <button
                 onClick={() => setMobileOpen(false)}
-                className="text-slate-400 hover:text-slate-700 transition-colors"
+                className="text-[hsl(var(--color-text-3))] hover:text-[hsl(var(--color-text-2))] transition-colors"
               >
                 <X size={20} />
               </button>
@@ -336,8 +337,8 @@ export default function MegaMenu() {
                     href={item.href}
                     className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] font-medium mb-1 ${
                       active
-                        ? "bg-indigo-600 text-white"
-                        : "text-slate-600 hover:bg-slate-100"
+                        ? "bg-[hsl(var(--primary))] text-[hsl(var(--on-primary))]"
+                        : "text-[hsl(var(--color-text-2))] hover:bg-[hsl(var(--color-bg))]"
                     }`}
                   >
                     <item.icon size={15} strokeWidth={active ? 2.5 : 1.8} />
@@ -346,7 +347,7 @@ export default function MegaMenu() {
                 );
               })}
 
-              <div className="h-px bg-slate-200 my-3" />
+              <div className="h-px bg-[hsl(var(--color-border))] my-3" />
 
               {/* Categories */}
               {MENU_CATEGORIES.map((cat) => {
@@ -358,9 +359,9 @@ export default function MegaMenu() {
                     <div className="flex items-center gap-2 px-3 py-2">
                       <cat.icon
                         size={14}
-                        className={hasActiveChild ? "text-indigo-500" : "text-slate-400"}
+                        className={hasActiveChild ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--color-text-3))]"}
                       />
-                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--color-text-3))]">
                         {cat.name}
                       </span>
                     </div>
@@ -372,8 +373,8 @@ export default function MegaMenu() {
                           href={item.href}
                           className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium mb-0.5 ${
                             active
-                              ? "bg-indigo-50 text-indigo-700 border-l-2 border-indigo-600 pl-[10px]"
-                              : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                              ? "bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] border-l-2 border-[hsl(var(--primary))] pl-[10px]"
+                              : "text-[hsl(var(--color-text-3))] hover:bg-[hsl(var(--color-bg))] hover:text-[hsl(var(--color-text))]"
                           }`}
                         >
                           <item.icon
@@ -390,10 +391,10 @@ export default function MegaMenu() {
             </nav>
 
             {/* Footer */}
-            <div className="border-t border-slate-200 p-3">
+            <div className="border-t border-[hsl(var(--color-border))] p-3">
               <Link
                 href="/admin/dashboard"
-                className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors"
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] font-medium text-[hsl(var(--color-text-3))] hover:bg-[hsl(var(--color-bg))] hover:text-[hsl(var(--color-text))] transition-colors"
               >
                 <Home size={15} />
                 กลับหน้าแรก

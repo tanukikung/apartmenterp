@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, Plus, Home, Search, Inbox, CheckCircle, MessageCircle, XCircle } from 'lucide-react';
+import { X, Plus, Home, Search, Inbox, CheckCircle, MessageCircle, XCircle, Send } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SkeletonTable } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -36,11 +36,17 @@ type Room = {
   roomStatus: string;
 };
 
-type Tab = 'edit' | 'line' | 'rooms';
+type Tab = 'edit' | 'line' | 'rooms' | 'message';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const AVATAR_COLORS = ['bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700', 'bg-blue-100 text-blue-700'];
+const AVATAR_COLORS = [
+  'bg-blue-500/20 text-blue-600 border border-blue-500/25',
+  'bg-emerald-500/20 text-emerald-600 border border-emerald-500/25',
+  'bg-amber-500/20 text-amber-600 border border-amber-500/25',
+  'bg-rose-500/20 text-rose-600 border border-rose-500/25',
+  'bg-violet-500/20 text-violet-600 border border-violet-500/25',
+];
 function avatarColor(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -49,7 +55,7 @@ function avatarColor(name: string): string {
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
-  return (parts[0]?.charAt(0) ?? '').toUpperCase();
+  return (parts[0]?.[0] ?? '').toUpperCase();
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -77,13 +83,19 @@ export default function AdminTenantsPage() {
   const [assignRoom, setAssignRoom] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; description?: string; onConfirm: () => void } | null>(null);
 
+  // Message dialog
+  const [_messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [messageSending, setMessageSending] = useState(false);
+  const [messageError, setMessageError] = useState<string | null>(null);
+  const [messageSuccess, setMessageSuccess] = useState(false);
+
   // ─── Load ──────────────────────────────────────────────────────────────────
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch ALL tenants by paginating through the list endpoint (max pageSize=100).
       const PAGE_SIZE = 100;
       const allTenants: Tenant[] = [];
       let page = 1;
@@ -95,10 +107,9 @@ export default function AdminTenantsPage() {
         const total: number = (res.data?.total as number | undefined) ?? chunk.length;
         if (allTenants.length >= total || chunk.length === 0) break;
         page += 1;
-        if (page > 100) break; // safety stop (>10k tenants)
+        if (page > 100) break;
       }
 
-      // Rooms: fetch all pages too (max pageSize=300 per request)
       const allRooms: Room[] = [];
       let rp = 1;
       while (true) {
@@ -281,21 +292,52 @@ export default function AdminTenantsPage() {
     });
   }
 
+  // ─── Send message ───────────────────────────────────────────────────────────
+
+  async function handleSendMessage(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedTenant?.lineUserId) return;
+    setMessageSending(true);
+    setMessageError(null);
+    setMessageSuccess(false);
+    try {
+      const convRes = await fetch(`/api/conversations?lineUserId=${encodeURIComponent(selectedTenant.lineUserId)}&pageSize=1`, { cache: 'no-store' }).then(r => r.json());
+      const convList = convRes.success ? (convRes.data?.data ?? []) : [];
+      if (!convList.length) {
+        throw new Error('ไม่พบการสนทนากับผู้เช่านี้ กรุณาลิงก์ LINE UID ก่อน');
+      }
+      const conv = convList[0];
+      const res = await fetch(`/api/conversations/${conv.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: messageText }),
+      }).then(r => r.json());
+      if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถส่งข้อความได้');
+      setMessageSuccess(true);
+      setMessageText('');
+      setTimeout(() => setMessageDialogOpen(false), 1500);
+    } catch (err) {
+      setMessageError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
+    } finally {
+      setMessageSending(false);
+    }
+  }
+
   return (
-    <main className="p-8 max-w-7xl mx-auto w-full space-y-6">
+    <div className="p-8 max-w-7xl mx-auto w-full space-y-6">
 
       {/* Header */}
       <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-primary">ผู้เช่า</h1>
-          <p className="mt-1 text-sm text-on-surface-variant">จัดการผู้เช่า เชื่อมต่อ LINE และจัดสรรห้อง</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-[hsl(var(--primary))]">ผู้เช่า</h1>
+          <p className="mt-1 text-sm text-[hsl(var(--on-surface-variant))]">จัดการผู้เช่า เชื่อมต่อ LINE และจัดสรรห้อง</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/30 rounded-lg text-sm w-[220px] focus:ring-2 focus:ring-primary" placeholder="ค้นหาชื่อ ห้อง เบอร์โทร..." />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--on-surface-variant))]" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 pr-4 py-2 bg-[hsl(var(--color-surface))]/50 border border-[hsl(var(--color-border))] rounded-lg text-sm w-[220px] text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface-variant))]/40 focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" placeholder="ค้นหาชื่อ ห้อง เบอร์โทร..." />
           </div>
-          <button onClick={() => { setShowCreate(true); setDrawerOpen(true); setSelectedTenant(null); }} className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-primary-container to-primary text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all">
+          <button onClick={() => { setShowCreate(true); setDrawerOpen(true); setSelectedTenant(null); }} className="inline-flex items-center gap-2 px-4 py-2 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-glow-primary hover:shadow-glow-primary-hover hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200">
             <Plus size={14} strokeWidth={2.5} />
             เพิ่มผู้เช่า
           </button>
@@ -304,28 +346,31 @@ export default function AdminTenantsPage() {
 
       {/* Alerts */}
       {message && (
-        <div className="px-4 py-3 rounded-lg bg-tertiary-container/10 border border-tertiary-container/20 text-sm text-tertiary-container font-medium">
+        <div className="px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-600 font-medium backdrop-blur">
           {message}
         </div>
       )}
       {error && (
-        <div className="px-4 py-3 rounded-lg bg-error-container/10 border border-error-container/20 text-sm text-error font-medium">
+        <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400 font-medium backdrop-blur">
           {error}
         </div>
       )}
 
       {/* Stats */}
       <section className="grid gap-4 sm:grid-cols-3">
-        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10 hover:shadow-lg transition-all">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">ผู้เช่าทั้งหมด</p>
-          <div className="text-2xl font-extrabold tracking-tight text-primary">{tenants.length}</div>
+        <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/60 backdrop-blur shadow-[var(--glass-shadow)] p-5 hover:border-white/12 hover:shadow-[0_0_24px_rgba(255,255,255,0.06)] transition-all duration-300 group cursor-default">
+          <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">ผู้เช่าทั้งหมด</p>
+          <div className="text-2xl font-extrabold tracking-tight text-[hsl(var(--primary))]">{tenants.length}</div>
         </div>
-        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10 hover:shadow-lg transition-all">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">เชื่อม LINE</p>
+        <div className="relative overflow-hidden rounded-xl border border-emerald-500/15 bg-[hsl(var(--color-surface))]/60 backdrop-blur shadow-[var(--glass-shadow)] p-5 hover:border-emerald-500/25 hover:shadow-[0_0_24px_rgba(34,197,94,0.15)] transition-all duration-300 group cursor-default">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">เชื่อม LINE</p>
           <div className="text-2xl font-extrabold tracking-tight text-emerald-600">{tenants.filter(t=>t.lineUserId).length}</div>
         </div>
-        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10 hover:shadow-lg transition-all">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">มีห้อง</p>
+        <div className="relative overflow-hidden rounded-xl border border-amber-500/15 bg-[hsl(var(--color-surface))]/60 backdrop-blur shadow-[var(--glass-shadow)] p-5 hover:border-amber-500/25 hover:shadow-[0_0_24px_rgba(251,191,36,0.15)] transition-all duration-300 group cursor-default">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">มีห้อง</p>
           <div className="text-2xl font-extrabold tracking-tight text-amber-600">{tenants.filter(t=>t.roomTenants?.length>0).length}</div>
         </div>
       </section>
@@ -334,7 +379,7 @@ export default function AdminTenantsPage() {
       {loading ? (
         <SkeletonTable rows={6} />
       ) : filtered.length === 0 ? (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/40 backdrop-blur shadow-[var(--glass-shadow)]">
           <EmptyState
             icon={<Inbox className="h-7 w-7" />}
             title={search.trim() ? `ไม่พบผู้เช่าที่ตรงกับ "${search}"` : 'ยังไม่มีผู้เช่า'}
@@ -345,32 +390,32 @@ export default function AdminTenantsPage() {
           />
         </div>
       ) : (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/40 backdrop-blur shadow-[var(--glass-shadow)] overflow-hidden">
           {/* Mobile card view */}
-          <div className="md:hidden divide-y divide-outline-variant/10">
+          <div className="md:hidden divide-y divide-[hsl(var(--color-border))]">
             {filtered.map((t) => {
               const name = t.fullName || 'ไม่ระบุชื่อ';
               return (
                 <button
                   key={`m-${t.id}`}
                   onClick={() => openTenantDrawer(t)}
-                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-surface-container-lowest transition-colors"
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-[hsl(var(--color-surface))]/[0.03] transition-colors duration-150 active:scale-[0.98]"
                 >
                   <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-sm font-bold ${avatarColor(name)}`}>
                     {initials(name)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold text-on-surface truncate">{name}</span>
+                      <span className="text-sm font-semibold text-[hsl(var(--on-surface))] truncate">{name}</span>
                       {t.lineUserId && (
                         <CheckCircle size={12} className="text-emerald-600 shrink-0" aria-label="LINE เชื่อมแล้ว" />
                       )}
                     </div>
-                    <div className="mt-0.5 text-xs text-on-surface-variant">{t.phone || '—'}</div>
+                    <div className="mt-0.5 text-xs text-[hsl(var(--on-surface-variant))]">{t.phone || '—'}</div>
                     {t.roomTenants?.length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {t.roomTenants.map((rt) => (
-                          <span key={rt.id} className="inline-flex items-center px-2 py-0.5 bg-primary-container/10 text-primary-container text-[10px] font-bold rounded-full">{rt.roomNo}</span>
+                          <span key={rt.id} className="inline-flex items-center px-2 py-0.5 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] text-[10px] font-bold rounded-full border border-[hsl(var(--primary))]/15">{rt.roomNo}</span>
                         ))}
                       </div>
                     )}
@@ -382,39 +427,39 @@ export default function AdminTenantsPage() {
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-surface-container-low/50">
-                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ผู้เช่า</th>
-                  <th className="hidden md:table-cell px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เบอร์โทร</th>
-                  <th className="hidden lg:table-cell px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">อีเมล</th>
-                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
-                  <th className="hidden lg:table-cell px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">LINE</th>
-                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant"></th>
+                <tr className="border-b border-[hsl(var(--color-border))]">
+                  <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ผู้เช่า</th>
+                  <th className="hidden md:table-cell px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">เบอร์โทร</th>
+                  <th className="hidden lg:table-cell px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">อีเมล</th>
+                  <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ห้อง</th>
+                  <th className="hidden lg:table-cell px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">LINE</th>
+                  <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/10">
+              <tbody className="divide-y divide-[hsl(var(--color-border))]">
                 {filtered.map((t) => {
                   const name = t.fullName || 'ไม่ระบุชื่อ';
                   return (
-                    <tr key={t.id} className="hover:bg-surface-container-lowest transition-colors">
+                    <tr key={t.id} className="hover:bg-[hsl(var(--color-surface))]/[0.03] transition-colors duration-150 group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ${avatarColor(name)}`}>
                             {initials(name)}
                           </div>
-                          <span className="text-sm font-semibold text-on-surface">{name}</span>
+                          <span className="text-sm font-semibold text-[hsl(var(--on-surface))]">{name}</span>
                         </div>
                       </td>
-                      <td className="hidden md:table-cell px-6 py-4 text-sm text-on-surface">{t.phone || '—'}</td>
-                      <td className="hidden lg:table-cell px-6 py-4 text-sm text-on-surface">{t.email || '—'}</td>
+                      <td className="hidden md:table-cell px-6 py-4 text-sm text-[hsl(var(--on-surface-variant))]">{t.phone || '—'}</td>
+                      <td className="hidden lg:table-cell px-6 py-4 text-sm text-[hsl(var(--on-surface-variant))]">{t.email || '—'}</td>
                       <td className="px-6 py-4">
                         {t.roomTenants?.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {t.roomTenants.map(rt => (
-                              <span key={rt.id} className="inline-flex items-center px-2 py-0.5 bg-primary-container/10 text-primary-container text-[10px] font-bold rounded-full">{rt.roomNo}</span>
+                              <span key={rt.id} className="inline-flex items-center px-2 py-0.5 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] text-[10px] font-bold rounded-full border border-[hsl(var(--primary))]/15">{rt.roomNo}</span>
                             ))}
                           </div>
                         ) : (
-                          <span className="text-xs text-on-surface-variant">ไม่มี</span>
+                          <span className="text-xs text-[hsl(var(--on-surface-variant))]">ไม่มี</span>
                         )}
                       </td>
                       <td className="hidden lg:table-cell px-6 py-4">
@@ -424,13 +469,13 @@ export default function AdminTenantsPage() {
                             เชื่อมแล้ว
                           </span>
                         ) : (
-                          <span className="text-xs text-on-surface-variant">—</span>
+                          <span className="text-xs text-[hsl(var(--on-surface-variant))]">—</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
                         <button
                           onClick={() => openTenantDrawer(t)}
-                          className="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+                          className="px-3 py-1.5 bg-[hsl(var(--primary))] text-white text-xs font-semibold rounded-lg hover:shadow-glow-primary hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200"
                         >
                           จัดการ
                         </button>
@@ -447,14 +492,14 @@ export default function AdminTenantsPage() {
       {/* Drawer */}
       {drawerOpen && (
         <>
-          <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-40" onClick={closeDrawer} style={{ animation: 'fade-in 200ms ease' }} />
-          <div className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-surface-container-lowest border-l border-outline-variant/10 z-50 overflow-y-auto" style={{ animation: 'slide-in-right 250ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <div className="sticky top-0 bg-surface-container-lowest border-b border-outline-variant/10 px-6 py-4 flex items-center justify-between z-10">
-              <h2 className="text-lg font-bold text-primary">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={closeDrawer} style={{ animation: 'fade-in 200ms ease' }} />
+          <div className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-[hsl(var(--color-surface))]/80 backdrop-blur border-l border-[hsl(var(--color-border))] z-50 overflow-y-auto shadow-[-8px_0_32px_rgba(0,0,0,0.12)]" style={{ animation: 'slide-in-right 250ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
+            <div className="sticky top-0 bg-[hsl(var(--color-surface))]/90 backdrop-blur border-b border-[hsl(var(--color-border))] px-6 py-4 flex items-center justify-between z-10">
+              <h2 className="text-lg font-bold text-[hsl(var(--primary))]">
                 {showCreate ? 'เพิ่มผู้เช่าใหม่' : `จัดการ ${selectedTenant ? `${selectedTenant.firstName} ${selectedTenant.lastName}` : ''}`}
               </h2>
-              <button onClick={closeDrawer} className="p-2 hover:bg-surface-container-high rounded-lg transition-colors">
-                <X size={18} className="text-on-surface-variant" />
+              <button onClick={closeDrawer} className="p-2 hover:bg-[hsl(var(--color-surface))]/[0.05] rounded-lg transition-colors active:scale-[0.95]">
+                <X size={18} className="text-[hsl(var(--on-surface-variant))]" />
               </button>
             </div>
 
@@ -463,31 +508,31 @@ export default function AdminTenantsPage() {
                 <form className="space-y-5" onSubmit={handleCreate}>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">ชื่อ</label>
-                      <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.firstName} placeholder="ชื่อ" onChange={e => setCreateForm(p => ({ ...p, firstName: e.target.value }))} required />
+                      <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">ชื่อ</label>
+                      <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" value={createForm.firstName} placeholder="ชื่อ" onChange={e => setCreateForm(p => ({ ...p, firstName: e.target.value }))} required />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">นามสกุล</label>
-                      <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.lastName} placeholder="นามสกุล" onChange={e => setCreateForm(p => ({ ...p, lastName: e.target.value }))} required />
+                      <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">นามสกุล</label>
+                      <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" value={createForm.lastName} placeholder="นามสกุล" onChange={e => setCreateForm(p => ({ ...p, lastName: e.target.value }))} required />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">เบอร์โทร</label>
-                    <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.phone} placeholder="0xx-xxx-xxxx" onChange={e => setCreateForm(p => ({ ...p, phone: e.target.value }))} required />
+                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">เบอร์โทร</label>
+                    <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" value={createForm.phone} placeholder="0xx-xxx-xxxx" onChange={e => setCreateForm(p => ({ ...p, phone: e.target.value }))} required />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">อีเมล</label>
-                    <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" type="email" value={createForm.email} placeholder="email@example.com" onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))} />
+                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">อีเมล</label>
+                    <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" type="email" value={createForm.email} placeholder="email@example.com" onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">ผู้ติดต่อฉุกเฉิน</label>
-                    <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.emergencyContact} placeholder="ชื่อ + เบอร์โทร" onChange={e => setCreateForm(p => ({ ...p, emergencyContact: e.target.value }))} />
+                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">ผู้ติดต่อฉุกเฉิน</label>
+                    <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" value={createForm.emergencyContact} placeholder="ชื่อ + เบอร์โทร" onChange={e => setCreateForm(p => ({ ...p, emergencyContact: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">โทรศัพท์ฉุกเฉิน</label>
-                    <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={createForm.emergencyPhone} placeholder="0xx-xxx-xxxx" onChange={e => setCreateForm(p => ({ ...p, emergencyPhone: e.target.value }))} />
+                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">โทรศัพท์ฉุกเฉิน</label>
+                    <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" value={createForm.emergencyPhone} placeholder="0xx-xxx-xxxx" onChange={e => setCreateForm(p => ({ ...p, emergencyPhone: e.target.value }))} />
                   </div>
-                  <button className="w-full py-2.5 bg-gradient-to-br from-primary-container to-primary text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50" disabled={working === 'create'}>
+                  <button className="w-full py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-glow-primary hover:shadow-glow-primary-hover hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50" disabled={working === 'create'}>
                     {working === 'create' ? 'กำลังเพิ่ม...' : 'เพิ่มผู้เช่า'}
                   </button>
                 </form>
@@ -495,10 +540,13 @@ export default function AdminTenantsPage() {
             ) : selectedTenant ? (
               <>
                 {/* Tab Nav */}
-                <div className="flex border-b border-outline-variant/10">
-                  <button className={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'edit' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:text-on-surface'}`} onClick={() => setActiveTab('edit')}>แก้ไขข้อมูล</button>
-                  <button className={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'line' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:text-on-surface'}`} onClick={() => setActiveTab('line')}>LINE</button>
-                  <button className={`flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'rooms' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:text-on-surface'}`} onClick={() => setActiveTab('rooms')}>ห้องพัก</button>
+                <div className="flex border-b border-[hsl(var(--color-border))]">
+                  <button className={`flex-1 px-4 py-3 text-[11px] font-bold uppercase tracking-wider transition-all duration-200 ${activeTab === 'edit' ? 'text-[hsl(var(--primary))] border-b-2 border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10' : 'text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--on-surface))]'}`} onClick={() => setActiveTab('edit')}>แก้ไขข้อมูล</button>
+                  <button className={`flex-1 px-4 py-3 text-[11px] font-bold uppercase tracking-wider transition-all duration-200 ${activeTab === 'line' ? 'text-[hsl(var(--primary))] border-b-2 border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10' : 'text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--on-surface))]'}`} onClick={() => setActiveTab('line')}>LINE</button>
+                  <button className={`flex-1 px-4 py-3 text-[11px] font-bold uppercase tracking-wider transition-all duration-200 ${activeTab === 'rooms' ? 'text-[hsl(var(--primary))] border-b-2 border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10' : 'text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--on-surface))]'}`} onClick={() => setActiveTab('rooms')}>ห้องพัก</button>
+                  {selectedTenant.lineUserId && (
+                    <button className={`flex-1 px-4 py-3 text-[11px] font-bold uppercase tracking-wider transition-all duration-200 ${activeTab === 'message' ? 'text-[hsl(var(--primary))] border-b-2 border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10' : 'text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--on-surface))]'}`} onClick={() => setActiveTab('message')}>ข้อความ</button>
+                  )}
                 </div>
                 <div className="p-6">
 
@@ -507,31 +555,31 @@ export default function AdminTenantsPage() {
                     <form className="space-y-5" onSubmit={handleUpdate}>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">ชื่อ</label>
-                          <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.firstName} onChange={e => setEditForm(p => ({ ...p, firstName: e.target.value }))} required />
+                          <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">ชื่อ</label>
+                          <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" value={editForm.firstName} onChange={e => setEditForm(p => ({ ...p, firstName: e.target.value }))} required />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">นามสกุล</label>
-                          <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.lastName} onChange={e => setEditForm(p => ({ ...p, lastName: e.target.value }))} required />
+                          <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">นามสกุล</label>
+                          <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" value={editForm.lastName} onChange={e => setEditForm(p => ({ ...p, lastName: e.target.value }))} required />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">เบอร์โทร</label>
-                        <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.phone} onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} />
+                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">เบอร์โทร</label>
+                        <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" value={editForm.phone} onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">อีเมล</label>
-                        <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" type="email" value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} />
+                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">อีเมล</label>
+                        <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" type="email" value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">ผู้ติดต่อฉุกเฉิน</label>
-                        <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.emergencyContact} onChange={e => setEditForm(p => ({ ...p, emergencyContact: e.target.value }))} />
+                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">ผู้ติดต่อฉุกเฉิน</label>
+                        <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" value={editForm.emergencyContact} onChange={e => setEditForm(p => ({ ...p, emergencyContact: e.target.value }))} />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">โทรศัพท์ฉุกเฉิน</label>
-                        <input className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={editForm.emergencyPhone} onChange={e => setEditForm(p => ({ ...p, emergencyPhone: e.target.value }))} />
+                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">โทรศัพท์ฉุกเฉิน</label>
+                        <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" value={editForm.emergencyPhone} onChange={e => setEditForm(p => ({ ...p, emergencyPhone: e.target.value }))} />
                       </div>
-                      <button className="w-full py-2.5 bg-gradient-to-br from-primary-container to-primary text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50" disabled={working === `edit:${selectedTenant.id}`}>
+                      <button className="w-full py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-glow-primary hover:shadow-glow-primary-hover hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50" disabled={working === `edit:${selectedTenant.id}`}>
                         {working === `edit:${selectedTenant.id}` ? 'กำลังบันทึก...' : 'บันทึก'}
                       </button>
                     </form>
@@ -540,25 +588,25 @@ export default function AdminTenantsPage() {
                   {/* LINE Tab */}
                   {activeTab === 'line' && (
                     <form className="space-y-5" onSubmit={handleLinkLine}>
-                      <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 mb-2">สถานะ LINE</div>
+                      <div className="rounded-xl border border-indigo-500/15 bg-indigo-500/5 p-4">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 mb-2">สถานะ LINE</div>
                         {selectedTenant.lineUserId ? (
-                          <div className="flex items-center gap-2 text-sm text-on-surface">
-                            <CheckCircle size={16} className="text-emerald-500" />
+                          <div className="flex items-center gap-2 text-sm text-[hsl(var(--on-surface))]">
+                            <CheckCircle size={16} className="text-emerald-600" />
                             <span>เชื่อมต่อแล้ว:</span>
-                            <code className="rounded bg-surface-container px-2 py-0.5 text-xs font-mono">{selectedTenant.lineUserId}</code>
+                            <code className="rounded bg-white/5 px-2 py-0.5 text-xs font-mono text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))]">{selectedTenant.lineUserId}</code>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 text-sm text-on-surface-variant">
-                            <MessageCircle size={16} className="text-on-surface-variant" />
+                          <div className="flex items-center gap-2 text-sm text-[hsl(var(--on-surface-variant))]">
+                            <MessageCircle size={16} className="text-[hsl(var(--on-surface-variant))]" />
                             <span>ยังไม่เชื่อมต่อ</span>
                           </div>
                         )}
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">LINE User ID</label>
+                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">LINE User ID</label>
                         <input
-                          className={`w-full px-4 py-2.5 bg-surface-container-low border rounded-lg text-sm focus:ring-2 focus:ring-primary ${lineIdError ? 'border-error/50' : 'border-outline-variant/30'}`}
+                          className={`w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200 ${lineIdError ? 'border-red-500/40' : 'border-[hsl(var(--color-border))]'}`}
                           value={lineUserId}
                           placeholder="ไอดีจาก LINE (เช่น Udf3k...)"
                           onChange={e => {
@@ -567,17 +615,17 @@ export default function AdminTenantsPage() {
                           }}
                         />
                         {lineIdError ? (
-                          <p className="mt-1.5 flex items-center gap-1 text-xs text-error">
+                          <p className="mt-1.5 flex items-center gap-1 text-xs text-red-400">
                             <XCircle size={12} className="shrink-0" />
                             {lineIdError}
                           </p>
                         ) : (
-                          <p className="mt-1 text-[10px] text-on-surface-variant">ดูได้จาก LINE Official Account → ผู้ติดตาม → โค้ดผู้ใช้ (User ID)</p>
+                          <p className="mt-1 text-[10px] text-[hsl(var(--on-surface-variant))]">ดูได้จาก LINE Official Account → ผู้ติดตาม → โค้ดผู้ใช้ (User ID)</p>
                         )}
                       </div>
                       <div className="flex gap-3">
                         <button
-                          className="flex-1 py-2.5 bg-gradient-to-br from-primary-container to-primary text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50"
+                          className="flex-1 py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-glow-primary hover:shadow-glow-primary-hover hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50"
                           disabled={working === `line:${selectedTenant.id}`}
                         >
                           {working === `line:${selectedTenant.id}` ? '...' : lineUserId ? 'อัพเดท LINE' : 'ลบ LINE'}
@@ -590,19 +638,19 @@ export default function AdminTenantsPage() {
                   {activeTab === 'rooms' && (
                     <div className="space-y-5">
                       <div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-3">ห้องปัจจุบัน</div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--on-surface-variant))] mb-3">ห้องปัจจุบัน</div>
                         {selectedTenant.roomTenants?.length > 0 ? (
                           <div className="space-y-2">
                             {selectedTenant.roomTenants.map(rt => (
-                              <div key={rt.id} className="flex items-center justify-between rounded-lg border border-outline-variant/10 px-4 py-3">
+                              <div key={rt.id} className="flex items-center justify-between rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.03] px-4 py-3 backdrop-blur-[12px]">
                                 <div className="flex items-center gap-2">
-                                  <Home size={14} className="text-on-surface-variant" />
-                                  <span className="text-sm font-semibold text-on-surface">{rt.roomNo}</span>
+                                  <Home size={14} className="text-[hsl(var(--primary))]" />
+                                  <span className="text-sm font-semibold text-[hsl(var(--on-surface))]">{rt.roomNo}</span>
                                 </div>
                                 <button
                                   onClick={() => handleRemoveRoom(rt.roomNo)}
                                   disabled={working === `remove:${selectedTenant.id}:${rt.roomNo}`}
-                                  className="text-xs font-semibold text-error hover:underline disabled:opacity-50"
+                                  className="text-[11px] font-semibold text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
                                 >
                                   ถอน
                                 </button>
@@ -610,24 +658,72 @@ export default function AdminTenantsPage() {
                             ))}
                           </div>
                         ) : (
-                          <div className="rounded-lg border-2 border-dashed border-outline-variant/30 px-4 py-4 text-center text-sm text-on-surface-variant">
+                          <div className="rounded-lg border-2 border-dashed border-[hsl(var(--color-border))] px-4 py-4 text-center text-sm text-[hsl(var(--on-surface-variant))]">
                             ยังไม่มีห้อง
                           </div>
                         )}
                       </div>
                       <form className="space-y-3" onSubmit={handleAssignRoom}>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">จัดสรรห้องใหม่</div>
-                        <select className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:ring-2 focus:ring-primary" value={assignRoom} onChange={e => setAssignRoom(e.target.value)} required>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--on-surface-variant))]">จัดสรรห้องใหม่</div>
+                        <select className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200 cursor-pointer" value={assignRoom} onChange={e => setAssignRoom(e.target.value)} required>
                           <option value="">— เลือกห้อง —</option>
                           {rooms.filter(r => r.roomStatus === 'VACANT').map(r => (
                             <option key={r.roomNo} value={r.roomNo}>{r.roomNo}</option>
                           ))}
                         </select>
-                        <button className="w-full py-2.5 bg-gradient-to-br from-primary-container to-primary text-white text-sm font-bold rounded-lg shadow-md hover:opacity-90 transition-all disabled:opacity-50" disabled={!assignRoom || working === `assign:${selectedTenant.id}`}>
+                        <button className="w-full py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-glow-primary hover:shadow-glow-primary-hover hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50" disabled={!assignRoom || working === `assign:${selectedTenant.id}`}>
                           {working === `assign:${selectedTenant.id}` ? '...' : 'จัดสรร'}
                         </button>
                       </form>
                     </div>
+                  )}
+
+                  {/* Message Tab */}
+                  {activeTab === 'message' && (
+                    <form className="space-y-5" onSubmit={handleSendMessage}>
+                      <div className="rounded-xl border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 p-4">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary))] mb-1">ส่งข้อความ LINE</div>
+                        <div className="text-sm text-[hsl(var(--on-surface-variant))]">
+                          ส่งข้อความไปยัง <span className="font-semibold text-[hsl(var(--on-surface))]">{selectedTenant.fullName}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">ข้อความ</label>
+                        <textarea
+                          className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200 min-h-[120px] resize-y"
+                          value={messageText}
+                          placeholder="พิมพ์ข้อความที่ต้องการส่ง..."
+                          onChange={e => setMessageText(e.target.value)}
+                          required
+                        />
+                      </div>
+                      {messageError && (
+                        <div className="text-xs text-red-400 flex items-center gap-1">
+                          <XCircle size={12} /> {messageError}
+                        </div>
+                      )}
+                      {messageSuccess && (
+                        <div className="text-xs text-emerald-600 flex items-center gap-1 font-medium">
+                          <CheckCircle size={12} /> ส่งข้อความสำเร็จแล้ว
+                        </div>
+                      )}
+                      <button
+                        type="submit"
+                        className="w-full py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-glow-primary hover:shadow-glow-primary-hover hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                        disabled={messageSending || !messageText.trim()}
+                      >
+                        {messageSending ? (
+                          <>
+                            <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            กำลังส่ง...
+                          </>
+                        ) : (
+                          <>
+                            <Send size={14} /> ส่งข้อความ
+                          </>
+                        )}
+                      </button>
+                    </form>
                   )}
                 </div>
               </>
@@ -645,6 +741,6 @@ export default function AdminTenantsPage() {
         onConfirm={confirmDialog?.onConfirm ?? (() => {})}
         onCancel={() => setConfirmDialog(null)}
       />
-    </main>
+    </div>
   );
 }

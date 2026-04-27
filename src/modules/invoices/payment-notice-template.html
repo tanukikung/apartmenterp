@@ -1,0 +1,252 @@
+<!--template-meta:{"pageSize":"A4","orientation":"PORTRAIT","marginPreset":"narrow","fontFamily":"sarabun","fontSize":"base","lineHeight":"relaxed"}-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: 'Sarabun', 'Noto Sans Thai', 'DejaVu Sans', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #1a1a1a;
+    background: #fff;
+    -webkit-font-smoothing: antialiased;
+  }
+  @page { size: A4 portrait; margin: 0; }
+  body { width: 210mm; min-height: 297mm; overflow: hidden; position: relative; }
+
+  .header {
+    background: #1c3860;
+    color: #fff;
+    padding: 12px 40px 10px;
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: #f29d21;
+  }
+  .header-left .header-name { font-size: 18px; font-weight: 700; }
+  .header-left .header-sub { font-size: 11px; color: #c8d4ee; margin-top: 3px; }
+  .header-title-main { font-size: 22px; font-weight: 700; color: #f29d21; text-align: right; line-height: 1.1; }
+  .header-title-sub { font-size: 11px; color: #c8d4ee; text-align: right; }
+
+  .notice-box {
+    background: #fff3cd;
+    border: 1.5px solid #f29d21;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 12px 40px 0;
+    text-align: center;
+  }
+  .notice-box-title { font-size: 18px; font-weight: 700; color: #8b5e00; }
+  .notice-box-text { font-size: 16px; color: #6b5500; margin-top: 4px; }
+
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 40px 10px;
+    gap: 24px;
+  }
+  .notice-to .label { font-size: 12px; color: #888; }
+  .notice-to .name { font-size: 18px; font-weight: 700; color: #1c3860; margin-top: 2px; }
+  .notice-to .detail { font-size: 16px; color: #444; margin-top: 1px; }
+
+  .notice-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid #ccc;
+    overflow: hidden;
+    align-self: flex-start;
+    min-width: 240px;
+  }
+  .inv-cell { padding: 6px 10px; font-size: 14px; }
+  .inv-row:nth-child(odd) .inv-cell { background: #f0f0f2; }
+  .inv-cell:first-child { color: #666; }
+  .inv-cell:last-child { font-weight: 700; color: #1c3860; text-align: right; }
+
+  .divider { border: none; border-top: 1px solid #1c3860; margin: 0 40px; }
+
+  .table-section { padding: 8px 40px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: #1c3860; color: #fff; font-size: 16px; font-weight: 700;
+    padding: 8px 12px; text-align: left;
+  }
+  thead th:not(:first-child) { text-align: right; }
+  tbody td { padding: 8px 12px; font-size: 16px; border-bottom: 0.5px solid #e0e0e8; }
+  tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody td.bold { font-weight: 700; }
+  .row-even td { background: #fff; }
+  .row-odd td { background: #f4f5fb; }
+
+  .bottom-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: stretch;
+    padding: 12px 40px 0;
+    gap: 0;
+  }
+  .total-label { font-size: 14px; color: #f29d21; font-weight: 700; }
+  .total-amount { font-size: 32px; font-weight: 700; line-height: 1; }
+
+  .qr-box { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+  .qr-box img { width: 110px; height: 110px; display: block; }
+  .qr-box img:not([src]), .qr-box img[src=""] { display: none; }
+  .qr-label { font-size: 12px; color: #888; }
+  .qr-amount { font-size: 14px; font-weight: 700; color: #1c3860; }
+
+  .transfer-box {
+    background: #f8fafc;
+    border: 1.5px solid #1c3860;
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    padding: 14px 18px;
+    flex: 1;
+  }
+  .total-box {
+    background: #1c3860; color: #fff;
+    border-radius: 0 8px 8px 0;
+    border: 1.5px solid #1c3860;
+    padding: 16px 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    min-width: 210px;
+    text-align: center;
+  }
+  .transfer-header { font-size: 16px; font-weight: 700; color: #1c3860; margin-bottom: 8px; }
+  .transfer-row { display: flex; gap: 12px; font-size: 16px; line-height: 1.7; }
+  .transfer-label { color: #555; white-space: nowrap; min-width: 80px; }
+  .transfer-value { color: #1c3860; font-weight: 700; }
+
+  .policy-section { padding: 12px 40px 0; }
+  .policy-header {
+    font-size: 16px; font-weight: 700; color: #1c3860;
+    border-bottom: 1.5px solid #f29d21; padding-bottom: 4px; margin-bottom: 6px;
+  }
+  .policy-cols { display: flex; gap: 20px; }
+  .policy-col { flex: 1; }
+  .policy-sub-header { font-size: 14px; font-weight: 700; color: #666; margin-bottom: 4px; }
+  .policy-rule { font-size: 14px; color: #444; margin-bottom: 4px; line-height: 1.6; }
+
+  .footer {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: #1c3860;
+  }
+  .footer::before { content: ''; display: block; height: 2px; background: #f29d21; }
+  .footer-inner { display: flex; justify-content: space-between; align-items: center; padding: 6px 40px; }
+  .footer-text { font-size: 11px; color: #c8d4ee; }
+  .footer-id { font-size: 10px; color: #7a8ab0; }
+</style>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-name" data-template-field="apartment.name">{{apartment.name}}</div>
+    <div class="header-sub" data-template-field="apartment.address">{{apartment.address}}</div>
+  </div>
+  <div>
+    <div class="header-title-main">แจ้งชำระค่าบริการ</div>
+    <div class="header-title-sub">PAYMENT NOTICE</div>
+  </div>
+</div>
+
+<!-- Notice -->
+<div class="notice-box">
+  <div class="notice-box-title">กรุณาชำระค่าบริการภายในกำหนด</div>
+  <div class="notice-box-text">หากไม่ชำระภายในวันที่ ๗ ของเดือน จะถูกระงับสิทธิ์การเช่าและตัดน้ำ-ไฟ ตั้งแต่วันที่ ๘</div>
+</div>
+
+<!-- Meta -->
+<div class="meta">
+  <div class="notice-to">
+    <div class="label">เรียน / Dear</div>
+    <div class="name" data-template-field="tenant.fullName">{{tenant.fullName}}</div>
+    <div class="detail">ห้อง <span data-template-field="room.number">{{room.number}}</span>  ชั้น <span data-template-field="room.floorNumber">{{room.floorNumber}}</span></div>
+    <div class="detail" style="margin-top:2px;">โทร. <span data-template-field="tenant.phone">{{tenant.phone}}</span></div>
+  </div>
+  <div class="notice-info">
+    <div class="inv-row"><div class="inv-cell">งวด / Period</div><div class="inv-cell" data-template-field="computed.billingMonthLabel">{{computed.billingMonthLabel}}</div></div>
+    <div class="inv-row"><div class="inv-cell">วันครบกำหนด</div><div class="inv-cell" data-template-field="computed.dueDateLabel">{{computed.dueDateLabel}}</div></div>
+    <div class="inv-row"><div class="inv-cell">เลขที่ใบแจ้งหนี้</div><div class="inv-cell" data-template-field="computed.invoiceNumber">{{computed.invoiceNumber}}</div></div>
+    <div class="inv-row"><div class="inv-cell">ยอดรวม</div><div class="inv-cell" data-template-field="computed.totalAmountFormatted">{{computed.totalAmountFormatted}}</div></div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- Line items -->
+<div class="table-section">
+  <table>
+    <thead>
+      <tr>
+        <th>รายการ</th>
+        <th class="num">หน่วย</th>
+        <th class="num">ราคา/หน่วย (บาท)</th>
+        <th class="num">จำนวนเงิน (บาท)</th>
+      </tr>
+    </thead>
+    <tbody data-template-repeat="billing_items">
+      <tr class="row-even">
+        <td data-template-field="typeName">{{typeName}}</td>
+        <td class="num" data-template-field="quantity">{{quantity}}</td>
+        <td class="num" data-template-field="unitPriceFormatted">{{unitPriceFormatted}}</td>
+        <td class="num bold" data-template-field="amountFormatted">{{amountFormatted}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Total + QR + Transfer -->
+<div class="bottom-row">
+  <div class="qr-box">
+    <img src="{{computed.qrDataUrl}}" alt="QR Code" />
+    <div class="qr-label">สแกนชำระ / Scan to Pay</div>
+    <div class="qr-amount" data-template-field="computed.totalAmountFormatted">{{computed.totalAmountFormatted}}</div>
+  </div>
+
+  <div class="transfer-box">
+    <div class="transfer-header">ชำระด้วยการโอน / Bank Transfer</div>
+    <div class="transfer-row"><span class="transfer-label">ธนาคาร</span><span class="transfer-value" data-template-field="bankAccount.bankName">{{bankAccount.bankName}}</span></div>
+    <div class="transfer-row"><span class="transfer-label">เลขที่บัญชี</span><span class="transfer-value" data-template-field="bankAccount.accountNo">{{bankAccount.accountNo}}</span></div>
+    <div class="transfer-row"><span class="transfer-label">ชื่อบัญชี</span><span class="transfer-value" data-template-field="bankAccount.accountName">{{bankAccount.accountName}}</span></div>
+  </div>
+
+  <div class="total-box">
+    <span class="total-label">รวมทั้งสิ้น / TOTAL</span>
+    <span class="total-amount" data-template-field="computed.totalAmountFormatted">{{computed.totalAmountFormatted}}</span>
+  </div>
+</div>
+
+<!-- Policy summary -->
+<div class="policy-section">
+  <div class="policy-header">ข้อตกลงการชำระเงิน / Payment Policy</div>
+  <div class="policy-cols">
+    <div class="policy-col">
+      <div class="policy-sub-header">ระเบียบการชำระเงิน</div>
+      <div class="policy-rule">• ชำระค่าบริการภายในวันที่ 1–7 ของเดือน</div>
+      <div class="policy-rule">• ส่งสลิปยืนยันการโอนเงินผ่าน LINE ภายในวันที่กำหนด</div>
+      <div class="policy-rule">• ชำระไม่ครบ จะปรับ 100 บาท/ครั้ง</div>
+    </div>
+    <div class="policy-col">
+      <div class="policy-sub-header">อัตราค่าปรับ / Late Fee Schedule</div>
+      <div class="policy-rule">• ห้องชั้น 1 และห้องแอร์: 200 บาท/วัน</div>
+      <div class="policy-rule">• ห้องชั้น 2–8 ทั่วไป: 100 บาท/วัน</div>
+      <div class="policy-rule">• วันที่ 8: ตัดน้ำ-ไฟ และยึดคืนห้อง 08:00 น.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="footer-inner">
+    <span class="footer-text">อพาร์ตเมนต์  •  Apartment Management System</span>
+    <span class="footer-id">ID: <span data-template-field="billing.invoiceId">{{billing.invoiceId}}</span></span>
+  </div>
+</div>

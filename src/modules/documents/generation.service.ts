@@ -389,8 +389,8 @@ export class DocumentGenerationService {
         month: target.context.billing?.month ?? input.month ?? null,
         documentVersion: version,
         generatedById: actorId ?? null,
-        renderContext: target.context as any as Prisma.InputJsonValue,
-        validation: { htmlLength: html.length } as any as Prisma.InputJsonValue,
+        renderContext: target.context as unknown as Prisma.InputJsonValue,
+        validation: { htmlLength: html.length } as unknown as Prisma.InputJsonValue,
       },
     });
 

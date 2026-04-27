@@ -63,3 +63,8 @@ desktop.ini
 .vscode/
 *.swp
 *.swo
+
+# =============================================================================
+# Docker
+# =============================================================================
+# (Dockerfile, docker-compose.yml, .dockerignore ARE tracked — do NOT ignore)

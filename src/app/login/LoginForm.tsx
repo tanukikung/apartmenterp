@@ -34,7 +34,7 @@ export default function LoginForm({ firstUserSetup, requiresOwnerApproval, error
           <motion.div
             whileHover={{ rotate: -8, scale: 1.08 }}
             transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-            className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/40 ring-1 ring-white/20"
+            className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-700 text-white shadow-lg shadow-primary/40 ring-1 ring-white/20"
           >
             <Building2 size={22} strokeWidth={2.2} />
             <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/25 to-transparent pointer-events-none" />

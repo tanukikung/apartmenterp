@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/lib';
+import { PAYMENT_STATUS } from '@/lib/constants';
 import type { CreatePaymentInput } from './types';
 import { BadRequestError, NotFoundError, ConflictError } from '@/lib/utils/errors';
 import type { Prisma } from '@prisma/client';
@@ -38,7 +39,7 @@ export class PaymentService {
         description: input.method,
         reference: input.referenceNumber,
         sourceFile: 'manual',
-        status: 'CONFIRMED',
+        status: PAYMENT_STATUS.CONFIRMED,
         matchedInvoiceId: invoice.id,
         confirmedAt: new Date(),
         confirmedBy: createdBy || 'system',
@@ -86,8 +87,7 @@ export class PaymentService {
       // FOR UPDATE prevents concurrent transactions from reading stale invoice state.
       // Without this lock, two simultaneous settleOutstandingBalance calls on the same
       // invoice could both pass the "PAID" check before either commits a payment.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $transaction client type doesn't expose for:'update'
-      const invoice = await (tx as any).invoice.findUnique({
+      const invoice = await (tx as typeof tx & { invoice: { findUnique: (opts: Parameters<typeof tx.invoice.findUnique>[0] & { for?: 'update' }) => ReturnType<typeof tx.invoice.findUnique> } }).invoice.findUnique({
         where: { id: invoiceId },
         include: { room: true },
         for: 'update',
@@ -100,7 +100,7 @@ export class PaymentService {
       const totals = await tx.payment.aggregate({
         where: {
           matchedInvoiceId: invoice.id,
-          status: 'CONFIRMED',
+          status: PAYMENT_STATUS.CONFIRMED,
         },
         _sum: { amount: true },
       });
@@ -130,7 +130,7 @@ export class PaymentService {
         description: 'MANUAL_INVOICE_SETTLEMENT',
         reference: input?.referenceNumber,
         sourceFile: 'manual',
-        status: 'CONFIRMED',
+        status: PAYMENT_STATUS.CONFIRMED,
         matchedInvoiceId: invoice.id,
         confirmedAt: new Date(),
         confirmedBy: createdBy || 'system',

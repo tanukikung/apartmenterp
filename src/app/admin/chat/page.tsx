@@ -6,7 +6,7 @@ import { ChatTimeline } from '@/components/chat/ChatTimeline';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { RoomDetailsCard } from '@/components/chat/RoomDetailsCard';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, MessageSquare } from 'lucide-react';
 
 type Conversation = {
   id: string;
@@ -142,7 +142,6 @@ export default function ChatInboxPage() {
     void loadMessages();
   }, [selectedId]);
 
-  // Mark conversation as read when selected
   useEffect(() => {
     if (!selectedId) return;
     fetch(`/api/conversations?conversationId=${selectedId}`, { method: 'PATCH' }).catch(() => undefined);
@@ -398,7 +397,6 @@ export default function ChatInboxPage() {
     setInfoNotice('ชำระเงินเรียบร้อยแล้ว แต่ไม่สามารถส่งใบเสร็จได้');
   }, [callActionApi, loadLatestInvoice, resolveLatestInvoiceId, selectedId, sendReceiptQuick, setErrorNotice, setInfoNotice, setSuccessNotice]);
 
-  // ── LINE OA quick reply handlers ──────────────────────────────────────────
   const QUICK_REPLIES = [
     { label: 'ดูใบแจ้งหนี้', icon: '📄', action: 'postback:view_invoice' },
     { label: 'ยืนยันชำระเงิน', icon: '💳', action: 'postback:confirm_payment' },
@@ -422,54 +420,66 @@ export default function ChatInboxPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-on-surface">แชท</h1>
-          <p className="mt-1 text-sm text-on-surface-variant">กล่องข้อความสำหรับสื่อสารกับผู้เช่า ส่งใบแจ้งหนี้ และติดตามใบเสร็จ</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center rounded-full bg-surface-container px-3 py-1 text-xs font-semibold text-on-surface-variant">
-            การสนทนา {conversations.length} รายการ
-          </span>
-          <span className="inline-flex items-center rounded-full bg-error-container px-3 py-1 text-xs font-semibold text-on-error-container">
-            ยังไม่อ่าน {conversations.filter((item) => item.unreadCount > 0).length} รายการ
-          </span>
+      <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))] backdrop-blur-[var(--glass-blur)] px-6 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
+        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.08)] to-transparent pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[hsl(var(--primary)/0.06)] blur-3xl pointer-events-none" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--primary)/0.1)] shadow-[var(--glow-primary)]">
+              <MessageSquare className="h-5 w-5 text-[hsl(var(--primary))]" strokeWidth={1.75} />
+            </div>
+            <div>
+              <h1 className="font-display text-xl font-semibold tracking-tight text-[hsl(var(--color-text))]">แชท</h1>
+              <p className="text-xs text-[hsl(var(--color-text))]/50 mt-0.5">กล่องข้อความสำหรับสื่อสารกับผู้เช่า</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-full border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-1 text-xs font-semibold text-[hsl(var(--color-text))]/70 backdrop-blur-sm">
+              การสนทนา {conversations.length} รายการ
+            </span>
+            <span className="inline-flex items-center rounded-full border border-[hsl(var(--color-border))]/50 bg-[hsl(0,72%,55%,0.15)] px-3 py-1 text-xs font-semibold text-[hsl(0,72%,90%)] backdrop-blur-sm">
+              ยังไม่อ่าน {conversations.filter((item) => item.unreadCount > 0).length} รายการ
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* Action notices */}
       {actionNotice ? (
-        <div className={
-          actionNotice.tone === 'success' ? 'flex items-center gap-3 rounded-xl border border-tertiary-container bg-tertiary-container/20 px-4 py-3 text-sm text-on-tertiary-container'
-            : actionNotice.tone === 'info' ? 'flex items-center gap-3 rounded-xl border border-primary-container bg-primary-container/20 px-4 py-3 text-sm text-primary-container'
-            : 'flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container'
-        }>
+        <div className={`rounded-xl border px-4 py-3 text-sm font-medium backdrop-blur-sm ${
+          actionNotice.tone === 'success'
+            ? 'border-[hsl(142,70%,45%,0.3)] bg-[hsl(142,70%,45%,0.1)] text-[hsl(142,70%,80%)]'
+            : actionNotice.tone === 'info'
+            ? 'border-[hsl(217,100%,67%,0.3)] bg-[hsl(217,100%,67%,0.1)] text-[hsl(217,100%,90%)]'
+            : 'border-[hsl(0,72%,55%,0.3)] bg-[hsl(0,72%,55%,0.1)] text-[hsl(0,72%,90%)]'
+        }`}>
           {actionNotice.message}
         </div>
       ) : null}
 
       {pollingError ? (
-        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="flex items-center gap-3 rounded-xl border border-[hsl(38,92%,55%,0.3)] bg-[hsl(38,92%,55%,0.1)] px-4 py-3 text-sm text-[hsl(38,92%,80%)] backdrop-blur-sm">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {pollingError}
         </div>
       ) : null}
 
       {current?.lineUserId && lineConfigured === false ? (
-        <div className="flex items-start gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest px-4 py-3 text-sm text-on-surface">
-          การส่งข้อความ LINE ไม่พร้อมใช้งานเนื่องจากยังไม่ได้ตั้งค่าข้อมูลรับรอง การส่งแชทและการดำเนินการด่วนจะถูกปิดใช้งานจนกว่าจะตั้งค่า LINE
+        <div className="rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-4 py-3 text-sm text-[hsl(var(--color-text))]/60 backdrop-blur-sm">
+          การส่งข้อความ LINE ไม่พร้อมใช้งานเนื่องจากยังไม่ได้ตั้งค่าข้อมูลรับรอง
         </div>
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 anim-fade-in">
         {/* Chat list sidebar */}
         <section className="lg:col-span-3">
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-            <div className="border-b border-outline-variant px-4 py-3">
-              <span className="text-sm font-semibold text-on-surface">การสนทนา</span>
+          <div className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden transition-all hover:border-[hsl(var(--color-border))]">
+            <div className="border-b border-white/5 px-4 py-3">
+              <span className="text-sm font-semibold text-[hsl(var(--color-text))]/80">การสนทนา</span>
             </div>
             {conversationsLoading ? (
               <div className="flex items-center justify-center p-8">
-                <svg className="h-6 w-6 animate-spin text-on-surface-variant" fill="none" viewBox="0 0 24 24">
+                <svg className="h-6 w-6 animate-spin text-[hsl(var(--color-text))]/30" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.878 3 8.291l2-2z" />
                 </svg>
@@ -481,17 +491,17 @@ export default function ChatInboxPage() {
         </section>
 
         {/* Chat timeline */}
-        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 lg:col-span-6 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
+        <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] lg:col-span-6 overflow-hidden transition-all hover:border-[hsl(var(--color-border))]">
+          <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
             <div>
-              <div className="text-sm font-semibold text-on-surface">ไทม์ไลน์การสนทนา</div>
-              <div className="mt-0.5 text-xs text-on-surface-variant">
+              <div className="text-sm font-semibold text-[hsl(var(--color-text))]/80">ไทม์ไลน์การสนทนา</div>
+              <div className="mt-0.5 text-xs text-[hsl(var(--color-text))]/40">
                 {current ? `ห้อง ${current.room?.roomNumber ?? current.room?.roomNo ?? '-'} • ${current.tenant?.fullName || 'ผู้เช่าที่ยังไม่ได้เชื่อมต่อ'}` : 'เลือกการสนทนา'}
               </div>
             </div>
             {hasMore && (
               <button onClick={loadOlder} disabled={loadingMore}
-                className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container">
+                className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))]/60 backdrop-blur-sm transition-all hover:border-[hsl(var(--color-border))]/50 hover:text-[hsl(var(--color-text))]/80 hover:bg-[hsl(var(--color-surface))]/80 active:scale-[0.98]">
                 {loadingMore ? 'กำลังโหลด...' : 'โหลดข้อความเก่ากว่า'}
               </button>
             )}

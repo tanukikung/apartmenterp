@@ -5,6 +5,7 @@ import {
   Shield,
   Building2,
   Home,
+  Landmark,
   Receipt,
   MessageSquare,
   Mail,
@@ -40,48 +41,61 @@ export function ReviewStep({
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('');
 
-  const { admin, building, billing, lineNotify, emailNotify } = state;
+  const { admin, building, rooms, bankAccount, billing, lineNotify, emailNotify } = state;
+
+  const totalRooms = rooms.floors * rooms.roomsPerFloor;
+  const roomValue = `${rooms.floors} ชั้น · ${totalRooms} ห้อง (ชั้นละ ${rooms.roomsPerFloor} ห้อง)`;
+  const bankValue = bankAccount.bankName
+    ? `${bankAccount.bankName} · ${bankAccount.bankAccountNo || 'ไม่ได้ระบุเลขบัญชี'}`
+    : 'ยังไม่ได้ระบุ (เพิ่มทีหลังได้)';
 
   const summaryItems: SummaryItem[] = [
     {
       icon: <Shield className="h-4 w-4" />,
-      iconBg: 'bg-primary-container',
+      iconBg: 'bg-primary/10',
       iconColor: 'text-primary',
       label: 'ผู้ดูแลระบบ',
       value: `${admin.displayName} (@${admin.username})`,
     },
     {
       icon: <Building2 className="h-4 w-4" />,
-      iconBg: 'bg-blue-100',
-      iconColor: 'text-blue-700',
+      iconBg: 'bg-blue-500/10',
+      iconColor: 'text-blue-400',
       label: 'อาคาร',
       value: building.name || 'ไม่ได้ระบุ',
     },
     {
       icon: <Home className="h-4 w-4" />,
-      iconBg: 'bg-emerald-100',
-      iconColor: 'text-emerald-700',
+      iconBg: 'bg-emerald-500/10',
+      iconColor: 'text-emerald-400',
       label: 'ห้องพัก',
-      value: '8 ชั้น · 239 ห้อง (ชั้น 1: 798/1–15, ชั้น 2–8: 3201–3832)',
+      value: roomValue,
+    },
+    {
+      icon: <Landmark className="h-4 w-4" />,
+      iconBg: 'bg-amber-500/10',
+      iconColor: 'text-amber-400',
+      label: 'บัญชีธนาคาร',
+      value: bankValue,
     },
     {
       icon: <Receipt className="h-4 w-4" />,
-      iconBg: 'bg-rose-100',
-      iconColor: 'text-rose-700',
+      iconBg: 'bg-amber-500/10',
+      iconColor: 'text-amber-400',
       label: 'นโยบายการเรียกเก็บ',
       value: `ออกบิลวันที่ ${billing.billingDay}, ครบกำหนดวันที่ ${billing.dueDay}`,
     },
     {
       icon: <MessageSquare className="h-4 w-4" />,
-      iconBg: 'bg-green-100',
-      iconColor: 'text-green-700',
+      iconBg: 'bg-emerald-500/10',
+      iconColor: 'text-emerald-400',
       label: 'LINE แจ้งเตือน',
       value: lineNotify.enabled ? 'เปิดใช้งาน' : 'ปิดใช้งาน',
     },
     {
       icon: <Mail className="h-4 w-4" />,
-      iconBg: 'bg-blue-100',
-      iconColor: 'text-blue-700',
+      iconBg: 'bg-blue-500/10',
+      iconColor: 'text-blue-400',
       label: 'Email แจ้งเตือน',
       value: emailNotify.enabled ? 'เปิดใช้งาน' : 'ปิดใช้งาน',
     },
@@ -91,17 +105,17 @@ export function ReviewStep({
     return (
       <div className="space-y-6">
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
-            <CheckCircle className="h-8 w-8 text-green-600" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 mb-4">
+            <CheckCircle className="h-8 w-8 text-emerald-400" />
           </div>
-          <h2 className="text-xl font-semibold text-on-surface">ตั้งค่าระบบเสร็จสิ้น!</h2>
-          <p className="mt-2 text-sm text-on-surface-variant">
+          <h2 className="text-xl font-semibold text-[hsl(var(--on-surface))]">ตั้งค่าระบบเสร็จสิ้น!</h2>
+          <p className="mt-2 text-sm text-[hsl(var(--on-surface))]/40">
             ระบบได้ถูกตั้งค่าเรียบร้อยแล้ว คุณสามารถเข้าสู่ระบบด้วยบัญชีผู้ดูแลที่สร้างไว้
           </p>
         </div>
 
-        <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wide">สรุปการตั้งค่า</h3>
+        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur-sm p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-[hsl(var(--on-surface))]/40 uppercase tracking-wide">สรุปการตั้งค่า</h3>
 
           {summaryItems.map((item, idx) => (
             <div key={idx} className="flex items-center gap-3">
@@ -109,22 +123,22 @@ export function ReviewStep({
                 <span className={item.iconColor}>{item.icon}</span>
               </div>
               <div className="flex-1">
-                <p className="text-xs text-on-surface-variant">{item.label}</p>
-                <p className="text-sm font-medium text-on-surface">{item.value}</p>
+                <p className="text-xs text-[hsl(var(--on-surface))]/30">{item.label}</p>
+                <p className="text-sm font-medium text-[hsl(var(--on-surface))]/80">{item.value}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="rounded-lg bg-primary-container p-4 text-center">
-          <p className="text-sm font-medium text-on-primary-container">
-            สร้างห้องพักแล้ว <span className="text-lg font-bold">{submitResult.roomsCreated}</span> ห้อง
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-4 text-center">
+          <p className="text-sm font-medium text-[hsl(var(--on-surface))]/70">
+            สร้างห้องพักแล้ว <span className="text-lg font-bold text-primary">{submitResult.roomsCreated}</span> ห้อง
           </p>
         </div>
 
         <a
           href="/admin/dashboard"
-          className="flex items-center justify-center gap-2 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-on-primary hover:bg-primary/90 transition-colors"
+          className="flex items-center justify-center gap-2 w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-[hsl(var(--on-surface))] hover:bg-primary/90 hover:scale-105 active:scale-[0.98] transition-all"
         >
           ไปยังหน้าหลัก
         </a>
@@ -135,17 +149,17 @@ export function ReviewStep({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-container">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur-md">
           <CheckCircle className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-on-surface">สรุปและเริ่มตั้งค่าระบบ</h2>
-          <p className="text-sm text-on-surface-variant">ตรวจสอบข้อมูลก่อนเริ่มตั้งค่า</p>
+          <h2 className="text-lg font-semibold text-[hsl(var(--on-surface))]">สรุปและเริ่มตั้งค่าระบบ</h2>
+          <p className="text-sm text-[hsl(var(--on-surface))]/40">ตรวจสอบข้อมูลก่อนเริ่มตั้งค่า</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wide">รายการที่จะสร้าง</h3>
+      <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur-sm p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-[hsl(var(--on-surface))]/40 uppercase tracking-wide">รายการที่จะสร้าง</h3>
 
         {summaryItems.map((item, idx) => (
           <div key={idx} className="flex items-center gap-3">
@@ -153,8 +167,8 @@ export function ReviewStep({
               <span className={item.iconColor}>{item.icon}</span>
             </div>
             <div className="flex-1">
-              <p className="text-xs text-on-surface-variant">{item.label}</p>
-              <p className="text-sm font-medium text-on-surface">{item.value}</p>
+              <p className="text-xs text-[hsl(var(--on-surface))]/30">{item.label}</p>
+              <p className="text-sm font-medium text-[hsl(var(--on-surface))]/70">{item.value}</p>
             </div>
           </div>
         ))}
@@ -163,32 +177,31 @@ export function ReviewStep({
       {isSubmitting && (
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-on-surface-variant">กำลังสร้างข้อมูล...</span>
+            <span className="text-[hsl(var(--on-surface))]/40">กำลังสร้างข้อมูล...</span>
             <span className="font-medium text-primary">{progress}%</span>
           </div>
-          <div className="h-2 w-full rounded-full bg-surface-container">
+          <div className="h-2 w-full rounded-full bg-[hsl(var(--color-surface))]">
             <div
               className="h-full rounded-full bg-primary transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-on-surface-variant text-center">{statusText}</p>
+          <p className="text-xs text-[hsl(var(--on-surface))]/30 text-center">{statusText}</p>
         </div>
       )}
 
       {submitError && (
-        <div className="flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 p-4">
-          <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur-sm p-4">
+          <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-red-800">เกิดข้อผิดพลาด</p>
-            <p className="text-sm text-red-700">{submitError}</p>
+            <p className="text-sm font-medium text-red-400">เกิดข้อผิดพลาด</p>
+            <p className="text-sm text-red-400/70">{submitError}</p>
           </div>
         </div>
       )}
 
       <button
         onClick={async () => {
-          // Simulate progress
           const progressInterval = setInterval(() => {
             setProgress((p) => Math.min(p + 10, 90));
             setStatusText('กำลังสร้างห้องพัก...');
@@ -205,7 +218,7 @@ export function ReviewStep({
           }
         }}
         disabled={isSubmitting}
-        className="flex items-center justify-center gap-2 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-on-primary hover:bg-primary/90 transition-colors disabled:opacity-50"
+        className="flex items-center justify-center gap-2 w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-[hsl(var(--on-surface))] hover:bg-primary/90 hover:scale-105 active:scale-[0.98] transition-all disabled:opacity-50"
       >
         {isSubmitting ? (
           <>
@@ -217,7 +230,7 @@ export function ReviewStep({
         )}
       </button>
 
-      <p className="text-xs text-on-surface-variant text-center">
+      <p className="text-xs text-[hsl(var(--on-surface))]/30 text-center">
         การตั้งค่านี้จะสร้างข้อมูลเริ่มต้นทั้งหมดในครั้งเดียว ไม่สามารถย้อนกลับได้
       </p>
     </div>

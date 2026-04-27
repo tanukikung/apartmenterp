@@ -56,23 +56,21 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     ];
   }
 
-  // Use raw prisma to avoid casting issues with the MaintenanceService wrapper
+  // Use typed prisma wrapper to avoid issues with the MaintenanceService wrapper
+  type MaintenanceTicketClient = {
+    maintenanceTicket: {
+      findMany(args: { where: WhereClause; include: { room: boolean; tenant: boolean }; orderBy: { createdAt: 'desc' }; take: number }): Promise<unknown[]>;
+      count(args: { where: WhereClause }): Promise<number>;
+    };
+  };
   const [tickets, total] = await Promise.all([
-    (prisma as any as {
-      maintenanceTicket: {
-        findMany(args: { where: WhereClause; include: { room: boolean; tenant: boolean }; orderBy: { createdAt: 'desc' }; take: number }): Promise<unknown[]>;
-      };
-    }).maintenanceTicket.findMany({
+    (prisma as unknown as MaintenanceTicketClient).maintenanceTicket.findMany({
       where,
       include: { room: true, tenant: true },
       orderBy: { createdAt: 'desc' },
       take: pageSize,
     }),
-    (prisma as any as {
-      maintenanceTicket: {
-        count(args: { where: WhereClause }): Promise<number>;
-      };
-    }).maintenanceTicket.count({ where }),
+    (prisma as unknown as MaintenanceTicketClient).maintenanceTicket.count({ where }),
   ]);
 
   return NextResponse.json({

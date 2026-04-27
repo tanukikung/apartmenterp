@@ -8,19 +8,21 @@ export function MoveOutKpiCard({
   sub,
   color,
   icon: Icon,
+  iconColor = 'text-white',
 }: {
   label: string;
   value: number | string;
   sub?: string;
   color: string;
   icon: React.ElementType;
+  iconColor?: string;
 }) {
   return (
     <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 flex items-center gap-4 py-4 px-5">
       <div
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${color}`}
       >
-        <Icon size={20} className="text-white" strokeWidth={2} />
+        <Icon size={20} className={iconColor} strokeWidth={2} />
       </div>
       <div className="min-w-0">
         <div className="text-[11px] font-medium uppercase tracking-wider text-on-surface-variant">

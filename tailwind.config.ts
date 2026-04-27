@@ -104,6 +104,23 @@ const config: Config = {
         "on-success-container":    "hsl(var(--on-success-container))",
         "warning-container":       "hsl(var(--warning-container))",
         "on-warning-container":    "hsl(var(--on-warning-container))",
+        // Navy + amber palette (replaces sage)
+        navy: {
+          50:  "hsl(217 40% 92%)",
+          100: "hsl(217 35% 85%)",
+          200: "hsl(217 30% 75%)",
+          300: "hsl(217 25% 65%)",
+          400: "hsl(217 55% 40%)",
+          500: "hsl(217 55% 30%)",
+          600: "hsl(217 55% 24%)",
+          700: "hsl(217 55% 18%)",
+          800: "hsl(217 45% 12%)",
+          900: "hsl(217 40% 8%)",
+        },
+        amber: {
+          400: "hsl(38 92% 55%)",
+          500: "hsl(38 85% 50%)",
+        },
       },
       boxShadow: {
         "app-md": "var(--shadow-md)",

@@ -54,7 +54,7 @@ export const GET = asyncHandler(
       headers.set('Content-Length', String(buffer.byteLength));
 
       // Stream out the buffer to avoid large body allocation in one go
-      const stream = new ReadableStream({
+      const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           try {
             const chunkSize = 64 * 1024;
@@ -67,7 +67,7 @@ export const GET = asyncHandler(
           }
         },
       });
-      return new NextResponse(stream as any as BodyInit, { status: 200, headers });
+      return new NextResponse(stream, { status: 200, headers });
     } catch (error) {
       if (error instanceof AppError) {
         throw error;

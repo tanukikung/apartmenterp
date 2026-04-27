@@ -50,6 +50,9 @@ beforeAll(async () => {
         electricMinCharge: 45,
         electricServiceFeeMode: 'FLAT_ROOM',
         electricServiceFeeAmount: 20,
+        penaltyPerDay: 50,
+        maxPenalty: 500,
+        gracePeriodDays: 3,
       },
     });
   } catch (e) {

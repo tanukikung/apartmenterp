@@ -94,9 +94,9 @@ export function PaymentReviewPanel() {
 
   const getConfidenceColor = (score?: number) => {
     if (!score) return 'bg-gray-100 text-gray-800';
-    if (score >= 0.9) return 'bg-green-100 text-green-800';
-    if (score >= 0.7) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-red-100 text-red-800';
+    if (score >= 0.9) return 'bg-success-container text-on-success-container';
+    if (score >= 0.7) return 'bg-warning-container text-on-warning-container';
+    return 'bg-error-container text-on-error-container';
   };
 
   if (loading) {
@@ -170,14 +170,14 @@ export function PaymentReviewPanel() {
                   <button
                     onClick={() => confirmMatch(transaction.id, transaction.invoice!.id)}
                     disabled={processing === transaction.id}
-                    className="px-3 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                    className="px-3 py-1.5 rounded bg-success-container text-on-success-container hover:bg-success-container/80 disabled:opacity-50"
                   >
                     {processing === transaction.id ? 'กำลังดำเนินการ...' : 'ยืนยันการจับคู่'}
                   </button>
                   <button
                     onClick={() => rejectMatch(transaction.id)}
                     disabled={processing === transaction.id}
-                    className="px-3 py-1.5 rounded border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    className="px-3 py-1.5 rounded border border-error-container/30 text-on-error-container hover:bg-error-container/20 disabled:opacity-50"
                   >
                     {processing === transaction.id ? 'กำลังดำเนินการ...' : 'ปฏิเสธ'}
                   </button>

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Home, AlertTriangle, DollarSign, Wrench, Receipt, ClipboardCheck, FileText, Megaphone, ArrowRight, Clock, CheckCircle2 } from 'lucide-react';
-import { CountUp, MagneticCard, FadeIn, StaggerList, StaggerItem } from '@/components/motion/motion-primitives';
+import { CountUp, FadeIn, StaggerList, StaggerItem } from '@/components/motion/motion-primitives';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -134,7 +134,7 @@ function SkeletonCard({ className = '' }: { className?: string }) {
   return <div className={`skeleton rounded-xl ${className}`} />;
 }
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
+// ─── Glass KPI Card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({
   label,
@@ -149,9 +149,7 @@ function KpiCard({
 }: {
   label: string;
   value: string | number;
-  /** When provided, the value animates from 0 via CountUp. */
   numericValue?: number;
-  /** Optional formatter for numericValue (e.g. moneyCompact). */
   sub?: string;
   icon: React.ElementType;
   accent: 'green' | 'red' | 'yellow' | 'blue';
@@ -161,64 +159,62 @@ function KpiCard({
 }) {
   const colors = {
     green: {
-      bg: 'from-emerald-50 to-white dark:from-emerald-500/10 dark:to-emerald-500/5',
-      border: 'border-emerald-200/70 dark:border-emerald-500/30',
-      icon: 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-emerald-500/30',
-      text: 'text-emerald-700 dark:text-emerald-300',
-      glow: 'group-hover:shadow-emerald-500/20',
+      bg: 'bg-emerald-500/10',
+      border: 'border-emerald-500/20 hover:border-emerald-500/40',
+      icon: 'bg-gradient-to-br from-emerald-500/20 to-emerald-500/10 text-emerald-600',
+      text: 'text-emerald-600',
+      glow: 'hover:shadow-[0_0_24px_rgba(16,140,80,0.12)]',
     },
     red: {
-      bg: 'from-red-50 to-white dark:from-red-500/10 dark:to-red-500/5',
-      border: 'border-red-200/70 dark:border-red-500/30',
-      icon: 'bg-gradient-to-br from-red-400 to-red-600 text-white shadow-red-500/30',
-      text: 'text-red-700 dark:text-red-300',
-      glow: 'group-hover:shadow-red-500/20',
+      bg: 'bg-red-500/10',
+      border: 'border-red-500/20 hover:border-red-500/40',
+      icon: 'bg-gradient-to-br from-red-500/20 to-red-500/10 text-red-600',
+      text: 'text-red-600',
+      glow: 'hover:shadow-[0_0_24px_rgba(200,50,50,0.12)]',
     },
     yellow: {
-      bg: 'from-amber-50 to-white dark:from-amber-500/10 dark:to-amber-500/5',
-      border: 'border-amber-200/70 dark:border-amber-500/30',
-      icon: 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-amber-500/30',
-      text: 'text-amber-700 dark:text-amber-300',
-      glow: 'group-hover:shadow-amber-500/20',
+      bg: 'bg-amber-500/10',
+      border: 'border-amber-500/20 hover:border-amber-500/40',
+      icon: 'bg-gradient-to-br from-amber-500/20 to-amber-500/10 text-amber-600',
+      text: 'text-amber-600',
+      glow: 'hover:shadow-[0_0_24px_rgba(200,140,16,0.12)]',
     },
     blue: {
-      bg: 'from-blue-50 to-white dark:from-blue-500/10 dark:to-blue-500/5',
-      border: 'border-blue-200/70 dark:border-blue-500/30',
-      icon: 'bg-gradient-to-br from-blue-400 to-blue-600 text-white shadow-blue-500/30',
-      text: 'text-blue-700 dark:text-blue-300',
-      glow: 'group-hover:shadow-blue-500/20',
+      bg: 'bg-blue-500/10',
+      border: 'border-blue-500/20 hover:border-blue-500/40',
+      icon: 'bg-gradient-to-br from-blue-500/20 to-blue-500/10 text-blue-600',
+      text: 'text-blue-600',
+      glow: 'hover:shadow-[0_0_24px_rgba(37,99,235,0.12)]',
     },
   }[accent];
 
   const card = (
-    <MagneticCard tilt={3} lift={3} magnet={0.1} className="h-full">
-      <div
-        className={`group relative h-full bg-gradient-to-br ${colors.bg} ${colors.border} border rounded-2xl p-5 transition-all duration-300 hover:shadow-xl ${colors.glow} overflow-hidden`}
-      >
-        {/* Subtle radial highlight */}
-        <div className="absolute inset-0 bg-[radial-gradient(120%_60%_at_50%_0%,rgba(255,255,255,0.45),transparent_60%)] dark:bg-[radial-gradient(120%_60%_at_50%_0%,rgba(255,255,255,0.04),transparent_60%)] pointer-events-none" />
-        <div className="relative">
-          <div className="flex items-start justify-between gap-2 mb-4">
-            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">{label}</span>
-            <motion.div
-              whileHover={{ rotate: -6, scale: 1.08 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-              className={`h-10 w-10 rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/20 ${colors.icon}`}
-            >
-              <Icon size={18} strokeWidth={2} />
-            </motion.div>
-          </div>
-          <div className={`text-3xl font-extrabold tracking-tight ${colors.text} leading-none mb-1 tabular-nums`}>
-            {numericValue !== undefined ? (
-              <CountUp value={numericValue} prefix={prefix} suffix={suffix} duration={1.1} />
-            ) : (
-              <>{value}</>
-            )}
-          </div>
-          {sub && <div className="text-xs text-on-surface-variant mt-1.5">{sub}</div>}
+    <div
+      className={`group relative h-full rounded-2xl border bg-[hsl(var(--color-surface))] shadow-[0_2px_12px_rgba(0,0,0,0.08)] ${colors.border} p-5 transition-all duration-300 ${colors.glow} overflow-hidden cursor-pointer active:scale-[0.98]`}
+    >
+      {/* Glass inner glow */}
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[hsl(var(--color-surface)/0.03)] to-transparent pointer-events-none" />
+      <div className="relative">
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[hsl(var(--on-surface-variant))]">{label}</span>
+          <motion.div
+            whileHover={{ rotate: -6, scale: 1.08 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+            className={`h-10 w-10 rounded-xl flex items-center justify-center border-[hsl(var(--color-border))] ${colors.icon}`}
+          >
+            <Icon size={18} strokeWidth={2} />
+          </motion.div>
         </div>
+        <div className={`text-3xl font-extrabold tracking-tight ${colors.text} leading-none mb-1 tabular-nums`}>
+          {numericValue !== undefined ? (
+            <CountUp value={numericValue} prefix={prefix} suffix={suffix} duration={1.1} />
+          ) : (
+            <>{value}</>
+          )}
+        </div>
+        {sub && <div className="text-xs text-[hsl(var(--on-surface-variant))] mt-1.5 opacity-70">{sub}</div>}
       </div>
-    </MagneticCard>
+    </div>
   );
 
   if (href) {
@@ -241,9 +237,21 @@ function ActionButton({
   href: string;
 }) {
   const colors = {
-    blue: 'bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white shadow-blue-500/40',
-    green: 'bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white shadow-emerald-500/40',
-    red: 'bg-gradient-to-br from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white shadow-red-500/40',
+    blue: 'bg-blue-700 hover:bg-blue-600 text-white shadow-[0_4px_16px_rgba(59,130,246,0.3)] border-blue-500/30',
+    green: 'bg-teal-700 hover:bg-teal-600 text-white shadow-[0_4px_16px_rgba(34,197,94,0.3)] border-emerald-500/30',
+    red: 'bg-red-700 hover:bg-red-600 text-white shadow-[0_4px_16px_rgba(239,68,68,0.3)] border-red-500/30',
+  }[color];
+
+  const iconColors = {
+    blue: 'text-white',
+    green: 'text-white',
+    red: 'text-white',
+  }[color];
+
+  const labelColors = {
+    blue: 'text-white',
+    green: 'text-white',
+    red: 'text-white',
   }[color];
 
   return (
@@ -254,18 +262,18 @@ function ActionButton({
     >
       <Link
         href={href}
-        className={`group relative flex flex-col items-center justify-center gap-2 rounded-2xl py-5 px-6 font-bold text-sm shadow-lg transition-shadow duration-200 hover:shadow-xl ring-1 ring-white/10 overflow-hidden ${colors}`}
+        className={`group relative flex flex-col items-center justify-center gap-2 rounded-2xl py-5 px-6 font-bold text-sm border transition-all duration-200 hover:shadow-xl overflow-hidden ${colors}`}
       >
         {/* Shine sweep on hover */}
-        <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
-        <Icon size={24} strokeWidth={2} className="relative z-10 drop-shadow" />
-        <span className="relative z-10 tracking-tight">{label}</span>
+        <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-[hsl(var(--color-surface)/0.2) to-transparent pointer-events-none" />
+        <Icon size={24} strokeWidth={2} className={`relative z-10 drop-shadow ${iconColors}`} />
+        <span className={`relative z-10 tracking-tight drop-shadow-sm ${labelColors}`}>{label}</span>
       </Link>
     </motion.div>
   );
 }
 
-// ─── Task Card ───────────────────────────────────────────────────────────────
+// ─── Task Card (Dark Glass) ───────────────────────────────────────────────────
 
 function TaskCard({
   title,
@@ -291,18 +299,18 @@ function TaskCard({
   icon: React.ElementType;
 }) {
   const colors = {
-    green: { bg: 'bg-surface-container-lowest', border: 'border-emerald-200 dark:border-emerald-500/30', header: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300', count: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200', icon: 'text-emerald-500 dark:text-emerald-400' },
-    red: { bg: 'bg-surface-container-lowest', border: 'border-red-200 dark:border-red-500/30', header: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300', count: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200', icon: 'text-red-500 dark:text-red-400' },
-    yellow: { bg: 'bg-surface-container-lowest', border: 'border-amber-200 dark:border-amber-500/30', header: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300', count: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200', icon: 'text-amber-500 dark:text-amber-400' },
-    blue: { bg: 'bg-surface-container-lowest', border: 'border-blue-200 dark:border-blue-500/30', header: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300', count: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200', icon: 'text-blue-500 dark:text-blue-400' },
+    green: { bg: 'bg-[hsl(var(--color-surface))]', border: 'border-[hsl(var(--color-border))] hover:border-emerald-500/40', header: 'text-emerald-600', count: 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30', icon: 'text-emerald-600' },
+    red: { bg: 'bg-[hsl(var(--color-surface))]', border: 'border-[hsl(var(--color-border))] hover:border-red-500/40', header: 'text-red-600', count: 'bg-red-500/15 text-red-600 border border-red-500/30', icon: 'text-red-600' },
+    yellow: { bg: 'bg-[hsl(var(--color-surface))]', border: 'border-[hsl(var(--color-border))] hover:border-amber-500/40', header: 'text-amber-600', count: 'bg-amber-500/15 text-amber-600 border border-amber-500/30', icon: 'text-amber-600' },
+    blue: { bg: 'bg-[hsl(var(--color-surface))]', border: 'border-[hsl(var(--color-border))] hover:border-blue-500/40', header: 'text-blue-600', count: 'bg-blue-500/15 text-blue-600 border border-blue-500/30', icon: 'text-blue-600' },
   }[accent];
 
   return (
-    <div className={`${colors.bg} ${colors.border} border rounded-xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200`}>
-      <div className={`px-4 py-3 border-b border-outline-variant/30 flex items-center justify-between`}>
+    <div className={`${colors.bg} ${colors.border} border rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] overflow-hidden hover:shadow-[0_4px_20px_rgba(0,0,0,0.14)] transition-all duration-200`}>
+      <div className={`px-4 py-3 border-b border-[hsl(var(--color-border))] flex items-center justify-between`}>
         <div className="flex items-center gap-2">
           <Icon size={14} className={colors.icon} />
-          <span className="text-sm font-bold text-on-surface">{title}</span>
+          <span className="text-sm font-bold text-[hsl(var(--on-surface))]">{title}</span>
         </div>
         {count !== undefined && (
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${colors.count}`}>
@@ -315,19 +323,19 @@ function TaskCard({
         {items && items.length > 0 && (
           <ul className="space-y-1.5 mb-3">
             {items.slice(0, 3).map((item, i) => (
-              <li key={i} className="flex items-center gap-2 text-xs text-on-surface-variant">
-                <div className="h-1.5 w-1.5 rounded-full bg-current shrink-0" />
-                <span className="font-medium text-on-surface">{item.label}</span>
-                {item.sub && <span>{item.sub}</span>}
+              <li key={i} className="flex items-center gap-2 text-xs text-[hsl(var(--on-surface-variant))]">
+                <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${colors.icon.replace('text-', 'bg-')}`} />
+                <span className="font-medium text-[hsl(var(--on-surface))]">{item.label}</span>
+                {item.sub && <span className="opacity-60">{item.sub}</span>}
               </li>
             ))}
             {items.length > 3 && (
-              <li className="text-xs text-on-surface-variant pl-3.5">+{items.length - 3} รายการ</li>
+              <li className="text-xs text-[hsl(var(--on-surface-variant))] pl-3.5 opacity-70">+{items.length - 3} รายการ</li>
             )}
           </ul>
         )}
 
-        {sub && !items && <p className="text-xs text-on-surface-variant mb-3">{sub}</p>}
+        {sub && !items && <p className="text-xs text-[hsl(var(--on-surface-variant))] mb-3 opacity-70">{sub}</p>}
 
         <div className="flex items-center gap-2">
           {actionLabel && actionHref && (
@@ -335,12 +343,12 @@ function TaskCard({
               href={actionHref}
               className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                 accent === 'green'
-                  ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20'
+                  ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20'
                   : accent === 'red'
-                  ? 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20'
+                  ? 'bg-red-500/10 text-red-600 hover:bg-red-500/20 border border-red-500/20'
                   : accent === 'yellow'
-                  ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20'
-                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/20'
+                  ? 'bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20'
+                  : 'bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 border border-blue-500/20'
               }`}
             >
               {actionLabel} <ArrowRight size={10} />
@@ -349,7 +357,7 @@ function TaskCard({
           {secondaryActionLabel && secondaryActionHref && (
             <Link
               href={secondaryActionHref}
-              className="inline-flex items-center gap-1 rounded-lg border border-outline px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:bg-surface-container transition-colors"
+              className="inline-flex items-center gap-1 rounded-lg border-[hsl(var(--color-border))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface-variant))] hover:bg-[hsl(var(--color-surface)/0.05)] transition-colors"
             >
               {secondaryActionLabel}
             </Link>
@@ -369,13 +377,13 @@ function ActivityItem({ log }: { log: AuditRow }) {
 
   return (
     <div className="flex items-start gap-3 py-2.5">
-      <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${dotColor}`} />
+      <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${dotColor} shadow-[0_0_6px_currentColor]`} />
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-on-surface leading-snug">
+        <p className="text-xs font-medium text-[hsl(var(--on-surface))] leading-snug">
           {auditLabel(log.action)}
-          <span className="font-normal text-on-surface-variant ml-1">{log.entityType}</span>
+          <span className="font-normal text-[hsl(var(--on-surface-variant))] ml-1 opacity-70">{log.entityType}</span>
         </p>
-        <p className="text-[10px] text-on-surface-variant mt-0.5">{log.userName} · {timeAgo(log.createdAt)}</p>
+        <p className="text-[10px] text-[hsl(var(--on-surface-variant))] mt-0.5 opacity-60">{log.userName} · {timeAgo(log.createdAt)}</p>
       </div>
     </div>
   );
@@ -394,12 +402,20 @@ export default function AdminDashboardPage() {
   const [expiringContracts, setExpiringContracts] = useState<ExpiringContract[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState('');
 
-  const { greeting, date } = todayThai();
+  const { date } = todayThai();
 
   useEffect(() => {
     async function load() {
       try {
+        const meRes = await fetch('/api/auth/me', { cache: 'no-store' });
+        if (meRes.ok) {
+          const data = await meRes.json();
+          if (data.data?.authenticated) {
+            setUserName(data.data.user.displayName || data.data.user.username || '');
+          }
+        }
         const safe = async (url: string) => {
           try {
             const r = await fetch(url, { cache: 'no-store' });
@@ -443,7 +459,6 @@ export default function AdminDashboardPage() {
           const total: number = raw?.total ?? (Array.isArray(raw?.transactions) ? raw.transactions.length : 0);
           setUnmatchedPayments(total);
         } else {
-          // Fallback: count from dashboard alerts
           const alerts = alertsRes?.data?.alerts ?? [];
           const unmatched = alerts.find((a: { type: string }) => a.type === 'unmatched_payments');
           if (unmatched) setUnmatchedPayments(unmatched.count);
@@ -500,51 +515,29 @@ export default function AdminDashboardPage() {
   }));
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-b from-surface-container-low/50 to-surface">
-      {/* ── Page Hero with Aurora Background ─────────────────────── */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-500 to-purple-600 px-6 py-10 shadow-xl shadow-indigo-600/20">
-        {/* Aurora blobs */}
-        <div className="aurora-bg" />
-        {/* Noise texture */}
-        <div className="noise-overlay absolute inset-0" />
-        {/* Decorative circles */}
-        <div className="absolute top-6 right-8 h-32 w-32 rounded-full bg-white/5 blur-2xl float-slow pointer-events-none" />
-        <div className="absolute -bottom-6 right-40 h-24 w-24 rounded-full bg-white/10 blur-xl pointer-events-none" />
-
-        <FadeIn className="relative z-10 max-w-screen-xl mx-auto">
-          <div className="flex flex-col gap-2">
-            <motion.div
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
-              className="text-[11px] uppercase tracking-[0.2em] font-semibold text-white/70"
-            >
-              Apartment ERP · Console
-            </motion.div>
-            <motion.h1
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.08 }}
-              className="text-3xl md:text-4xl font-extrabold tracking-tight text-white"
-            >
-              {greeting}{' '}
-              <motion.span
-                initial={{ rotate: -20, scale: 0.6, opacity: 0 }}
-                animate={{ rotate: 0, scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 14, delay: 0.25 }}
-                className="inline-block origin-bottom-right"
-              >
-                👋
-              </motion.span>
-            </motion.h1>
-            <p className="text-sm md:text-base text-white/80 font-medium">{date}</p>
+    <main className="relative min-h-screen">
+      {/* ── Page Hero — dark glass strip ─────────────────── */}
+      <div className="relative bg-[hsl(var(--color-surface))] border-b border-[hsl(var(--color-border))] -mx-4 sm:-mx-6 mt-[-1.5rem] pt-[1.5rem]">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.08] via-transparent to-primary/[0.04] pointer-events-none" />
+        <div className="relative z-10 max-w-screen-xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between gap-4">
+          <div className="flex flex-col">
+            <p className="text-[10px] uppercase tracking-[0.15em] font-semibold text-[hsl(var(--on-surface-variant))] opacity-60">
+              Apartment ERP
+            </p>
+            <h1 className="text-base font-bold tracking-tight text-[hsl(var(--on-surface))] leading-none mt-0.5">
+              ยินดีต้อนรับ{userName ? ` ${userName}` : ''}
+            </h1>
           </div>
-        </FadeIn>
+          <div className="text-right shrink-0">
+            <p className="text-xs text-[hsl(var(--on-surface-variant))] font-medium opacity-70">{date}</p>
+            <p className="text-[10px] text-[hsl(var(--on-surface-variant))] font-medium mt-0.5 opacity-50">{new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</p>
+          </div>
+        </div>
       </div>
 
       <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-        {/* ── KPI Row ─────────────────────────────────────────────── */}
+        {/* ── KPI Row — Bento Grid ─────────────────────────── */}
         <StaggerList stagger={0.07} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {loading ? (
             <>
@@ -602,7 +595,7 @@ export default function AdminDashboardPage() {
         </StaggerList>
 
         {/* ── 3 Big Action Buttons ────────────────────────────────── */}
-        <StaggerList stagger={0.08} delay={0.15} className="grid grid-cols-3 gap-4">
+        <StaggerList stagger={0.08} delay={0.15} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StaggerItem>
             <ActionButton
               label="ตรวจสลิป"
@@ -629,7 +622,7 @@ export default function AdminDashboardPage() {
           </StaggerItem>
         </StaggerList>
 
-        {/* ── Task Cards + Recent Activity ─────────────────────────── */}
+        {/* ── Task Cards + Recent Activity — Bento Layout ─────────── */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Left: Task Cards Grid */}
@@ -699,13 +692,21 @@ export default function AdminDashboardPage() {
 
           </StaggerList>
 
-          {/* Right: Recent Activity */}
-          <FadeIn delay={0.4} className="glass-card rounded-2xl overflow-hidden hover:shadow-xl transition-shadow duration-300">
-            <div className="px-5 py-4 border-b border-outline-variant/30 flex items-center justify-between bg-gradient-to-r from-primary/5 to-transparent">
+          {/* Right: Recent Activity — Glass Panel */}
+          <FadeIn delay={0.4} className="rounded-2xl overflow-hidden hover:shadow-[0_0_32px_rgba(0,0,0,0.4)] transition-shadow duration-300"
+          >
+            <div className="rounded-2xl overflow-hidden" style={{
+              background: 'hsl(var(--glass-bg))',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid hsl(var(--glass-border))',
+            }}>
+            <div className="px-5 py-4 border-b border-[hsl(var(--color-border))] flex items-center justify-between"
+              style={{ background: 'linear-gradient(to right, hsl(217 100% 67% / 0.08), transparent)' }}
+            >
               <div className="flex items-center gap-2">
                 <span className="pulse-dot" />
-                <Clock size={14} className="text-on-surface-variant" />
-                <span className="text-sm font-bold text-on-surface">กิจกรรมล่าสุด</span>
+                <Clock size={14} className="text-[hsl(var(--on-surface-variant))]" />
+                <span className="text-sm font-bold text-[hsl(var(--on-surface))]">กิจกรรมล่าสุด</span>
               </div>
               <Link
                 href="/admin/audit-logs"
@@ -729,17 +730,11 @@ export default function AdminDashboardPage() {
                 </div>
               ) : auditLogs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <motion.div
-                    initial={{ scale: 0.6, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 18 }}
-                  >
-                    <CheckCircle2 size={32} className="text-emerald-400 mb-2" />
-                  </motion.div>
-                  <p className="text-sm font-medium text-on-surface-variant">ไม่มีกิจกรรมล่าสุด</p>
+                  <CheckCircle2 size={32} className="text-emerald-600 mb-2" style={{ filter: 'drop-shadow(0 0 8px rgba(16,140,80,0.3))' }} />
+                  <p className="text-sm font-medium text-[hsl(var(--on-surface-variant))]">ไม่มีกิจกรรมล่าสุด</p>
                 </div>
               ) : (
-                <StaggerList stagger={0.04} className="divide-y divide-outline-variant/20">
+                <StaggerList stagger={0.04} className="divide-y divide-[hsl(var(--color-border))]">
                   {auditLogs.map((log) => (
                     <StaggerItem key={log.id}>
                       <ActivityItem log={log} />
@@ -747,6 +742,7 @@ export default function AdminDashboardPage() {
                   ))}
                 </StaggerList>
               )}
+            </div>
             </div>
           </FadeIn>
 

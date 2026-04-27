@@ -23,6 +23,23 @@ vi.mock('@/lib/db/client', () => {
   return { prisma, connectPrisma, disconnectPrisma, withTransaction, rawQuery };
 });
 
+// When USE_PRISMA_TEST_DB=true, swap $transaction for the real Prisma client
+// so integration tests get real DB access. The setup file loads synchronously,
+// so we use a sync-over-async pattern: call the real prisma $transaction within
+// the mock's fn without awaiting the PrismaClient construction eagerly.
+if (process.env.USE_PRISMA_TEST_DB === 'true') {
+  // eslint-disable-next-line @typescript-eslint/no-implicit-any-catch
+  (async () => {
+    try {
+      const { PrismaClient } = await import('@prisma/client');
+      const realPrisma = new PrismaClient();
+      (prisma as any).$transaction = async (fn: (tx: any) => Promise<any>) => {
+        return realPrisma.$transaction(fn);
+      };
+    } catch {}
+  })();
+}
+
 vi.mock('@/lib/line/client', () => {
   return {
     getLineClient: vi.fn(() => ({} as any)),

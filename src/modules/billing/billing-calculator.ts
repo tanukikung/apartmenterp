@@ -18,16 +18,35 @@ export interface BillingRuleData {
   waterMinCharge: number;
   waterServiceFeeMode: ServiceFeeMode;
   waterServiceFeeAmount: number;
+  // Water STEP tiers
+  waterS1Upto?: number | null;
+  waterS1Rate?: number | null;
+  waterS2Upto?: number | null;
+  waterS2Rate?: number | null;
+  waterS3Rate?: number | null;
 
   electricEnabled: boolean;
   electricUnitPrice: number;
   electricMinCharge: number;
   electricServiceFeeMode: ServiceFeeMode;
   electricServiceFeeAmount: number;
+  // Electric STEP tiers
+  electricS1Upto?: number | null;
+  electricS1Rate?: number | null;
+  electricS2Upto?: number | null;
+  electricS2Rate?: number | null;
+  electricS3Rate?: number | null;
 }
 
 export interface RoomBillingRow {
   rentAmount: number;
+
+  // Optional proration fields — when a tenant moves in/out mid-month,
+  // the billing system calculates rent proportional to actual occupancy days
+  moveInDate?: Date | null;
+  moveOutDate?: Date | null;
+  // Billing period context — needed to determine period boundaries for proration
+  billingPeriod?: { year: number; month: number };
 
   waterMode: MeterMode;
   waterPrev: number | null;
@@ -62,6 +81,9 @@ export interface ComputedBilling {
 
   // Grand total
   totalDue: number;
+
+  // Prorated rent — present only when move-in/move-out mid-month
+  proratedRent?: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -97,6 +119,49 @@ function computeServiceFee(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Tiered charge helper — used for STEP mode
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Tiered (STEP) pricing:
+ * Tier 1: 0 → s1Upto units at s1Rate
+ * Tier 2: s1Upto → s2Upto units at s2Rate
+ * Tier 3: above s2Upto units at s3Rate
+ */
+function computeTieredCharge(
+  units: number,
+  s1Upto: number | null | undefined,
+  s1Rate: number | null | undefined,
+  s2Upto: number | null | undefined,
+  s2Rate: number | null | undefined,
+  s3Rate: number | null | undefined,
+): number {
+  if (!units || !s1Upto || !s1Rate) return 0;
+
+  const tier1Units = Math.min(units, s1Upto);
+  let charge = tier1Units * s1Rate;
+
+  const remainingAfterTier1 = units - s1Upto;
+  if (remainingAfterTier1 <= 0) {
+    return roundMoney(charge);
+  }
+
+  // Tier 2
+  if (s2Upto && s2Rate) {
+    const tier2Units = Math.min(remainingAfterTier1, s2Upto);
+    charge += tier2Units * s2Rate;
+    const remainingAfterTier2 = remainingAfterTier1 - s2Upto;
+    if (remainingAfterTier2 > 0 && s3Rate) {
+      charge += remainingAfterTier2 * s3Rate;
+    }
+  } else if (s3Rate) {
+    charge += remainingAfterTier1 * s3Rate;
+  }
+
+  return roundMoney(charge);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Water computation
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -117,6 +182,11 @@ function computeWater(
     | 'waterMinCharge'
     | 'waterServiceFeeMode'
     | 'waterServiceFeeAmount'
+    | 'waterS1Upto'
+    | 'waterS1Rate'
+    | 'waterS2Upto'
+    | 'waterS2Rate'
+    | 'waterS3Rate'
   >
 ): { waterUnits: number; waterUsageCharge: number; waterServiceFee: number; waterTotal: number } {
   // DISABLED = ไม่คิดค่าน้ำเลย
@@ -136,8 +206,39 @@ function computeWater(
     return { waterUnits: 0, waterUsageCharge, waterServiceFee, waterTotal: roundMoney(waterUsageCharge + waterServiceFee) };
   }
 
-  // STEP = tiered pricing (future extension — treat as NORMAL for now)
-  // NORMAL or STEP: ใช้ curr - prev
+  // Reject negative meter readings — an IoT sensor that sends a negative value
+  // should trigger an investigation, not silently compute zero usage.
+  // Note: curr < prev (meter was reset/replaced) is handled by the parser layer
+  // and will produce units = 0 through the Math.max below. We only throw for
+  // truly negative absolute readings.
+  if ((row.waterPrev ?? 0) < 0 || (row.waterCurr ?? 0) < 0) {
+    throw new Error(`มิเตอร์น้ำติดลบ: ค่าก่อน=${row.waterPrev ?? 0}, ค่าปัจจุบัน=${row.waterCurr ?? 0}`);
+  }
+
+  // STEP = tiered pricing
+  if (row.waterMode === 'STEP') {
+    const waterUnits = Math.max(0, (row.waterCurr ?? 0) - (row.waterPrev ?? 0));
+    const waterUsageCharge = waterUnits > 0
+      ? roundMoney(computeTieredCharge(
+          waterUnits,
+          rule.waterS1Upto,
+          rule.waterS1Rate,
+          rule.waterS2Upto,
+          rule.waterS2Rate,
+          rule.waterS3Rate,
+        ))
+      : 0;
+    const afterMin = rule.waterMinCharge > 0 ? Math.max(waterUsageCharge, rule.waterMinCharge) : waterUsageCharge;
+    const waterServiceFee = computeServiceFee(
+      rule.waterServiceFeeMode,
+      rule.waterServiceFeeAmount,
+      waterUnits,
+      row.waterServiceFeeManual
+    );
+    return { waterUnits, waterUsageCharge: afterMin, waterServiceFee, waterTotal: roundMoney(afterMin + waterServiceFee) };
+  }
+
+  // NORMAL or MANUAL: linear pricing
   const waterUnits =
     row.waterMode === 'MANUAL'
       ? (row.waterUnitsManual ?? 0)
@@ -180,6 +281,11 @@ function computeElectric(
     | 'electricMinCharge'
     | 'electricServiceFeeMode'
     | 'electricServiceFeeAmount'
+    | 'electricS1Upto'
+    | 'electricS1Rate'
+    | 'electricS2Upto'
+    | 'electricS2Rate'
+    | 'electricS3Rate'
   >
 ): {
   electricUnits: number;
@@ -204,7 +310,36 @@ function computeElectric(
     return { electricUnits: 0, electricUsageCharge, electricServiceFee, electricTotal: roundMoney(electricUsageCharge + electricServiceFee) };
   }
 
-  // STEP = tiered pricing (future extension — treat as NORMAL for now)
+  // Reject negative meter readings — an IoT sensor that sends a negative value
+  // should trigger an investigation, not silently compute zero usage
+  if ((row.electricPrev ?? 0) < 0 || (row.electricCurr ?? 0) < 0) {
+    throw new Error(`มิเตอร์ไฟติดลบ: ค่าก่อน=${row.electricPrev ?? 0}, ค่าปัจจุบัน=${row.electricCurr ?? 0}`);
+  }
+
+  // STEP = tiered pricing
+  if (row.electricMode === 'STEP') {
+    const electricUnits = Math.max(0, (row.electricCurr ?? 0) - (row.electricPrev ?? 0));
+    const electricUsageCharge = electricUnits > 0
+      ? roundMoney(computeTieredCharge(
+          electricUnits,
+          rule.electricS1Upto,
+          rule.electricS1Rate,
+          rule.electricS2Upto,
+          rule.electricS2Rate,
+          rule.electricS3Rate,
+        ))
+      : 0;
+    const afterMin = rule.electricMinCharge > 0 ? Math.max(electricUsageCharge, rule.electricMinCharge) : electricUsageCharge;
+    const electricServiceFee = computeServiceFee(
+      rule.electricServiceFeeMode,
+      rule.electricServiceFeeAmount,
+      electricUnits,
+      row.electricServiceFeeManual
+    );
+    return { electricUnits, electricUsageCharge: afterMin, electricServiceFee, electricTotal: roundMoney(afterMin + electricServiceFee) };
+  }
+
+  // NORMAL or MANUAL: linear pricing
   const electricUnits =
     row.electricMode === 'MANUAL'
       ? (row.electricUnitsManual ?? 0)
@@ -241,8 +376,41 @@ export function computeRoomBilling(
   const water = computeWater(row, rule);
   const electric = computeElectric(row, rule);
 
+  // Prorated rent: if the tenant moved in/out mid-month, charge only actual occupancy days.
+  // Handles three cases:
+  // 1. move-out only: tenant left during this billing period → charge from period start to move-out
+  // 2. move-in only: tenant arrived during this billing period → charge from move-in to period end
+  // 3. both in same period: charge for actual days between move-in and move-out
+  let rentAmount = row.rentAmount;
+  if (row.moveInDate || row.moveOutDate) {
+    if (!row.billingPeriod) {
+      throw new Error('billingPeriod is required when moveInDate or moveOutDate is set');
+    }
+    // Period boundaries
+    const periodStart = new Date(row.billingPeriod.year, row.billingPeriod.month - 1, 1);
+    const periodEnd = new Date(row.billingPeriod.year, row.billingPeriod.month, 0);
+    const daysInMonth = periodEnd.getDate();
+
+    let occupancyDays: number;
+    if (row.moveInDate && row.moveOutDate) {
+      // Both: use actual occupancy window (e.g. move in and out within same month)
+      occupancyDays = Math.max(1, Math.ceil((row.moveOutDate.getTime() - row.moveInDate.getTime()) / 86_400_000));
+    } else if (row.moveOutDate) {
+      // Move-out only: from period start to move-out date
+      const moveOut = row.moveOutDate;
+      occupancyDays = Math.max(1, Math.ceil((moveOut.getTime() - periodStart.getTime()) / 86_400_000));
+    } else if (row.moveInDate) {
+      // Move-in only: from move-in date to period end
+      const moveIn = row.moveInDate;
+      occupancyDays = Math.max(1, Math.ceil((periodEnd.getTime() - moveIn.getTime()) / 86_400_000));
+    } else {
+      occupancyDays = daysInMonth;
+    }
+    rentAmount = roundMoney((row.rentAmount / daysInMonth) * occupancyDays);
+  }
+
   const totalDue = roundMoney(
-    row.rentAmount +
+    rentAmount +
     water.waterTotal +
     electric.electricTotal +
     row.furnitureFee +
@@ -253,6 +421,8 @@ export function computeRoomBilling(
     ...water,
     ...electric,
     totalDue,
+    // Expose prorated fields so the service layer can detect partial-month billing
+    proratedRent: rentAmount !== row.rentAmount ? rentAmount : undefined,
   };
 }
 

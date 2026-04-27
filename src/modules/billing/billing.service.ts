@@ -1,5 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
+import { Decimal } from '@prisma/client/runtime/library';
+import type { Prisma } from '@prisma/client';
 import { prisma, EventBus, logger, EventTypes } from '@/lib';
+import { BILLING_STATUS, BILLING_PERIOD_STATUS, INVOICE_STATUS, IMPORT_BATCH_STATUS } from '@/lib/constants';
 
 import {
   CreateBillingRecordInput,
@@ -36,7 +39,7 @@ type BillingRowFields = {
   ruleOverrideCode?: string | null;
   ruleCode: string;
   rentAmount: number;
-  waterMode: 'NORMAL' | 'MANUAL';
+  waterMode: 'NORMAL' | 'MANUAL' | 'FLAT' | 'STEP';
   waterPrev?: number | null;
   waterCurr?: number | null;
   waterUnitsManual?: number | null;
@@ -45,7 +48,7 @@ type BillingRowFields = {
   waterServiceFeeManual?: number | null;
   waterServiceFee: number;
   waterTotal: number;
-  electricMode: 'NORMAL' | 'MANUAL';
+  electricMode: 'NORMAL' | 'MANUAL' | 'FLAT' | 'STEP';
   electricPrev?: number | null;
   electricCurr?: number | null;
   electricUnitsManual?: number | null;
@@ -57,6 +60,11 @@ type BillingRowFields = {
   furnitureFee: number;
   otherFee: number;
   totalDue: number;
+  // Populated when tenant moves in/out mid-month
+  proratedRent?: number;
+  // Mid-month move dates — parsed from Excel as ISO date strings
+  moveInDate?: string | null;
+  moveOutDate?: string | null;
   note?: string | null;
   checkNotes?: string | null;
 };
@@ -97,17 +105,25 @@ function buildBillingDataFromRow(
     furnitureFee: row.furnitureFee,
     otherFee: row.otherFee,
     totalDue: row.totalDue,
+    // proratedRent: only present in full-import path (not raw-row path)
+    proratedRent: 'proratedRent' in row ? (row.proratedRent as number | undefined) : undefined,
+    // Mid-month move dates (from Excel)
+    moveInDate: 'moveInDate' in row ? (row.moveInDate as string | null | undefined) : undefined,
+    moveOutDate: 'moveOutDate' in row ? (row.moveOutDate as string | null | undefined) : undefined,
     note: row.note ?? undefined,
     checkNotes: row.checkNotes ?? undefined,
   };
 }
 
 /**
- * Normalise the wider meter mode from the parser ('DISABLED' | 'FLAT' | 'STEP'
- * are not in the Prisma MeterMode enum) to the DB-safe 'NORMAL' | 'MANUAL'.
+ * Normalise the meter mode string to the DB-safe MeterMode enum.
+ * Now includes FLAT and STEP since the enum supports them.
  */
-function normaliseMeterMode(mode: string): 'NORMAL' | 'MANUAL' {
-  return mode === 'MANUAL' ? 'MANUAL' : 'NORMAL';
+function normaliseMeterMode(mode: string): 'NORMAL' | 'MANUAL' | 'FLAT' | 'STEP' {
+  if (mode === 'MANUAL') return 'MANUAL';
+  if (mode === 'FLAT') return 'FLAT';
+  if (mode === 'STEP') return 'STEP';
+  return 'NORMAL';
 }
 
 /**
@@ -161,7 +177,7 @@ export class BillingService {
           id: uuidv4(),
           year: input.year,
           month: input.month,
-          status: 'OPEN',
+          status: BILLING_PERIOD_STATUS.OPEN,
           dueDay: DEFAULT_DUE_DAY,
         },
       });
@@ -193,7 +209,7 @@ export class BillingService {
             waterMode: 'NORMAL',
             electricMode: 'NORMAL',
             totalDue: Number(room.defaultRentAmount),
-            status: 'DRAFT',
+            status: BILLING_STATUS.DRAFT,
           },
         });
       });
@@ -268,7 +284,7 @@ export class BillingService {
     });
     if (!period) {
       period = await prisma.billingPeriod.create({
-        data: { id: uuidv4(), year, month, status: 'OPEN', dueDay: DEFAULT_DUE_DAY },
+        data: { id: uuidv4(), year, month, status: BILLING_PERIOD_STATUS.OPEN, dueDay: DEFAULT_DUE_DAY },
       });
     }
 
@@ -305,7 +321,7 @@ export class BillingService {
 
         const existing = existingMap.get(roomNo);
         if (existing) {
-          if (existing.status !== 'DRAFT') {
+          if (existing.status !== BILLING_STATUS.DRAFT) {
             skipped.push({ roomNo, reason: `Already ${existing.status}` });
             continue;
           }
@@ -357,7 +373,7 @@ export class BillingService {
               totalDue: row.totalDue,
               note: row.note,
               checkNotes: row.checkNotes,
-              status: 'DRAFT',
+              status: BILLING_STATUS.DRAFT,
             },
           });
           await tx.outboxEvent.create({
@@ -434,7 +450,7 @@ export class BillingService {
           where: { billingPeriodId_roomNo: { billingPeriodId, roomNo } },
         });
         if (existing) {
-          if (existing.status !== 'DRAFT') {
+          if (existing.status !== BILLING_STATUS.DRAFT) {
             skipped.push({ roomNo, reason: `Already ${existing.status}` });
             rowsSkipped++;
             await prisma.importBatch.update({
@@ -496,7 +512,7 @@ export class BillingService {
               totalDue: row.totalDue,
               note: row.note,
               checkNotes: row.checkNotes,
-              status: 'DRAFT',
+              status: BILLING_STATUS.DRAFT,
             },
           });
           await tx.outboxEvent.create({
@@ -558,23 +574,23 @@ export class BillingService {
         throw new NotFoundError('RoomBilling', billingRecordId);
       }
 
-      if (roomBilling.status === 'LOCKED' && !input.force) {
+      if (roomBilling.status === BILLING_STATUS.LOCKED && !input.force) {
         throw new BadRequestError('Billing record is already locked');
       }
 
-      if (roomBilling.status === 'INVOICED' && !input.force) {
+      if (roomBilling.status === BILLING_STATUS.INVOICED && !input.force) {
         throw new BadRequestError('Billing record is already invoiced');
       }
 
       if (input.force) {
         await tx.roomBilling.update({
           where: { id: billingRecordId },
-          data: { status: 'LOCKED' },
+          data: { status: BILLING_STATUS.LOCKED },
         });
       } else {
         const lockResult = await tx.roomBilling.updateMany({
           where: { id: billingRecordId, status: roomBilling.status },
-          data: { status: 'LOCKED' },
+          data: { status: BILLING_STATUS.LOCKED },
         });
         if (lockResult.count !== 1) {
           throw new ConflictError('Billing record lock state changed. Refresh and retry.');
@@ -615,7 +631,7 @@ export class BillingService {
             aggregateType: 'RoomBilling',
             aggregateId: locked.id,
             eventType: EventTypes.BILLING_LOCKED,
-            payload: lockedPayload as any,
+            payload: lockedPayload as Prisma.InputJsonValue,
             retryCount: 0,
           },
           {
@@ -623,7 +639,7 @@ export class BillingService {
             aggregateType: 'RoomBilling',
             aggregateId: locked.id,
             eventType: EventTypes.INVOICE_GENERATION_REQUESTED,
-            payload: invoicePayload as any,
+            payload: invoicePayload as Prisma.InputJsonValue,
             retryCount: 0,
           },
         ],
@@ -659,26 +675,26 @@ export class BillingService {
         throw new NotFoundError('RoomBilling', billingRecordId);
       }
 
-      if (record.status === 'DRAFT') {
+      if (record.status === BILLING_STATUS.DRAFT) {
         throw new BadRequestError('Billing record is already unlocked');
       }
 
-      if (record.status === 'INVOICED') {
+      if (record.status === BILLING_STATUS.INVOICED) {
         // Check if the invoice has been cancelled — if so, allow unlock
         const invoice = await tx.invoice.findUnique({ where: { roomBillingId: billingRecordId } });
-        if (!invoice || (invoice.status as string) !== 'CANCELLED') {
+        if (!invoice || (invoice.status as string) !== INVOICE_STATUS.CANCELLED) {
           throw new BadRequestError('Cannot unlock an invoiced record. Cancel the invoice first.');
         }
         // If CANCELLED, fall through to allow unlock
       }
 
-      if (record.status !== 'LOCKED') {
+      if (record.status !== BILLING_STATUS.LOCKED) {
         throw new BadRequestError(`Cannot unlock record with status: ${record.status}`);
       }
 
       return tx.roomBilling.update({
         where: { id: billingRecordId },
-        data: { status: 'DRAFT' },
+        data: { status: BILLING_STATUS.DRAFT },
       });
     });
 
@@ -705,13 +721,14 @@ export class BillingService {
   async listBillingRecords(
     query: ListBillingRecordsQuery
   ): Promise<BillingRecordsListResponse> {
-    const { roomNo, billingPeriodId, year, month, status, page, pageSize, sortBy, sortOrder } = query;
+    const { roomNo, billingPeriodId, year, month, status, floor, page, pageSize, sortBy, sortOrder } = query;
 
     const where: Record<string, unknown> = {};
 
     if (roomNo) where.roomNo = roomNo;
     if (billingPeriodId) where.billingPeriodId = billingPeriodId;
     if (status) where.status = status;
+    if (floor) where.room = { floorNo: floor };
     if (year || month) {
       where.billingPeriod = {};
       if (year) (where.billingPeriod as Record<string, unknown>).year = year;
@@ -725,6 +742,9 @@ export class BillingService {
     const prismaOrderField = SORT_FIELD_MAP[sortBy] ?? sortBy;
 
     const total = await prisma.roomBilling.count({ where });
+
+    // For roomNo sort, we must sort in JS (string sort breaks "798/10" before "798/2")
+    const isRoomNoSort = sortBy === 'roomNo';
 
     const records = await prisma.roomBilling.findMany({
       where,
@@ -740,10 +760,40 @@ export class BillingService {
           },
         },
       },
-      orderBy: { [prismaOrderField]: sortOrder },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      orderBy: isRoomNoSort ? { roomNo: 'asc' } : { [prismaOrderField]: sortOrder },
+      skip: isRoomNoSort ? 0 : (page - 1) * pageSize,
+      take: isRoomNoSort ? 1000 : pageSize,
     });
+
+    // Natural roomNo sort: floor first, then natural roomNo within each floor
+    if (isRoomNoSort) {
+      const parseParts = (s: string) => {
+        const slashIdx = s.indexOf('/');
+        if (slashIdx === -1) return { prefix: parseInt(s, 10), suffix: 0 };
+        return { prefix: parseInt(s.substring(0, slashIdx), 10), suffix: parseInt(s.substring(slashIdx + 1), 10) };
+      };
+      const sorted = sortOrder === 'desc'
+        ? [...records].sort((a, b) => {
+            if (a.room.floorNo !== b.room.floorNo) return b.room.floorNo - a.room.floorNo;
+            const aP = parseParts(a.roomNo), bP = parseParts(b.roomNo);
+            if (aP.prefix !== bP.prefix) return bP.prefix - aP.prefix;
+            return bP.suffix - aP.suffix;
+          })
+        : [...records].sort((a, b) => {
+            if (a.room.floorNo !== b.room.floorNo) return a.room.floorNo - b.room.floorNo;
+            const aP = parseParts(a.roomNo), bP = parseParts(b.roomNo);
+            if (aP.prefix !== bP.prefix) return aP.prefix - bP.prefix;
+            return aP.suffix - bP.suffix;
+          });
+      const paged = sorted.slice((page - 1) * pageSize, page * pageSize);
+      return {
+        data: paged.map((r) => this.formatRoomBillingResponse(r, r.billingPeriod, r.room)),
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      };
+    }
 
     return {
       data: records.map((r) => this.formatRoomBillingResponse(r, r.billingPeriod, r.room)),
@@ -946,6 +996,18 @@ export class BillingService {
           electricMinCharge: rule.electricMinCharge,
           electricServiceFeeMode: mapFeeMode(rule.electricFeeMode),
           electricServiceFeeAmount: rule.electricFeeAmount > 0 ? rule.electricFeeAmount : rule.electricFeePerUnit,
+          // Water STEP tiers
+          waterS1Upto: rule.waterS1Upto ?? new Decimal(0),
+          waterS1Rate: rule.waterS1Rate ?? new Decimal(0),
+          waterS2Upto: rule.waterS2Upto ?? new Decimal(0),
+          waterS2Rate: rule.waterS2Rate ?? new Decimal(0),
+          waterS3Rate: rule.waterS3Rate ?? new Decimal(0),
+          // Electric STEP tiers
+          electricS1Upto: rule.electricS1Upto ?? new Decimal(0),
+          electricS1Rate: rule.electricS1Rate ?? new Decimal(0),
+          electricS2Upto: rule.electricS2Upto ?? new Decimal(0),
+          electricS2Rate: rule.electricS2Rate ?? new Decimal(0),
+          electricS3Rate: rule.electricS3Rate ?? new Decimal(0),
         },
         update: {
           descriptionTh: rule.description,
@@ -959,6 +1021,18 @@ export class BillingService {
           electricMinCharge: rule.electricMinCharge,
           electricServiceFeeMode: mapFeeMode(rule.electricFeeMode),
           electricServiceFeeAmount: rule.electricFeeAmount > 0 ? rule.electricFeeAmount : rule.electricFeePerUnit,
+          // Water STEP tiers
+          waterS1Upto: rule.waterS1Upto ?? new Decimal(0),
+          waterS1Rate: rule.waterS1Rate ?? new Decimal(0),
+          waterS2Upto: rule.waterS2Upto ?? new Decimal(0),
+          waterS2Rate: rule.waterS2Rate ?? new Decimal(0),
+          waterS3Rate: rule.waterS3Rate ?? new Decimal(0),
+          // Electric STEP tiers
+          electricS1Upto: rule.electricS1Upto ?? new Decimal(0),
+          electricS1Rate: rule.electricS1Rate ?? new Decimal(0),
+          electricS2Upto: rule.electricS2Upto ?? new Decimal(0),
+          electricS2Rate: rule.electricS2Rate ?? new Decimal(0),
+          electricS3Rate: rule.electricS3Rate ?? new Decimal(0),
         },
       });
     }
@@ -969,7 +1043,7 @@ export class BillingService {
     });
     if (!period) {
       period = await prisma.billingPeriod.create({
-        data: { id: uuidv4(), year, month, status: 'OPEN', dueDay: DEFAULT_DUE_DAY },
+        data: { id: uuidv4(), year, month, status: BILLING_PERIOD_STATUS.OPEN, dueDay: DEFAULT_DUE_DAY },
       });
     }
 
@@ -988,7 +1062,7 @@ export class BillingService {
         rowsImported: 0,
         rowsSkipped: 0,
         rowsErrored: 0,
-        status: 'PROCESSING',
+        status: IMPORT_BATCH_STATUS.PROCESSING,
         importedBy: importedBy ?? 'system',
       },
     });
@@ -1045,18 +1119,28 @@ export class BillingService {
           waterMinCharge:         ruleData.waterMinCharge,
           waterServiceFeeMode:    mapFeeMode(ruleData.waterFeeMode),
           waterServiceFeeAmount:  ruleData.waterFeeAmount > 0 ? ruleData.waterFeeAmount : ruleData.waterFeePerUnit,
+          // Water STEP tiers
+          waterS1Upto:            ruleData.waterS1Upto,
+          waterS1Rate:            ruleData.waterS1Rate,
+          waterS2Upto:            ruleData.waterS2Upto,
+          waterS2Rate:            ruleData.waterS2Rate,
+          waterS3Rate:            ruleData.waterS3Rate,
           electricEnabled:        ruleData.electricMode !== 'DISABLED',
           electricUnitPrice:      ruleData.electricRate > 0 ? ruleData.electricRate : ruleData.electricS1Rate,
           electricMinCharge:      ruleData.electricMinCharge,
           electricServiceFeeMode: mapFeeMode(ruleData.electricFeeMode),
           electricServiceFeeAmount: ruleData.electricFeeAmount > 0 ? ruleData.electricFeeAmount : ruleData.electricFeePerUnit,
+          // Electric STEP tiers
+          electricS1Upto:         ruleData.electricS1Upto,
+          electricS1Rate:        ruleData.electricS1Rate,
+          electricS2Upto:        ruleData.electricS2Upto,
+          electricS2Rate:        ruleData.electricS2Rate,
+          electricS3Rate:        ruleData.electricS3Rate,
         };
 
-        // Normalise meter modes to the calculator's narrower enum ('NORMAL' | 'MANUAL')
-        const normWaterMode: 'NORMAL' | 'MANUAL' =
-          row.waterMode === 'MANUAL' ? 'MANUAL' : 'NORMAL';
-        const normElectricMode: 'NORMAL' | 'MANUAL' =
-          row.electricMode === 'MANUAL' ? 'MANUAL' : 'NORMAL';
+        // Normalise meter modes to the calculator's MeterMode ('NORMAL' | 'MANUAL' | 'FLAT' | 'STEP')
+        const normWaterMode = normaliseMeterMode(row.waterMode);
+        const normElectricMode = normaliseMeterMode(row.electricMode);
 
         // Compute billing using BillingCalculator (ignores Excel-computed columns)
         const computed = computeRoomBilling(
@@ -1076,6 +1160,11 @@ export class BillingService {
             electricServiceFeeManual: row.electricServiceFeeManual,
             furnitureFee: row.furnitureFee,
             otherFee: row.otherFee,
+            // Mid-month move dates — parse from Excel string format to Date
+            moveInDate: row.moveInDate ? new Date(row.moveInDate) : null,
+            moveOutDate: row.moveOutDate ? new Date(row.moveOutDate) : null,
+            // Billing period context for proration calculations
+            billingPeriod: { year: period!.year, month: period!.month },
           },
           billingRuleData
         );
@@ -1104,7 +1193,7 @@ export class BillingService {
         // Upsert RoomBilling — create if not exists, update if DRAFT (using prefetched map)
         const existing = billingsMap.get(roomNo);
 
-        if (existing && existing.status !== 'DRAFT') {
+        if (existing && existing.status !== BILLING_STATUS.DRAFT) {
           skipped++;
           continue;
         }
@@ -1136,6 +1225,8 @@ export class BillingService {
           furnitureFee: row.furnitureFee,
           otherFee: row.otherFee,
           totalDue: computed.totalDue,
+          // Populate proratedRent only when move-in/move-out mid-month
+          proratedRent: computed.proratedRent ?? undefined,
           note: row.note ?? undefined,
           checkNotes: checkNotes ?? undefined,
         };
@@ -1153,7 +1244,7 @@ export class BillingService {
               id: uuidv4(),
               billingPeriodId: period!.id,
               roomNo,
-              status: 'DRAFT',
+              status: BILLING_STATUS.DRAFT,
               ...billingData,
             },
           });
@@ -1172,11 +1263,11 @@ export class BillingService {
     await prisma.importBatch.update({
       where: { id: batchId },
       data: {
-        status: errors === rowsTotal && rowsTotal > 0 ? 'FAILED' : 'COMPLETED',
+        status: errors === rowsTotal && rowsTotal > 0 ? IMPORT_BATCH_STATUS.FAILED : IMPORT_BATCH_STATUS.COMPLETED,
         rowsImported: imported,
         rowsSkipped: skipped,
         rowsErrored: errors,
-        errorLog: errorLog.length > 0 ? (errorLog as any as import('@prisma/client').Prisma.InputJsonValue) : undefined,
+        errorLog: errorLog.length > 0 ? (errorLog as Prisma.InputJsonValue) : undefined,
       },
     });
 

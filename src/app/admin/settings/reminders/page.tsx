@@ -1,23 +1,10 @@
 'use client';
 
-/**
- * Reminder Config UI — admin configures the auto-reminder schedule.
- *
- * Each ReminderConfig has:
- *   periodDays  — negative = overdue reminder (e.g. -3 = 3 days after due date)
- *                positive = pre-due reminder (e.g. 7 = 7 days before due date)
- *                0        = due today
- *   messageTh   — Thai message template with {{roomNo}}, {{amount}}, {{dueDate}}, {{daysOverdue}}
- *   isActive    — whether this config fires
- *   priority    — LOW / NORMAL / HIGH / URGENT
- *   appliesTo   — ALL / OVERDUE / DUE_SOON
- */
-
 import { useState } from 'react';
 import Link from 'next/link';
 import { useToast } from '@/components/providers/ToastProvider';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { AlertTriangle, ArrowLeft, Bell, CheckCircle2, Loader2, Plus, RefreshCw, Save, Trash2, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Loader2, Pencil, Plus, RefreshCw, Save, Trash2, XCircle } from 'lucide-react';
 import { useApiData } from '@/hooks/useApi';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -59,17 +46,17 @@ function periodLabel(days: number): string {
 
 function priorityColor(p: string): string {
   switch (p) {
-    case 'URGENT': return 'bg-red-100 text-red-700';
-    case 'HIGH': return 'bg-orange-100 text-orange-700';
-    case 'LOW': return 'bg-slate-100 text-slate-600';
-    default: return 'bg-blue-100 text-blue-700';
+    case 'URGENT': return 'bg-red-500/20 text-red-400 border border-red-500/30';
+    case 'HIGH': return 'bg-orange-500/20 text-orange-400 border border-orange-500/30';
+    case 'LOW': return 'glass-card text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--glass-border))]';
+    default: return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
   }
 }
 
 const PRESET_ROWS = [
   { periodDays: 7,  messageTh: 'เรียนผู้เช่าห้อง {{roomNo}} ค่ะ ขอแจ้งว่าค่าเช่าจำนวน {{amount}} จะครบกำหนดชำระในอีก 7 วัน (วันที่ {{dueDate}}) กรุณาชำระตามกำหนดนะคะ' },
   { periodDays: 3,  messageTh: 'เรียนผู้เช่าห้อง {{roomNo}} ค่ะ ขอแจ้งเตือนว่าค่าเช่า {{amount}} จะครบกำหนดชำระในอีก 3 วัน (วันที่ {{dueDate}}) กรุณาชำระทันเวลานะคะ' },
-  { periodDays: 0,  messageTh: 'เรียนผู้เช่าห้อง {{roomNo}} ค่ะ วันนี้คือวันครบกำหนดชำระค่าเช่า {{amount}} กรุณาชำระภายในวันนี้ที่บัญชีที่แจ้งไว้นะคะ 🙏' },
+  { periodDays: 0,  messageTh: 'เรียนผู้เช่าห้อง {{roomNo}} ค่ะ วันนี้คือวันครบกำหนดชำระค่าเช่า {{amount}} กรุณาชำระภายในวันนี้ที่บัญชีที่แจ้งไว้นะคะ' },
   { periodDays: -3, messageTh: 'เรียนผู้เช่าห้อง {{roomNo}} ค่ะ ค่าเช่า {{amount}} ค้างชำระมา 3 วันแล้ว (ครบกำหนด {{dueDate}}) กรุณาชำระโดยเร็วที่สุดนะคะ' },
   { periodDays: -7, messageTh: 'ด่วน! เรียนผู้เช่าห้อง {{roomNo}} ค่ะ ค่าเช่า {{amount}} ค้างชำระมา 7 วันแล้ว กรุณาชำระทันที หากมีข้อสงสัยกรุณาติดต่อเจ้าหน้าที่' },
 ];
@@ -79,7 +66,6 @@ const PRESET_ROWS = [
 export default function ReminderConfigPage() {
   const { toast } = useToast();
 
-  // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     title: string;
@@ -91,8 +77,8 @@ export default function ReminderConfigPage() {
   const [_actionError, setActionError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Form state for adding new config
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formDays, setFormDays] = useState(7);
   const [formMessage, setFormMessage] = useState('');
   const [formPriority, setFormPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'>('NORMAL');
@@ -100,14 +86,36 @@ export default function ReminderConfigPage() {
   const [formActive, setFormActive] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Delete state
+  function openEditForm(config: ReminderConfig) {
+    setEditingId(config.id);
+    setFormDays(config.periodDays);
+    setFormMessage(config.messageTh);
+    setFormPriority(config.priority);
+    setFormAppliesTo(config.appliesTo);
+    setFormActive(config.isActive);
+    setShowForm(true);
+    setActionError(null);
+    setSuccessMsg(null);
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
+    setFormDays(7);
+    setFormMessage('');
+    setFormPriority('NORMAL');
+    setFormAppliesTo('ALL');
+    setFormActive(true);
+    setActionError(null);
+  }
+
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: configsData, isLoading, error: fetchError, refetch } = useApiData<ApiResp<ListResp>>('/api/reminders/config?pageSize=50', ['reminder-configs']);
 
   const configs: ReminderConfig[] = configsData?.data?.items ?? [];
 
-  async function handleAdd() {
+  async function handleSave() {
     if (!formMessage.trim()) {
       setActionError('กรุณากรอกข้อความ');
       return;
@@ -116,26 +124,23 @@ export default function ReminderConfigPage() {
     setActionError(null);
     setSuccessMsg(null);
     try {
+      const isEditing = editingId !== null;
       const res = await fetch('/api/reminders/config', {
-        method: 'POST',
+        method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          periodDays: formDays,
-          messageTh: formMessage.trim(),
-          isActive: formActive,
-          priority: formPriority,
-          appliesTo: formAppliesTo,
-        }),
+        body: JSON.stringify(
+          isEditing
+            ? { id: editingId, periodDays: formDays, messageTh: formMessage.trim(), priority: formPriority, appliesTo: formAppliesTo, isActive: formActive }
+            : { periodDays: formDays, messageTh: formMessage.trim(), priority: formPriority, appliesTo: formAppliesTo, isActive: formActive }
+        ),
       });
       const json: ApiResp<ReminderConfig> = await res.json();
-      if (!json.success) throw new Error(json.error?.message ?? 'เพิ่มไม่สำเร็จ');
-      setSuccessMsg('เพิ่มการตั้งค่าเรียบร้อยแล้ว');
-      setShowForm(false);
-      setFormMessage('');
-      setFormDays(7);
+      if (!json.success) throw new Error(json.error?.message ?? (isEditing ? 'อัปเดตไม่สำเร็จ' : 'เพิ่มไม่สำเร็จ'));
+      setSuccessMsg(isEditing ? 'อัปเดตการตั้งค่าเรียบร้อยแล้ว' : 'เพิ่มการตั้งค่าเรียบร้อยแล้ว');
+      closeForm();
       void refetch();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'เพิ่มไม่สำเร็จ');
+      setActionError(err instanceof Error ? err.message : 'ไม่สำเร็จ');
     } finally {
       setSaving(false);
     }
@@ -188,62 +193,63 @@ export default function ReminderConfigPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+      <section className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
+        </div>
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
-              <Bell className="h-5 w-5 text-on-primary" strokeWidth={1.75} />
-            </div>
-            <div>
-              <h1 className="text-base font-semibold text-on-primary">ตั้งค่าการแจ้งเตือนอัตโนมัติ</h1>
-              <p className="text-xs text-on-primary/80 mt-0.5">กำหนดตารางและข้อความสำหรับ reminder อัตโนมัติ</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => void refetch()}
-              className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30"
+            <Link
+              href="/admin/settings"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] glass-card shadow-sm transition-all hover:scale-105 active:scale-95"
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-              รีเฟรช
-            </button>
+              <ArrowLeft className="h-4 w-4 text-[hsl(var(--primary))]" />
+            </Link>
+            <div>
+              <h1 className="text-lg font-semibold text-[hsl(var(--card-foreground))]">ตั้งค่าการแจ้งเตือนอัตโนมัติ</h1>
+              <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">กำหนดตารางและข้อความสำหรับ reminder อัตโนมัติ</p>
+            </div>
           </div>
+          <button
+            onClick={() => void refetch()}
+            className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            รีเฟรช
+          </button>
         </div>
-      </div>
+      </section>
 
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm">
-        <Link href="/admin/settings" className="flex items-center gap-1 text-on-surface-variant hover:text-on-surface">
-          <ArrowLeft className="h-4 w-4" /> ตั้งค่า
+      <div className="flex items-center gap-2 text-sm text-[hsl(var(--on-surface-variant))]">
+        <Link href="/admin/settings" className="flex items-center gap-1 hover:text-[hsl(var(--card-foreground))]">
+          ตั้งค่า
         </Link>
-        <span className="text-outline-variant">/</span>
-        <span className="text-on-surface">การแจ้งเตือนอัตโนมัติ</span>
+        <span>/</span>
+        <span className="text-[hsl(var(--card-foreground))]">การแจ้งเตือนอัตโนมัติ</span>
       </div>
 
       {/* Alerts */}
       {successMsg && (
-        <div className="flex items-center gap-3 rounded-xl border border-tertiary-container bg-tertiary-container/20 px-5 py-3.5 text-sm font-medium text-on-tertiary-container">
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 px-4 py-3 text-sm font-medium" style={{ background: 'rgba(34,197,94,0.1)', color: '#4ade80' }}>
           <CheckCircle2 className="h-5 w-5 shrink-0" />
           {successMsg}
         </div>
       )}
       {fetchError && (
-        <div className="flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-5 py-3.5 text-sm font-medium text-on-error-container">
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/30 px-4 py-3 text-sm font-medium" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
           <XCircle className="h-5 w-5 shrink-0" />
           {fetchError instanceof Error ? fetchError.message : String(fetchError)}
         </div>
       )}
 
       {/* Info banner */}
-      <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-900">
+      <div className="flex items-start gap-3 rounded-xl border border-blue-500/20 px-5 py-4 text-sm" style={{ background: 'rgba(99,102,241,0.05)', color: 'hsl(var(--primary))' }}>
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <p>
-          <strong>periodDays คืออะไร:</strong> ค่าบวก = ก่อนครบกำหนด X วัน (เช่น 7 = 7 วันก่อน),
-          ค่าลบ = หลังครบกำหนด X วัน (เช่น -3 = 3 วันหลัง),
-          0 = วันเดียวกับวันครบกำหนด
+          <strong>periodDays คืออะไร:</strong> ค่าบวก = ก่อนครบกำหนด X วัน, ค่าลบ = หลังครบกำหนด X วัน, 0 = วันเดียวกับวันครบกำหนด
           <br />
-          ตัวแปรในข้อความ: <code>{'{{roomNo}}'}</code> <code>{'{{amount}}'}</code> <code>{'{{dueDate}}'}</code> <code>{'{{daysOverdue}}'}</code>
+          ตัวแปร: <code className="rounded px-1" style={{ background: 'rgba(99,102,241,0.15)' }}>{'{roomNo}'}</code> <code className="rounded px-1" style={{ background: 'rgba(99,102,241,0.15)' }}>{'{amount}'}</code> <code className="rounded px-1" style={{ background: 'rgba(99,102,241,0.15)' }}>{'{dueDate}'}</code> <code className="rounded px-1" style={{ background: 'rgba(99,102,241,0.15)' }}>{'{daysOverdue}'}</code>
         </p>
       </div>
 
@@ -251,25 +257,24 @@ export default function ReminderConfigPage() {
       {!showForm ? (
         <button
           onClick={() => setShowForm(true)}
-          className="inline-flex items-center gap-2 rounded-xl border border-primary bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
+          className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] text-white px-5 py-2.5 text-sm font-semibold shadow-sm transition-all hover:scale-105 active:scale-95 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
         >
           <Plus className="h-4 w-4" />
           เพิ่มการตั้งค่า
         </button>
       ) : (
-        <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-6 space-y-4">
-          <h3 className="font-semibold text-on-surface">เพิ่มการตั้งค่า Reminder ใหม่</h3>
+        <div className="rounded-2xl border border-[hsl(var(--glass-border))] glass-card p-6 space-y-4">
+          <h3 className="font-semibold text-[hsl(var(--card-foreground))]">{editingId ? 'แก้ไขการตั้งค่า Reminder' : 'เพิ่มการตั้งค่า Reminder ใหม่'}</h3>
 
-          {/* Presets */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-on-surface-variant">เลือกเทมเพลตสำเร็จรูป</label>
+            <label className="mb-1.5 block text-xs font-medium text-[hsl(var(--on-surface-variant))]">เลือกเทมเพลตสำเร็จรูป</label>
             <div className="flex flex-wrap gap-2">
               {PRESET_ROWS.map((p, i) => (
                 <button
                   key={p.periodDays}
                   type="button"
                   onClick={() => applyPreset(i)}
-                  className="rounded-lg border border-outline-variant bg-surface-container px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:bg-surface-container-lowest transition-colors"
+                  className="rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] hover:border-[hsl(var(--primary))]/40 transition-all hover:scale-105 active:scale-95"
                 >
                   {periodLabel(p.periodDays)}
                 </button>
@@ -279,23 +284,23 @@ export default function ReminderConfigPage() {
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-on-surface">จำนวนวัน</label>
+              <label className="mb-1 block text-sm font-medium text-[hsl(var(--card-foreground))]">จำนวนวัน</label>
               <input
                 type="number"
                 value={formDays}
                 onChange={(e) => setFormDays(Number(e.target.value))}
                 min={-60}
                 max={60}
-                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
               />
-              <p className="mt-1 text-xs text-on-surface-variant">{periodLabel(formDays)}</p>
+              <p className="mt-1 text-xs text-[hsl(var(--on-surface-variant))]">{periodLabel(formDays)}</p>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-on-surface">ความสำคัญ</label>
+              <label className="mb-1 block text-sm font-medium text-[hsl(var(--card-foreground))]">ความสำคัญ</label>
               <select
                 value={formPriority}
                 onChange={(e) => setFormPriority(e.target.value as typeof formPriority)}
-                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               >
                 <option value="LOW">LOW</option>
                 <option value="NORMAL">NORMAL</option>
@@ -304,11 +309,11 @@ export default function ReminderConfigPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-on-surface">ใช้กับ</label>
+              <label className="mb-1 block text-sm font-medium text-[hsl(var(--card-foreground))]">ใช้กับ</label>
               <select
                 value={formAppliesTo}
                 onChange={(e) => setFormAppliesTo(e.target.value as typeof formAppliesTo)}
-                className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               >
                 <option value="ALL">ทั้งหมด</option>
                 <option value="OVERDUE">ค้างชำระ</option>
@@ -318,23 +323,23 @@ export default function ReminderConfigPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-on-surface">ข้อความ (Thai)</label>
+            <label className="mb-1 block text-sm font-medium text-[hsl(var(--card-foreground))]">ข้อความ (Thai)</label>
             <textarea
               value={formMessage}
               onChange={(e) => setFormMessage(e.target.value)}
               rows={3}
               placeholder="เรียนผู้เช่าห้อง {{roomNo}} ค่ะ..."
-              className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant"
+              className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
             />
           </div>
 
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-on-surface">
+            <label className="flex items-center gap-2 text-sm text-[hsl(var(--card-foreground))]">
               <input
                 type="checkbox"
                 checked={formActive}
                 onChange={(e) => setFormActive(e.target.checked)}
-                className="h-4 w-4 rounded border-outline"
+                className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]"
               />
               เปิดใช้งานทันที
             </label>
@@ -342,16 +347,16 @@ export default function ReminderConfigPage() {
 
           <div className="flex items-center gap-3 pt-2">
             <button
-              onClick={() => void handleAdd()}
+              onClick={() => void handleSave()}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] text-white px-4 py-2 text-sm font-semibold shadow-sm transition-all hover:scale-105 active:scale-95 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {saving ? 'กำลังบันทึก...' : 'บันทึก'}
             </button>
             <button
-              onClick={() => { setShowForm(false); setActionError(null); }}
-              className="inline-flex items-center gap-2 rounded-xl border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+              onClick={closeForm}
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
             >
               ยกเลิก
             </button>
@@ -362,10 +367,10 @@ export default function ReminderConfigPage() {
       {/* Config List */}
       {isLoading ? (
         <div className="flex items-center justify-center p-10">
-          <Loader2 className="h-8 w-8 animate-spin text-on-surface-variant" />
+          <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--on-surface-variant))]" />
         </div>
       ) : configs.length === 0 ? (
-        <div className="rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-10 text-center text-on-surface-variant">
+        <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-10 text-center text-[hsl(var(--on-surface-variant))]">
           ไม่มีการตั้งค่า reminder — คลิก &quot;เพิ่มการตั้งค่า&quot; เพื่อสร้าง
         </div>
       ) : (
@@ -373,9 +378,7 @@ export default function ReminderConfigPage() {
           {configs.map((config) => (
             <div
               key={config.id}
-              className={`rounded-2xl border bg-surface-container-lowest p-5 transition-opacity ${
-                config.isActive ? 'border-primary/20' : 'border-outline-variant/30 opacity-60'
-              }`}
+              className={`rounded-2xl border p-5 glass-card transition-all ${config.isActive ? 'border-[hsl(var(--primary))]/20' : 'border-[hsl(var(--glass-border))] opacity-60'}`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -383,31 +386,39 @@ export default function ReminderConfigPage() {
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${priorityColor(config.priority)}`}>
                       {config.priority}
                     </span>
-                    <span className="text-sm font-semibold text-on-surface">
+                    <span className="text-sm font-semibold text-[hsl(var(--card-foreground))]">
                       {periodLabel(config.periodDays)}
                     </span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${config.appliesTo === 'ALL' ? 'bg-slate-100 text-slate-600' : config.appliesTo === 'OVERDUE' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${config.appliesTo === 'ALL' ? 'glass-card text-[hsl(var(--on-surface-variant))]' : config.appliesTo === 'OVERDUE' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
                       {config.appliesTo === 'ALL' ? 'ทั้งหมด' : config.appliesTo === 'OVERDUE' ? 'ค้างชำระ' : 'ใกล้ครบกำหนด'}
                     </span>
                     {!config.isActive && (
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">ปิดใช้งาน</span>
+                      <span className="rounded-full px-2 py-0.5 text-xs text-[hsl(var(--on-surface-variant))] glass-card">ปิดใช้งาน</span>
                     )}
                   </div>
-                  <p className="mt-2 text-sm text-on-surface-variant line-clamp-2">{config.messageTh}</p>
-                  <p className="mt-1 text-xs text-on-surface-variant/60">
+                  <p className="mt-2 text-sm text-[hsl(var(--on-surface-variant))] line-clamp-2">{config.messageTh}</p>
+                  <p className="mt-1 text-xs text-[hsl(var(--on-surface-variant))]/60">
                     อัปเดตล่าสุด: {new Date(config.updatedAt).toLocaleString('th-TH')}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* Toggle active */}
+                  <button
+                    onClick={() => void openEditForm(config)}
+                    title="แก้ไข"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/10 px-3 py-1.5 text-xs font-medium text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/20 transition-all hover:scale-105 active:scale-95"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    แก้ไข
+                  </button>
+
                   <button
                     onClick={() => void handleToggleActive(config)}
                     title={config.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all hover:scale-105 active:scale-95 ${
                       config.isActive
-                        ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
-                        : 'border-outline-variant bg-surface-container text-on-surface-variant hover:bg-surface-container-lowest'
+                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                        : 'border-[hsl(var(--glass-border))] glass-card text-[hsl(var(--card-foreground))] hover:border-[hsl(var(--primary))]/40'
                     }`}
                   >
                     {config.isActive ? (
@@ -417,12 +428,11 @@ export default function ReminderConfigPage() {
                     )}
                   </button>
 
-                  {/* Delete */}
                   <button
                     onClick={() => void handleDelete(config.id)}
                     disabled={deletingId === config.id}
                     title="ลบ"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors disabled:opacity-40"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     {deletingId === config.id ? 'กำลังลบ...' : 'ลบ'}
@@ -434,7 +444,6 @@ export default function ReminderConfigPage() {
         </div>
       )}
 
-      {/* Confirm Dialog */}
       <ConfirmDialog
         open={confirmDialog.open}
         title={confirmDialog.title}

@@ -204,7 +204,7 @@ export class PaymentMatchingService {
     for (const inv of unpaidInvoices) {
       const candidate = this.evaluateMatch(
         {
-          amount: Number((transaction as any as { amount: unknown }).amount as number),
+          amount: Number(transaction.amount),
           description: transaction.description ?? undefined,
           reference: transaction.reference ?? undefined,
         },
@@ -409,7 +409,7 @@ export class PaymentMatchingService {
   ): MatchCandidate | null {
     const invoiceTotal = Number(invoice.total);
     const amountDiff = Math.abs(transaction.amount - invoiceTotal);
-    const amountMatch = amountDiff < 0.01; // Allow for small rounding differences
+    const amountMatch = amountDiff < AMOUNT_TOLERANCE; // Allow for small rounding differences
 
     if (!amountMatch) {
       return null;

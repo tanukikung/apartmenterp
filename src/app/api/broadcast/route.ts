@@ -13,6 +13,11 @@ import { isLineConfigured } from '@/lib/line/is-configured';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/utils/logger';
 
+/** LINE pushMessage returns MessageAPIResponseBase whose response data contains messageId */
+interface LinePushResult {
+  messageId?: string;
+}
+
 const createSchema = z.object({
   message: z.string().min(1).max(5000),
   target: z.enum(['ALL', 'FLOORS', 'ROOMS']).default('ALL'),
@@ -148,7 +153,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
           type: 'text',
           text: input.message,
         });
-        lineMessageId = (result as any as { messageId?: string }).messageId;
+        lineMessageId = (result as LinePushResult).messageId;
         sent++;
       } catch (err: unknown) {
         const error = err as { status?: number; message?: string; headers?: { get?: (name: string) => string | null } };
@@ -163,7 +168,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
               type: 'text',
               text: input.message,
             });
-            lineMessageId = (result as any as { messageId?: string }).messageId;
+            lineMessageId = (result as LinePushResult).messageId;
             sent++;
           } catch (retryErr) {
             logger.warn({ type: 'broadcast_send_error_retry', userId, error: String(retryErr) });

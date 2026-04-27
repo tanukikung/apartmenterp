@@ -11,11 +11,13 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || '50')));
   const action = url.searchParams.get('action') || undefined;
   const entityType = url.searchParams.get('entityType') || undefined;
+  const entityId = url.searchParams.get('entityId') || undefined;
   const q = (url.searchParams.get('q') ?? '').trim().slice(0, 100);
 
   const where: Record<string, unknown> = {
     ...(action ? { action } : {}),
     ...(entityType ? { entityType } : {}),
+    ...(entityId ? { entityId } : {}),
   };
 
   if (q) {

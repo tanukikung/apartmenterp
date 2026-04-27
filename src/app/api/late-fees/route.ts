@@ -147,13 +147,15 @@ export const PUT = asyncHandler(
       const out: LateFeeUpdateResult[] = [];
       for (const update of updates) {
         const { invoiceId, lateFeeAmount, note } = update;
-        const current = await tx.invoice.findUnique({ where: { id: invoiceId } });
+        const current = await tx.invoice.findUnique({
+          where: { id: invoiceId },
+          include: { roomBilling: { include: { effectiveRule: true } } },
+        });
         if (!current) {
           out.push({ invoiceId, success: false, error: 'Invoice not found' });
           continue;
         }
         if (current.lateFeeAppliedAt) {
-          // Idempotent: already applied. Report the existing amount unchanged.
           out.push({
             invoiceId,
             success: true,
@@ -163,12 +165,28 @@ export const PUT = asyncHandler(
           continue;
         }
 
+        const rule = current.roomBilling?.effectiveRule;
+        const gracePeriodDays = (rule as unknown as { gracePeriodDays?: number } | null)?.gracePeriodDays ?? 0;
+        const maxPenalty = rule ? Number((rule as unknown as { maxPenalty?: number }).maxPenalty ?? Infinity) : Infinity;
+
+        const dueDate = new Date(current.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        const graceCutoff = new Date(dueDate);
+        graceCutoff.setDate(graceCutoff.getDate() + gracePeriodDays);
+
+        let appliedAmount = lateFeeAmount;
+        if (gracePeriodDays > 0 && new Date() < graceCutoff) {
+          appliedAmount = 0;
+        } else if (appliedAmount > maxPenalty) {
+          appliedAmount = maxPenalty;
+        }
+
         const updated = await tx.invoice.update({
           where: { id: invoiceId },
           data: {
-            lateFeeAmount,
+            lateFeeAmount: appliedAmount,
             note: note ?? current.note,
-            lateFeeAppliedAt: new Date(),
+            lateFeeAppliedAt: appliedAmount > 0 ? new Date() : null,
           },
         });
         out.push({ invoiceId, success: true, lateFeeAmount: Number(updated.lateFeeAmount) });

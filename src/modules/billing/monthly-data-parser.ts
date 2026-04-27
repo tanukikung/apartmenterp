@@ -162,7 +162,7 @@ function parseFloorSheetNewFormat(
 
   // data starts at row 3 (index 3) — skip row 2 (Thai labels)
   for (let i = 3; i < allRows.length; i++) {
-    const values = allRows[i] as any[];
+    const values = allRows[i] as (string | number | null)[];
 
     // Get room number from "room" column
     const roomVal = getByHeader(headers, values, 'room');
@@ -317,7 +317,7 @@ function parseFloorSheetOldFormat(
   const roomHeader = findColumnIndex(headers, 'ห้อง') >= 0 ? 'ห้อง' : 'เลขห้อง';
 
   for (let i = 1; i < allRows.length; i++) {
-    const values = allRows[i] as any[];
+    const values = allRows[i] as (string | number | null)[];
     const roomVal = getByHeader(headers, values, roomHeader);
 
     if (!roomVal) continue;
@@ -408,7 +408,7 @@ function parseFloorSheet(sheet: XLSX.WorkSheet, sheetName: string): MonthlyFloor
     defval: null,
   });
 
-  if (detectNewFormat(allRows as any[][])) {
+  if (detectNewFormat(allRows as (string | number | null)[][])) {
     return parseFloorSheetNewFormat(sheet, sheetName);
   }
   return parseFloorSheetOldFormat(sheet, sheetName);

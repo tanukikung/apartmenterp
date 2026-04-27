@@ -22,11 +22,13 @@
  * Thai-safe: all text uses embedded Sarabun TTF (Google OFL).
  * NEVER use pdf-lib StandardFonts — WinAnsi caps at U+00FF and crashes on Thai.
  */
-import { PDFDocument, rgb, degrees } from 'pdf-lib';
+import { PDFDocument, rgb, degrees, type PDFPage, type PDFFont } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { readFileSync } from 'fs';
+import * as QRCode from 'qrcode';
 import type { InvoicePreviewResponse } from './types';
 import { PDF_CONFIG } from './pdf-config';
+import { logger } from '@/lib/utils/logger';
 
 export interface InvoicePdfOptions {
   /** Free-text appended as Notes / Terms section (from DocumentTemplate.body). */
@@ -40,6 +42,8 @@ export interface InvoicePdfOptions {
     phone?: string | null;
     taxId?: string | null;
   };
+  /** PromptPay number (national ID or mobile) for EMV QR code generation. */
+  promptpayNumber?: string;
 }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -264,10 +268,13 @@ export async function generateInvoicePdf(
   const ROW_H = 18;
   let ri = 0;
 
+  const totalItems = preview.items.length;
+  let droppedItems = 0;
   for (const item of preview.items) {
     if (curY < 130) {
-      // Overflow guard — future: add second page
-      break;
+      // Overflow guard — items beyond this point are silently dropped
+      droppedItems++;
+      continue;
     }
 
     const bg = ri % 2 === 0 ? WHITE : ROALT;
@@ -287,6 +294,9 @@ export async function generateInvoicePdf(
 
   // Bottom border of table body
   hline(curY, ML, MR, NAVY, 0.75);
+  if (droppedItems > 0) {
+    logger.warn({ type: 'invoice_pdf_items_dropped', invoiceId: preview.invoiceId, droppedCount: droppedItems, totalCount: totalItems });
+  }
   curY -= 8;
 
   // ── 4. METER READING DETAILS ──────────────────────────────────────────────
@@ -399,6 +409,11 @@ export async function generateInvoicePdf(
     });
   }
 
+  // ── 7b. PROMPTPAY QR CODE ─────────────────────────────────────────────────
+  // Draw PromptPay QR for payment scanning. Uses the qrPayload field from
+  // the resolved document if available, otherwise constructs from preview.
+  curY = await drawQRCode(doc, page, preview, bold, font, drawText, drawRight, curY, ML, MR, opts);
+
   // ── 8. NOTES / TERMS (from DocumentTemplate) ──────────────────────────────
   if (opts?.notes) {
     hline(curY, ML, MR, BORDER);
@@ -437,4 +452,79 @@ export async function generateInvoicePdf(
   );
 
   return doc.save();
+}
+
+// ── QR Code helper ──────────────────────────────────────────────────────────────
+
+type PdfColor = Parameters<typeof rgb>[0] extends number ? ReturnType<typeof rgb> : never;
+
+interface QRDrawHelpers {
+  drawText: (text: string, x: number, yBase: number, size: number, isBold?: boolean, color?: PdfColor) => void;
+  drawRight: (text: string, xRight: number, yBase: number, size: number, isBold?: boolean, color?: PdfColor) => void;
+}
+
+async function drawQRCode(
+  doc: PDFDocument,
+  page: PDFPage,
+  preview: InvoicePreviewResponse,
+  bold: PDFFont,
+  font: PDFFont,
+  _drawText: QRDrawHelpers['drawText'],
+  drawRight: QRDrawHelpers['drawRight'],
+  curY: number,
+  ml: number,
+  mr: number,
+  opts: InvoicePdfOptions | undefined,
+): Promise<number> {
+  // Build qrPayload: use PromptPay EMV if number configured, else legacy pipe format
+  const period = `${preview.year}-${String(preview.month).padStart(2, '0')}`;
+  const aptName = opts?.building?.name || 'อพาร์ตเมนต์';
+
+  let qrPayload: string;
+  if (opts?.promptpayNumber) {
+    const { buildPromptPayPayload } = await import('./emv-qr');
+    qrPayload = buildPromptPayPayload(opts.promptpayNumber, preview.totalAmount, aptName);
+  } else {
+    qrPayload = `${aptName}|${preview.roomNo}|${period}|${preview.totalAmount.toFixed(2)}`;
+  }
+
+  const QR_SIZE = 70;
+  const QR_X = mr - QR_SIZE - 8;
+  const QR_Y_BOT = curY - QR_SIZE - 24;
+
+  if (QR_Y_BOT < 40) return curY; // not enough space
+
+  try {
+    const qrDataURL = await QRCode.toDataURL(qrPayload, { width: 120, margin: 1 });
+    const base64 = qrDataURL.split(',')[1];
+    const imageBytes = Uint8Array.from(Buffer.from(base64, 'base64'));
+    const qrImage = await doc.embedPng(imageBytes);
+    const dims = qrImage.scale(QR_SIZE / qrImage.width);
+    page.drawImage(qrImage, {
+      x: QR_X,
+      y: QR_Y_BOT,
+      width: dims.width,
+      height: dims.height,
+    });
+    // Label
+    page.drawText('สแกนจ่าย / Scan to pay', {
+      x: QR_X,
+      y: QR_Y_BOT - 14,
+      size: 7,
+      font,
+      color: rgb(0.35, 0.35, 0.35),
+    });
+    // Amount below QR
+    page.drawText(`฿${preview.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`, {
+      x: QR_X,
+      y: QR_Y_BOT - 24,
+      size: 9,
+      font: bold,
+      color: rgb(0.11, 0.22, 0.37),
+    });
+    return QR_Y_BOT - 28;
+  } catch {
+    // Non-blocking: PDF still renders without QR
+    return curY;
+  }
 }

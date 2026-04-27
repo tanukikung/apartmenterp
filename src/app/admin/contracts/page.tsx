@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Search, Plus, X, ChevronRight, FileSignature, AlertCircle, CheckCircle2, Clock, XCircle, Pencil, RefreshCw } from 'lucide-react';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { ThaiDateInput } from '@/components/ui/ThaiDateInput';
+import { statusBadgeClassWithBorder } from '@/lib/status-colors';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -107,17 +108,18 @@ function resolveDisplayStatus(contract: ContractRecord): 'ACTIVE' | 'EXPIRED' | 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: ReturnType<typeof resolveDisplayStatus> }) {
-  const cfg = {
-    ACTIVE:        { label: 'ใช้งาน',         cls: 'bg-emerald-100 text-emerald-800 border border-emerald-200',  Icon: CheckCircle2 },
-    EXPIRING_SOON: { label: 'ใกล้หมดอายุ',  cls: 'bg-amber-100 text-amber-800 border border-amber-200',       Icon: Clock },
-    EXPIRED:       { label: 'หมดอายุ',        cls: 'bg-red-100 text-red-700 border border-red-200',             Icon: XCircle },
-    TERMINATED:    { label: 'ยกเลิก',     cls: 'bg-surface-container text-on-surface border border-outline-variant',       Icon: XCircle },
-  }[status];
+  const cfg: Record<string, { label: string; color: 'success' | 'warning' | 'danger' | 'neutral'; Icon: typeof CheckCircle2 }> = {
+    ACTIVE:        { label: 'ใช้งาน',         color: 'success', Icon: CheckCircle2 },
+    EXPIRING_SOON: { label: 'ใกล้หมดอายุ',  color: 'warning', Icon: Clock },
+    EXPIRED:       { label: 'หมดอายุ',        color: 'danger',  Icon: XCircle },
+    TERMINATED:    { label: 'ยกเลิก',          color: 'neutral', Icon: XCircle },
+  };
+  const entry = cfg[status] ?? cfg.ACTIVE;
 
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${cfg.cls}`}>
-      <cfg.Icon size={10} />
-      {cfg.label}
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${statusBadgeClassWithBorder(entry.color)}`}>
+      <entry.Icon size={10} />
+      {entry.label}
     </span>
   );
 }
@@ -130,22 +132,24 @@ function KpiCard({
   sub,
   color,
   icon: Icon,
+  iconColor = 'text-[hsl(var(--on-surface))]',
 }: {
   label: string;
   value: number | string;
   sub?: string;
   color: string;
   icon: React.ElementType;
+  iconColor?: string;
 }) {
   return (
-    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 flex items-center gap-4 py-4 px-5">
+    <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur shadow-[0_4px_16px_hsl(var(--color-primary)/_0.06)] flex items-center gap-4 py-4 px-5 hover:border-[hsl(var(--color-border))] transition-all duration-300">
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${color}`}>
-        <Icon size={20} className="text-white" strokeWidth={2} />
+        <Icon size={20} className={iconColor} strokeWidth={2} />
       </div>
       <div className="min-w-0">
-        <div className="text-[11px] font-medium uppercase tracking-wider text-on-surface-variant">{label}</div>
-        <div className="text-2xl font-bold text-on-surface leading-tight">{value}</div>
-        {sub && <div className="text-[11px] text-on-surface-variant mt-0.5">{sub}</div>}
+        <div className="text-[11px] font-medium uppercase tracking-wider text-[hsl(var(--on-surface-variant))]">{label}</div>
+        <div className="text-2xl font-bold text-[hsl(var(--on-surface))] leading-tight">{value}</div>
+        {sub && <div className="text-[11px] text-[hsl(var(--on-surface-variant))] mt-0.5">{sub}</div>}
       </div>
     </div>
   );
@@ -175,6 +179,22 @@ export default function AdminContractsPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editSuccess, setEditSuccess] = useState<string | null>(null);
+
+  // Form state — renew contract
+  const [showRenewForm, setShowRenewForm] = useState(false);
+  const [renewEndDate, setRenewEndDate] = useState('');
+  const [renewRentAmount, setRenewRentAmount] = useState('');
+  const [renewDepositAmount, setRenewDepositAmount] = useState('');
+  const [renewSaving, setRenewSaving] = useState(false);
+  const [renewError, setRenewError] = useState<string | null>(null);
+  const [renewSuccess, setRenewSuccess] = useState<string | null>(null);
+
+  // Form state — terminate contract
+  const [showTerminateDialog, setShowTerminateDialog] = useState(false);
+  const [terminateDate, setTerminateDate] = useState('');
+  const [terminateReason, setTerminateReason] = useState('');
+  const [terminateSaving, setTerminateSaving] = useState(false);
+  const [terminateError, setTerminateError] = useState<string | null>(null);
 
   // ── Contracts query ────────────────────────────────────────────────────────
 
@@ -248,7 +268,6 @@ export default function AdminContractsPage() {
   const filteredContracts = useMemo(() => {
     let list = contracts;
 
-    // Client-side search (room number / tenant name)
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(
@@ -258,7 +277,6 @@ export default function AdminContractsPage() {
       );
     }
 
-    // Client-side "Expiring Soon" filter (server doesn't expose it directly)
     if (filterStatus === 'EXPIRING_SOON') {
       list = list.filter((c) => {
         const days = daysUntil(c.endDate);
@@ -314,6 +332,10 @@ export default function AdminContractsPage() {
     setNewError(null);
     setEditError(null);
     setEditSuccess(null);
+    setShowTerminateDialog(false);
+    setTerminateDate('');
+    setTerminateReason('');
+    setTerminateError(null);
   }
 
   async function handleNewSubmit(e: React.FormEvent) {
@@ -365,9 +387,6 @@ export default function AdminContractsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (res.status === 404) {
-        throw new Error('ปลายทางอัปเดตยังไม่พร้อมใช้งาน กรุณาติดต่อผู้พัฒนา');
-      }
       const json = await res.json();
       if (!res.ok || !json.success) {
         throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
@@ -379,6 +398,89 @@ export default function AdminContractsPage() {
     } finally {
       setEditSaving(false);
     }
+  }
+
+  async function handleRenewSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedContract) return;
+    setRenewSaving(true);
+    setRenewError(null);
+    setRenewSuccess(null);
+    try {
+      const body: Record<string, unknown> = {
+        newEndDate: renewEndDate,
+      };
+      if (renewRentAmount !== '') {
+        body.newRentAmount = parseFloat(renewRentAmount);
+      }
+      if (renewDepositAmount !== '') {
+        body.newDepositAmount = parseFloat(renewDepositAmount);
+      }
+      const res = await fetch(`/api/contracts/${selectedContract.id}/renew`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+      }
+      setRenewSuccess('ต่อสัญญาเรียบร้อยแล้ว');
+      setShowRenewForm(false);
+      setRenewEndDate('');
+      setRenewRentAmount('');
+      setRenewDepositAmount('');
+      void queryClient.invalidateQueries({ queryKey: ['contracts'] });
+    } catch (err) {
+      setRenewError(err instanceof Error ? err.message : 'ไม่สามารถต่อสัญญา');
+    } finally {
+      setRenewSaving(false);
+    }
+  }
+
+  async function handleTerminateSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedContract) return;
+    setTerminateSaving(true);
+    setTerminateError(null);
+    try {
+      const res = await fetch(`/api/contracts/${selectedContract.id}/terminate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          terminationDate: terminateDate,
+          terminationReason: terminateReason || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+      }
+      setShowTerminateDialog(false);
+      setTerminateDate('');
+      setTerminateReason('');
+      void queryClient.invalidateQueries({ queryKey: ['contracts'] });
+    } catch (err) {
+      setTerminateError(err instanceof Error ? err.message : 'ไม่สามารถยกเลิกสัญญา');
+    } finally {
+      setTerminateSaving(false);
+    }
+  }
+
+  function openTerminateForm() {
+    setTerminateDate('');
+    setTerminateReason('');
+    setTerminateError(null);
+    setShowTerminateDialog(true);
+  }
+
+  function openRenewForm() {
+    setRenewEndDate('');
+    setRenewRentAmount('');
+    setRenewDepositAmount('');
+    setRenewError(null);
+    setRenewSuccess(null);
+    setShowRenewForm(true);
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -393,22 +495,23 @@ export default function AdminContractsPage() {
           panelMode !== 'none' ? 'mr-0 xl:mr-[420px]' : ''
         }`}
       >
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        {/* Hero Header */}
+        <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur shadow-[0_4px_20px_rgba(0,0,0,0.1)] px-6 py-5">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-violet-500/10 pointer-events-none" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
-                <FileSignature size={20} className="text-white" strokeWidth={2} />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/20 border border-blue-500/30 shadow-glow-primary">
+                <FileSignature size={20} className="text-blue-400" strokeWidth={2} />
               </div>
               <div>
-                <h1 className="text-base font-semibold text-on-primary">สัญญาเช่า</h1>
-                <p className="text-xs text-on-primary/80 mt-0.5">จัดการสัญญาเช่าสำหรับทุกห้องที่มีผู้เช่า</p>
+                <h1 className="text-base font-semibold text-[hsl(var(--on-surface))]">สัญญาเช่า</h1>
+                <p className="text-xs text-[hsl(var(--on-surface))]/50 mt-0.5">จัดการสัญญาเช่าสำหรับทุกห้องที่มีผู้เช่า</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <button
-                className="inline-flex items-center gap-1.5 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--color-surface))]/[0.1] hover:text-[hsl(var(--on-surface))] active:scale-[0.98]"
                 onClick={() => void refetchContracts()}
                 title="Refresh"
               >
@@ -416,7 +519,7 @@ export default function AdminContractsPage() {
                 รีเฟรช
               </button>
               <button
-                className="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-500/20 border border-blue-500/30 px-4 py-2 text-sm font-semibold text-blue-400 shadow-sm transition-all duration-200 hover:bg-blue-500/30 hover:border-blue-500/50 active:scale-[0.98]"
                 onClick={openNew}
               >
                 <Plus size={14} strokeWidth={2.5} />
@@ -432,28 +535,29 @@ export default function AdminContractsPage() {
             label="สัญญาทั้งหมด"
             value={kpis.total}
             sub="ทั้งหมด"
-            color="bg-indigo-500"
+            color="bg-blue-500/20 border border-blue-500/30"
             icon={FileText}
           />
           <KpiCard
             label="ใช้งาน"
             value={kpis.active}
             sub="กำลังใช้งาน"
-            color="bg-emerald-500"
+            color="bg-emerald-500/20 border border-emerald-500/30"
             icon={CheckCircle2}
           />
           <KpiCard
             label="ใกล้หมดอายุ"
             value={kpis.expiringSoon}
             sub="ภายใน 30 วัน"
-            color="bg-amber-500"
+            color="bg-amber-500/20 border border-amber-500/30"
             icon={Clock}
           />
           <KpiCard
             label="หมดอายุ"
             value={kpis.expired}
             sub="เกินวันสิ้นสุด"
-            color="bg-red-400"
+            color="bg-red-500/20 border border-red-500/30"
+            iconColor="text-red-400"
             icon={XCircle}
           />
         </div>
@@ -461,16 +565,16 @@ export default function AdminContractsPage() {
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2 mb-4 mt-4">
           <div className="relative flex-1 min-w-[200px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--on-surface))]/30" />
             <input
-              className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 pl-8 w-full"
+              className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 pl-8 w-full backdrop-blur-sm transition-all duration-200"
               placeholder="ค้นหาหมายเลขห้องหรือชื่อผู้เช่า..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <select
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
             value={filterStatus}
             onChange={(e) => {
               setFilterStatus(e.target.value);
@@ -487,26 +591,26 @@ export default function AdminContractsPage() {
 
         {/* Error banner */}
         {error && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-error-container bg-error-container/20 px-4 py-3 text-sm font-medium text-on-error-container">
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400 backdrop-blur-sm">
             <AlertCircle size={15} />
             {error}
           </div>
         )}
 
-        {/* Table */}
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden p-0">
+        {/* Table Card */}
+        <div className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur shadow-[0_4px_20px_rgba(0,0,0,0.1)] overflow-hidden p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="bg-surface-container">
-                  <th className="pl-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">หมายเลขห้อง</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ชื่อผู้เช่า</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">วันที่เริ่ม</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">วันที่สิ้นสุด</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ค่าเช่ารายเดือน</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เงินมัดจำ</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
-                  <th className="pr-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant text-right">การดำเนินการ</th>
+                <tr className="bg-[hsl(var(--color-surface))]/[0.02]">
+                  <th className="pl-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">หมายเลขห้อง</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ชื่อผู้เช่า</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">วันที่เริ่ม</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">วันที่สิ้นสุด</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ค่าเช่ารายเดือน</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">เงินมัดจำ</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สถานะ</th>
+                  <th className="pr-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] text-right">การดำเนินการ</th>
                 </tr>
               </thead>
               <tbody>
@@ -515,7 +619,7 @@ export default function AdminContractsPage() {
                     <tr key={i}>
                       {Array.from({ length: 8 }).map((__, j) => (
                         <td key={j}>
-                          <div className="h-4 rounded bg-surface-container animate-pulse" style={{ width: `${70 + (i * 13 + j * 17) % 25}%` }} />
+                          <div className="h-4 rounded bg-[hsl(var(--color-surface))] animate-pulse" style={{ width: `${70 + (i * 13 + j * 17) % 25}%` }} />
                         </td>
                       ))}
                     </tr>
@@ -531,47 +635,47 @@ export default function AdminContractsPage() {
                     const displayStatus = resolveDisplayStatus(c);
                     const rowCls =
                       displayStatus === 'EXPIRING_SOON'
-                        ? 'bg-amber-50/60'
+                        ? 'bg-amber-500/5'
                         : displayStatus === 'EXPIRED'
-                        ? 'bg-red-50/40'
+                        ? 'bg-red-500/5'
                         : displayStatus === 'TERMINATED'
-                        ? 'bg-surface-container-lowest/80'
+                        ? 'bg-[hsl(var(--color-surface))]/[0.02]'
                         : '';
                     const isSelected = selectedContract?.id === c.id && panelMode === 'edit';
                     return (
                       <tr
                         key={c.id}
-                        className={`${rowCls} ${isSelected ? 'ring-2 ring-inset ring-primary' : ''} cursor-pointer hover:bg-surface-container-lowest`}
+                        className={`${rowCls} ${isSelected ? 'ring-2 ring-inset ring-blue-500/50' : ''} cursor-pointer hover:bg-[hsl(var(--color-surface))]/[0.03] transition-colors duration-150 group`}
                         onClick={() => openEdit(c)}
                       >
-                        <td className="pl-4 font-semibold text-on-surface">
+                        <td className="pl-4 font-semibold text-[hsl(var(--on-surface))] group-hover:text-blue-400 transition-colors">
                           {c.roomNo}
                         </td>
                         <td>
-                          <div className="font-medium text-on-surface">
+                          <div className="font-medium text-[hsl(var(--on-surface))]">
                             {c.primaryTenant?.fullName ?? '—'}
                           </div>
                           {c.primaryTenant?.phone && (
-                            <div className="text-[11px] text-on-surface-variant">{c.primaryTenant.phone}</div>
+                            <div className="text-[11px] text-[hsl(var(--on-surface-variant))]">{c.primaryTenant.phone}</div>
                           )}
                         </td>
-                        <td className="text-on-surface">{fmtDate(c.startDate)}</td>
-                        <td className="text-on-surface">
+                        <td className="text-[hsl(var(--on-surface))]/70">{fmtDate(c.startDate)}</td>
+                        <td className="text-[hsl(var(--on-surface))]/70">
                           <span>{fmtDate(c.endDate)}</span>
                           {displayStatus === 'EXPIRING_SOON' && (
-                            <span className="ml-1.5 text-[11px] font-semibold text-amber-600">
+                            <span className="ml-1.5 text-[11px] font-semibold text-amber-400">
                               ({daysUntil(c.endDate)}d)
                             </span>
                           )}
                         </td>
-                        <td className="font-medium text-on-surface">{fmtMoney(c.rentAmount)}</td>
-                        <td className="text-on-surface">{fmtMoney(c.depositAmount)}</td>
+                        <td className="font-medium text-[hsl(var(--on-surface))]">{fmtMoney(c.rentAmount)}</td>
+                        <td className="text-[hsl(var(--on-surface))]/70">{fmtMoney(c.depositAmount)}</td>
                         <td>
                           <StatusBadge status={displayStatus} />
                         </td>
                         <td className="pr-4 text-right">
                           <button
-                            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container flex items-center gap-1 text-xs"
+                            className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--color-surface))]/[0.1] hover:border-[hsl(var(--color-border))] hover:text-[hsl(var(--on-surface))] active:scale-[0.98] flex items-center gap-1 text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
                               openEdit(c);
@@ -591,21 +695,21 @@ export default function AdminContractsPage() {
 
           {/* Pagination footer */}
           {!loading && filteredContracts.length > 0 && (
-            <div className="flex items-center justify-between border-t border-outline-variant px-4 py-2.5">
-              <span className="text-xs text-on-surface-variant">
+            <div className="flex items-center justify-between border-t border-[hsl(var(--color-border))] px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.02]">
+              <span className="text-xs text-[hsl(var(--on-surface-variant))]">
                 แสดง {filteredContracts.length} จาก {total} สัญญา
               </span>
               <div className="flex items-center gap-1">
                 <button
-                  className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--color-surface))]/[0.1] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   ก่อนหน้า
                 </button>
-                <span className="px-2 text-xs text-on-surface-variant">หน้า {page}</span>
+                <span className="px-2 text-xs text-[hsl(var(--on-surface-variant))]">หน้า {page}</span>
                 <button
-                  className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--color-surface))]/[0.1] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
                   disabled={page >= Math.ceil(total / 50)}
                   onClick={() => setPage((p) => p + 1)}
                 >
@@ -619,22 +723,22 @@ export default function AdminContractsPage() {
 
       {/* ── Side Panel ───────────────────────────────────────────── */}
       {panelMode !== 'none' && (
-        <aside className="fixed right-0 top-0 z-30 flex h-full w-full flex-col border-l border-outline-variant bg-surface-container-lowest shadow-2xl xl:w-[420px]">
+        <aside className="fixed right-0 top-0 z-30 flex h-full w-full flex-col border-l border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/95 backdrop-blur shadow-[-4px_0_20px_rgba(0,0,0,0.1)] xl:w-[420px]">
           {/* Panel header */}
-          <div className="flex items-center justify-between border-b border-outline-variant px-5 py-4">
+          <div className="flex items-center justify-between border-b border-[hsl(var(--color-border))] px-5 py-4 bg-[hsl(var(--color-surface))]/[0.02]">
             <div className="flex items-center gap-2">
               {panelMode === 'new' ? (
-                <Plus size={16} className="text-primary" />
+                <Plus size={16} className="text-blue-400" />
               ) : (
-                <Pencil size={15} className="text-primary" />
+                <Pencil size={15} className="text-blue-400" />
               )}
-              <span className="text-[15px] font-semibold text-on-surface">
+              <span className="text-[15px] font-semibold text-[hsl(var(--on-surface))]">
                 {panelMode === 'new' ? 'สัญญาใหม่' : `แก้ไข — ห้อง ${selectedContract?.roomNo}`}
               </span>
             </div>
             <button
               onClick={closePanel}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-[hsl(var(--on-surface-variant))] hover:bg-[hsl(var(--color-surface))] hover:text-[hsl(var(--on-surface))] transition-all"
             >
               <X size={15} />
             </button>
@@ -667,6 +771,29 @@ export default function AdminContractsPage() {
                 error={editError}
                 success={editSuccess}
                 onCancel={closePanel}
+                showRenewForm={showRenewForm}
+                renewEndDate={renewEndDate}
+                setRenewEndDate={setRenewEndDate}
+                renewRentAmount={renewRentAmount}
+                setRenewRentAmount={setRenewRentAmount}
+                renewDepositAmount={renewDepositAmount}
+                setRenewDepositAmount={setRenewDepositAmount}
+                onRenewSubmit={handleRenewSubmit}
+                renewSaving={renewSaving}
+                renewError={renewError}
+                renewSuccess={renewSuccess}
+                onOpenRenewForm={openRenewForm}
+                onCloseRenewForm={() => setShowRenewForm(false)}
+                showTerminateDialog={showTerminateDialog}
+                terminateDate={terminateDate}
+                setTerminateDate={setTerminateDate}
+                terminateReason={terminateReason}
+                setTerminateReason={setTerminateReason}
+                onOpenTerminateForm={openTerminateForm}
+                onCloseTerminateForm={() => setShowTerminateDialog(false)}
+                onTerminateSubmit={handleTerminateSubmit}
+                terminateSaving={terminateSaving}
+                terminateError={terminateError}
               />
             )}
           </div>
@@ -676,7 +803,7 @@ export default function AdminContractsPage() {
       {/* Backdrop for panel on mobile */}
       {panelMode !== 'none' && (
         <div
-          className="fixed inset-0 z-20 bg-black/20 xl:hidden"
+          className="fixed inset-0 z-20 bg-black/40 backdrop-blur-sm xl:hidden"
           onClick={closePanel}
         />
       )}
@@ -714,18 +841,18 @@ function NewContractForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <p className="text-[12px] text-on-surface-variant leading-relaxed">
-        สร้างสัญญาเช่าใหม่ ผู้เช่าที่เลือกต้องเป็น<strong>ผู้เช่าหลัก</strong>ของห้องที่เลือก
+      <p className="text-[12px] text-[hsl(var(--on-surface-variant))] leading-relaxed">
+        สร้างสัญญาเช่าใหม่ ผู้เช่าที่เลือกต้องเป็น<strong className="text-[hsl(var(--on-surface))]/70">ผู้เช่าหลัก</strong>ของห้องที่เลือก
         และต้องไม่มีสัญญาใช้งานอยู่สำหรับห้องนั้น
       </p>
 
       {/* Room select */}
       <div>
-        <label className="mb-1 block text-[12px] font-semibold text-on-surface">
-          หมายเลขห้อง <span className="text-red-500">*</span>
+        <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">
+          หมายเลขห้อง <span className="text-red-400">*</span>
         </label>
         <select
-          className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
+          className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
           required
           value={form.roomId}
           onChange={(e) => onRoomChange(e.target.value)}
@@ -741,16 +868,16 @@ function NewContractForm({
 
       {/* Tenant select */}
       <div>
-        <label className="mb-1 block text-[12px] font-semibold text-on-surface">
-          ผู้เช่าหลัก <span className="text-red-500">*</span>
+        <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">
+          ผู้เช่าหลัก <span className="text-red-400">*</span>
         </label>
         {tenantsLoading ? (
-          <div className="flex h-9 items-center rounded-md border border-outline-variant px-3 text-xs text-on-surface-variant animate-pulse">
+          <div className="flex h-9 items-center rounded-md border border-[hsl(var(--color-border))] px-3 text-xs text-[hsl(var(--on-surface-variant))] animate-pulse">
             กำลังโหลดผู้เช่า…
           </div>
         ) : (
           <select
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
             required
             disabled={!form.roomId}
             value={form.primaryTenantId}
@@ -765,7 +892,7 @@ function NewContractForm({
           </select>
         )}
         {form.roomId && !tenantsLoading && tenants.length === 0 && (
-          <p className="mt-1 text-[11px] text-amber-600">
+          <p className="mt-1 text-[11px] text-amber-400">
             ไม่พบผู้เช่าสำหรับห้องนี้ กรุณากำหนดผู้เช่าหลักก่อน
           </p>
         )}
@@ -774,24 +901,24 @@ function NewContractForm({
       {/* Date range */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-on-surface">
-            วันที่เริ่ม <span className="text-red-500">*</span>
+          <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">
+            วันที่เริ่ม <span className="text-red-400">*</span>
           </label>
           <ThaiDateInput
             ariaLabel="วันที่เริ่ม"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
             required
             value={form.startDate}
             onChange={(iso) => patch('startDate', iso)}
           />
         </div>
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-on-surface">
-            วันที่สิ้นสุด <span className="text-red-500">*</span>
+          <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">
+            วันที่สิ้นสุด <span className="text-red-400">*</span>
           </label>
           <ThaiDateInput
             ariaLabel="วันที่สิ้นสุด"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
             required
             value={form.endDate}
             onChange={(iso) => patch('endDate', iso)}
@@ -802,12 +929,12 @@ function NewContractForm({
       {/* Rent & Deposit */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-on-surface">
-            ค่าเช่ารายเดือน (฿) <span className="text-red-500">*</span>
+          <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">
+            ค่าเช่ารายเดือน (฿) <span className="text-red-400">*</span>
           </label>
           <CurrencyInput
             ariaLabel="ค่าเช่ารายเดือน"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
             required
             placeholder="e.g. 8000"
             value={form.rentAmount === '' ? null : Number(form.rentAmount)}
@@ -815,12 +942,12 @@ function NewContractForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-on-surface">
+          <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">
             เงินมัดจำ (฿)
           </label>
           <CurrencyInput
             ariaLabel="เงินมัดจำ"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
             placeholder="e.g. 16000"
             value={form.depositAmount === '' ? null : Number(form.depositAmount)}
             onChange={(n) => patch('depositAmount', n === null ? '' : String(n))}
@@ -830,9 +957,9 @@ function NewContractForm({
 
       {/* Notes */}
       <div>
-        <label className="mb-1 block text-[12px] font-semibold text-on-surface">หมายเหตุ</label>
+        <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">หมายเหตุ</label>
         <textarea
-          className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 w-full resize-none"
+          className="w-full resize-none rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
           rows={3}
           placeholder="หมายเหตุเพิ่มเติมเกี่ยวกับสัญญานี้…"
           value={form.notes}
@@ -842,7 +969,7 @@ function NewContractForm({
 
       {/* Error */}
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-error-container bg-error-container/20 px-3 py-2.5 text-xs font-medium text-on-error-container">
+        <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-400 backdrop-blur-sm">
           <AlertCircle size={13} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -850,13 +977,13 @@ function NewContractForm({
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-1">
-        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={onCancel}>
+        <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--color-surface))]/[0.1] hover:border-[hsl(var(--color-border))] active:scale-[0.98]" onClick={onCancel}>
           ยกเลิก
         </button>
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-500/20 border border-blue-500/30 px-5 py-2 text-sm font-semibold text-blue-400 shadow-sm transition-all duration-200 hover:bg-blue-500/30 hover:border-blue-500/50 active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5"
         >
           {saving ? (
             <>
@@ -886,6 +1013,29 @@ function EditContractForm({
   error,
   success,
   onCancel,
+  showRenewForm,
+  renewEndDate,
+  setRenewEndDate,
+  renewRentAmount,
+  setRenewRentAmount,
+  renewDepositAmount,
+  setRenewDepositAmount,
+  onRenewSubmit,
+  renewSaving,
+  renewError,
+  renewSuccess,
+  onOpenRenewForm,
+  onCloseRenewForm,
+  showTerminateDialog,
+  terminateDate,
+  setTerminateDate,
+  terminateReason,
+  setTerminateReason,
+  onOpenTerminateForm,
+  onCloseTerminateForm,
+  onTerminateSubmit,
+  terminateSaving,
+  terminateError,
 }: {
   contract: ContractRecord;
   form: typeof EMPTY_EDIT_FORM;
@@ -895,6 +1045,29 @@ function EditContractForm({
   error: string | null;
   success: string | null;
   onCancel: () => void;
+  showRenewForm: boolean;
+  renewEndDate: string;
+  setRenewEndDate: (v: string) => void;
+  renewRentAmount: string;
+  setRenewRentAmount: (v: string) => void;
+  renewDepositAmount: string;
+  setRenewDepositAmount: (v: string) => void;
+  onRenewSubmit: (e: React.FormEvent) => void;
+  renewSaving: boolean;
+  renewError: string | null;
+  renewSuccess: string | null;
+  onOpenRenewForm: () => void;
+  onCloseRenewForm: () => void;
+  showTerminateDialog: boolean;
+  terminateDate: string;
+  setTerminateDate: (v: string) => void;
+  terminateReason: string;
+  setTerminateReason: (v: string) => void;
+  onOpenTerminateForm: () => void;
+  onCloseTerminateForm: () => void;
+  onTerminateSubmit: (e: React.FormEvent) => void;
+  terminateSaving: boolean;
+  terminateError: string | null;
 }) {
   const patch = (k: keyof typeof EMPTY_EDIT_FORM, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -904,29 +1077,29 @@ function EditContractForm({
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       {/* Contract summary card */}
-      <div className="rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-3 space-y-1">
+      <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.02] px-4 py-3 space-y-1">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">รหัสสัญญา</span>
-          <span className="font-mono text-[11px] text-on-surface">{contract.id.slice(0, 8)}…</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--on-surface))]/30">รหัสสัญญา</span>
+          <span className="font-mono text-[11px] text-[hsl(var(--on-surface))]/50">{contract.id.slice(0, 8)}…</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">ผู้เช่า</span>
-          <span className="text-[12px] font-medium text-on-surface">{contract.primaryTenant?.fullName ?? '—'}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--on-surface))]/30">ผู้เช่า</span>
+          <span className="text-[12px] font-medium text-[hsl(var(--on-surface))]">{contract.primaryTenant?.fullName ?? '—'}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">สถานะ</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--on-surface))]/30">สถานะ</span>
           <StatusBadge status={displayStatus} />
         </div>
         {contract.terminationReason && (
           <div className="flex items-start justify-between gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant shrink-0">เหตุผล</span>
-            <span className="text-[11px] text-on-surface text-right">{contract.terminationReason}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--on-surface))]/30 shrink-0">เหตุผล</span>
+            <span className="text-[11px] text-[hsl(var(--on-surface))]/70 text-right">{contract.terminationReason}</span>
           </div>
         )}
       </div>
 
       {contract.status !== 'ACTIVE' && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-medium text-amber-900">
+        <div className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-xs font-medium text-amber-400 backdrop-blur-sm">
           <AlertCircle size={13} className="shrink-0" />
           สามารถแก้ไขได้เฉพาะสัญญาที่ใช้งานอยู่เท่านั้น สัญญานี้มีสถานะ <strong>{contract.status}</strong>.
         </div>
@@ -935,20 +1108,20 @@ function EditContractForm({
       {/* Dates */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-on-surface">วันที่เริ่ม</label>
+          <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">วันที่เริ่ม</label>
           <ThaiDateInput
             ariaLabel="วันที่เริ่ม"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
             disabled={contract.status !== 'ACTIVE'}
             value={form.startDate}
             onChange={(iso) => patch('startDate', iso)}
           />
         </div>
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-on-surface">วันที่สิ้นสุด</label>
+          <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">วันที่สิ้นสุด</label>
           <ThaiDateInput
             ariaLabel="วันที่สิ้นสุด"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
             disabled={contract.status !== 'ACTIVE'}
             value={form.endDate}
             onChange={(iso) => patch('endDate', iso)}
@@ -959,20 +1132,20 @@ function EditContractForm({
       {/* Rent & Deposit */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-on-surface">ค่าเช่ารายเดือน (฿)</label>
+          <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">ค่าเช่ารายเดือน (฿)</label>
           <CurrencyInput
             ariaLabel="ค่าเช่ารายเดือน"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
             disabled={contract.status !== 'ACTIVE'}
             value={form.rentAmount === '' ? null : Number(form.rentAmount)}
             onChange={(n) => patch('rentAmount', n === null ? '' : String(n))}
           />
         </div>
         <div>
-          <label className="mb-1 block text-[12px] font-semibold text-on-surface">เงินมัดจำ (฿)</label>
+          <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">เงินมัดจำ (฿)</label>
           <CurrencyInput
             ariaLabel="เงินมัดจำ"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
             disabled={contract.status !== 'ACTIVE'}
             value={form.depositAmount === '' ? null : Number(form.depositAmount)}
             onChange={(n) => patch('depositAmount', n === null ? '' : String(n))}
@@ -982,41 +1155,226 @@ function EditContractForm({
 
       {/* Error / success */}
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-error-container bg-error-container/20 px-3 py-2.5 text-xs font-medium text-on-error-container">
+        <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-400 backdrop-blur-sm">
           <AlertCircle size={13} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 rounded-lg border border-tertiary-container bg-tertiary-container/20 px-3 py-2.5 text-xs font-medium text-on-tertiary-container">
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2.5 text-xs font-medium text-emerald-400 backdrop-blur-sm">
           <CheckCircle2 size={13} />
           {success}
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex items-center justify-end gap-2 pt-1">
-        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={onCancel}>
-          ยกเลิก
-        </button>
-        <button
-          type="submit"
-          disabled={saving || contract.status !== 'ACTIVE'}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5"
-        >
-          {saving ? (
-            <>
-              <RefreshCw size={12} className="animate-spin" />
-              กำลังบันทึก…
-            </>
-          ) : (
-            <>
-              <ChevronRight size={13} />
-              อัปเดตสัญญา
-            </>
+      {/* Renew Form */}
+      {showRenewForm && contract.status === 'ACTIVE' && (
+        <form onSubmit={onRenewSubmit} className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] font-semibold text-blue-400">ต่อสัญญา</span>
+            <button type="button" onClick={onCloseRenewForm} className="text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--on-surface))] transition-colors">
+              <X size={14} />
+            </button>
+          </div>
+          <div>
+            <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">
+              วันที่สิ้นสุดสัญญาใหม่ <span className="text-red-400">*</span>
+            </label>
+            <ThaiDateInput
+              ariaLabel="วันที่สิ้นสุดสัญญาใหม่"
+              className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+              required
+              value={renewEndDate}
+              onChange={(iso) => setRenewEndDate(iso)}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">ค่าเช่าใหม่ (฿)</label>
+              <CurrencyInput
+                ariaLabel="ค่าเช่าใหม่"
+                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                value={renewRentAmount === '' ? null : Number(renewRentAmount)}
+                onChange={(n) => setRenewRentAmount(n === null ? '' : String(n))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">เงินมัดจำใหม่ (฿)</label>
+              <CurrencyInput
+                ariaLabel="เงินมัดจำใหม่"
+                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                value={renewDepositAmount === '' ? null : Number(renewDepositAmount)}
+                onChange={(n) => setRenewDepositAmount(n === null ? '' : String(n))}
+              />
+            </div>
+          </div>
+          {renewError && (
+            <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-[11px] font-medium text-red-400 backdrop-blur-sm">
+              <AlertCircle size={12} className="mt-0.5 shrink-0" />
+              <span>{renewError}</span>
+            </div>
           )}
-        </button>
+          {renewSuccess && (
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] font-medium text-emerald-400 backdrop-blur-sm">
+              <CheckCircle2 size={12} />
+              {renewSuccess}
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onCloseRenewForm}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--color-surface))]/[0.1] active:scale-[0.98]"
+            >
+              ยกเลิก
+            </button>
+            <button
+              type="submit"
+              disabled={renewSaving || !renewEndDate}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-500/20 border border-blue-500/30 px-4 py-1.5 text-xs font-semibold text-blue-400 shadow-sm transition-all duration-200 hover:bg-blue-500/30 active:scale-[0.98] disabled:opacity-50"
+            >
+              {renewSaving ? (
+                <>
+                  <RefreshCw size={11} className="animate-spin" />
+                  กำลังบันทึก…
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={11} />
+                  ยืนยันต่อสัญญา
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center justify-between pt-1">
+        {contract.status === 'ACTIVE' && !showRenewForm && !showTerminateDialog && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onOpenTerminateForm}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400 shadow-sm transition-all duration-200 hover:bg-red-500/20 hover:border-red-500/40 active:scale-[0.98]"
+            >
+              <XCircle size={12} />
+              ยกเลิกสัญญา
+            </button>
+            <button
+              type="button"
+              onClick={onOpenRenewForm}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs font-medium text-blue-400 shadow-sm transition-all duration-200 hover:bg-blue-500/20 active:scale-[0.98]"
+            >
+              <FileSignature size={12} />
+              ต่อสัญญา
+            </button>
+          </div>
+        )}
+        <div className="flex items-center justify-end gap-2 ml-auto">
+          <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--color-surface))]/[0.1] hover:border-[hsl(var(--color-border))] active:scale-[0.98]" onClick={onCancel}>
+            ยกเลิก
+          </button>
+          <button
+            type="submit"
+            disabled={saving || contract.status !== 'ACTIVE'}
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-500/20 border border-blue-500/30 px-5 py-2 text-sm font-semibold text-blue-400 shadow-sm transition-all duration-200 hover:bg-blue-500/30 hover:border-blue-500/50 active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5"
+          >
+            {saving ? (
+              <>
+                <RefreshCw size={12} className="animate-spin" />
+                กำลังบันทึก…
+              </>
+            ) : (
+              <>
+                <ChevronRight size={13} />
+                อัปเดตสัญญา
+              </>
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* Terminate Dialog */}
+      {showTerminateDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onCloseTerminateForm} />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/95 p-6 shadow-[0_4px_20px_rgba(0,0,0,0.12)] backdrop-blur">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500/20 border border-red-500/30">
+                <XCircle size={20} className="text-red-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base font-semibold text-[hsl(var(--on-surface))]">ยกเลิกสัญญา</h2>
+                <p className="mt-1.5 text-sm text-[hsl(var(--on-surface))]/50">กรุณาระบุวันที่และเหตุผลในการยกเลิกสัญญานี้</p>
+              </div>
+              <button
+                onClick={onCloseTerminateForm}
+                className="shrink-0 rounded-full p-1 text-[hsl(var(--on-surface-variant))] transition-all hover:bg-[hsl(var(--color-surface))] hover:text-[hsl(var(--on-surface))]"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <form onSubmit={onTerminateSubmit} className="mt-6 flex flex-col gap-3">
+              <div>
+                <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">
+                  วันที่ยกเลิก <span className="text-red-400">*</span>
+                </label>
+                <ThaiDateInput
+                  ariaLabel="วันที่ยกเลิก"
+                  className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                  required
+                  value={terminateDate}
+                  onChange={(iso) => setTerminateDate(iso)}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">เหตุผล</label>
+                <textarea
+                  className="w-full resize-none rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                  rows={3}
+                  placeholder="ระบุเหตุผลการยกเลิกสัญญา…"
+                  value={terminateReason}
+                  onChange={(e) => setTerminateReason(e.target.value)}
+                />
+              </div>
+              {terminateError && (
+                <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400 backdrop-blur-sm">
+                  <AlertCircle size={12} className="mt-0.5 shrink-0" />
+                  <span>{terminateError}</span>
+                </div>
+              )}
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={onCloseTerminateForm}
+                  className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--color-surface))]/[0.1] active:scale-[0.98]"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={terminateSaving || !terminateDate}
+                  className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-400 shadow-sm transition-all duration-200 hover:bg-red-500/20 active:scale-[0.98] disabled:opacity-50"
+                >
+                  {terminateSaving ? (
+                    <>
+                      <RefreshCw size={11} className="animate-spin" />
+                      กำลังบันทึก…
+                    </>
+                  ) : (
+                    <>
+                      <XCircle size={11} />
+                      ยืนยันยกเลิกสัญญา
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
@@ -1026,13 +1384,13 @@ function EditContractForm({
 function EmptyState({ onNew, hasFilter }: { onNew: () => void; hasFilter: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-container">
-        <FileSignature size={28} className="text-on-surface-variant" strokeWidth={1.5} />
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))]">
+        <FileSignature size={28} className="text-[hsl(var(--on-surface))]/30" strokeWidth={1.5} />
       </div>
-      <h3 className="text-[15px] font-semibold text-on-surface">
+      <h3 className="text-[15px] font-semibold text-[hsl(var(--on-surface))]">
         {hasFilter ? 'ไม่พบสัญญาที่ตรงกับตัวกรอง' : 'ยังไม่มีสัญญา'}
       </h3>
-      <p className="mt-1 max-w-xs text-[13px] text-on-surface-variant">
+      <p className="mt-1 max-w-xs text-[13px] text-[hsl(var(--on-surface-variant))]">
         {hasFilter
           ? 'ลองล้างการค้นหาหรือเปลี่ยนตัวกรองสถานะ'
           : 'สร้างสัญญาเช่าแรกของคุณโดยคลิกปุ่มด้านล่าง'}
@@ -1040,7 +1398,7 @@ function EmptyState({ onNew, hasFilter }: { onNew: () => void; hasFilter: boolea
       {!hasFilter && (
         <button
           onClick={onNew}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 mt-5"
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-500/20 border border-blue-500/30 px-5 py-2 text-sm font-semibold text-blue-400 shadow-sm transition-all duration-200 hover:bg-blue-500/30 hover:border-blue-500/50 mt-5 active:scale-[0.98]"
         >
           <Plus size={14} strokeWidth={2.5} />
           สร้างสัญญาใหม่

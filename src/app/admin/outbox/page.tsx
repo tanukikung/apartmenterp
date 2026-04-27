@@ -5,10 +5,7 @@ import { motion } from 'framer-motion';
 import { AlertTriangle, RotateCcw, Trash2, RefreshCw, Mail } from 'lucide-react';
 import { PromptDialog } from '@/components/ui/PromptDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { StatusBadge } from '@/components/ui/status-badge';
 import { useToast } from '@/components/providers/ToastProvider';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface DeadLetterEvent {
   id: string;
@@ -28,8 +25,6 @@ interface ListResponse {
   pageSize: number;
   threshold: number;
 }
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function OutboxDeadLetterPage() {
   const [items, setItems] = useState<DeadLetterEvent[]>([]);
@@ -140,18 +135,17 @@ export default function OutboxDeadLetterPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-on-surface flex items-center gap-3">
-            <AlertTriangle className="text-amber-500" size={28} />
+          <h1 className="text-2xl md:text-3xl font-extrabold text-[hsl(var(--card-foreground))] flex items-center gap-3">
+            <AlertTriangle className="text-amber-600" size={28} />
             Outbox Dead-Letter Queue
           </h1>
-          <p className="mt-1 text-sm text-on-surface-variant max-w-2xl">
+          <p className="mt-1 text-sm text-[hsl(var(--on-surface-variant))] max-w-2xl">
             เหตุการณ์ที่ retry ล้มเหลวครบ {threshold} ครั้งแล้วค้างอยู่ — ต้องมนุษย์มาจัดการ
-            เช่น ส่ง LINE ไม่สำเร็จ, ออก PDF ไม่ได้, ส่งอีเมลล้มเหลว
           </p>
         </div>
         <button
-          onClick={load}
-          className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container transition-colors"
+          onClick={() => void load()}
+          className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-semibold text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           รีเฟรช
@@ -161,18 +155,18 @@ export default function OutboxDeadLetterPage() {
       {/* Filter bar */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant">ประเภท:</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--on-surface-variant))]">ประเภท:</span>
           <select
             value={eventType}
             onChange={(e) => setEventType(e.target.value)}
-            className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-sm text-on-surface"
+            className="rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-1.5 text-sm text-[hsl(var(--card-foreground))]"
           >
             <option value="">ทั้งหมด</option>
             {eventTypes.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <span className="rounded-full bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300 px-3 py-0.5 text-xs font-bold">
+          <span className="rounded-full px-3 py-0.5 text-xs font-bold" style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>
             {total} ค้าง
           </span>
         </div>
@@ -183,21 +177,19 @@ export default function OutboxDeadLetterPage() {
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary-container/10 px-4 py-3"
+          className="flex items-center gap-3 rounded-xl border border-[hsl(var(--primary))]/30 px-4 py-3"
+          style={{ background: 'rgba(99,102,241,0.1)' }}
         >
-          <span className="text-sm font-semibold text-on-surface">
-            เลือก {selected.size} รายการ
-          </span>
+          <span className="text-sm font-semibold text-[hsl(var(--card-foreground))]">เลือก {selected.size} รายการ</span>
           <button
             onClick={() => setConfirmRequeue(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-on-primary px-3 py-1.5 text-xs font-bold hover:brightness-110 transition"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))] text-white px-3 py-1.5 text-xs font-bold hover:bg-[hsl(var(--primary))]/90 transition-all hover:scale-105 active:scale-95"
           >
-            <RotateCcw size={14} />
-            สั่ง retry ใหม่ ({selected.size})
+            <RotateCcw size={14} />สั่ง retry ใหม่ ({selected.size})
           </button>
           <button
             onClick={() => setSelected(new Set())}
-            className="rounded-lg border border-outline px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:bg-surface-container transition"
+            className="rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] hover:bg-white/5 transition-all"
           >
             ยกเลิก
           </button>
@@ -205,87 +197,64 @@ export default function OutboxDeadLetterPage() {
       )}
 
       {/* Table */}
-      <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest overflow-hidden">
+      <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-surface-container-low text-on-surface-variant">
-            <tr>
+          <thead>
+            <tr className="border-b border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--card))' }}>
               <th className="w-10 px-4 py-3 text-left">
-                <input
-                  type="checkbox"
-                  checked={items.length > 0 && selected.size === items.length}
-                  onChange={toggleSelectAll}
-                  aria-label="เลือกทั้งหมด"
-                />
+                <input type="checkbox" checked={items.length > 0 && selected.size === items.length} onChange={toggleSelectAll} aria-label="เลือกทั้งหมด" className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]" />
               </th>
-              <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-xs">Event</th>
-              <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-xs">Aggregate</th>
-              <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-xs">Retries</th>
-              <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-xs">สร้างเมื่อ</th>
-              <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-xs">Error</th>
-              <th className="w-32 px-4 py-3 text-right font-semibold uppercase tracking-wider text-xs">Actions</th>
+              <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-xs text-[hsl(var(--on-surface-variant))]">Event</th>
+              <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-xs text-[hsl(var(--on-surface-variant))]">Aggregate</th>
+              <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-xs text-[hsl(var(--on-surface-variant))]">Retries</th>
+              <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-xs text-[hsl(var(--on-surface-variant))]">สร้างเมื่อ</th>
+              <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-xs text-[hsl(var(--on-surface-variant))]">Error</th>
+              <th className="w-32 px-4 py-3 text-right font-semibold uppercase tracking-wider text-xs text-[hsl(var(--on-surface-variant))]">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-outline-variant/10">
+          <tbody className="divide-y divide-[hsl(var(--glass-border))]">
             {loading && items.length === 0 ? (
-              <tr><td colSpan={7} className="p-8 text-center text-on-surface-variant">กำลังโหลด...</td></tr>
+              <tr><td colSpan={7} className="p-8 text-center text-[hsl(var(--on-surface-variant))]">กำลังโหลด...</td></tr>
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={7} className="p-12 text-center">
                   <Mail className="mx-auto mb-3 text-emerald-500" size={40} />
-                  <p className="text-sm font-semibold text-on-surface">ไม่มี event ค้างใน dead-letter queue</p>
-                  <p className="text-xs text-on-surface-variant mt-1">ระบบส่งข้อความทำงานปกติ</p>
+                  <p className="text-sm font-semibold text-[hsl(var(--card-foreground))]">ไม่มี event ค้างใน dead-letter queue</p>
+                  <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-1">ระบบส่งข้อความทำงานปกติ</p>
                 </td>
               </tr>
             ) : items.map((ev) => (
               <React.Fragment key={ev.id}>
-                <tr className="hover:bg-surface-container/50 transition-colors">
+                <tr className="hover:bg-white/5 transition-colors">
                   <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(ev.id)}
-                      onChange={() => toggleSelect(ev.id)}
-                    />
+                    <input type="checkbox" checked={selected.has(ev.id)} onChange={() => toggleSelect(ev.id)} className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]" />
                   </td>
                   <td className="px-4 py-3 font-mono text-xs">
-                    <button
-                      onClick={() => setExpandedId(expandedId === ev.id ? null : ev.id)}
-                      className="text-primary hover:underline"
-                    >
+                    <button onClick={() => setExpandedId(expandedId === ev.id ? null : ev.id)} className="text-[hsl(var(--primary))] hover:underline">
                       {ev.eventType}
                     </button>
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-on-surface-variant">
+                  <td className="px-4 py-3 font-mono text-xs text-[hsl(var(--on-surface-variant))]">
                     {ev.aggregateType}/{ev.aggregateId.slice(0, 8)}
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge variant="warning">{ev.retryCount}/{threshold}</StatusBadge>
+                    <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>{ev.retryCount}/{threshold}</span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-on-surface-variant">
-                    {new Date(ev.createdAt).toLocaleString('th-TH')}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-red-600 dark:text-red-400 max-w-xs truncate" title={ev.lastError || ''}>
-                    {ev.lastError || '—'}
-                  </td>
+                  <td className="px-4 py-3 text-xs text-[hsl(var(--on-surface-variant))]">{new Date(ev.createdAt).toLocaleString('th-TH')}</td>
+                  <td className="px-4 py-3 text-xs text-red-400/70 max-w-xs truncate" title={ev.lastError || ''}>{ev.lastError || '—'}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="inline-flex gap-1">
                       <button
-                        onClick={async () => {
-                          await fetch('/api/admin/outbox/dead-letter', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ eventIds: [ev.id] }),
-                          });
-                          load();
-                        }}
+                        onClick={async () => { await fetch('/api/admin/outbox/dead-letter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventIds: [ev.id] }) }); load(); }}
                         title="Retry เดี่ยว"
-                        className="rounded-lg border border-outline bg-surface-container-lowest p-1.5 text-on-surface-variant hover:bg-primary hover:text-on-primary hover:border-primary transition"
+                        className="rounded-lg border border-[hsl(var(--glass-border))] glass-card p-1.5 text-[hsl(var(--on-surface-variant))] hover:border-[hsl(var(--primary))]/40 hover:text-[hsl(var(--primary))] transition-all hover:scale-105 active:scale-95"
                       >
                         <RotateCcw size={14} />
                       </button>
                       <button
                         onClick={() => setDropTarget(ev)}
                         title="ทิ้งถาวร"
-                        className="rounded-lg border border-outline bg-surface-container-lowest p-1.5 text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white hover:border-red-500 transition"
+                        className="rounded-lg border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 hover:bg-red-500/20 transition-all hover:scale-105 active:scale-95"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -294,10 +263,8 @@ export default function OutboxDeadLetterPage() {
                 </tr>
                 {expandedId === ev.id && (
                   <tr>
-                    <td colSpan={7} className="bg-surface-container-low/50 p-4">
-                      <pre className="text-xs font-mono overflow-x-auto max-h-64 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-3 whitespace-pre-wrap break-words">
-                        {JSON.stringify(ev.payload, null, 2)}
-                      </pre>
+                    <td colSpan={7} className="p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                      <pre className="text-xs font-mono overflow-x-auto max-h-64 rounded-lg border border-[hsl(var(--glass-border))] glass-card p-3 whitespace-pre-wrap break-words">{JSON.stringify(ev.payload, null, 2)}</pre>
                     </td>
                   </tr>
                 )}
@@ -307,7 +274,6 @@ export default function OutboxDeadLetterPage() {
         </table>
       </div>
 
-      {/* Confirm requeue */}
       <ConfirmDialog
         open={confirmRequeue}
         title="ยืนยันการ requeue"
@@ -317,7 +283,6 @@ export default function OutboxDeadLetterPage() {
         onCancel={() => setConfirmRequeue(false)}
       />
 
-      {/* Drop prompt */}
       {dropTarget && (
         <PromptDialog
           open
@@ -326,9 +291,7 @@ export default function OutboxDeadLetterPage() {
           label="เหตุผล (บันทึกใน audit log)"
           placeholder="เช่น: payload มีข้อมูลผิด ไม่มีผลกระทบต่อธุรกิจ"
           confirmLabel="ทิ้งถาวร"
-          onConfirm={(reason) => {
-            if (reason.trim().length >= 3) dropEvent(reason.trim());
-          }}
+          onConfirm={(reason) => { if (reason.trim().length >= 3) dropEvent(reason.trim()); }}
           onCancel={() => setDropTarget(null)}
         />
       )}

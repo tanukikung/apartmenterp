@@ -14,9 +14,9 @@ const HEADER_REGION_PATTERN = /<header[^>]*data-template-region=["']header["'][^
 const BODY_REGION_PATTERN = /<section[^>]*data-template-region=["']body["'][^>]*>([\s\S]*?)<\/section>/i;
 const FOOTER_REGION_PATTERN = /<footer[^>]*data-template-region=["']footer["'][^>]*>([\s\S]*?)<\/footer>/i;
 
-export type TemplatePageSize = 'A4' | 'LETTER';
+export type TemplatePageSize = 'A5' | 'A4' | 'A3' | 'LETTER' | 'LEGAL' | 'CUSTOM';
 export type TemplateOrientation = 'PORTRAIT' | 'LANDSCAPE';
-export type TemplateMarginPreset = 'narrow' | 'normal' | 'wide';
+export type TemplateMarginPreset = 'narrow' | 'normal' | 'wide' | 'custom';
 export type TemplateFontFamily = 'sans' | 'serif' | 'sarabun';
 export type TemplateFontSize = 'sm' | 'base' | 'lg';
 export type TemplateLineHeight = 'normal' | 'relaxed' | 'loose';
@@ -28,6 +28,14 @@ export type TemplateDocumentMeta = {
   fontFamily: TemplateFontFamily;
   fontSize: TemplateFontSize;
   lineHeight: TemplateLineHeight;
+  /** Used when pageSize is CUSTOM */
+  customWidthMm?: number;
+  customHeightMm?: number;
+  /** Used when marginPreset is 'custom' — all four sides in mm */
+  customMarginTopMm?: number;
+  customMarginBottomMm?: number;
+  customMarginLeftMm?: number;
+  customMarginRightMm?: number;
 };
 
 export type ParsedTemplateDocument = {
@@ -60,14 +68,15 @@ function coerceMeta(input: unknown): TemplateDocumentMeta {
     return { ...DEFAULT_TEMPLATE_DOCUMENT_META };
   }
 
+  const VALID_SIZES = ['A5', 'A4', 'A3', 'LETTER', 'LEGAL', 'CUSTOM'] as const;
   const source = input as Partial<TemplateDocumentMeta>;
   return {
-    pageSize: source.pageSize === 'LETTER' ? 'LETTER' : 'A4',
+    pageSize: VALID_SIZES.includes(source.pageSize as typeof VALID_SIZES[number]) ? (source.pageSize as TemplatePageSize) : 'A4',
     orientation: source.orientation === 'LANDSCAPE' ? 'LANDSCAPE' : 'PORTRAIT',
     marginPreset:
       source.marginPreset === 'narrow' || source.marginPreset === 'wide'
         ? source.marginPreset
-        : 'normal',
+        : source.marginPreset === 'custom' ? 'custom' : 'normal',
     fontFamily:
       source.fontFamily === 'serif' || source.fontFamily === 'sarabun'
         ? source.fontFamily

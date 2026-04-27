@@ -23,6 +23,7 @@ import { SkeletonTable } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { BulkActions } from '@/components/ui/bulk-actions';
 import { useUrlState } from '@/hooks/useUrlState';
+import { motion } from 'framer-motion';
 
 type OrderStatus = 'DRAFT' | 'SENDING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
 type ItemStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED' | 'SKIPPED' | 'VIEWED';
@@ -52,21 +53,21 @@ type DeliveryOrder = {
   items?: DeliveryOrderItem[];
 };
 
-const ORDER_STATUS: Record<OrderStatus, { cls: string; label: string; icon: typeof Clock }> = {
-  DRAFT:     { cls: 'bg-surface-container text-on-surface-variant border-outline-variant/30', label: 'ฉบับร่าง', icon: Clock },
-  SENDING:   { cls: 'bg-secondary-container text-on-secondary-container border-secondary30', label: 'กำลังส่ง', icon: Send },
-  COMPLETED: { cls: 'bg-success-container text-on-success-container border-color-success/30', label: 'เสร็จสิ้น', icon: CheckCircle2 },
-  PARTIAL:   { cls: 'bg-warning-container text-on-warning-container border-color-warning/30', label: 'ส่งบางส่วน', icon: AlertCircle },
-  FAILED:    { cls: 'bg-error-container text-on-error-container border-color-danger/30', label: 'ล้มเหลว', icon: XCircle },
+const ORDER_STATUS: Record<OrderStatus, { bg: string; text: string; border: string; label: string; icon: typeof Clock }> = {
+  DRAFT:     { bg: 'hsl(var(--color-surface)/0.1)', text: 'hsl(var(--on-surface-variant))', border: 'hsl(var(--color-border)/0.2)', label: 'ฉบับร่าง', icon: Clock },
+  SENDING:   { bg: 'hsl(var(--primary) / 0.15)', text: 'hsl(var(--color-primary-light))', border: 'hsl(var(--primary) / 0.3)', label: 'กำลังส่ง', icon: Send },
+  COMPLETED: { bg: 'hsl(var(--emerald) / 0.15)', text: 'hsl(var(--emerald))', border: 'hsl(var(--emerald) / 0.3)', label: 'เสร็จสิ้น', icon: CheckCircle2 },
+  PARTIAL:   { bg: 'hsl(var(--amber) / 0.15)', text: 'hsl(var(--amber))', border: 'hsl(var(--amber) / 0.3)', label: 'ส่งบางส่วน', icon: AlertCircle },
+  FAILED:    { bg: 'hsl(var(--red) / 0.15)', text: 'hsl(var(--red))', border: 'hsl(var(--red) / 0.3)', label: 'ล้มเหลว', icon: XCircle },
 };
 
-const ITEM_STATUS: Record<ItemStatus, { cls: string; label: string }> = {
-  PENDING:   { cls: 'bg-warning-container text-on-warning-container', label: 'รอส่ง' },
-  SENT:      { cls: 'bg-secondary-container text-on-secondary-container', label: 'ส่งแล้ว' },
-  DELIVERED: { cls: 'bg-success-container text-on-success-container', label: 'ส่งสำเร็จ' },
-  FAILED:    { cls: 'bg-error-container text-on-error-container', label: 'ล้มเหลว' },
-  SKIPPED:   { cls: 'bg-surface-container text-on-surface-variant', label: 'ข้าม' },
-  VIEWED:    { cls: 'bg-tertiary-container text-on-tertiary-container', label: 'เปิดแล้ว' },
+const ITEM_STATUS: Record<ItemStatus, { bg: string; text: string; label: string }> = {
+  PENDING:   { bg: 'hsl(var(--amber) / 0.15)', text: 'hsl(var(--amber))', label: 'รอดำเนินการ' },
+  SENT:      { bg: 'hsl(var(--primary) / 0.15)', text: 'hsl(var(--color-primary-light))', label: 'ส่งแล้ว' },
+  DELIVERED: { bg: 'hsl(var(--emerald) / 0.15)', text: 'hsl(var(--emerald))', label: 'ส่งสำเร็จ' },
+  FAILED:    { bg: 'hsl(var(--red) / 0.15)', text: 'hsl(var(--red))', label: 'ล้มเหลว' },
+  SKIPPED:   { bg: 'hsl(var(--color-surface)/0.1)', text: 'hsl(var(--on-surface-variant))', label: 'ข้าม' },
+  VIEWED:    { bg: 'hsl(var(--violet) / 0.15)', text: 'hsl(var(--violet))', label: 'อ่านแล้ว' },
 };
 
 function fmtDate(s: string | null) {
@@ -84,7 +85,10 @@ function OrderStatusBadge({ status }: { status: OrderStatus }) {
   const cfg = ORDER_STATUS[status] ?? ORDER_STATUS.DRAFT;
   const Icon = cfg.icon;
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${cfg.cls}`}>
+    <span
+      className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
+      style={{ background: cfg.bg, color: cfg.text, borderColor: cfg.border }}
+    >
       <Icon className="h-3 w-3" />
       {cfg.label}
     </span>
@@ -94,7 +98,10 @@ function OrderStatusBadge({ status }: { status: OrderStatus }) {
 function ItemStatusBadge({ status }: { status: ItemStatus }) {
   const cfg = ITEM_STATUS[status] ?? ITEM_STATUS.PENDING;
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${cfg.cls}`}>
+    <span
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+      style={{ background: cfg.bg, color: cfg.text }}
+    >
       {cfg.label}
     </span>
   );
@@ -271,19 +278,27 @@ export default function DeliveriesPage() {
   }
 
   return (
-    <main className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] glass-card px-6 py-5">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
+        </div>
         <div className="relative flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-base font-semibold text-on-primary">รายการส่ง LINE</h1>
-            <p className="text-xs text-on-primary/80 mt-0.5">ติดตามสถานะการส่งเอกสารผ่าน LINE</p>
+            <h1 className="text-lg font-semibold text-[hsl(var(--card-foreground))]">รายการส่ง LINE</h1>
+            <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">ติดตามสถานะการส่งเอกสารผ่าน LINE</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/admin/documents" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+            <Link href="/admin/documents" className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]">
               เอกสาร
             </Link>
-            <button onClick={() => void refetch()} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+            <button onClick={() => void refetch()} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]">
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               รีเฟรช
             </button>
@@ -292,7 +307,7 @@ export default function DeliveriesPage() {
       </div>
 
       {fetchError && (
-        <div className="flex items-center gap-2 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container">
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/30 px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
           <AlertCircle className="h-4 w-4" />
           {fetchError instanceof Error ? fetchError.message : String(fetchError)}
         </div>
@@ -322,28 +337,28 @@ export default function DeliveriesPage() {
         ]}
       />
 
-      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-        <div className="flex flex-col gap-3 px-4 py-3 border-b border-outline-variant md:flex-row md:items-center md:justify-between">
-          <div className="text-sm font-semibold text-on-surface">รายการ Delivery Orders ({total})</div>
+      <section className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
+        <div className="flex flex-col gap-3 px-4 py-3 border-b border-[hsl(var(--glass-border))] md:flex-row md:items-center md:justify-between" style={{ background: 'hsl(var(--card))' }}>
+          <div className="text-sm font-semibold text-[hsl(var(--card-foreground))]">รายการ Delivery Orders ({total})</div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" aria-hidden="true" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--on-surface-variant))]" aria-hidden="true" />
               <input
                 type="search"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 placeholder="ค้นหา..."
                 aria-label="ค้นหา"
-                className="w-full rounded-lg border border-outline bg-surface-container-lowest py-2 pl-9 pr-3 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card py-2 pl-9 pr-3 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               />
             </div>
             <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-on-surface-variant" />
+              <Filter className="h-4 w-4 text-[hsl(var(--on-surface-variant))]" />
               <select
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
                 aria-label="กรองตามสถานะ"
-                className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+                className="rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--card-foreground))]"
               >
                 <option value="">ทุกสถานะ</option>
                 <option value="DRAFT">ฉบับร่าง</option>
@@ -368,9 +383,9 @@ export default function DeliveriesPage() {
             action={(searchDebounced || statusFilter) ? { label: 'ล้างตัวกรอง', onClick: () => { setSearch(''); setStatusFilter(''); setPage(1); } } : undefined}
           />
         ) : (
-          <div className="divide-y divide-outline-variant">
+          <div className="divide-y divide-[hsl(var(--glass-border))]">
             {orders.some((o) => o.status === 'DRAFT') && (
-              <div className="flex items-center gap-3 px-4 py-2 bg-surface-container/40">
+              <div className="flex items-center gap-3 px-4 py-2" style={{ background: 'rgba(255,255,255,0.03)' }}>
                 <input
                   type="checkbox"
                   aria-label="เลือกฉบับร่างทั้งหมด"
@@ -379,9 +394,9 @@ export default function DeliveriesPage() {
                     return drafts.length > 0 && drafts.every((o) => selectedOrders.has(o.id));
                   })()}
                   onChange={toggleAllDrafts}
-                  className="h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
+                  className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]"
                 />
-                <span className="text-xs text-on-surface-variant">เลือกฉบับร่างทั้งหมดเพื่อส่งเป็นกลุ่ม</span>
+                <span className="text-xs text-[hsl(var(--on-surface-variant))]">เลือกฉบับร่างทั้งหมดเพื่อส่งเป็นกลุ่ม</span>
               </div>
             )}
             {orders.map((order) => (
@@ -394,7 +409,7 @@ export default function DeliveriesPage() {
                       checked={selectedOrders.has(order.id)}
                       onChange={() => toggleOrder(order.id)}
                       onClick={(e) => e.stopPropagation()}
-                      className="h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
+                      className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]"
                     />
                   </div>
                 ) : (
@@ -403,32 +418,32 @@ export default function DeliveriesPage() {
                 <div className="flex-1 min-w-0">
                 <button
                   onClick={() => void toggleExpand(order.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-container transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[hsl(var(--color-surface))]/[0.05] transition-colors"
                 >
-                  <span className="text-on-surface-variant">
+                  <span className="text-[hsl(var(--on-surface-variant))]">
                     {expandedId === order.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-on-surface">{order.documentType}</span>
+                      <span className="text-sm font-semibold text-[hsl(var(--card-foreground))]">{order.documentType}</span>
                       {order.year || order.month ? (
-                        <span className="text-xs text-on-surface-variant">{fmtPeriod(order.year, order.month)}</span>
+                        <span className="text-xs text-[hsl(var(--on-surface-variant))]">{fmtPeriod(order.year, order.month)}</span>
                       ) : null}
                       {order.description ? (
-                        <span className="text-xs text-on-surface-variant truncate max-w-[200px]">{order.description}</span>
+                        <span className="text-xs text-[hsl(var(--on-surface-variant))] truncate max-w-[200px]">{order.description}</span>
                       ) : null}
                     </div>
-                    <div className="mt-0.5 text-xs text-on-surface-variant">{fmtDate(order.createdAt)}</div>
+                    <div className="mt-0.5 text-xs text-[hsl(var(--on-surface-variant))]">{fmtDate(order.createdAt)}</div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-xs text-on-surface-variant">{order.sentCount}/{order.totalCount} ส่งแล้ว</span>
+                    <span className="text-xs text-[hsl(var(--on-surface-variant))]">{order.sentCount}/{order.totalCount} ส่งแล้ว</span>
                     <OrderStatusBadge status={order.status} />
                     {(order.status === 'DRAFT') && (
                       <button
                         onClick={(e) => { e.stopPropagation(); if (!isLineConfigured()) { toastError('LINE ไม่ได้รับการตั้งค่า ไม่สามารถส่งได้'); return; } void handleSend(order.id); }}
                         disabled={sending === order.id}
                         aria-label="ส่งรายการ"
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))] px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-all hover:scale-105 active:scale-95 hover:shadow-glow-primary-hover disabled:opacity-50"
                       >
                         {sending === order.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                         ส่ง
@@ -438,16 +453,16 @@ export default function DeliveriesPage() {
                 </button>
 
                 {expandedId === order.id && (
-                  <div className="border-t border-outline-variant bg-surface-container/30 px-4 py-3">
+                  <div className="border-t border-[hsl(var(--glass-border))] px-4 py-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
                     {itemsLoading === order.id ? (
                       <div className="flex items-center justify-center py-4">
-                        <Loader2 className="h-5 w-5 animate-spin text-on-surface-variant" />
+                        <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--on-surface-variant))]" />
                       </div>
                     ) : (
                       <div className="overflow-auto">
                         <table className="w-full text-xs">
                           <thead>
-                            <tr className="text-left text-on-surface-variant">
+                            <tr className="text-left text-[hsl(var(--on-surface-variant))]">
                               <th className="pb-2 pr-2 w-6"></th>
                               <th className="pb-2 pr-4 font-medium">ห้อง</th>
                               <th className="hidden md:table-cell pb-2 pr-4 font-medium">ผู้เช่า</th>
@@ -458,7 +473,7 @@ export default function DeliveriesPage() {
                               <th className="pb-2"></th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-outline-variant/40">
+                          <tbody className="divide-y divide-[hsl(var(--glass-border))]">
                             {(itemsMap[order.id] ?? []).map((item) => (
                               <tr key={item.id}>
                                 <td className="py-1.5 pr-2">
@@ -471,20 +486,20 @@ export default function DeliveriesPage() {
                                     />
                                   )}
                                 </td>
-                                <td className="py-1.5 pr-4 font-semibold text-on-surface">{item.roomNo}</td>
-                                <td className="hidden md:table-cell py-1.5 pr-4 text-on-surface-variant">{item.tenant?.fullName ?? '-'}</td>
+                                <td className="py-1.5 pr-4 font-semibold text-[hsl(var(--card-foreground))]">{item.roomNo}</td>
+                                <td className="hidden md:table-cell py-1.5 pr-4 text-[hsl(var(--on-surface-variant))]">{item.tenant?.fullName ?? '-'}</td>
                                 <td className="py-1.5 pr-4">
                                   <ItemStatusBadge status={item.status as ItemStatus} />
                                 </td>
-                                <td className="hidden lg:table-cell py-1.5 pr-4 font-mono text-on-surface-variant truncate max-w-[120px]">{item.recipientRef ?? '-'}</td>
-                                <td className="hidden md:table-cell py-1.5 pr-4 text-on-surface-variant">{fmtDate(item.sentAt)}</td>
-                                <td className="hidden lg:table-cell py-1.5 pr-4 max-w-[180px] truncate text-color-danger">{item.errorMessage ?? '-'}</td>
+                                <td className="hidden lg:table-cell py-1.5 pr-4 font-mono text-[hsl(var(--on-surface-variant))] truncate max-w-[120px]">{item.recipientRef ?? '-'}</td>
+                                <td className="hidden md:table-cell py-1.5 pr-4 text-[hsl(var(--on-surface-variant))]">{fmtDate(item.sentAt)}</td>
+                                <td className="hidden lg:table-cell py-1.5 pr-4 max-w-[180px] truncate text-red-400/70">{item.errorMessage ?? '-'}</td>
                                 <td className="py-1.5">
                                   {item.status === 'FAILED' && (
                                     <button
                                       onClick={() => { if (!isLineConfigured()) { toastError('LINE ไม่ได้รับการตั้งค่า ไม่สามารถส่งซ้ำได้'); return; } void handleResendItem(order.id, item.id); }}
                                       aria-label="ส่งซ้ำ"
-                                      className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2 py-1 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
+                                      className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-2 py-1 text-xs font-medium text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]"
                                     >
                                       <RefreshCw className="h-3 w-3" />
                                       Retry
@@ -506,21 +521,21 @@ export default function DeliveriesPage() {
         )}
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-outline-variant px-4 py-3">
-            <span className="text-sm text-on-surface-variant">หน้า {page} จาก {totalPages} ({total} รายการ)</span>
+          <div className="flex items-center justify-between border-t border-[hsl(var(--glass-border))] px-4 py-3">
+            <span className="text-sm text-[hsl(var(--on-surface-variant))]">หน้า {page} จาก {totalPages} ({total} รายการ)</span>
             <div className="flex gap-2">
               <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}
-                className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-50">
+                className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05] disabled:opacity-50">
                 ก่อนหน้า
               </button>
               <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-                className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container disabled:opacity-50">
+                className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05] disabled:opacity-50">
                 ถัดไป
               </button>
             </div>
           </div>
         )}
       </section>
-    </main>
+    </motion.div>
   );
 }

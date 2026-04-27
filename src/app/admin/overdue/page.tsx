@@ -10,6 +10,7 @@ import {
   Download,
   MessageCircle,
   RefreshCw,
+  Search,
   Send,
   TrendingUp,
 } from 'lucide-react';
@@ -50,15 +51,15 @@ function daysSince(dateStr: string | null | undefined): number | null {
 }
 
 function daysOverdueBadge(days: number): string {
-  if (days <= 30) return 'bg-amber-100 text-amber-800 border border-amber-200';
-  if (days <= 60) return 'bg-orange-100 text-orange-800 border border-orange-200';
-  return 'bg-error-container text-on-error-container border border-error-container/30';
+  if (days <= 30) return 'bg-amber-500/15 text-amber-600 border border-amber-500/30';
+  if (days <= 60) return 'bg-orange-500/15 text-orange-600 border border-orange-500/30';
+  return 'bg-red-500/15 text-red-600 border border-red-500/30';
 }
 
 function daysOverdueText(days: number): string {
-  if (days <= 30) return 'text-amber-700';
-  if (days <= 60) return 'text-orange-700';
-  return 'text-on-error-container';
+  if (days <= 30) return 'text-amber-600';
+  if (days <= 60) return 'text-orange-600';
+  return 'text-red-600';
 }
 
 function tenantName(inv: OverdueInvoice): string {
@@ -84,6 +85,21 @@ function exportCsv(invoices: OverdueInvoice[]) {
   const a = document.createElement('a');
   a.href = url; a.download = `overdue-invoices-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
   URL.revokeObjectURL(url);
+}
+
+// ─── Glass Card ─────────────────────────────────────────────────────────────
+
+function GlassCard({ children, className = '', hover = false }: { children: React.ReactNode; className?: string; hover?: boolean }) {
+  return (
+    <div className={[
+      'rounded-2xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))] backdrop-blur',
+      'shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.04)]',
+      hover ? 'hover:bg-[hsl(var(--color-surface))]/80 hover:shadow-[0_12px_40px_rgba(0,0,0,0.5),shadow-glow-primary] hover:scale-[1.01] transition-all duration-200 cursor-pointer' : '',
+      className,
+    ].join(' ')}>
+      {children}
+    </div>
+  );
 }
 
 export default function AdminOverduePage() {
@@ -154,7 +170,6 @@ export default function AdminOverduePage() {
         }).then((r) => r.json());
         if (res.success) sent++; else failed++;
       } catch (err) {
-        // Network errors are counted and surfaced in the summary message — no need to throw
         console.error('Failed to send reminder for invoice', inv.id, err);
         failed++;
       }
@@ -166,31 +181,34 @@ export default function AdminOverduePage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-on-surface">จัดการลูกหนี้ค้างชำระ</h1>
-          <p className="mt-1 text-sm text-on-surface-variant">ติดตามและดำเนินการกับใบแจ้งหนี้ที่เกินกำหนด</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => setConfirmOpen(true)} disabled={working === 'all' || filtered.length === 0}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60">
-            <MessageCircle className="h-4 w-4" />
-            {working === 'all' ? 'กำลังส่ง...' : `ส่งแจ้งเตือนทั้งหมด (${filtered.length})`}
-          </button>
-          <button onClick={() => exportCsv(filtered)}
-            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container">
-            <Download className="h-4 w-4" />
-            ส่งออก CSV
-          </button>
-          <button onClick={() => void refetch()} disabled={isLoading}
-            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container">
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </button>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600/80 to-blue-700/60 px-6 py-5 shadow-[0_8px_32px_rgba(0,0,0,0.5),shadow-glow-primary] backdrop-blur">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.1),_transparent_60%)]" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-base font-semibold text-[hsl(var(--color-text))]">จัดการลูกหนี้ค้างชำระ</h1>
+            <p className="mt-0.5 text-sm text-[hsl(var(--color-text))]/60">ติดตามและดำเนินการกับใบแจ้งหนี้ที่เกินกำหนด</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => setConfirmOpen(true)} disabled={working === 'all' || filtered.length === 0}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-500/20 border border-blue-500/30 px-4 py-2 text-sm font-semibold text-blue-600 shadow-[0_0_16px_rgba(59,130,246,0.2)] transition-all hover:bg-blue-500/30 active:scale-95 disabled:opacity-60">
+              <MessageCircle className="h-4 w-4" />
+              {working === 'all' ? 'กำลังส่ง...' : `ส่งแจ้งเตือนทั้งหมด (${filtered.length})`}
+            </button>
+            <button onClick={() => exportCsv(filtered)}
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))] shadow-sm transition-all hover:bg-[hsl(var(--color-surface))]/80 active:scale-95">
+              <Download className="h-4 w-4" />
+              ส่งออก CSV
+            </button>
+            <button onClick={() => void refetch()} disabled={isLoading}
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-2 text-sm font-medium text-[hsl(var(--color-text))] shadow-sm transition-all hover:bg-[hsl(var(--color-surface))]/80 active:scale-95">
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {message && <div className="flex items-center gap-3 rounded-xl border border-tertiary-container bg-tertiary-container/20 px-4 py-3 text-sm text-on-tertiary-container"><CheckCircle2 className="h-4 w-4 shrink-0" />{message}</div>}
-      {actionError && <div className="flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container"><AlertTriangle className="h-4 w-4 shrink-0" />{actionError}</div>}
+      {message && <GlassCard className="p-4"><div className="flex items-center gap-3 text-sm text-emerald-600"><CheckCircle2 className="h-4 w-4 shrink-0" />{message}</div></GlassCard>}
+      {actionError && <GlassCard className="p-4"><div className="flex items-center gap-3 text-sm text-red-600"><AlertTriangle className="h-4 w-4 shrink-0" />{actionError}</div></GlassCard>}
       <ConfirmDialog
         open={confirmOpen}
         title={`ส่ง Reminder ถึง ${filtered.length} รายการ?`}
@@ -203,62 +221,65 @@ export default function AdminOverduePage() {
 
       {/* KPI row */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+        <GlassCard className="p-5" hover>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">ลูกหนี้ค้างชำระ</p>
-              <p className="mt-1 text-2xl font-bold text-on-surface">{isLoading ? '...' : kpi.total}</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-[hsl(var(--color-text))]/40">ลูกหนี้ค้างชำระ</p>
+              <p className="mt-1 text-2xl font-bold text-[hsl(var(--color-text))]">{isLoading ? '...' : kpi.total}</p>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-error-container/30 bg-error-container/10">
-              <AlertTriangle className="h-5 w-5 text-on-error-container" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
             </div>
           </div>
-        </div>
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+        </GlassCard>
+        <GlassCard className="p-5" hover>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">ยอดค้างชำระรวม</p>
-              <p className="mt-1 text-2xl font-bold text-on-error-container">{isLoading ? '...' : money(kpi.totalAmount)}</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-[hsl(var(--color-text))]/40">ยอดค้างชำระรวม</p>
+              <p className="mt-1 text-2xl font-bold text-red-600">{isLoading ? '...' : money(kpi.totalAmount)}</p>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-200 bg-amber-100">
-              <TrendingUp className="h-5 w-5 text-amber-700" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10 shadow-[0_0_20px_rgba(251,191,36,0.2)]">
+              <TrendingUp className="h-5 w-5 text-amber-600" />
             </div>
           </div>
-        </div>
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+        </GlassCard>
+        <GlassCard className="p-5" hover>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">เฉลี่ยวันค้างชำระ</p>
-              <p className="mt-1 text-2xl font-bold text-on-surface">{isLoading ? '...' : kpi.avgDays}</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-[hsl(var(--color-text))]/40">เฉลี่ยวันค้างชำระ</p>
+              <p className="mt-1 text-2xl font-bold text-[hsl(var(--color-text))]">{isLoading ? '...' : kpi.avgDays}</p>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-200 bg-amber-100">
-              <Clock className="h-5 w-5 text-amber-700" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10 shadow-[0_0_20px_rgba(251,191,36,0.2)]">
+              <Clock className="h-5 w-5 text-amber-600" />
             </div>
           </div>
-        </div>
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+        </GlassCard>
+        <GlassCard className="p-5" hover>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">ห้องที่มีลูกหนี้</p>
-              <p className="mt-1 text-2xl font-bold text-on-surface">{isLoading ? '...' : kpi.uniqueRooms}</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-[hsl(var(--color-text))]/40">ห้องที่มีลูกหนี้</p>
+              <p className="mt-1 text-2xl font-bold text-[hsl(var(--color-text))]">{isLoading ? '...' : kpi.uniqueRooms}</p>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-outline-variant bg-surface-container">
-              <AlertTriangle className="h-5 w-5 text-on-surface-variant" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50">
+              <AlertTriangle className="h-5 w-5 text-[hsl(var(--color-text))]/40" />
             </div>
           </div>
-        </div>
+        </GlassCard>
       </section>
 
       {/* Action bar */}
       <section className="flex flex-wrap items-center gap-3">
-        <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
-          placeholder="ค้นหาห้อง, ผู้เช่า, เลขใบแจ้งหนี้..."
-          className="min-w-[220px] flex-1 rounded-lg border border-outline bg-surface-container-lowest py-2 px-4 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
-        <div className="inline-flex items-center gap-1 rounded-xl bg-surface-container p-1">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--color-text))]/30" />
+          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="ค้นหาห้อง, ผู้เช่า, เลขใบแจ้งหนี้..."
+            className="w-full rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 py-2.5 pl-9 pr-3 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 backdrop-blur-sm" />
+        </div>
+        <div className="inline-flex items-center gap-1 rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))] p-1 backdrop-blur-sm">
           {(['all', '1-30', '31-60', '60+'] as OverdueRange[]).map((r) => (
             <button key={r} onClick={() => setRange(r)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
-                range === r ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all active:scale-95 ${
+                range === r ? 'bg-blue-500/20 text-blue-600 shadow-[0_0_12px_rgba(59,130,246,0.2)] border border-blue-500/30' : 'text-[hsl(var(--color-text))]/40 hover:bg-white/5 hover:text-[hsl(var(--color-text))]/70'
               }`}>
               {r === 'all' ? 'ทั้งหมด' : r === '60+' ? '60วัน+' : `${r} วัน`}
             </button>
@@ -267,50 +288,50 @@ export default function AdminOverduePage() {
       </section>
 
       {/* Overdue table */}
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
-          <span className="text-sm font-semibold text-on-surface">ใบแจ้งหนี้เกินกำหนด</span>
-          <span className="inline-flex items-center rounded-full bg-error-container px-2.5 py-0.5 text-xs font-semibold text-on-error-container">{filtered.length} ใบ</span>
+      <GlassCard>
+        <div className="flex items-center justify-between border-b border-[hsl(var(--color-border))]/50 px-4 py-3">
+          <span className="text-sm font-semibold text-[hsl(var(--color-text))]">ใบแจ้งหนี้เกินกำหนด</span>
+          <span className="inline-flex items-center rounded-full bg-red-500/15 border border-red-500/30 px-2.5 py-0.5 text-xs font-semibold text-red-600">{filtered.length} ใบ</span>
         </div>
 
         {!isLoading && invoices.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-tertiary-container/20">
-              <CheckCircle2 className="h-7 w-7 text-on-tertiary-container" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20">
+              <CheckCircle2 className="h-7 w-7 text-emerald-600" />
             </div>
-            <p className="text-lg font-semibold text-on-surface">ไม่มีลูกหนี้!</p>
-            <p className="text-sm text-on-surface-variant">ไม่มีใบแจ้งหนี้ค้างชำระในขณะนี้</p>
+            <p className="text-lg font-semibold text-[hsl(var(--color-text))]">ไม่มีลูกหนี้!</p>
+            <p className="text-sm text-[hsl(var(--color-text))]/40">ไม่มีใบแจ้งหนี้ค้างชำระในขณะนี้</p>
           </div>
         ) : (
           <div className="overflow-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b border-outline-variant">
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">ห้อง</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">ผู้เช่า</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">เลขใบแจ้งหนี้</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">วันครบกำหนด</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">วันค้างชำระ</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">จำนวน (บาท)</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">จัดการ</th>
+                <tr className="border-b border-[hsl(var(--color-border))]/50">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">ห้อง</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">ผู้เช่า</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">เลขใบแจ้งหนี้</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">วันครบกำหนด</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">วันค้างชำระ</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">จำนวน (บาท)</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">จัดการ</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={7} className="px-3 py-8 text-center text-on-surface-variant">กำลังโหลดใบแจ้งหนี้ค้างชำระ...</td></tr>
+                  <tr><td colSpan={7} className="px-3 py-8 text-center text-[hsl(var(--color-text))]/40">กำลังโหลดใบแจ้งหนี้ค้างชำระ...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={7} className="px-3 py-8 text-center text-on-surface-variant">ไม่พบใบแจ้งหนี้ค้างชำระที่ตรงกับการค้นหา</td></tr>
+                  <tr><td colSpan={7} className="px-3 py-8 text-center text-[hsl(var(--color-text))]/40">ไม่พบใบแจ้งหนี้ค้างชำระที่ตรงกับการค้นหา</td></tr>
                 ) : (
                   filtered.map((inv) => {
                     const days = daysSince(inv.dueDate);
                     return (
-                      <tr key={inv.id} className="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors">
-                        <td className="px-4 py-3 font-semibold text-on-surface">{roomNum(inv)}</td>
-                        <td className="px-4 py-3 text-on-surface-variant">{tenantName(inv)}</td>
+                      <tr key={inv.id} className="border-b border-[hsl(var(--color-border))]/50 hover:bg-[hsl(var(--color-surface))] transition-colors">
+                        <td className="px-4 py-3 font-semibold text-[hsl(var(--color-text))]">{roomNum(inv)}</td>
+                        <td className="px-4 py-3 text-[hsl(var(--color-text))]/50">{tenantName(inv)}</td>
                         <td className="px-4 py-3">
-                          <span className="font-mono text-xs font-medium text-primary">{inv.invoiceNumber ?? inv.id.slice(0, 8)}</span>
+                          <span className="font-mono text-xs font-medium text-blue-600">{inv.invoiceNumber ?? inv.id.slice(0, 8)}</span>
                         </td>
-                        <td className="px-4 py-3 text-on-surface-variant"><ClientOnly fallback="-">{new Date(inv.dueDate).toLocaleDateString('th-TH')}</ClientOnly></td>
+                        <td className="px-4 py-3 text-[hsl(var(--color-text))]/50"><ClientOnly fallback="-">{new Date(inv.dueDate).toLocaleDateString('th-TH')}</ClientOnly></td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${daysOverdueBadge(days ?? 0)}`}>
                             <Clock className={`h-3 w-3 ${daysOverdueText(days ?? 0)}`} />
@@ -318,17 +339,17 @@ export default function AdminOverduePage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <span className="font-semibold text-on-error-container">{money(inv.totalAmount)}</span>
+                          <span className="font-semibold text-red-600">{money(inv.totalAmount)}</span>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <button onClick={() => void sendReminder(inv.id)} disabled={working === `remind:${inv.id}` || working === 'all'}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container disabled:opacity-60">
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))]/70 transition-colors hover:bg-[hsl(var(--color-surface))]/80 disabled:opacity-40 active:scale-95">
                               <Send className="h-3.5 w-3.5" />
                               {working === `remind:${inv.id}` ? 'กำลังส่ง...' : 'ส่งแจ้งเตือน'}
                             </button>
                             <Link href={inv.billingPeriodId ? `/admin/billing/${inv.billingPeriodId}?tab=invoices` : `/admin/invoices`}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container">
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))]/70 transition-colors hover:bg-[hsl(var(--color-surface))]/80">
                               ดูใบแจ้งหนี้
                             </Link>
                           </div>
@@ -341,7 +362,7 @@ export default function AdminOverduePage() {
             </table>
           </div>
         )}
-      </div>
+      </GlassCard>
     </main>
   );
 }

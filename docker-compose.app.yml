@@ -1,0 +1,44 @@
+##############################################################################
+# Apartment ERP — App Service
+#
+# Requires:
+#   docker network create ${DOCKER_NETWORK:-apartment_net}
+#   docker compose -f docker-compose.db.yml up -d
+#
+# Usage:
+#   docker compose -f docker-compose.app.yml up -d
+#
+# Port: ${APP_PORT:-3001} (เปิดออกข้างนอก port เดียว)
+##############################################################################
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: apartment_app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3001}:3001"
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-anand37048}@apartment_postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-test}"
+      REDIS_URL: "redis://apartment_redis:${REDIS_PORT:-6379}/1"
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3001}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3001}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3001}
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+    logging:
+      options:
+        max-size: "50m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          memory: "1g"
+
+networks:
+  apartment_net:
+    external: true

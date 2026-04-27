@@ -23,8 +23,8 @@ import {
   Users,
   XCircle,
 } from 'lucide-react';
+import { statusBadgeClassWithBorder } from '@/lib/status-colors';
 
-// Workaround: cast Lock to React.FC for TypeScript compatibility with lucide-react
 const LockIcon: React.FC<{ className?: string }> = Lock as React.FC<{ className?: string }>;
 
 // ---------------------------------------------------------------------------
@@ -147,32 +147,35 @@ function fmtDateTime(iso: string | null | undefined): string {
 
 function cycleBadgeClass(status: CycleStatus): string {
   switch (status) {
-    case 'CLOSED': return 'bg-slate-100 text-slate-600 border-slate-200';
-    case 'IMPORTED': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-    case 'LOCKED': return 'bg-blue-100 text-blue-700 border-blue-200';
-    case 'INVOICED': return 'bg-violet-100 text-violet-700 border-violet-200';
-    case 'OPEN': return 'bg-amber-100 text-amber-700 border-amber-200';
-    default: return 'bg-slate-100 text-slate-600 border-slate-200';
+    case 'CLOSED':   return statusBadgeClassWithBorder('neutral');
+    case 'IMPORTED':  return statusBadgeClassWithBorder('success');
+    case 'LOCKED':    return statusBadgeClassWithBorder('info');
+    case 'INVOICED':  return statusBadgeClassWithBorder('violet');
+    case 'OPEN':      return statusBadgeClassWithBorder('warning');
+    default:          return statusBadgeClassWithBorder('neutral');
   }
 }
 
 function invoiceBadgeClass(status: InvoiceStatus): string {
   switch (status) {
-    case 'PAID': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-    case 'SENT': return 'bg-blue-100 text-blue-700 border-blue-200';
-    case 'OVERDUE': return 'bg-red-100 text-red-700 border-red-200';
-    case 'DRAFT': return 'bg-amber-100 text-amber-700 border-amber-200';
-    case 'CANCELLED': return 'bg-slate-100 text-slate-500 border-slate-200';
-    default: return 'bg-slate-100 text-slate-600 border-slate-200';
+    case 'PAID':      return statusBadgeClassWithBorder('success');
+    case 'SENT':      return statusBadgeClassWithBorder('info');
+    case 'OVERDUE':   return statusBadgeClassWithBorder('danger');
+    case 'DRAFT':     return statusBadgeClassWithBorder('warning');
+    case 'GENERATED': return statusBadgeClassWithBorder('info');
+    case 'VIEWED':    return statusBadgeClassWithBorder('violet');
+    case 'CANCELLED': return statusBadgeClassWithBorder('neutral');
+    default:          return statusBadgeClassWithBorder('neutral');
   }
 }
 
 function recordStatusBadgeClass(status: string): string {
   switch (status?.toUpperCase()) {
-    case 'CONFIRMED': return 'bg-emerald-100 text-emerald-700';
-    case 'DRAFT': return 'bg-amber-100 text-amber-700';
-    case 'VOID': return 'bg-red-100 text-red-700';
-    default: return 'bg-slate-100 text-slate-600';
+    case 'CONFIRMED': return statusBadgeClassWithBorder('success');
+    case 'LOCKED':    return statusBadgeClassWithBorder('info');
+    case 'DRAFT':     return statusBadgeClassWithBorder('warning');
+    case 'VOID':      return statusBadgeClassWithBorder('danger');
+    default:          return statusBadgeClassWithBorder('neutral');
   }
 }
 
@@ -202,8 +205,8 @@ function TabButton({
       onClick={onClick}
       className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
         active
-          ? 'border-indigo-600 text-indigo-700'
-          : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+          ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]'
+          : 'border-transparent text-[hsl(var(--color-text))]/40 hover:border-[hsl(var(--color-border))] hover:text-[hsl(var(--color-text))]/70'
       }`}
     >
       {children}
@@ -225,15 +228,13 @@ function StatCard({
   iconColor: string;
 }) {
   return (
-    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+    <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-2xl p-5 hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 transition-all duration-200">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</div>
-          <div className="text-xl font-semibold text-on-surface mt-0.5">{value}</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">{label}</div>
+          <div className="text-xl font-semibold text-[hsl(var(--color-text))] mt-0.5">{value}</div>
         </div>
-        <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border shadow-sm ${iconBg} ${iconColor}`}
-        >
+        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border shadow-sm ${iconBg} ${iconColor}`}>
           {icon}
         </div>
       </div>
@@ -250,19 +251,34 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(50);
+  const [totalPages, setTotalPages] = useState(1);
+  const [floorFilter, setFloorFilter] = useState<string>('all');
 
   useEffect(() => {
     setLoading(true);
     setError(null);
     (async () => {
       try {
-        const res = await fetch(`/api/billing?billingPeriodId=${cycleId}&pageSize=100`, {
+        const params = new URLSearchParams({
+          billingPeriodId: cycleId,
+          page: String(page),
+          pageSize: String(pageSize),
+        });
+        if (floorFilter !== 'all') {
+          params.set('floor', floorFilter);
+        }
+        const res = await fetch(`/api/billing?${params.toString()}`, {
           cache: 'no-store',
         }).then((r) => r.json());
         if (res.success && res.data) {
           const raw = res.data?.data ?? res.data ?? [];
           const list: BillingRecord[] = Array.isArray(raw) ? raw : [];
           setRecords(list);
+          const total = res.data?.total ?? res.data?.totalPages ?? 1;
+          setTotalPages(typeof total === 'number' ? total : 1);
+          if (res.data?.totalPages) setTotalPages(res.data.totalPages);
           setLoading(false);
           return;
         }
@@ -272,7 +288,11 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
       setError('ไม่สามารถโหลดรายการบิล');
       setLoading(false);
     })();
-  }, [cycleId]);
+  }, [cycleId, page, pageSize, floorFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [floorFilter]);
 
   function toggleRow(id: string) {
     setExpanded((prev) => {
@@ -285,140 +305,206 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
 
   if (loading) {
     return (
-      <div className="py-12 text-center text-sm text-slate-500">กำลังโหลดรายการบิล...</div>
+      <div className="py-12 text-center text-sm text-[hsl(var(--color-text))]/40">กำลังโหลดรายการบิล...</div>
     );
   }
 
   if (error) {
-    return <div className="auth-alert auth-alert-error">{error}</div>;
+    return (
+      <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 backdrop-blur">
+        {error}
+      </div>
+    );
   }
 
   if (records.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
-        <Inbox className="h-10 w-10 text-slate-300" />
-        <p className="text-sm text-slate-500">ยังไม่มีรายการบิลในรอบนี้</p>
+        <Inbox className="h-10 w-10 text-[hsl(var(--color-text))]/20" />
+        <p className="text-sm text-[hsl(var(--color-text))]/40">ยังไม่มีรายการบิลในรอบนี้</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-auto">
-      <table className="w-full text-sm text-left">
-        <thead className="bg-surface-container">
-          <tr>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant" />
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ผู้เช่า</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รายการ</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ยอดรวม</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {records.map((rec) => {
-            const isOpen = expanded.has(rec.id);
-            const items = rec.items ?? [];
-            const itemSummary =
-              items.length > 0
-                ? items.map((it) => it.description).join(', ')
-                : `${items.length} items`;
-            return (
-              <React.Fragment key={rec.id}>
-                <tr className="cursor-pointer hover:bg-slate-50" onClick={() => toggleRow(rec.id)}>
-                  <td className="w-8 text-center">
-                    {isOpen ? (
-                      <ChevronUp className="h-4 w-4 text-slate-400 inline" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-slate-400 inline" />
-                    )}
-                  </td>
-                  <td>
-                    <span className="font-semibold text-slate-800">{getRoomNumber(rec)}</span>
-                  </td>
-                  <td className="text-slate-600">{getTenantName(rec)}</td>
-                  <td className="max-w-[240px] truncate text-slate-500 text-sm">
-                    {items.length === 0 ? (
-                      <span className="text-slate-400 italic">ไม่มีรายการ</span>
-                    ) : (
-                      itemSummary
-                    )}
-                  </td>
-                  <td className="font-semibold text-slate-800 tabular-nums">
-                    {money(rec.totalAmount)}
-                  </td>
-                  <td>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${recordStatusBadgeClass(rec.status)}`}
-                    >
-                      {rec.status ?? 'DRAFT'}
-                    </span>
-                  </td>
-                </tr>
-                {isOpen && (
-                  <tr key={`${rec.id}-expand`} className="bg-slate-50/70">
-                    <td colSpan={6} className="px-4 pb-4 pt-2">
-                      {items.length === 0 ? (
-                        <p className="text-sm text-slate-400 italic">ไม่มีรายการบิล</p>
-                      ) : (
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                              <th className="pb-1 text-left">รายการ</th>
-                              <th className="pb-1 text-right">จำนวน</th>
-                              <th className="pb-1 text-right">ราคา/หน่วย</th>
-                              <th className="pb-1 text-right">ยอดรวม</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {items.map((it) => (
-                              <tr key={it.id} className="border-b border-slate-100 last:border-0">
-                                <td className="py-1.5 text-slate-700">{it.description}</td>
-                                <td className="py-1.5 text-right tabular-nums text-slate-600">
-                                  {it.quantity}
-                                </td>
-                                <td className="py-1.5 text-right tabular-nums text-slate-600">
-                                  {money(it.unitPrice)}
-                                </td>
-                                <td className="py-1.5 text-right tabular-nums font-semibold text-slate-800">
-                                  {money(it.amount)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
+    <div className="flex flex-col gap-3">
+      {/* Filter + Pagination bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Floor filter */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-[hsl(var(--color-text))]/40">ชั้น:</label>
+          <select
+            value={floorFilter}
+            onChange={e => setFloorFilter(e.target.value)}
+            className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-1.5 text-sm text-[hsl(var(--color-text))]/80 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+          >
+            <option value="all">ทุกชั้น</option>
+            <option value="1">ชั้น 1</option>
+            <option value="2">ชั้น 2</option>
+            <option value="3">ชั้น 3</option>
+            <option value="4">ชั้น 4</option>
+            <option value="5">ชั้น 5</option>
+            <option value="6">ชั้น 6</option>
+            <option value="7">ชั้น 7</option>
+            <option value="8">ชั้น 8</option>
+          </select>
+        </div>
 
-                      {/* Lock button for DRAFT records */}
-                      {rec.status === 'DRAFT' && (
-                        <div className="mt-3 flex items-center gap-2 border-t border-slate-200 pt-3">
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              // Optimistic update
-                              setRecords((prev) => prev.map(r => r.id === rec.id ? { ...r, status: 'LOCKED' } : r));
-                              // Revert on failure
-                              const res = await fetch(`/api/billing/${rec.id}/lock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
-                              if (!res.ok) {
-                                setRecords((prev) => prev.map(r => r.id === rec.id ? { ...r, status: 'DRAFT' } : r));
-                              }
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
-                          >
-                            <LockIcon className="h-3.5 w-3.5" />
-                            ล็อกบันทึก
-                          </button>
-                          <span className="text-xs text-slate-500">ล็อกเพื่อเปิดใช้งานการสร้างใบแจ้งหนี้</span>
-                        </div>
+        {/* Pagination */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-[hsl(var(--color-text))]/40">
+            หน้า {page} / {totalPages} ({records.length} รายการ)
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] text-xs text-[hsl(var(--color-text))]/60 hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 disabled:opacity-40 active:scale-[0.98] transition-all"
+            >
+              ‹
+            </button>
+            {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => {
+              const pageNum = i + 1;
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setPage(pageNum)}
+                  className={`flex h-7 w-7 items-center justify-center rounded-lg border text-xs transition-all active:scale-[0.98] ${
+                    page === pageNum
+                      ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))] font-semibold'
+                      : 'border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] text-[hsl(var(--color-text))]/60 hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] text-xs text-[hsl(var(--color-text))]/60 hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 disabled:opacity-40 active:scale-[0.98] transition-all"
+            >
+              ›
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-auto">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-[hsl(var(--color-surface))]/50">
+            <tr>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40" />
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ห้อง</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ผู้เช่า</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">รายการ</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ยอดรวม</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">สถานะ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {records.map((rec) => {
+              const isOpen = expanded.has(rec.id);
+              const items = rec.items ?? [];
+              const itemSummary =
+                items.length > 0
+                  ? items.map((it) => it.description).join(', ')
+                  : `${items.length} items`;
+              return (
+                <React.Fragment key={rec.id}>
+                  <tr className="cursor-pointer hover:bg-[hsl(var(--color-surface))]/50 transition-colors border-b border-[hsl(var(--color-border))]/5" onClick={() => toggleRow(rec.id)}>
+                    <td className="w-8 text-center">
+                      {isOpen ? (
+                        <ChevronUp className="h-4 w-4 text-[hsl(var(--color-text))]/40 inline" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-[hsl(var(--color-text))]/40 inline" />
                       )}
                     </td>
+                    <td>
+                      <span className="font-semibold text-[hsl(var(--color-text))]/90">{getRoomNumber(rec)}</span>
+                    </td>
+                    <td className="text-[hsl(var(--color-text))]/50">{getTenantName(rec)}</td>
+                    <td className="max-w-[240px] truncate text-[hsl(var(--color-text))]/40 text-sm">
+                      {items.length === 0 ? (
+                        <span className="text-[hsl(var(--color-text))]/30 italic">ไม่มีรายการ</span>
+                      ) : (
+                        itemSummary
+                      )}
+                    </td>
+                    <td className="font-semibold text-[hsl(var(--color-text))]/90 tabular-nums">
+                      {money(rec.totalAmount)}
+                    </td>
+                    <td>
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${recordStatusBadgeClass(rec.status)}`}
+                      >
+                        {rec.status ?? 'DRAFT'}
+                      </span>
+                    </td>
                   </tr>
-                )}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+                  {isOpen && (
+                    <tr key={`${rec.id}-expand`} className="bg-[hsl(var(--color-surface))]/20">
+                      <td colSpan={6} className="px-4 pb-4 pt-2">
+                        {items.length === 0 ? (
+                          <p className="text-sm text-[hsl(var(--color-text))]/30 italic">ไม่มีรายการบิล</p>
+                        ) : (
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-[hsl(var(--color-border))]/5 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/40">
+                                <th className="pb-1 text-left">รายการ</th>
+                                <th className="pb-1 text-right">จำนวน</th>
+                                <th className="pb-1 text-right">ราคา/หน่วย</th>
+                                <th className="pb-1 text-right">ยอดรวม</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {items.map((it) => (
+                                <tr key={it.id} className="border-b border-[hsl(var(--color-border))]/5 last:border-0">
+                                  <td className="py-1.5 text-[hsl(var(--color-text))]/70">{it.description}</td>
+                                  <td className="py-1.5 text-right tabular-nums text-[hsl(var(--color-text))]/50">
+                                    {it.quantity}
+                                  </td>
+                                  <td className="py-1.5 text-right tabular-nums text-[hsl(var(--color-text))]/50">
+                                    {money(it.unitPrice)}
+                                  </td>
+                                  <td className="py-1.5 text-right tabular-nums font-semibold text-[hsl(var(--color-text))]/90">
+                                    {money(it.amount)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+
+                        {/* Lock button for DRAFT records */}
+                        {rec.status === 'DRAFT' && (
+                          <div className="mt-3 flex items-center gap-2 border-t border-white/[0.07] pt-3">
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                setRecords((prev) => prev.map(r => r.id === rec.id ? { ...r, status: 'LOCKED' } : r));
+                                const res = await fetch(`/api/billing/${rec.id}/lock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+                                if (!res.ok) {
+                                  setRecords((prev) => prev.map(r => r.id === rec.id ? { ...r, status: 'DRAFT' } : r));
+                                }
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-500/20 active:scale-[0.98] transition-all"
+                            >
+                              <LockIcon className="h-3.5 w-3.5" />
+                              ล็อกบันทึก
+                            </button>
+                            <span className="text-xs text-[hsl(var(--color-text))]/40">ล็อกเพื่อเปิดใช้านการสร้างใบแจ้งหนี้</span>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -500,25 +586,33 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
   const unsentCount = invoices.filter((inv) => inv.status === 'DRAFT' || inv.status === 'GENERATED').length;
 
   if (loading) {
-    return <div className="py-12 text-center text-sm text-slate-500">กำลังโหลดใบแจ้งหนี้...</div>;
+    return <div className="py-12 text-center text-sm text-[hsl(var(--color-text))]/40">กำลังโหลดใบแจ้งหนี้...</div>;
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {message && <div className="auth-alert auth-alert-success">{message}</div>}
-      {error && <div className="auth-alert auth-alert-error">{error}</div>}
+      {message && (
+        <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm px-4 py-3 font-medium backdrop-blur">
+          {message}
+        </div>
+      )}
+      {error && (
+        <div className="rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 font-medium backdrop-blur">
+          {error}
+        </div>
+      )}
 
       {/* Bulk action bar */}
       {unsentCount > 0 && (
-        <div className="flex items-center justify-between rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <span className="text-sm text-amber-800">
+        <div className="flex items-center justify-between rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 backdrop-blur">
+          <span className="text-sm text-amber-400">
             <span className="font-semibold">{unsentCount}</span> unsent invoice
             {unsentCount !== 1 ? 's' : ''} ready to send via LINE.
           </span>
           <button
             onClick={() => void sendAllUnsent()}
             disabled={sendingAll}
-            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-sm font-medium text-white shadow-glow-primary transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover active:scale-[0.98] disabled:opacity-40"
           >
             <Send className="h-4 w-4" />
             {sendingAll ? 'Sending...' : 'Send All Unsent'}
@@ -528,41 +622,41 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
 
       {invoices.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <FileText className="h-10 w-10 text-slate-300" />
-          <p className="text-sm text-slate-500">ยังไม่มีใบแจ้งหนี้ในรอบบิลนี้</p>
+          <FileText className="h-10 w-10 text-[hsl(var(--color-text))]/20" />
+          <p className="text-sm text-[hsl(var(--color-text))]/40">ยังไม่มีใบแจ้งหนี้ในรอบบิลนี้</p>
         </div>
       ) : (
         <div className="overflow-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-surface-container">
+            <thead className="bg-[hsl(var(--color-surface))]/50">
               <tr>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">รหัสใบแจ้งหนี้</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ผู้เช่า</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">จำนวน</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">วันครบกำหนด</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ส่งเมื่อ</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">การดำเนินการ</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">รหัสใบแจ้งหนี้</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ห้อง</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ผู้เช่า</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">จำนวน</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">วันครบกำหนด</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">สถานะ</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ส่งเมื่อ</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">การดำเนินการ</th>
               </tr>
             </thead>
             <tbody>
               {invoices.map((inv) => (
-                <tr key={inv.id}>
+                <tr key={inv.id} className="border-b border-[hsl(var(--color-border))]/5 hover:bg-[hsl(var(--color-surface))]/50 transition-colors">
                   <td>
                     <Link
                       href={`/admin/invoices/${inv.id}`}
-                      className="font-mono text-xs text-primary hover:underline" title={inv.id}
+                      className="font-mono text-xs text-[hsl(var(--color-primary-light))] hover:underline" title={inv.id}
                     >
                       {inv.id.slice(0, 8)}…
                     </Link>
                   </td>
-                  <td className="font-semibold text-slate-800">{getRoomNumber(inv)}</td>
-                  <td className="text-slate-600">{getTenantName(inv)}</td>
-                  <td className="tabular-nums font-semibold text-slate-800">
+                  <td className="font-semibold text-[hsl(var(--color-text))]/90">{getRoomNumber(inv)}</td>
+                  <td className="text-[hsl(var(--color-text))]/50">{getTenantName(inv)}</td>
+                  <td className="tabular-nums font-semibold text-[hsl(var(--color-text))]/90">
                     {money(inv.totalAmount)}
                   </td>
-                  <td className="text-slate-600">{fmtDate(inv.dueDate)}</td>
+                  <td className="text-[hsl(var(--color-text))]/50">{fmtDate(inv.dueDate)}</td>
                   <td>
                     <span
                       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${invoiceBadgeClass(inv.status)}`}
@@ -570,14 +664,14 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
                       {inv.status}
                     </span>
                   </td>
-                  <td className="text-slate-500 text-sm">{fmtDateTime(inv.sentAt)}</td>
+                  <td className="text-[hsl(var(--color-text))]/40 text-sm">{fmtDateTime(inv.sentAt)}</td>
                   <td>
                     <div className="flex items-center gap-2">
                       {(inv.status === 'DRAFT' || inv.status === 'GENERATED' || inv.status === 'VIEWED') && (
                         <button
                           onClick={() => void sendInvoice(inv.id)}
                           disabled={sending === inv.id}
-                          className="flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-60"
+                          className="flex items-center gap-1 rounded-lg border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400 hover:bg-blue-500/20 active:scale-[0.98] transition-all disabled:opacity-60"
                         >
                           <MessageSquare className="h-3.5 w-3.5" />
                           {sending === inv.id ? '...' : 'LINE'}
@@ -587,7 +681,7 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
                         href={`/api/invoices/${inv.id}/pdf`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                        className="flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/50 px-2.5 py-1 text-xs font-medium text-[hsl(var(--color-text))]/70 hover:bg-[hsl(var(--color-surface))]/80 active:scale-[0.98] transition-all"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
                         PDF
@@ -632,18 +726,22 @@ function BatchTab({ batchId }: { batchId: string }) {
   }, [batchId]);
 
   if (loading) {
-    return <div className="py-12 text-center text-sm text-slate-500">กำลังโหลดข้อมูลนำเข้า...</div>;
+    return <div className="py-12 text-center text-sm text-[hsl(var(--color-text))]/40">กำลังโหลดข้อมูลนำเข้า...</div>;
   }
 
   if (error) {
-    return <div className="auth-alert auth-alert-error">{error}</div>;
+    return (
+      <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 backdrop-blur">
+        {error}
+      </div>
+    );
   }
 
   if (!batch) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
-        <Package className="h-10 w-10 text-slate-300" />
-        <p className="text-sm text-slate-500">ไม่พบข้อมูลนำเข้า</p>
+        <Package className="h-10 w-10 text-[hsl(var(--color-text))]/20" />
+        <p className="text-sm text-[hsl(var(--color-text))]/40">ไม่พบข้อมูลนำเข้า</p>
       </div>
     );
   }
@@ -658,43 +756,43 @@ function BatchTab({ batchId }: { batchId: string }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Batch info card */}
-      <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">ไฟล์</div>
-          <div className="mt-1 text-sm font-medium text-slate-800 break-all">{filename}</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/40">ไฟล์</div>
+          <div className="mt-1 text-sm font-medium text-[hsl(var(--color-text))]/80 break-all">{filename}</div>
         </div>
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">นำเข้าเมื่อ</div>
-          <div className="mt-1 text-sm font-medium text-slate-800">{fmtDateTime(importedAt)}</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/40">นำเข้าเมื่อ</div>
+          <div className="mt-1 text-sm font-medium text-[hsl(var(--color-text))]/80">{fmtDateTime(importedAt)}</div>
         </div>
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">จำนวนรายการ</div>
-          <div className="mt-1 text-2xl font-bold text-slate-800 tabular-nums">{totalRows}</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/40">จำนวนรายการ</div>
+          <div className="mt-1 text-2xl font-bold text-[hsl(var(--color-text))] tabular-nums">{totalRows}</div>
         </div>
         <div className="flex gap-4">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">ถูกต้อง</div>
-            <div className="mt-1 text-2xl font-bold text-emerald-700 tabular-nums">{validRows}</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-400">ถูกต้อง</div>
+            <div className="mt-1 text-2xl font-bold text-emerald-400 tabular-nums">{validRows}</div>
           </div>
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-red-500">ไม่ถูกต้อง</div>
-            <div className="mt-1 text-2xl font-bold text-red-600 tabular-nums">{invalidRows}</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-red-400">ไม่ถูกต้อง</div>
+            <div className="mt-1 text-2xl font-bold text-red-400 tabular-nums">{invalidRows}</div>
           </div>
         </div>
       </div>
 
       {/* Rows table */}
       {rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-slate-400">ไม่มีรายละเอียดรายการ</p>
+        <p className="py-8 text-center text-sm text-[hsl(var(--on-surface-variant))]">ไม่มีรายละเอียดรายการ</p>
       ) : (
         <div className="overflow-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-surface-container">
+            <thead className="bg-[hsl(var(--color-surface))]/50">
               <tr>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">#</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">การตรวจสอบ</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ข้อผิดพลาด</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">#</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ห้อง</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">การตรวจสอบ</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ข้อผิดพลาด</th>
               </tr>
             </thead>
             <tbody>
@@ -702,24 +800,24 @@ function BatchTab({ batchId }: { batchId: string }) {
                 const firstError = row.validationErrors?.[0]?.message ?? null;
                 const isValid = row.validationStatus !== 'ERROR';
                 return (
-                  <tr key={row.id}>
-                    <td className="tabular-nums text-slate-500">{row.rowNo ?? idx + 1}</td>
-                    <td className="font-semibold text-slate-800">{row.roomNumber ?? '-'}</td>
+                  <tr key={row.id} className="border-b border-[hsl(var(--color-border))]/5 hover:bg-[hsl(var(--color-surface))]/50 transition-colors">
+                    <td className="tabular-nums text-[hsl(var(--color-text))]/40">{row.rowNo ?? idx + 1}</td>
+                    <td className="font-semibold text-[hsl(var(--color-text))]/90">{row.roomNumber ?? '-'}</td>
                     <td>
                       {isValid ? (
-                        <span className="flex items-center gap-1 text-emerald-600 text-sm font-medium">
+                        <span className="flex items-center gap-1 text-emerald-400 text-sm font-medium">
                           <CheckCircle2 className="h-4 w-4" />
                           ถูกต้อง
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-red-600 text-sm font-medium">
+                        <span className="flex items-center gap-1 text-red-400 text-sm font-medium">
                           <XCircle className="h-4 w-4" />
                           ไม่ถูกต้อง
                         </span>
                       )}
                     </td>
-                    <td className="text-sm text-red-600">
-                      {firstError ? firstError : <span className="text-slate-300">—</span>}
+                    <td className="text-sm text-red-400">
+                      {firstError ? firstError : <span className="text-[hsl(var(--color-text))]/30">—</span>}
                     </td>
                   </tr>
                 );
@@ -741,7 +839,6 @@ export default function BillingCycleDetailPage() {
   const searchParams = useSearchParams();
   const billingId = params.billingId;
 
-  // Support deep-linking to a specific tab via ?tab=invoices|records|batch
   const initialTab = ((): ActiveTab => {
     const t = searchParams?.get('tab');
     if (t === 'invoices' || t === 'records' || t === 'batch') return t;
@@ -761,7 +858,6 @@ export default function BillingCycleDetailPage() {
     setError(null);
     setNotFound(false);
 
-    // Try the canonical cycle endpoint first, then fall back to a billing record lookup.
     const endpoints = [
       `/api/billing-cycles/${billingId}`,
       `/api/billing/${billingId}`,
@@ -790,35 +886,33 @@ export default function BillingCycleDetailPage() {
     void load();
   }, [load]);
 
-  // Loading state
   if (loading) {
     return (
       <main className="space-y-6">
-        <div className="py-16 text-center text-sm text-on-surface-variant">กำลังโหลดรอบบิล...</div>
+        <div className="py-16 text-center text-sm text-[hsl(var(--color-text))]/40">กำลังโหลดรอบบิล...</div>
       </main>
     );
   }
 
-  // Not found fallback
   if (notFound || (!loading && !cycle)) {
     return (
       <main className="space-y-6">
-        <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-          <Link href="/admin/billing" className="hover:text-primary transition-colors">
+        <nav className="flex items-center gap-1.5 text-sm text-[hsl(var(--color-text))]/40">
+          <Link href="/admin/billing" className="hover:text-[hsl(var(--primary))] transition-colors">
             Billing
           </Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <span className="font-medium text-on-surface">ไม่พบ</span>
+          <span className="font-medium text-[hsl(var(--color-text))]/60">ไม่พบ</span>
         </nav>
-        <div className="flex flex-col items-center gap-4 rounded-3xl border border-outline-variant/10 bg-surface-container-lowest py-20 text-center">
-          <AlertTriangle className="h-12 w-12 text-tertiary" />
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur py-20 text-center">
+          <AlertTriangle className="h-12 w-12 text-amber-400" />
           <div>
-            <h2 className="text-lg font-semibold text-on-surface">ไม่พบรอบบิล</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              ไม่พบรอบบิลหรือใบแจ้งหนี้ที่มี ID <code className="font-mono text-xs">{billingId}</code>
+            <h2 className="text-lg font-semibold text-[hsl(var(--color-text))]">ไม่พบรอบบิล</h2>
+            <p className="mt-1 text-sm text-[hsl(var(--color-text))]/40">
+              ไม่พบรอบบิลหรือใบแจ้งหนี้ที่มี ID <code className="font-mono text-xs text-[hsl(var(--primary))]">{billingId}</code>
             </p>
           </div>
-          <Link href="/admin/billing" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors mt-2">
+          <Link href="/admin/billing" className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white shadow-glow-primary transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover active:scale-[0.98] mt-2">
             <ArrowLeft className="h-4 w-4" />
             Back to Billing
           </Link>
@@ -837,26 +931,26 @@ export default function BillingCycleDetailPage() {
   return (
     <main className="space-y-6">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-        <Link href="/admin/billing" className="hover:text-primary transition-colors">
+      <nav className="flex items-center gap-1.5 text-sm text-[hsl(var(--color-text))]/40">
+        <Link href="/admin/billing" className="hover:text-[hsl(var(--primary))] transition-colors">
           Billing
         </Link>
         <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-        <span className="font-medium text-on-surface">{cycleLabel}</span>
+        <span className="font-medium text-[hsl(var(--color-text))]/60">{cycleLabel}</span>
       </nav>
 
       {/* Page header */}
-      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
+      <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-6 py-5 shadow-[var(--glow-primary)]">
         <div className="flex items-center gap-4">
           <Link
             href="/admin/billing"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-colors hover:border-primary/30 hover:bg-surface-container"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/50 shadow-sm transition-all hover:border-[hsl(var(--primary))]/30 hover:bg-[hsl(var(--color-surface))]/80 active:scale-[0.98]"
           >
-            <ArrowLeft className="h-4 w-4 text-on-primary" />
+            <ArrowLeft className="h-4 w-4 text-[hsl(var(--color-text))]/70" />
           </Link>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold text-on-primary">{cycleLabel}</h1>
+              <h1 className="text-xl font-semibold text-[hsl(var(--color-text))]">{cycleLabel}</h1>
               {cycle?.status && (
                 <span
                   className={`inline-flex items-center rounded-full border px-3 py-0.5 text-xs font-semibold ${cycleBadgeClass(cycle.status as CycleStatus)}`}
@@ -865,10 +959,10 @@ export default function BillingCycleDetailPage() {
                 </span>
               )}
             </div>
-            <p className="text-sm text-on-primary/80">
+            <p className="text-sm text-[hsl(var(--color-text))]/50">
               {building}
               {batchId && (
-                <span className="ml-2 font-mono text-xs text-on-primary/60">
+                <span className="ml-2 font-mono text-xs text-[hsl(var(--color-text))]/30">
                   Batch: {batchId.slice(0, 8)}…
                 </span>
               )}
@@ -878,13 +972,13 @@ export default function BillingCycleDetailPage() {
         <div className="flex items-center gap-2 mt-4">
           <button
             onClick={() => void load()}
-            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 active:scale-[0.98]"
           >
             <RefreshCw className="h-4 w-4" />
             Refresh
           </button>
 
-          {/* Lock All — fetches records inline to lock all DRAFT records */}
+          {/* Lock All */}
           <button
             onClick={async () => {
               setBulkMessage(null);
@@ -922,13 +1016,13 @@ export default function BillingCycleDetailPage() {
               await load();
               setActiveTab('records');
             }}
-            className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 shadow-sm transition-colors hover:bg-amber-100"
+            className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-400 transition-all hover:bg-amber-500/20 active:scale-[0.98]"
           >
             <Lock className="h-4 w-4" />
             ล็อกทั้งหมด
           </button>
 
-          {/* Generate Invoices — fetches records inline to generate for all LOCKED records */}
+          {/* Generate Invoices */}
           <button
             onClick={async () => {
               setBulkMessage(null);
@@ -966,20 +1060,24 @@ export default function BillingCycleDetailPage() {
               await load();
               setActiveTab('invoices');
             }}
-            className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100"
+            className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 transition-all hover:bg-emerald-500/20 active:scale-[0.98]"
           >
             <FileText className="h-4 w-4" />
             สร้างใบแจ้งหนี้
           </button>
         </div>
         {bulkMessage && (
-          <div className={`mt-3 rounded-lg px-4 py-2 text-sm ${bulkMessage.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+          <div className={`mt-3 rounded-lg px-4 py-2 text-sm ${bulkMessage.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border border-red-500/20 text-red-400'}`}>
             {bulkMessage.text}
           </div>
         )}
       </section>
 
-      {error && <div className="auth-alert auth-alert-error">{error}</div>}
+      {error && (
+        <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 backdrop-blur">
+          {error}
+        </div>
+      )}
 
       {/* Stats row */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -987,36 +1085,36 @@ export default function BillingCycleDetailPage() {
           label="รายการทั้งหมด"
           value={cycle?.totalRecords ?? '—'}
           icon={<Hash className="h-5 w-5" />}
-          iconBg="border-indigo-200 bg-indigo-50"
-          iconColor="text-indigo-600"
+          iconBg="border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/20"
+          iconColor="text-[hsl(var(--color-primary-light))]"
         />
         <StatCard
           label="ยอดรวม"
           value={money(cycle?.totalAmount)}
           icon={<Receipt className="h-5 w-5" />}
-          iconBg="border-emerald-200 bg-emerald-50"
-          iconColor="text-emerald-600"
+          iconBg="border border-emerald-500/30 bg-emerald-500/20"
+          iconColor="text-emerald-400"
         />
         <StatCard
           label="ใบแจ้งหนี้ที่ออก"
           value={cycle?.invoicesIssued ?? '—'}
           icon={<FileText className="h-5 w-5" />}
-          iconBg="border-blue-200 bg-blue-50"
-          iconColor="text-blue-600"
+          iconBg="border border-blue-500/30 bg-blue-500/20"
+          iconColor="text-blue-400"
         />
         <StatCard
           label="ชำระแล้ว"
           value={cycle?.paymentsReceived ?? '—'}
           icon={<Users className="h-5 w-5" />}
-          iconBg="border-violet-200 bg-violet-50"
-          iconColor="text-violet-600"
+          iconBg="border border-violet-500/30 bg-violet-500/20"
+          iconColor="text-violet-400"
         />
       </section>
 
       {/* Tabs + content */}
-      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      <section className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-2xl overflow-hidden">
         {/* Tab bar */}
-        <div className="flex border-b border-outline-variant px-4">
+        <div className="flex border-b border-[hsl(var(--color-border))] px-4">
           <TabButton active={activeTab === 'records'} onClick={() => setActiveTab('records')}>
             <Hash className="h-4 w-4" />
             รายการ
@@ -1043,8 +1141,8 @@ export default function BillingCycleDetailPage() {
               <BatchTab batchId={batchId} />
             ) : (
               <div className="flex flex-col items-center gap-3 py-16 text-center">
-                <Package className="h-10 w-10 text-slate-300" />
-                <p className="text-sm text-slate-500">ยังไม่มีข้อมูลนำเข้าในรอบบิลนี้</p>
+                <Package className="h-10 w-10 text-[hsl(var(--color-text))]/20" />
+                <p className="text-sm text-[hsl(var(--color-text))]/40">ยังไม่มีข้อมูลนำเข้าในรอบบิลนี้</p>
               </div>
             )
           )}

@@ -113,13 +113,13 @@ export function RoomDetailsCard(props: Props) {
                 </div>
               ) : null}
               {overdueDays != null && overdueDays > 0 ? (
-                <div className="flex items-center justify-between rounded-2xl bg-amber-50/80 px-3 py-2">
+                <div className="flex items-center justify-between rounded-2xl bg-warning-container/20 px-3 py-2">
                   <span>ค้างชำระ</span>
-                  <span className="font-medium text-red-600">{overdueDays} วัน</span>
+                  <span className="font-medium text-on-error-container">{overdueDays} วัน</span>
                 </div>
               ) : null}
               {lastPayment ? (
-                <div className="flex items-center justify-between rounded-2xl bg-emerald-50/80 px-3 py-2">
+                <div className="flex items-center justify-between rounded-2xl bg-success-container/20 px-3 py-2">
                   <span>ชำระล่าสุด</span>
                   <span className="font-medium text-slate-900">{new Date(lastPayment).toLocaleDateString('th-TH')}</span>
                 </div>

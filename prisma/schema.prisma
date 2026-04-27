@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -33,9 +34,26 @@ model BillingRule {
   electricMinCharge        Decimal        @db.Decimal(10, 2)
   electricServiceFeeMode   ServiceFeeMode
   electricServiceFeeAmount Decimal        @db.Decimal(10, 2)
+  // Water STEP tiers
+  waterS1Upto              Decimal?       @db.Decimal(10, 2)
+  waterS1Rate              Decimal?        @db.Decimal(10, 2)
+  waterS2Upto              Decimal?        @db.Decimal(10, 2)
+  waterS2Rate              Decimal?        @db.Decimal(10, 2)
+  waterS3Rate              Decimal?        @db.Decimal(10, 2)
+  // Electric STEP tiers
+  electricS1Upto           Decimal?        @db.Decimal(10, 2)
+  electricS1Rate           Decimal?        @db.Decimal(10, 2)
+  electricS2Upto          Decimal?       @db.Decimal(10, 2)
+  electricS2Rate           Decimal?       @db.Decimal(10, 2)
+  electricS3Rate           Decimal?       @db.Decimal(10, 2)
   penaltyPerDay            Decimal         @default(0) @db.Decimal(10, 2)
   maxPenalty               Decimal         @default(0) @db.Decimal(10, 2)
   gracePeriodDays          Int             @default(0)
+  // Common area (ส่วนกลาง) water allocation — a bulk meter covers shared spaces
+  // (lobby, parking, guard room). Monthly cost is distributed across occupied rooms.
+  commonAreaWaterEnabled   Boolean         @default(false)
+  commonAreaWaterBulkUnits Decimal?       @db.Decimal(10, 2) // total bulk units consumed this month (manual entry)
+  commonAreaWaterRate      Decimal?        @db.Decimal(10, 2) // cost per unit (same as waterUnitPrice or custom)
   roomBillings             RoomBilling[]  @relation("RoomBillingRule")
   rooms                    Room[]         @relation("RoomDefaultRule")
 
@@ -96,6 +114,9 @@ model BillingPeriod {
   status        BillingPeriodStatus @default(OPEN)
   dueDay        Int                 @default(25)
   note          String?
+  // Common area water billing — the bulk meter reading for the whole building
+  commonAreaWaterUnits   Decimal? @db.Decimal(10, 2) // bulk units consumed this period
+  commonAreaWaterAmount   Decimal? @db.Decimal(12, 2) // total cost to distribute
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @db.Timestamptz(6)
   importBatches ImportBatch[]
@@ -116,6 +137,8 @@ model RoomBilling {
   ruleOverrideCode         String?
   ruleCode                 String
   rentAmount               Decimal           @db.Decimal(10, 2)
+  // Populated when a tenant moves in/out mid-month — actual rent charged for partial occupancy
+  proratedRent             Decimal?          @db.Decimal(10, 2)
   waterMode                MeterMode
   waterPrev                Decimal?          @db.Decimal(10, 2)
   waterCurr                Decimal?          @db.Decimal(10, 2)
@@ -137,6 +160,8 @@ model RoomBilling {
   furnitureFee             Decimal           @default(0) @db.Decimal(10, 2)
   otherFee                 Decimal           @default(0) @db.Decimal(10, 2)
   totalDue                 Decimal           @default(0) @db.Decimal(10, 2)
+  // Common area water share — each room's proportional share of building bulk water
+  commonAreaWaterShare    Decimal?          @db.Decimal(10, 2)
   note                     String?
   checkNotes               String?
   status                   RoomBillingStatus @default(DRAFT)
@@ -510,6 +535,7 @@ model UploadedFile {
   documentGenerationJobBundles DocumentGenerationJob[]   @relation("GenerationJobBundleFile")
   templateVersions             DocumentTemplateVersion[] @relation("TemplateVersionSourceFile")
   generatedDocumentFiles       GeneratedDocumentFile[]
+  templateVersionImages       TemplateVersionImage[]
 
   @@index([mimeType])
   @@index([createdAt])
@@ -748,11 +774,43 @@ model DocumentTemplateVersion {
   template           DocumentTemplate              @relation("TemplateVersions", fields: [templateId], references: [id], onDelete: Cascade)
   activeForTemplates DocumentTemplate[]            @relation("ActiveTemplateVersion")
   generatedDocuments GeneratedDocument[]
+  inlineImages       TemplateVersionImage[]
 
   @@unique([templateId, version])
   @@index([templateId, status])
   @@index([sourceFileId])
   @@map("document_template_versions")
+}
+
+model DocumentTemplateComment {
+  id          String    @id @default(uuid())
+  templateId  String
+  versionId   String?
+  anchorText  String   // selected text when comment was created
+  content     String
+  authorId    String
+  authorName  String
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([templateId])
+  @@map("document_template_comments")
+}
+
+model TemplateVersionImage {
+  id           String    @id @default(uuid())
+  versionId    String
+  uploadedFileId String
+  imageUrl     String    // URL stored in HTML body (used to track by URL)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  version      DocumentTemplateVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  uploadedFile UploadedFile @relation(fields: [uploadedFileId], references: [id])
+
+  @@index([versionId])
+  @@index([uploadedFileId])
+  @@index([imageUrl])
+  @@map("template_version_images")
 }
 
 model DocumentTemplateFieldDefinition {
@@ -1000,6 +1058,8 @@ enum ContractStatus {
 enum MeterMode {
   NORMAL
   MANUAL
+  FLAT
+  STEP
 }
 
 enum ServiceFeeMode {
@@ -1348,6 +1408,12 @@ model MoveOut {
   depositAmount     Decimal          @db.Decimal(12, 2)
   totalDeduction   Decimal          @default(0) @db.Decimal(12, 2)
   finalRefund       Decimal          @default(0) @db.Decimal(12, 2)
+  // Move-out meter readings captured at the time of tenant departure.
+  // Used to compute the final settlement bill (prorated rent + utilities).
+  // If the reading is lower than the last billed value, it indicates a meter
+  // replacement and the difference is waived (meterReset).
+  moveOutWaterReading   Decimal? @db.Decimal(10, 2)
+  moveOutElectricReading Decimal? @db.Decimal(10, 2)
   status            MoveOutStatus    @default(PENDING)
   notes             String?
   lineNoticeSentAt  DateTime? @db.Timestamptz(6)

@@ -78,8 +78,9 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       if (primary?.tenant) {
         tenantFullName = `${primary.tenant.firstName ?? ''} ${primary.tenant.lastName ?? ''}`.trim();
       }
-    } catch {
-      // Non-blocking
+    } catch (err) {
+      // Non-blocking: tenant name stays blank — log and continue
+      logger.warn({ type: 'tenant_resolve_failed', roomNo: conversation.roomNo, error: err instanceof Error ? err.message : String(err) });
     }
   }
   resolvedBody = applyPlainTextTemplateVariables(resolvedBody, {

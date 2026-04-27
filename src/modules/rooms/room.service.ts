@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma, EventBus, logger, EventTypes } from '@/lib';
+import { ROOM_STATUS, CONTRACT_STATUS } from '@/lib/constants';
 
 import {
   CreateRoomInput,
@@ -60,7 +61,7 @@ export class RoomService {
           defaultRentAmount: input.defaultRentAmount,
           hasFurniture: input.hasFurniture ?? false,
           defaultFurnitureAmount: input.defaultFurnitureAmount ?? 0,
-          roomStatus: input.roomStatus ?? 'VACANT',
+          roomStatus: input.roomStatus ?? ROOM_STATUS.VACANT,
           lineUserId: input.lineUserId,
         },
       });
@@ -101,6 +102,19 @@ export class RoomService {
     );
 
     return this.formatRoomResponse(room);
+  }
+
+  // Natural roomNo comparator (handles "798/1", "798/10", "3201" correctly)
+  private compareRoomNo(a: string, b: string): number {
+    const parseParts = (s: string) => {
+      const slashIdx = s.indexOf('/');
+      if (slashIdx === -1) return { prefix: parseInt(s, 10), suffix: 0 };
+      return { prefix: parseInt(s.substring(0, slashIdx), 10), suffix: parseInt(s.substring(slashIdx + 1), 10) };
+    };
+    const aP = parseParts(a);
+    const bP = parseParts(b);
+    if (aP.prefix !== bP.prefix) return aP.prefix - bP.prefix;
+    return aP.suffix - bP.suffix;
   }
 
   /**
@@ -188,23 +202,38 @@ export class RoomService {
     });
     const statusCounts: RoomStatusCounts = { VACANT: 0, OCCUPIED: 0, MAINTENANCE: 0, OWNER_USE: 0 };
     for (const g of statusGroups) {
-      if (g.roomStatus === 'VACANT' || g.roomStatus === 'OCCUPIED' || g.roomStatus === 'MAINTENANCE' || g.roomStatus === 'OWNER_USE') {
+      if (g.roomStatus === ROOM_STATUS.VACANT || g.roomStatus === ROOM_STATUS.OCCUPIED || g.roomStatus === ROOM_STATUS.MAINTENANCE || g.roomStatus === ROOM_STATUS.OWNER_USE) {
         statusCounts[g.roomStatus] = g._count.roomStatus;
       }
     }
 
     // Get rooms with pagination
+    const isRoomNoSort = sortBy === 'roomNo';
     const rooms = await prisma.room.findMany({
       where,
-      orderBy: {
-        [sortBy]: sortOrder,
-      },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      orderBy: isRoomNoSort ? { roomNo: 'asc' } : { [sortBy]: sortOrder },
+      skip: isRoomNoSort ? 0 : (page - 1) * pageSize,
+      take: isRoomNoSort ? 1000 : pageSize,
     });
 
+    // Natural roomNo sort: floor first, then natural roomNo within each floor
+    let sortedRooms = rooms;
+    if (isRoomNoSort) {
+      sortedRooms = sortOrder === 'desc'
+        ? [...rooms].sort((a, b) => {
+            if (a.floorNo !== b.floorNo) return b.floorNo - a.floorNo;
+            return this.compareRoomNo(b.roomNo, a.roomNo);
+          })
+        : [...rooms].sort((a, b) => {
+            if (a.floorNo !== b.floorNo) return a.floorNo - b.floorNo;
+            return this.compareRoomNo(a.roomNo, b.roomNo);
+          });
+    }
+
+    const pagedRooms = isRoomNoSort ? sortedRooms.slice((page - 1) * pageSize, page * pageSize) : sortedRooms;
+
     return {
-      data: rooms.map((room) => this.formatRoomResponse(room)),
+      data: pagedRooms.map((room) => this.formatRoomResponse(room)),
       total,
       page,
       pageSize,
@@ -243,7 +272,7 @@ export class RoomService {
     }
 
     // Guard: cannot set room to VACANT via update if it has any active tenants
-    if (input.roomStatus === 'VACANT') {
+    if (input.roomStatus === ROOM_STATUS.VACANT) {
       const activeTenants = await prisma.roomTenant.findMany({
         where: {
           roomNo,
@@ -253,6 +282,25 @@ export class RoomService {
       if (activeTenants.length > 0) {
         throw new ConflictError(
           'ไม่สามารถตั้งค่าห้องเป็นว่างได้: ห้องมีผู้เช่าที่ยังอยู่อาศัย กรุณาใช้การย้ายออกแทน'
+        );
+      }
+    }
+
+    // Guard: cannot set room to MAINTENANCE or OWNER_USE via update if it has unpaid invoices
+    // (must use changeRoomStatus which has additional guards including the maintenance-ticket gate)
+    if (
+      (input.roomStatus === ROOM_STATUS.MAINTENANCE || input.roomStatus === ROOM_STATUS.OWNER_USE) &&
+      existingRoom.roomStatus === ROOM_STATUS.OCCUPIED
+    ) {
+      const unpaidInvoices = await prisma.invoice.findMany({
+        where: {
+          roomNo,
+          status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
+        },
+      });
+      if (unpaidInvoices.length > 0) {
+        throw new BadRequestError(
+          `ไม่สามารถเปลี่ยนสถานะเป็นไม่ใช้งานได้: ห้องมีใบแจ้งหนี้ที่ยังไม่ชำระ ${unpaidInvoices.length} รายการ กรุณาชำระหนี้ก่อนหรือใช้งานการย้ายออก`
         );
       }
     }
@@ -268,7 +316,7 @@ export class RoomService {
           hasFurniture: input.hasFurniture,
           defaultFurnitureAmount: input.defaultFurnitureAmount,
           roomStatus: input.roomStatus,
-          lineUserId: input.lineUserId,
+          ...(input.lineUserId !== undefined && { lineUserId: input.lineUserId }),
         },
       });
       if (Object.keys(changes).length > 0) {
@@ -335,7 +383,7 @@ export class RoomService {
     }
 
     // Guard: cannot set room to VACANT if it has any active tenants
-    if (input.roomStatus === 'VACANT') {
+    if (input.roomStatus === ROOM_STATUS.VACANT) {
       const activeTenants = await prisma.roomTenant.findMany({
         where: {
           roomNo,
@@ -350,46 +398,62 @@ export class RoomService {
     }
 
     const room = await prisma.$transaction(async (tx) => {
-      // Guard: if going to MAINTENANCE or OWNER_USE (taken out of available pool),
-      // block if the room has any unpaid invoices
-      if (input.roomStatus === 'MAINTENANCE' || input.roomStatus === 'OWNER_USE') {
-        const unpaidInvoices = await tx.invoice.findMany({
+      // Guard: MAINTENANCE requires an open maintenance ticket.
+      // Prevents a dishonest staff member from marking a room "under maintenance"
+      // to secretly rent it out for cash (Ghost Booking attack).
+      if (input.roomStatus === ROOM_STATUS.MAINTENANCE) {
+        const hasOpenTicket = await tx.maintenanceTicket.findFirst({
           where: {
             roomNo,
-            status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
+            status: { in: ['OPEN', 'IN_PROGRESS'] },
           },
         });
-        if (unpaidInvoices.length > 0) {
+        if (!hasOpenTicket) {
           throw new BadRequestError(
-            `ไม่สามารถเปลี่ยนสถานะเป็นไม่ใช้งานได้: ห้องมีใบแจ้งหนี้ที่ยังไม่ชำระ ${unpaidInvoices.length} รายการ`
+            'ไม่สามารถตั้งเป็นซ่อมบำรุงได้: ต้องมีรายการแจ้งซ่อมที่เปิดอยู่ก่อน'
           );
         }
       }
 
-      const updated = await tx.room.update({
-        where: { roomNo },
-        data: {
-          roomStatus: input.roomStatus,
+      // Guard: MAINTENANCE or OWNER_USE → check for unpaid invoices
+      if (input.roomStatus === ROOM_STATUS.MAINTENANCE || input.roomStatus === ROOM_STATUS.OWNER_USE) {
+      const unpaidInvoices = await tx.invoice.findMany({
+        where: {
+          roomNo,
+          status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
         },
       });
-      await tx.outboxEvent.create({
-        data: {
-          id: uuidv4(),
-          aggregateType: 'Room',
-          aggregateId: updated.roomNo,
-          eventType: EventTypes.ROOM_STATUS_CHANGED,
-          payload: {
-            roomNo: updated.roomNo,
-            previousStatus: existingRoom.roomStatus,
-            newStatus: input.roomStatus,
-            reason: input.reason,
-            changedBy,
-          },
-          retryCount: 0,
-        },
-      });
-      return updated;
+      if (unpaidInvoices.length > 0) {
+        throw new BadRequestError(
+          `ไม่สามารถเปลี่ยนสถานะเป็นไม่ใช้งานได้: ห้องมีใบแจ้งหนี้ที่ยังไม่ชำระ ${unpaidInvoices.length} รายการ`
+        );
+      }
+    }
+
+    const updated = await tx.room.update({
+      where: { roomNo },
+      data: {
+        roomStatus: input.roomStatus,
+      },
     });
+    await tx.outboxEvent.create({
+      data: {
+        id: uuidv4(),
+        aggregateType: 'Room',
+        aggregateId: updated.roomNo,
+        eventType: EventTypes.ROOM_STATUS_CHANGED,
+        payload: {
+          roomNo: updated.roomNo,
+          previousStatus: existingRoom.roomStatus,
+          newStatus: input.roomStatus,
+          reason: input.reason,
+          changedBy,
+        },
+        retryCount: 0,
+      },
+    });
+    return updated;
+  });
 
     // Publish event
     const payload: RoomStatusChangedPayload = {
@@ -441,7 +505,7 @@ export class RoomService {
     const activeContract = await prisma.contract.findFirst({
       where: {
         roomNo,
-        status: 'ACTIVE',
+        status: CONTRACT_STATUS.ACTIVE,
       },
     });
 
@@ -469,8 +533,8 @@ export class RoomService {
 
     const [total, vacant, occupied] = await Promise.all([
       prisma.room.count({ where }),
-      prisma.room.count({ where: { ...where, roomStatus: 'VACANT' } }),
-      prisma.room.count({ where: { ...where, roomStatus: 'OCCUPIED' } }),
+      prisma.room.count({ where: { ...where, roomStatus: ROOM_STATUS.VACANT } }),
+      prisma.room.count({ where: { ...where, roomStatus: ROOM_STATUS.OCCUPIED } }),
     ]);
 
     return {
@@ -490,7 +554,7 @@ export class RoomService {
       orderBy: { roomNo: 'asc' },
     });
 
-    return rooms.map((room) => this.formatRoomResponse(room));
+    return [...rooms].sort((a, b) => this.compareRoomNo(a.roomNo, b.roomNo)).map((room) => this.formatRoomResponse(room));
   }
 
   /**

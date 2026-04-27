@@ -105,6 +105,9 @@ export async function logAudit(input: LogAuditInput): Promise<void> {
     auditLogger.info(action, entityType, entityId, metadata);
   } catch (error) {
     auditLogger.error(action, entityType, entityId, error as Error);
+    // Audit log failures are critical — surface immediately so the operation
+    // cannot silently succeed while the audit trail is missing.
+    throw new Error(`Audit log write failed for ${action} on ${entityType}:${entityId}: ${(error as Error).message}`);
   }
 }
 

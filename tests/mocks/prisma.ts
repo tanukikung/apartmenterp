@@ -21,7 +21,7 @@ function model() {
 }
 
 export function mockPrismaClient() {
-  const prisma = {
+  const prisma: Record<string, any> = {
     // Core billing / invoices (new schema)
     invoice:             model(),
     invoiceDelivery:     model(),
@@ -43,6 +43,15 @@ export function mockPrismaClient() {
     roomTenant:          model(),
     floor:               model(),
     tenant:              model(),
+    contract:            model(),
+    moveOut:             model(),
+    moveOutItem:         model(),
+    bankAccount:         model(),
+    billingRule:         model(),
+    tenantRegistration:  model(),
+    staffRegistrationRequest: model(),
+    admin:               model(),
+    expense:             model(),
     config:              model(),
 
     // Templates
@@ -59,13 +68,16 @@ export function mockPrismaClient() {
     conversation:        model(),
     message:             model(),
     lineUser:            model(),
+    broadcast:           model(),
+    notification:        model(),
+    reminderConfig:      model(),
 
     // Misc
     uploadedFile:        model(),
     auditLog:            model(),
 
     // Prisma transaction helper
-    $transaction: vi.fn(async (fn: (tx: any) => any) => {
+    $transaction: vi.fn(async (fn: (tx: Record<string, ReturnType<typeof model>>) => any) => {
       const tx: Record<string, ReturnType<typeof model>> = {
         invoice:            prisma.invoice,
         invoiceDelivery:    prisma.invoiceDelivery,
@@ -73,17 +85,27 @@ export function mockPrismaClient() {
         roomBilling:        prisma.roomBilling,
         importBatch:        prisma.importBatch,
         payment:            prisma.payment,
+        paymentTransaction:  prisma.paymentTransaction,
         outboxEvent:        prisma.outboxEvent,
         billingRecord:      prisma.billingRecord,
         billingItem:        prisma.billingItem,
         billingItemType:    prisma.billingItemType,
-        paymentTransaction: prisma.paymentTransaction,
         invoiceVersion:     prisma.invoiceVersion,
         room:               prisma.room,
         roomTenant:         prisma.roomTenant,
         floor:              prisma.floor,
         tenant:             prisma.tenant,
+        contract:           prisma.contract,
+        moveOut:            prisma.moveOut,
+        moveOutItem:        prisma.moveOutItem,
+        bankAccount:        prisma.bankAccount,
+        billingRule:        prisma.billingRule,
+        tenantRegistration:  prisma.tenantRegistration,
+        staffRegistrationRequest: prisma.staffRegistrationRequest,
+        admin:              prisma.admin,
+        expense:            prisma.expense,
         config:             prisma.config,
+        auditLog:           prisma.auditLog,
         documentTemplate:   prisma.documentTemplate,
         documentTemplateVersion: prisma.documentTemplateVersion,
         documentTemplateFieldDefinition: prisma.documentTemplateFieldDefinition,
@@ -95,8 +117,10 @@ export function mockPrismaClient() {
         conversation:       prisma.conversation,
         message:            prisma.message,
         lineUser:           prisma.lineUser,
+        broadcast:          prisma.broadcast,
+        notification:       prisma.notification,
+        reminderConfig:      prisma.reminderConfig,
         uploadedFile:       prisma.uploadedFile,
-        auditLog:           prisma.auditLog,
       };
       // $queryRaw is used by the outbox processor for SKIP LOCKED batches
       (tx as any).$queryRaw = vi.fn().mockResolvedValue([]);

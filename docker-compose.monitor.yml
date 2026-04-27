@@ -1,0 +1,91 @@
+##############################################################################
+# Apartment ERP — Monitoring Stack (INTERNAL ONLY)
+#
+# ใช้ภายใน Docker network เท่านั้น
+# เข้าถึงได้แค่จาก app container หรือ exec เข้า container
+#
+# Usage:
+#   docker compose -f docker-compose.monitor.yml up -d
+#   docker exec apartment_grafana grafana-cli admin reset-admin-password newpass
+##############################################################################
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: apartment_prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    # ไม่มี ports: - ใช้ได้แค่ภายใน Docker network
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: apartment_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_LOG_MODE: console
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    # ไม่มี ports: - ใช้ได้แค่ภายใน Docker network
+    depends_on:
+      - prometheus
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: apartment_postgres_exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-anand37048}@apartment_postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-test}?sslmode=disable"
+      PG_EXPORTER_DISABLE_DEFAULT_METRICS: "false"
+      PG_EXPORTER_AUTO_DISCOVER_DATABASES: "true"
+    # ไม่มี ports:
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: apartment_redis_exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: "apartment_redis:${REDIS_PORT:-6379}"
+    # ไม่มี ports:
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+networks:
+  apartment_net:
+    external: true
+
+volumes:
+  prometheus_data:
+  grafana_data

@@ -395,8 +395,10 @@ export function asyncHandler<
         return await (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(r, resOrContext as { params: Params } | undefined);
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return await (handler as any)(req, resOrContext);
+      // Fallback for edge/custom server adapters — handler is typed as `any`
+      // to support heterogeneous API shapes; safe because asyncHandler always
+      // returns NextResponse|void.
+      return await (handler as (req: unknown, ctx?: unknown) => Promise<NextResponse>)(req, resOrContext);
     } catch (error) {
       const [, resOrContext] = args as [unknown, unknown?];
 

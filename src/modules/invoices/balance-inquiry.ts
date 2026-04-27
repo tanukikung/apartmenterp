@@ -140,6 +140,9 @@ export async function getLatestUnpaidInvoiceForLineUser(
     };
   }
 
+  // Include late fee if already applied (late fee accrues daily after due date)
+  const effectiveAmount = Number(invoice.totalAmount) + Number(invoice.lateFeeAmount ?? 0);
+
   const invoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.roomNo}`;
   const dueDateStr = invoice.dueDate.toISOString().split('T')[0];
   const periodLabel = formatThaiMonth(invoice.month, invoice.year);
@@ -157,7 +160,7 @@ export async function getLatestUnpaidInvoiceForLineUser(
     invoiceNumber,
     dueDate: dueDateStr,
     periodLabel,
-    totalAmount: Number(invoice.totalAmount),
+    totalAmount: effectiveAmount,
     status: invoice.status,
     pdfUrl,
     notLinked: false,

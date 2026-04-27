@@ -1,0 +1,72 @@
+##############################################################################
+# Apartment ERP — Database Services (INTERNAL ONLY)
+#
+# สำหรับใช้ภายใน Docker network เท่านั้น
+# Ports ไม่ได้ expose ออกข้างนอก - เข้าถึงได้แค่จาก app container
+#
+# Usage:
+#   docker network create ${DOCKER_NETWORK:-apartment_net}
+#   docker compose -f docker-compose.db.yml up -d
+##############################################################################
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: apartment_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anand37048}
+      POSTGRES_DB: ${POSTGRES_DB:-test}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # ไม่มี ports: - ติดต่อได้แค่ภายใน Docker network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-test}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+
+  redis:
+    image: redis:7-alpine
+    container_name: apartment_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru --save 60 1 300 10
+    volumes:
+      - redisdata:/data
+    # ไม่มี ports: - ติดต่อได้แค่ภายใน Docker network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "3"
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+
+networks:
+  apartment_net:
+    name: ${DOCKER_NETWORK:-apartment_net}
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata

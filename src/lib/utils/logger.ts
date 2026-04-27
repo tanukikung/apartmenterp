@@ -1,6 +1,4 @@
 import pino from 'pino';
-import fs from 'fs';
-import path from 'path';
 
 // Log levels
 export type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
@@ -21,14 +19,21 @@ function resolveLevel(): LogLevel {
 const isProduction = process.env.NODE_ENV === 'production';
 let destination: pino.DestinationStream | undefined;
 if (isProduction) {
-  const dir = process.env.LOG_DIR || '/logs';
-  try {
-    fs.mkdirSync(dir, { recursive: true });
-  } catch (err) {
-    console.error('Failed to create log directory:', err);
-  }
-  const file = path.join(dir, 'app.log');
-  destination = pino.destination({ dest: file, sync: false });
+  // Lazy-load Node.js modules only when needed (avoids Edge runtime issues)
+  // Use dynamic import() to avoid bundling fs/path in Edge runtime
+  const initFileDestination = async () => {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const dir = process.env.LOG_DIR || '/logs';
+      fs.mkdirSync(dir, { recursive: true });
+      const file = path.join(dir, 'app.log');
+      destination = pino.destination({ dest: file, sync: false });
+    } catch (err) {
+      console.error('Failed to create log directory:', err);
+    }
+  };
+  initFileDestination().catch(() => { /* ignore */ });
 }
 
 export const logger = pino({

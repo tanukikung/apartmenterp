@@ -38,7 +38,7 @@ export function InvoiceCard({ invoiceId, amount, dueDate, status, lineConfigured
             ส่งผ่าน LINE
           </button>
           {showTip && (
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800 shadow-sm z-10">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-lg border border-warning-container/30 bg-warning-container/10 px-2 py-1 text-xs text-on-warning-container shadow-sm z-10">
               ยังไม่ได้ตั้งค่า LINE
             </div>
           )}

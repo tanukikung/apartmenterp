@@ -1,7 +1,12 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { logger } from '../utils/logger';
 
-const globalForPrisma = globalThis as any as {
+/** Typing for Prisma event listener registration — used to type $on calls */
+type PrismaEventListener = {
+  $on(event: 'query' | 'warn' | 'error', cb: (e: unknown) => void): void;
+};
+
+const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
@@ -50,17 +55,17 @@ export const prisma =
 
 // Set up query logging in development
 if (process.env.NODE_ENV === 'development') {
-  (prisma as any as { $on: (event: string, cb: (e: unknown) => void) => void }).$on(
+  (prisma as unknown as PrismaEventListener).$on(
     'query',
     (e: unknown) => logQuery(e as QueryEventLike)
   );
 }
 
-(prisma as any as { $on: (event: string, cb: (e: unknown) => void) => void }).$on(
+(prisma as unknown as PrismaEventListener).$on(
   'warn',
   (e: unknown) => logError('warn', (e as { message: string }).message)
 );
-(prisma as any as { $on: (event: string, cb: (e: unknown) => void) => void }).$on(
+(prisma as unknown as PrismaEventListener).$on(
   'error',
   (e: unknown) => logError('error', (e as { message: string }).message)
 );
@@ -122,7 +127,7 @@ export async function withTransaction<T>(
  * Raw query helper
  */
 export async function rawQuery<T>(query: string, ...args: unknown[]): Promise<T> {
-  return prisma.$queryRawUnsafe(query, ...args) as any as T;
+  return prisma.$queryRawUnsafe(query, ...args) as unknown as T;
 }
 
 // Re-export all Prisma types for convenience

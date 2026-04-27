@@ -87,12 +87,13 @@ export function getRequestIp(req: NextRequest): string | null {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  const directIp = (req as any as { ip?: string }).ip;
+  // req.ip is set by Next.js when behind a proxy; fall back to x-forwarded-for
+  const directIp = req.headers.get('x-real-ip') ?? null;
   if (directIp && trustedProxies.includes(directIp)) {
     const forwardedFor = req.headers.get('x-forwarded-for');
     if (forwardedFor) return forwardedFor.split(',')[0]?.trim() || null;
   }
-  return directIp || null;
+  return directIp || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null;
 }
 
 export interface VerifiedActor {

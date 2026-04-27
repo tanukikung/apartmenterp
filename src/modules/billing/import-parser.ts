@@ -69,6 +69,10 @@ export const roomBillingRowSchema = z.object({
   note: z.string().nullable(),
   checkNotes: z.string().nullable(),
   roomStatus: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
+
+  // Prorated rent fields — when a tenant moves in/out mid-month
+  moveInDate: z.string().nullable().optional(),
+  moveOutDate: z.string().nullable().optional(),
 });
 
 export type RoomBillingRow = z.infer<typeof roomBillingRowSchema>;

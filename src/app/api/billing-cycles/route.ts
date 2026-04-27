@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/client';
 import { requireAuthSession } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import type { BillingPeriodStatus } from '@prisma/client';
+import { BILLING_PERIOD_STATUS, INVOICE_STATUS } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const sortOrder = (url.searchParams.get('sortOrder') ?? 'desc') as 'asc' | 'desc';
 
   // Validate status against BillingPeriodStatus enum so Prisma never receives an invalid value
-  const VALID_BILLING_PERIOD_STATUSES = ['OPEN', 'LOCKED', 'CLOSED'] as const;
+  const VALID_BILLING_PERIOD_STATUSES = [BILLING_PERIOD_STATUS.OPEN, BILLING_PERIOD_STATUS.LOCKED, BILLING_PERIOD_STATUS.CLOSED] as const;
   if (status && !VALID_BILLING_PERIOD_STATUSES.includes(status as typeof VALID_BILLING_PERIOD_STATUSES[number])) {
     return NextResponse.json(
       { success: false, error: { code: 'INVALID_STATUS', message: `Invalid status '${status}'. Must be one of: ${VALID_BILLING_PERIOD_STATUSES.join(', ')}` } },
@@ -39,7 +40,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     ...(status ? { status: status as BillingPeriodStatus } : {}),
   };
 
-  const orderBy =
+  const orderBy: Record<string, 'asc' | 'desc'>[] =
     sortBy === 'year'
       ? [{ year: sortOrder }, { month: sortOrder }]
       : sortBy === 'month'
@@ -50,8 +51,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     prisma.billingPeriod.count({ where }),
     prisma.billingPeriod.findMany({
       where,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      orderBy: orderBy as any,
+      orderBy,
       skip: (page - 1) * pageSize,
       take: pageSize,
       include: {
@@ -83,10 +83,10 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     const invoiceCount = allInvoices.length;
     const pendingInvoices = allInvoices.filter(
       (inv) =>
-        inv.status === 'GENERATED' ||
-        inv.status === 'SENT' ||
-        inv.status === 'VIEWED' ||
-        inv.status === 'OVERDUE',
+        inv.status === INVOICE_STATUS.GENERATED ||
+        inv.status === INVOICE_STATUS.SENT ||
+        inv.status === INVOICE_STATUS.VIEWED ||
+        inv.status === INVOICE_STATUS.OVERDUE,
     ).length;
 
     return {

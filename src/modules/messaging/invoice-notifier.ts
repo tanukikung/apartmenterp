@@ -2,7 +2,6 @@ import { EventTypes, getEventBus, logger, type QuickReplyItem } from '@/lib';
 import type { InvoiceGenerated } from '@/lib/events';
 import { prisma } from '@/lib';
 import { sendInvoiceMessage, sendTextWithQuickReply } from '@/modules/messaging';
-import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
 
 const bus = getEventBus();
 
@@ -18,6 +17,7 @@ async function handleInvoiceGenerated(event: InvoiceGenerated) {
     include: {
       room: {
         include: {
+          defaultAccount: true,
           tenants: {
             where: { role: 'PRIMARY', moveOutDate: null },
             include: { tenant: true },
@@ -27,7 +27,7 @@ async function handleInvoiceGenerated(event: InvoiceGenerated) {
     },
   });
   if (!invoice || !invoice.room) return;
-  const tenant = (invoice.room as any as RoomWithTenants).tenants?.[0]?.tenant;
+  const tenant = (invoice.room as unknown as RoomWithTenants).tenants?.[0]?.tenant;
   const lineUserId = tenant?.lineUserId;
   if (!lineUserId) {
     logger.warn({ type: 'invoice_notification_skipped_no_line', invoiceId });
@@ -35,8 +35,8 @@ async function handleInvoiceGenerated(event: InvoiceGenerated) {
   }
   const dueDate = new Date(invoice.dueDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
   const invoiceNumber = invoice.id.slice(-8).toUpperCase();
-  const baseUrl = process.env.APP_BASE_URL || '';
-  const paymentLink = buildInvoiceAccessUrl(invoice.id, { absoluteBaseUrl: baseUrl, signed: true });
+
+  const bankAccount = invoice.room.defaultAccount ?? null;
 
   // Send Flex Invoice card + quick reply buttons
   await sendInvoiceMessage(lineUserId, {
@@ -44,7 +44,9 @@ async function handleInvoiceGenerated(event: InvoiceGenerated) {
     amount: `฿${Number(invoice.totalAmount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}`,
     dueDate,
     invoiceNumber,
-    paymentLink,
+    bankAccountNo: bankAccount?.bankAccountNo,
+    bankName: bankAccount?.bankName,
+    bankAccountName: bankAccount?.name,
   });
 
   // Follow up with quick reply text

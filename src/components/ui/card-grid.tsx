@@ -61,7 +61,7 @@ function CardSkeleton({ columns = 4 }: { columns?: 1 | 2 | 3 | 4 }) {
       {[0, 1, 2, 3, 4, 5].map((i) => (
         <div
           key={i}
-          className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden anim-fade-in"
+          className="bg-[hsl(var(--color-surface))] rounded-xl border border-[hsl(var(--color-border))]/10 overflow-hidden anim-fade-in"
           style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
         >
           <div className="p-5 space-y-3">
@@ -98,7 +98,7 @@ function Card<T extends object>({ item, meta, onCardClick, hoverable = true, ind
       whileHover={hoverable ? { y: -4 } : undefined}
       onClick={onCardClick ? () => onCardClick(item) : undefined}
       className={
-        `group relative bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden` +
+        `group relative bg-[hsl(var(--color-surface))] rounded-xl border border-[hsl(var(--color-border))]/10 overflow-hidden` +
         ` transition-[box-shadow,border-color] duration-200` +
         (hoverable
           ? ' hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30 cursor-pointer'

@@ -1,6 +1,7 @@
 'use client';
-import { Component, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { Component, type ReactNode } from 'react';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 
 interface Props {
   children: ReactNode;
@@ -44,7 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         this.props.fallback ?? (
           <div className="flex flex-col items-center justify-center p-8 text-center">
-            <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+            <AlertTriangle className="h-12 w-12 text-on-error-container mb-4" />
             <h2 className="text-lg font-semibold text-slate-900">เกิดข้อผิดพลาด</h2>
             <p className="text-sm text-slate-500 mt-1 mb-4">
               {this.state.error?.message ?? 'ไม่ทราบสาเหตุ'}

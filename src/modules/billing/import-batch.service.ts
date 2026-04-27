@@ -185,16 +185,16 @@ export async function createBillingImportPreviewBatch(input: {
         uploadedFileId: input.uploadedFileId ?? null,
         parseErrors: allErrors.slice(0, 50),
         warningCount: warnings.length,
-        accounts: accounts as any as Prisma.InputJsonValue,
-        rules: rules as any as Prisma.InputJsonValue,
-        rows: allRows as any as Prisma.InputJsonValue,
+        accounts: accounts as unknown as Prisma.InputJsonValue,
+        rules: rules as unknown as Prisma.InputJsonValue,
+        rows: allRows as unknown as Prisma.InputJsonValue,
       },
       importedBy: input.importedBy ?? 'system',
     },
   });
 
   return {
-    rows: allRows as any[],
+    rows: allRows as unknown[],
     preview,
     warnings,
     batch: {
@@ -416,7 +416,7 @@ export async function executeBillingImportBatch(
           if (existingBilling) {
             await prisma.roomBilling.update({
               where: { id: existingBilling.id },
-              data: billingData as any as Parameters<typeof prisma.roomBilling.update>[0]['data'],
+              data: billingData as Parameters<typeof prisma.roomBilling.update>[0]['data'],
             });
           } else {
             const createData = {

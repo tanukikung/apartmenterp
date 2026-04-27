@@ -83,10 +83,10 @@ function StepIndicator({ current }: { current: WizardStep }): JSX.Element {
         const active = i === currentIdx;
         return (
           <div key={step.id} className="flex items-center">
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              done ? 'bg-emerald-100 text-emerald-700' :
-              active ? 'bg-primary text-white' :
-              'bg-surface-container text-on-surface-variant'
+            <div className={`flex items-center gap-2 px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-full text-xs font-semibold transition-all ${
+              done ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+              active ? 'bg-[hsl(var(--primary))] text-white shadow-glow-primary' :
+              'bg-white/[0.05] text-white/60 border border-white/10'
             }`}>
               {done
                 ? <CheckCircle size={12} />
@@ -95,7 +95,7 @@ function StepIndicator({ current }: { current: WizardStep }): JSX.Element {
               <span className="hidden sm:inline">{step.label}</span>
             </div>
             {i < STEPS.length - 1 && (
-              <div className={`h-px w-4 sm:w-8 ${i < currentIdx ? 'bg-emerald-300' : 'bg-outline'}`} />
+              <div className={`h-px w-4 sm:w-8 ${i < currentIdx ? 'bg-emerald-500/40' : 'bg-white/10'}`} />
             )}
           </div>
         );
@@ -143,8 +143,6 @@ export default function BillingWizardPage(): JSX.Element {
     }
   }
 
-  // Treat the wizard as "dirty" while an action is in flight or while the
-  // period is mid-flow (records imported but invoices not yet fully sent).
   const wizardDirty =
     actionLoading ||
     (!!data?.period &&
@@ -157,7 +155,7 @@ export default function BillingWizardPage(): JSX.Element {
   if (loading) {
     return (
       <main className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--color-primary-light))]" />
       </main>
     );
   }
@@ -174,29 +172,29 @@ export default function BillingWizardPage(): JSX.Element {
 
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/admin/billing" className="p-2 rounded-lg hover:bg-surface-container transition-colors">
+        <Link href="/admin/billing" className="p-2 rounded-lg hover:bg-[hsl(var(--color-surface))] transition-colors text-[hsl(var(--color-text))/50] hover:text-[hsl(var(--color-text))/80]">
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-on-surface">Billing Wizard</h1>
-          <p className="text-sm text-on-surface-variant mt-0.5">{monthLabel}</p>
+          <h1 className="text-xl font-bold text-[hsl(var(--color-text))] sm:text-2xl">Billing Wizard</h1>
+          <p className="text-sm text-[hsl(var(--color-text))/50] mt-0.5">{monthLabel}</p>
         </div>
       </div>
 
       {/* Step indicator */}
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-4">
+      <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-4">
         <StepIndicator current={step} />
       </div>
 
       {/* Alerts */}
       {error && (
-        <div className="flex items-center gap-3 rounded-xl bg-error-container/10 border border-error-container/20 px-4 py-3 text-sm text-color-danger font-medium">
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 font-medium backdrop-blur">
           <AlertTriangle size={16} />
           {error}
         </div>
       )}
       {successMsg && (
-        <div className="flex items-center gap-3 rounded-xl bg-tertiary-container/10 border border-tertiary-container/20 px-4 py-3 text-sm text-tertiary-container font-medium">
+        <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400 font-medium backdrop-blur">
           <CheckCircle size={16} />
           {successMsg}
         </div>
@@ -204,35 +202,35 @@ export default function BillingWizardPage(): JSX.Element {
 
       {/* ── Step: Import ──────────────────────────────────────────────────── */}
       {step === 'import' && (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 space-y-5">
+        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary-container flex items-center justify-center">
-              <FileSpreadsheet size={20} className="text-primary" />
+            <div className="h-10 w-10 rounded-xl bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 flex items-center justify-center">
+              <FileSpreadsheet size={20} className="text-[hsl(var(--color-primary-light))]" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-on-surface">นำเข้าข้อมูลมิเตอร์</h2>
-              <p className="text-sm text-on-surface-variant">อัปโหลดไฟล์ Excel ค่าน้ำ/ไฟ สำหรับ {monthLabel}</p>
+              <h2 className="text-lg font-bold text-[hsl(var(--color-text))]">นำเข้าข้อมูลมิเตอร์</h2>
+              <p className="text-sm text-[hsl(var(--color-text))/50]">อัปโหลดไฟล์ Excel ค่าน้ำ/ไฟ สำหรับ {monthLabel}</p>
             </div>
           </div>
 
           {data?.latestBatch ? (
-            <div className="rounded-xl bg-surface-container p-4">
-              <p className="text-sm font-medium text-on-surface">ไฟล์ที่นำเข้าล่าสุด:</p>
-              <p className="text-sm text-on-surface-variant mt-1">{data.latestBatch.filename}</p>
-              <p className="text-xs text-on-surface-variant mt-0.5">{data.latestBatch.rowCount} รายการ</p>
-              <p className="text-xs text-emerald-600 mt-1">✓ นำเข้าแล้ว</p>
+            <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-4">
+              <p className="text-sm font-medium text-[hsl(var(--color-text))/80]">ไฟล์ที่นำเข้าล่าสุด:</p>
+              <p className="text-sm text-[hsl(var(--color-text))/50] mt-1">{data.latestBatch.filename}</p>
+              <p className="text-xs text-[hsl(var(--color-text))/30] mt-0.5">{data.latestBatch.rowCount} รายการ</p>
+              <p className="text-xs text-emerald-400 mt-1">✓ นำเข้าแล้ว</p>
             </div>
           ) : (
-            <div className="rounded-xl border-2 border-dashed border-outline p-8 text-center">
-              <FileSpreadsheet size={32} className="mx-auto text-on-surface-variant mb-3" />
-              <p className="text-sm font-medium text-on-surface">ยังไม่ได้นำเข้าข้อมูลสำหรับเดือนนี้</p>
+            <div className="rounded-xl border-2 border-dashed border-[hsl(var(--color-border))/10] p-8 text-center">
+              <FileSpreadsheet size={32} className="mx-auto text-[hsl(var(--color-text))/20] mb-3" />
+              <p className="text-sm font-medium text-[hsl(var(--color-text))/60]">ยังไม่ได้นำเข้าข้อมูลสำหรับเดือนนี้</p>
             </div>
           )}
 
           <div className="flex items-center gap-3">
             <Link
               href="/admin/billing/import"
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-glow-primary hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover transition-all active:scale-[0.98]"
             >
               <FileSpreadsheet size={16} />
               ไปหน้านำเข้า Excel
@@ -241,7 +239,7 @@ export default function BillingWizardPage(): JSX.Element {
               <button
                 onClick={() => queryClient.setQueryData<WizardData>(['billing-wizard'], (old) => old ? { ...old, currentStep: 'review' } : old)}
                 disabled={actionLoading}
-                className="inline-flex items-center gap-2 rounded-xl border border-outline bg-surface-container-lowest px-5 py-2.5 text-sm font-medium text-on-surface hover:bg-surface-container transition-colors"
+                className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-5 py-2.5 text-sm font-medium text-[hsl(var(--color-text))/70] hover:bg-[hsl(var(--color-surface))/80] hover:border-[hsl(var(--color-border))/20] transition-all active:scale-[0.98]"
               >
                 ข้าม → ตรวจสอบ
               </button>
@@ -249,14 +247,14 @@ export default function BillingWizardPage(): JSX.Element {
           </div>
 
           {!data?.periodExists && (
-            <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm">
-              <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
+            <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm">
+              <AlertTriangle size={16} className="text-amber-400 mt-0.5 shrink-0" />
               <div>
-                <p className="font-medium text-amber-800">ยังไม่มีรอบบิลสำหรับเดือนนี้</p>
+                <p className="font-medium text-amber-400">ยังไม่มีรอบบิลสำหรับเดือนนี้</p>
                 <button
                   onClick={() => doAction('create-period', { dueDay: 25 })}
                   disabled={actionLoading}
-                  className="mt-2 text-xs font-semibold text-amber-700 hover:underline"
+                  className="mt-2 text-xs font-semibold text-amber-400 hover:underline"
                 >
                   + สร้างรอบบิลใหม่
                 </button>
@@ -268,45 +266,45 @@ export default function BillingWizardPage(): JSX.Element {
 
       {/* ── Step: Review ───────────────────────────────────────────────────── */}
       {step === 'review' && period && (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 space-y-5">
+        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center">
-              <FileSpreadsheet size={20} className="text-blue-600" />
+            <div className="h-10 w-10 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+              <FileSpreadsheet size={20} className="text-blue-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-on-surface">ตรวจสอบข้อมูล</h2>
-              <p className="text-sm text-on-surface-variant">ตรวจสอบความถูกต้องก่อนสร้างใบแจ้งหนี้</p>
+              <h2 className="text-lg font-bold text-[hsl(var(--color-text))]">ตรวจสอบข้อมูล</h2>
+              <p className="text-sm text-[hsl(var(--color-text))/50]">ตรวจสอบความถูกต้องก่อนสร้างใบแจ้งหนี้</p>
             </div>
           </div>
 
           {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="rounded-xl bg-surface-container p-4 text-center">
-              <p className="text-2xl font-bold text-primary">{period.totalRecords}</p>
-              <p className="text-xs text-on-surface-variant mt-1">รายการที่มี</p>
+            <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-4 text-center">
+              <p className="text-2xl font-bold text-[hsl(var(--color-primary-light))]">{period.totalRecords}</p>
+              <p className="text-xs text-[hsl(var(--color-text))/40] mt-1">รายการที่มี</p>
             </div>
-            <div className="rounded-xl bg-surface-container p-4 text-center">
-              <p className={`text-2xl font-bold ${period.missingRooms > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+            <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-4 text-center">
+              <p className={`text-2xl font-bold ${period.missingRooms > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
                 {period.missingRooms}
               </p>
-              <p className="text-xs text-on-surface-variant mt-1">ห้องไม่มีข้อมูล</p>
+              <p className="text-xs text-[hsl(var(--color-text))/40] mt-1">ห้องไม่มีข้อมูล</p>
             </div>
-            <div className="rounded-xl bg-surface-container p-4 text-center">
-              <p className="text-2xl font-bold text-on-surface">{formatBaht(period.totalAmount)}</p>
-              <p className="text-xs text-on-surface-variant mt-1">ยอดรวม (฿)</p>
+            <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-4 text-center">
+              <p className="text-2xl font-bold text-[hsl(var(--color-text))]">฿{formatBaht(period.totalAmount)}</p>
+              <p className="text-xs text-[hsl(var(--color-text))/40] mt-1">ยอดรวม (฿)</p>
             </div>
-            <div className="rounded-xl bg-surface-container p-4 text-center">
-              <p className="text-2xl font-bold text-emerald-600">{period.totalRooms}</p>
-              <p className="text-xs text-on-surface-variant mt-1">ห้องทั้งหมด</p>
+            <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-4 text-center">
+              <p className="text-2xl font-bold text-emerald-400">{period.totalRooms}</p>
+              <p className="text-xs text-[hsl(var(--color-text))/40] mt-1">ห้องทั้งหมด</p>
             </div>
           </div>
 
           {period.missingRooms > 0 && (
-            <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm">
-              <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
+            <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm">
+              <AlertTriangle size={16} className="text-amber-400 mt-0.5 shrink-0" />
               <div>
-                <p className="font-medium text-amber-800">มี {period.missingRooms} ห้องที่ไม่มีข้อมูลบิล</p>
-                <p className="text-xs text-amber-700 mt-1">ห้องเหล่านี้จะไม่ถูกสร้างใบแจ้งหนี้ — สามารถเพิ่มข้อมูลได้ที่หน้า Import</p>
+                <p className="font-medium text-amber-400">มี {period.missingRooms} ห้องที่ไม่มีข้อมูลบิล</p>
+                <p className="text-xs text-[hsl(var(--color-text))/40] mt-1">ห้องเหล่านี้จะไม่ถูกสร้างใบแจ้งหนี้ — สามารถเพิ่มข้อมูลได้ที่หน้า Import</p>
               </div>
             </div>
           )}
@@ -315,7 +313,7 @@ export default function BillingWizardPage(): JSX.Element {
             <button
               onClick={() => doAction('lock-and-generate', { periodId: period.id })}
               disabled={actionLoading || period.totalRecords === 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-glow-primary hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover transition-all active:scale-[0.98] disabled:opacity-40"
             >
               {actionLoading
                 ? <Loader2 size={16} className="animate-spin" />
@@ -325,7 +323,7 @@ export default function BillingWizardPage(): JSX.Element {
             </button>
             <Link
               href="/admin/billing"
-              className="inline-flex items-center gap-2 rounded-xl border border-outline bg-surface-container-lowest px-5 py-2.5 text-sm font-medium text-on-surface hover:bg-surface-container transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-5 py-2.5 text-sm font-medium text-[hsl(var(--color-text))/70] hover:bg-[hsl(var(--color-surface))/80] hover:border-[hsl(var(--color-border))/20] transition-all active:scale-[0.98]"
             >
               แก้ไขข้อมูล
             </Link>
@@ -335,25 +333,25 @@ export default function BillingWizardPage(): JSX.Element {
 
       {/* ── Step: Generate ────────────────────────────────────────────────── */}
       {step === 'generate' && period && (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 space-y-5">
+        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-              <CheckCircle size={20} className="text-emerald-600" />
+            <div className="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+              <CheckCircle size={20} className="text-emerald-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-on-surface">สร้างใบแจ้งหนี้แล้ว</h2>
-              <p className="text-sm text-on-surface-variant">รอบบิลถูกล็อกแล้ว กำลังสร้างใบแจ้งหนี้...</p>
+              <h2 className="text-lg font-bold text-[hsl(var(--color-text))]">สร้างใบแจ้งหนี้แล้ว</h2>
+              <p className="text-sm text-[hsl(var(--color-text))/50]">รอบบิลถูกล็อกแล้ว กำลังสร้างใบแจ้งหนี้...</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-xl bg-surface-container p-4 text-center">
-              <p className="text-2xl font-bold text-primary">{period.invoiceCount}</p>
-              <p className="text-xs text-on-surface-variant mt-1">ใบแจ้งหนี้ที่สร้าง</p>
+            <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-4 text-center">
+              <p className="text-2xl font-bold text-[hsl(var(--color-primary-light))]">{period.invoiceCount}</p>
+              <p className="text-xs text-[hsl(var(--color-text))/40] mt-1">ใบแจ้งหนี้ที่สร้าง</p>
             </div>
-            <div className="rounded-xl bg-surface-container p-4 text-center">
-              <p className="text-2xl font-bold text-emerald-600">{period.generatedInvoices}</p>
-              <p className="text-xs text-on-surface-variant mt-1">รอส่ง</p>
+            <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-4 text-center">
+              <p className="text-2xl font-bold text-emerald-400">{period.generatedInvoices}</p>
+              <p className="text-xs text-[hsl(var(--color-text))/40] mt-1">รอส่ง</p>
             </div>
           </div>
 
@@ -361,7 +359,7 @@ export default function BillingWizardPage(): JSX.Element {
             <button
               onClick={() => queryClient.setQueryData<WizardData>(['billing-wizard'], (old) => old ? { ...old, currentStep: 'send' } : old)}
               disabled={period.generatedInvoices === 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-glow-primary hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover transition-all active:scale-[0.98] disabled:opacity-40"
             >
               ส่งใบแจ้งหนี้ →
             </button>
@@ -371,29 +369,29 @@ export default function BillingWizardPage(): JSX.Element {
 
       {/* ── Step: Send ────────────────────────────────────────────────────── */}
       {step === 'send' && period && (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 space-y-5">
+        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center">
-              <Send size={20} className="text-blue-600" />
+            <div className="h-10 w-10 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+              <Send size={20} className="text-blue-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-on-surface">ส่งใบแจ้งหนี้</h2>
-              <p className="text-sm text-on-surface-variant">ส่ง LINE ให้ผู้เช่าทุกห้องที่มีใบแจ้งหนี้รอส่ง</p>
+              <h2 className="text-lg font-bold text-[hsl(var(--color-text))]">ส่งใบแจ้งหนี้</h2>
+              <p className="text-sm text-[hsl(var(--color-text))/50]">ส่ง LINE ให้ผู้เช่าทุกห้องที่มีใบแจ้งหนี้รอส่ง</p>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-xl bg-surface-container p-4 text-center">
-              <p className="text-2xl font-bold text-primary">{period.invoiceCount}</p>
-              <p className="text-xs text-on-surface-variant mt-1">ใบแจ้งหนี้ทั้งหมด</p>
+            <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-4 text-center">
+              <p className="text-2xl font-bold text-[hsl(var(--color-primary-light))]">{period.invoiceCount}</p>
+              <p className="text-xs text-[hsl(var(--color-text))/40] mt-1">ใบแจ้งหนี้ทั้งหมด</p>
             </div>
-            <div className="rounded-xl bg-surface-container p-4 text-center">
-              <p className="text-2xl font-bold text-amber-600">{period.pendingInvoices}</p>
-              <p className="text-xs text-on-surface-variant mt-1">รอส่ง</p>
+            <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-4 text-center">
+              <p className="text-2xl font-bold text-amber-400">{period.pendingInvoices}</p>
+              <p className="text-xs text-[hsl(var(--color-text))/40] mt-1">รอส่ง</p>
             </div>
-            <div className="rounded-xl bg-surface-container p-4 text-center">
-              <p className="text-2xl font-bold text-emerald-600">{period.sentInvoices}</p>
-              <p className="text-xs text-on-surface-variant mt-1">ส่งแล้ว</p>
+            <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-4 text-center">
+              <p className="text-2xl font-bold text-emerald-400">{period.sentInvoices}</p>
+              <p className="text-xs text-[hsl(var(--color-text))/40] mt-1">ส่งแล้ว</p>
             </div>
           </div>
 
@@ -401,7 +399,7 @@ export default function BillingWizardPage(): JSX.Element {
             <button
               onClick={() => doAction('send-all', { periodId: period.id })}
               disabled={actionLoading}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-glow-primary hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover transition-all active:scale-[0.98]"
             >
               {actionLoading
                 ? <Loader2 size={16} className="animate-spin" />
@@ -411,51 +409,51 @@ export default function BillingWizardPage(): JSX.Element {
             </button>
           ) : (
             <div className="flex items-center gap-3">
-              <p className="text-sm text-emerald-600 font-medium">✓ ส่งใบแจ้งหนี้หมดแล้ว</p>
+              <p className="text-sm text-emerald-400 font-medium">✓ ส่งใบแจ้งหนี้หมดแล้ว</p>
               <button
                 onClick={() => queryClient.setQueryData<WizardData>(['billing-wizard'], (old) => old ? { ...old, currentStep: 'complete' } : old)}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 transition-colors"
+                className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-glow-primary hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover transition-all active:scale-[0.98]"
               >
                 เสร็จสิ้น →
               </button>
             </div>
           )}
 
-          <div className="flex items-start gap-3 rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm">
-            <AlertTriangle size={16} className="text-blue-600 mt-0.5 shrink-0" />
-            <p className="text-blue-700">ตรวจสอบว่า LINE Integration ถูก configure แล้ว ถ้าผู้เช่าไม่ได้ลิงก์ LINE account จะไม่ได้รับข้อความ</p>
+          <div className="flex items-start gap-3 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-sm">
+            <AlertTriangle size={16} className="text-blue-400 mt-0.5 shrink-0" />
+            <p className="text-blue-400">ตรวจสอบว่า LINE Integration ถูก configure แล้ว ถ้าผู้เช่าไม่ได้ลิงก์ LINE account จะไม่ได้รับข้อความ</p>
           </div>
         </div>
       )}
 
       {/* ── Step: Complete ─────────────────────────────────────────────────── */}
       {(step === 'complete' || (period && period.sentInvoices === period.generatedInvoices && period.generatedInvoices > 0)) && (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-6 space-y-5">
+        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
           <div className="flex flex-col items-center gap-3 py-6 text-center">
-            <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center">
-              <CheckCircle size={40} className="text-emerald-600" />
+            <div className="h-16 w-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+              <CheckCircle size={40} className="text-emerald-400" />
             </div>
-            <h2 className="text-xl font-bold text-emerald-700">รอบบิลเสร็จสมบูรณ์!</h2>
-            <p className="text-sm text-on-surface-variant">ทุกอย่างพร้อมสำหรับ {monthLabel}</p>
+            <h2 className="text-xl font-bold text-emerald-400">รอบบิลเสร็จสมบูรณ์!</h2>
+            <p className="text-sm text-[hsl(var(--color-text))/50]">ทุกอย่างพร้อมสำหรับ {monthLabel}</p>
           </div>
 
           {period && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="rounded-xl bg-surface-container p-3 text-center">
-                <p className="text-lg font-bold text-primary">{period.totalRecords}</p>
-                <p className="text-[10px] text-on-surface-variant">รายการบิล</p>
+              <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-3 text-center">
+                <p className="text-lg font-bold text-[hsl(var(--color-primary-light))]">{period.totalRecords}</p>
+                <p className="text-[10px] text-[hsl(var(--color-text))/40]">รายการบิล</p>
               </div>
-              <div className="rounded-xl bg-surface-container p-3 text-center">
-                <p className="text-lg font-bold text-primary">{period.invoiceCount}</p>
-                <p className="text-[10px] text-on-surface-variant">ใบแจ้งหนี้</p>
+              <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-3 text-center">
+                <p className="text-lg font-bold text-[hsl(var(--color-primary-light))]">{period.invoiceCount}</p>
+                <p className="text-[10px] text-[hsl(var(--color-text))/40]">ใบแจ้งหนี้</p>
               </div>
-              <div className="rounded-xl bg-surface-container p-3 text-center">
-                <p className="text-lg font-bold text-primary">{period.sentInvoices}</p>
-                <p className="text-[10px] text-on-surface-variant">ส่งแล้ว</p>
+              <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-3 text-center">
+                <p className="text-lg font-bold text-[hsl(var(--color-primary-light))]">{period.sentInvoices}</p>
+                <p className="text-[10px] text-[hsl(var(--color-text))/40]">ส่งแล้ว</p>
               </div>
-              <div className="rounded-xl bg-surface-container p-3 text-center">
-                <p className="text-lg font-bold text-emerald-600">฿{(period.totalAmount / 1000).toFixed(0)}K</p>
-                <p className="text-[10px] text-on-surface-variant">ยอดรวม</p>
+              <div className="rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-3 text-center">
+                <p className="text-lg font-bold text-emerald-400">฿{(period.totalAmount / 1000).toFixed(0)}K</p>
+                <p className="text-[10px] text-[hsl(var(--color-text))/40]">ยอดรวม</p>
               </div>
             </div>
           )}
@@ -463,13 +461,13 @@ export default function BillingWizardPage(): JSX.Element {
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/admin/billing"
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-glow-primary hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover transition-all active:scale-[0.98]"
             >
               ดูรายละเอียดบิล
             </Link>
             <Link
               href="/admin/payments/review"
-              className="inline-flex items-center gap-2 rounded-xl border border-outline bg-surface-container-lowest px-5 py-2.5 text-sm font-medium text-on-surface hover:bg-surface-container transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-5 py-2.5 text-sm font-medium text-[hsl(var(--color-text))/70] hover:bg-[hsl(var(--color-surface))/80] hover:border-[hsl(var(--color-border))/20] transition-all active:scale-[0.98]"
             >
               ตรวจสอบการชำระเงิน
             </Link>
@@ -479,7 +477,7 @@ export default function BillingWizardPage(): JSX.Element {
 
       {/* Back to regular billing page */}
       <div className="text-center">
-        <Link href="/admin/billing" className="text-xs text-on-surface-variant hover:text-primary hover:underline">
+        <Link href="/admin/billing" className="text-xs text-[hsl(var(--color-text))/30] hover:text-[hsl(var(--color-primary-light))] hover:underline transition-colors">
           ← กลับไปหน้าบิล
         </Link>
       </div>

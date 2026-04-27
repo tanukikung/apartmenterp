@@ -31,9 +31,6 @@ type DiffLine =
   | { kind: 'delete'; left: string; leftNo: number }
   | { kind: 'insert'; right: string; rightNo: number };
 
-// Line-level LCS diff. Both bodies are split on newlines, then aligned using
-// the longest-common-subsequence table. Templates are usually short enough
-// (< a few hundred lines) that this O(n*m) approach is fine.
 function computeLineDiff(a: string, b: string): DiffLine[] {
   const aLines = a.replace(/\r\n/g, '\n').split('\n');
   const bLines = b.replace(/\r\n/g, '\n').split('\n');
@@ -106,7 +103,6 @@ export default function TemplateDiffPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load template detail to populate version selectors.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -119,7 +115,6 @@ export default function TemplateDiffPage() {
         if (cancelled) return;
         const detail = json.data as TemplateDetail;
         setTemplate(detail);
-        // Default: compare active version against the previous one.
         const versions = detail.versions ?? [];
         const sorted = [...versions].sort((a, b) => b.version - a.version);
         if (!leftVersionId && sorted[1]) setLeftVersionId(sorted[1].id);
@@ -137,7 +132,6 @@ export default function TemplateDiffPage() {
     };
   }, [params.id, leftVersionId, rightVersionId]);
 
-  // Fetch content for the two selected versions.
   useEffect(() => {
     if (!leftVersionId || !rightVersionId) return;
     let cancelled = false;
@@ -181,30 +175,26 @@ export default function TemplateDiffPage() {
 
   return (
     <main className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+      {/* Page header */}
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[hsl(225,25%,6%)] via-[hsl(225,25%,8%)] to-[hsl(225,25%,6%)] px-6 py-5 shadow-xl shadow-black/30">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.15),_transparent_60%)]" />
+        <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-primary/5 blur-3xl" />
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link
-              href={`/admin/templates/${params.id}`}
-              className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-white/30"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              กลับ
+            <Link href={`/admin/templates/${params.id}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 backdrop-blur-md transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
+              <ArrowLeft className="h-4 w-4 text-white/70" />
             </Link>
             <div>
-              <h1 className="text-base font-semibold text-on-primary">เปรียบเทียบเวอร์ชัน</h1>
-              <p className="text-xs text-on-primary/80 mt-0.5">
-                {template?.name ?? 'กำลังโหลด...'}
-              </p>
+              <h1 className="text-base font-semibold text-white">เปรียบเทียบเวอร์ชัน</h1>
+              <p className="text-xs text-white/50 mt-0.5">{template?.name ?? 'กำลังโหลด...'}</p>
             </div>
           </div>
           {stats ? (
             <div className="flex items-center gap-2 text-xs">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2.5 py-1 font-semibold text-emerald-100 border border-emerald-400/30">
+              <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 font-semibold text-emerald-400">
                 +{stats.additions}
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/20 px-2.5 py-1 font-semibold text-red-100 border border-red-400/30">
+              <span className="rounded-full bg-red-500/10 border border-red-500/30 px-2.5 py-1 font-semibold text-red-400">
                 −{stats.deletions}
               </span>
             </div>
@@ -212,102 +202,94 @@ export default function TemplateDiffPage() {
         </div>
       </div>
 
-      {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
+      {error ? <div className="rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur-sm px-5 py-4 text-sm text-red-400">{error}</div> : null}
 
-      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
+      {/* Version selectors */}
+      <div className="rounded-2xl border border-white/10 bg-[hsl(225,25%,6%)] shadow-xl shadow-black/20 p-5">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="text-xs font-semibold uppercase tracking-[0.18em] text-outline-variant">
+            <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40 mb-2 block">
               เวอร์ชัน A (เก่า)
             </label>
             <select
               value={leftVersionId}
               onChange={(e) => setLeftVersionId(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+              className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-2 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             >
               {sortedVersions.map((v) => (
-                <option key={v.id} value={v.id}>
+                <option key={v.id} value={v.id} className="bg-[hsl(225,25%,8%)]">
                   v{v.version} — {v.status} ({new Date(v.createdAt).toLocaleDateString('th-TH')})
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-[0.18em] text-outline-variant">
+            <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40 mb-2 block">
               เวอร์ชัน B (ใหม่)
             </label>
             <select
               value={rightVersionId}
               onChange={(e) => setRightVersionId(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+              className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-2 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             >
               {sortedVersions.map((v) => (
-                <option key={v.id} value={v.id}>
+                <option key={v.id} value={v.id} className="bg-[hsl(225,25%,8%)]">
                   v{v.version} — {v.status} ({new Date(v.createdAt).toLocaleDateString('th-TH')})
                 </option>
               ))}
             </select>
           </div>
         </div>
-      </section>
+      </div>
 
-      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-        <div className="px-5 py-3 border-b border-outline-variant text-sm font-semibold text-on-surface">
+      {/* Diff table */}
+      <div className="rounded-2xl border border-white/10 bg-[hsl(225,25%,6%)] shadow-xl shadow-black/20 overflow-hidden">
+        <div className="px-5 py-3 border-b border-white/5 text-sm font-semibold text-white">
           Side-by-side
         </div>
         {loading && !diff ? (
-          <div className="py-16 text-center text-on-surface-variant">กำลังโหลด...</div>
+          <div className="py-16 text-center text-white/40">กำลังโหลด...</div>
         ) : !diff ? (
-          <div className="py-16 text-center text-on-surface-variant">
-            เลือกสองเวอร์ชันเพื่อเปรียบเทียบ
-          </div>
+          <div className="py-16 text-center text-white/40">เลือกสองเวอร์ชันเพื่อเปรียบเทียบ</div>
         ) : (
           <div className="overflow-auto">
             <table className="w-full font-mono text-xs">
               <thead>
-                <tr className="border-b border-outline-variant bg-surface-container">
-                  <th className="w-10 px-2 py-2 text-right text-outline-variant">A</th>
-                  <th className="px-3 py-2 text-left text-on-surface">เวอร์ชัน A</th>
-                  <th className="w-10 px-2 py-2 text-right text-outline-variant">B</th>
-                  <th className="px-3 py-2 text-left text-on-surface">เวอร์ชัน B</th>
+                <tr className="border-b border-white/5 bg-white/[0.02]">
+                  <th className="w-10 px-2 py-2 text-right text-white/30">A</th>
+                  <th className="px-3 py-2 text-left text-white/50">เวอร์ชัน A</th>
+                  <th className="w-10 px-2 py-2 text-right text-white/30">B</th>
+                  <th className="px-3 py-2 text-left text-white/50">เวอร์ชัน B</th>
                 </tr>
               </thead>
               <tbody>
                 {diff.map((line, idx) => {
                   if (line.kind === 'equal') {
                     return (
-                      <tr key={idx} className="border-b border-outline-variant/30">
-                        <td className="px-2 py-1 text-right text-outline-variant">{line.leftNo}</td>
-                        <td className="px-3 py-1 text-on-surface-variant whitespace-pre-wrap break-all">
-                          {line.left || ' '}
-                        </td>
-                        <td className="px-2 py-1 text-right text-outline-variant">{line.rightNo}</td>
-                        <td className="px-3 py-1 text-on-surface-variant whitespace-pre-wrap break-all">
-                          {line.right || ' '}
-                        </td>
+                      <tr key={idx} className="border-b border-white/5">
+                        <td className="px-2 py-1 text-right text-white/20">{line.leftNo}</td>
+                        <td className="px-3 py-1 text-white/50 whitespace-pre-wrap break-all">{line.left || ' '}</td>
+                        <td className="px-2 py-1 text-right text-white/20">{line.rightNo}</td>
+                        <td className="px-3 py-1 text-white/50 whitespace-pre-wrap break-all">{line.right || ' '}</td>
                       </tr>
                     );
                   }
                   if (line.kind === 'delete') {
                     return (
-                      <tr key={idx} className="border-b border-outline-variant/30 bg-red-50">
-                        <td className="px-2 py-1 text-right text-red-600">{line.leftNo}</td>
-                        <td className="px-3 py-1 text-red-900 whitespace-pre-wrap break-all">
-                          − {line.left || ' '}
-                        </td>
-                        <td className="px-2 py-1 text-right text-outline-variant"></td>
+                      <tr key={idx} className="border-b border-white/5 bg-red-500/5">
+                        <td className="px-2 py-1 text-right text-red-400/70">{line.leftNo}</td>
+                        <td className="px-3 py-1 text-red-400/70 whitespace-pre-wrap break-all">− {line.left || ' '}</td>
+                        <td className="px-2 py-1 text-right text-white/20"></td>
                         <td className="px-3 py-1"></td>
                       </tr>
                     );
                   }
                   return (
-                    <tr key={idx} className="border-b border-outline-variant/30 bg-emerald-50">
-                      <td className="px-2 py-1 text-right text-outline-variant"></td>
+                    <tr key={idx} className="border-b border-white/5 bg-emerald-500/5">
+                      <td className="px-2 py-1 text-right text-white/20"></td>
                       <td className="px-3 py-1"></td>
-                      <td className="px-2 py-1 text-right text-emerald-700">{line.rightNo}</td>
-                      <td className="px-3 py-1 text-emerald-900 whitespace-pre-wrap break-all">
-                        + {line.right || ' '}
-                      </td>
+                      <td className="px-2 py-1 text-right text-emerald-400/70">{line.rightNo}</td>
+                      <td className="px-3 py-1 text-emerald-400/70 whitespace-pre-wrap break-all">+ {line.right || ' '}</td>
                     </tr>
                   );
                 })}
@@ -315,7 +297,7 @@ export default function TemplateDiffPage() {
             </table>
           </div>
         )}
-      </section>
+      </div>
     </main>
   );
 }

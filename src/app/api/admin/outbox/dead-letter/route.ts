@@ -109,7 +109,9 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
 const dropSchema = z.object({
   eventIds: z.array(z.string().uuid()).min(1).max(500),
-  reason: z.string().min(3).max(500),
+  // Require a detailed reason (min 20 chars) to prevent a single admin from
+  // silently dropping evidence of failed financial events (DLQ evidence destruction)
+  reason: z.string().min(20, 'ต้องระบุเหตุผลอย่างน้อย 20 ตัวอักษร'),
 });
 
 export const DELETE = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {

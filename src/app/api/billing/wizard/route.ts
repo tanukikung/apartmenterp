@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
+import { logger } from '@/lib/utils/logger';
 import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { getServiceContainer } from '@/lib/service-container';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
+import { BILLING_STATUS, BILLING_PERIOD_STATUS, INVOICE_STATUS } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,7 +85,7 @@ async function getCurrentPeriod(): Promise<WizardPeriodData | null> {
   const totalAmount = roomBillings.reduce((sum, rb) => sum + Number(rb.totalDue), 0);
 
   const invoices = roomBillings.map(rb => rb.invoice).filter(Boolean);
-  const generatedInvoices = invoices.filter(i => i?.status === 'GENERATED').length;
+  const generatedInvoices = invoices.filter(i => i?.status === INVOICE_STATUS.GENERATED).length;
   const sentInvoices = invoices.filter(i => i?.status === 'SENT' || i?.status === 'VIEWED').length;
 
   return {
@@ -97,7 +99,7 @@ async function getCurrentPeriod(): Promise<WizardPeriodData | null> {
     missingRooms,
     totalAmount,
     invoiceCount: invoices.length,
-    pendingInvoices: invoices.filter(i => i?.status === 'GENERATED').length,
+    pendingInvoices: invoices.filter(i => i?.status === INVOICE_STATUS.GENERATED).length,
     generatedInvoices,
     sentInvoices,
   };
@@ -131,13 +133,13 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   // Determine current step
   let step: WizardStep = 'import';
   if (period) {
-    if (period.status === 'CLOSED' || period.generatedInvoices > 0 && period.sentInvoices === period.generatedInvoices) {
+    if (period.status === BILLING_PERIOD_STATUS.CLOSED || period.generatedInvoices > 0 && period.sentInvoices === period.generatedInvoices) {
       step = 'complete';
     } else if (period.generatedInvoices > 0) {
       step = 'send';
-    } else if (period.status === 'LOCKED') {
+    } else if (period.status === BILLING_PERIOD_STATUS.LOCKED) {
       step = 'generate';
-    } else if (period.status === 'OPEN' || period.totalRecords > 0) {
+    } else if (period.status === BILLING_PERIOD_STATUS.OPEN || period.totalRecords > 0) {
       step = 'review';
     }
   }
@@ -181,7 +183,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         id: uuidv4(),
         year,
         month,
-        status: 'OPEN',
+        status: BILLING_PERIOD_STATUS.OPEN,
         dueDay: input.dueDay ?? 25,
       },
     });
@@ -195,19 +197,19 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
     // 1. Lock all DRAFT records
     const lockResult = await prisma.roomBilling.updateMany({
-      where: { billingPeriodId: periodId, status: 'DRAFT' },
-      data: { status: 'LOCKED' },
+      where: { billingPeriodId: periodId, status: BILLING_STATUS.DRAFT },
+      data: { status: BILLING_STATUS.LOCKED },
     });
 
     // Update period status to LOCKED
     await prisma.billingPeriod.update({
       where: { id: periodId },
-      data: { status: 'LOCKED' },
+      data: { status: BILLING_PERIOD_STATUS.LOCKED },
     });
 
     // 2. Generate invoices for all LOCKED records without invoices
     const lockedBillings = await prisma.roomBilling.findMany({
-      where: { billingPeriodId: periodId, status: 'LOCKED' },
+      where: { billingPeriodId: periodId, status: BILLING_STATUS.LOCKED },
       include: { invoice: { select: { id: true } } },
     });
 
@@ -239,7 +241,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     const invoices = await prisma.invoice.findMany({
       where: {
         roomBilling: { billingPeriodId: periodId },
-        status: 'GENERATED',
+        status: INVOICE_STATUS.GENERATED,
       },
       select: { id: true, roomNo: true },
     });
@@ -250,8 +252,9 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       try {
         await invoiceService.sendInvoice(inv.id, { sendToLine: true, channel: 'LINE' });
         sent++;
-      } catch {
+      } catch (err) {
         failed++;
+        logger.warn({ type: 'invoice_send_failed', invoiceId: inv.id, error: err instanceof Error ? err.message : String(err) });
       }
     }
 

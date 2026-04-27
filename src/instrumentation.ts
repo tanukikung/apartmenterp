@@ -31,6 +31,7 @@ const SCHEDULES: ScheduleEntry[] = [
   { jobId: 'document-cleanup',  hour: 7, minute: 0, dayOfWeek: 0 },
   { jobId: 'backup-cleanup',     hour: 8, minute: 0 },
   { jobId: 'contract-expiry',   hour: 9, minute: 0 },
+  { jobId: 'auto-reminder',     hour: 8, minute: 0 },
 ];
 
 export async function register() {
@@ -89,8 +90,49 @@ export async function register() {
   try {
     const runnerModule = await import('./modules/jobs/job-runner');
     const storeModule  = await import('./modules/jobs/job-store');
+    const { prisma }   = await import('./lib');
     jobRunners  = runnerModule.JOB_RUNNERS as Record<string, JobRunner>;
     setJobStatus = storeModule.setJobStatus as SetJobStatusFn;
+
+    // ── Load automation cron config from DB (if any) and merge with SCHEDULES ─────
+    // Supports overrides for: reminderCron, overdueCron, billingCron
+    function parseCronExpr(expr: string): { hour: number; minute: number; dayOfMonth?: number; dayOfWeek?: number } | null {
+      // node-cron format: minute hour dayOfMonth month dayOfWeek
+      const parts = expr.trim().split(/\s+/);
+      if (parts.length < 5) return null;
+      const [min, hr, dom, , dow] = parts;
+      const h = parseInt(hr, 10);
+      const m = parseInt(min, 10);
+      if (isNaN(h) || isNaN(m)) return null;
+      const result: { hour: number; minute: number; dayOfMonth?: number; dayOfWeek?: number } = { hour: h, minute: m };
+      if (dom !== '*') result.dayOfMonth = parseInt(dom, 10);
+      if (dow !== '*') result.dayOfWeek = parseInt(dow, 10);
+      return result;
+    }
+
+    // Build a map of overrides from DB config
+    const overrideMap: Record<string, { hour: number; minute: number; dayOfMonth?: number; dayOfWeek?: number }> = {};
+    try {
+      const configs = await prisma.config.findMany({
+        where: { key: { in: ['automation.reminderCron', 'automation.overdueCron', 'automation.billingCron'] } },
+      });
+      for (const cfg of configs) {
+        const parsed = parseCronExpr(String(cfg.value ?? ''));
+        if (parsed) {
+          if (cfg.key === 'automation.reminderCron') overrideMap['auto-reminder'] = parsed;
+          if (cfg.key === 'automation.overdueCron')  overrideMap['overdue-flag'] = parsed;
+          if (cfg.key === 'automation.billingCron')  overrideMap['billing-generate'] = parsed;
+        }
+      }
+    } catch (err) {
+      logger.warn({ err }, 'Failed to load automation cron config — using hardcoded schedules');
+    }
+
+    // Merge: override hardcoded schedules with DB values
+    const effectiveSchedules: ScheduleEntry[] = SCHEDULES.map((s) =>
+      overrideMap[s.jobId] ? { ...s, ...overrideMap[s.jobId] } : s
+    );
+    logger.info({ overrideCount: Object.keys(overrideMap).length, overrideMap }, 'Scheduler initialized with automation cron overrides');
 
     // Start a once-per-minute ticker that checks the schedule
     intervals.push(setInterval(() => {
@@ -101,7 +143,7 @@ export async function register() {
         const dow = now.getDay();
         const dom = now.getDate();
 
-        for (const s of SCHEDULES) {
+        for (const s of effectiveSchedules) {
           if (s.hour !== h || s.minute !== m) continue;
           if (s.dayOfWeek  !== undefined && s.dayOfWeek  !== dow) continue;
           if (s.dayOfMonth !== undefined && s.dayOfMonth !== dom) continue;

@@ -1,0 +1,249 @@
+##############################################################################
+# Apartment ERP — Full Stack (All-in-One)
+#
+# For development / quick start:
+#   docker network create ${DOCKER_NETWORK:-apartment_net}
+#   docker compose up -d
+#
+# For production (use separate compose files):
+#   docker compose -f docker-compose.db.yml up -d
+#   docker compose -f docker-compose.app.yml up -d
+#
+# Ports:
+#   App:              ${APP_PORT:-3001}
+#   PostgreSQL:       ${POSTGRES_PORT:-5432}
+#   Redis:            ${REDIS_PORT:-6379}
+#   pgAdmin:          ${PGADMIN_PORT:-5050}
+#   Grafana:          ${GRAFANA_PORT:-3000}
+#   Prometheus:       ${PROMETHEUS_PORT:-9090}
+#   node-exporter:    ${NODE_EXPORTER_PORT:-9100}
+#   postgres-exporter:${POSTGRES_EXPORTER_PORT:-9187}
+#   redis-exporter:   ${REDIS_EXPORTER_PORT:-9121}
+##############################################################################
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: apartment_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anand37048}
+      POSTGRES_DB: ${POSTGRES_DB:-test}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-test}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+
+  redis:
+    image: redis:7-alpine
+    container_name: apartment_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru --save 60 1 300 10
+    volumes:
+      - redisdata:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "3"
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: apartment_postgres_exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-anand37048}@apartment_postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-test}?sslmode=disable"
+      PG_EXPORTER_DISABLE_DEFAULT_METRICS: "false"
+      PG_EXPORTER_AUTO_DISCOVER_DATABASES: "true"
+    ports:
+      - "${POSTGRES_EXPORTER_PORT:-9187}:9187"
+    depends_on:
+      - postgres
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "3"
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: apartment_redis_exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: "apartment_redis:${REDIS_PORT:-6379}"
+    ports:
+      - "${REDIS_EXPORTER_PORT:-9121}:9121"
+    depends_on:
+      - redis
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "3"
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: apartment_prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: apartment_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: apartment_node_exporter
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    ports:
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: apartment_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@apartment.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: apartment_redis_commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+      PORT: 8081
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8081}:8081"
+    depends_on:
+      - redis
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: apartment_app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3001}:3001"
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-anand37048}@apartment_postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-test}"
+      REDIS_URL: "redis://apartment_redis:${REDIS_PORT:-6379}/1"
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3001}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3001}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3001}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    logging:
+      options:
+        max-size: "50m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          memory: "1g"
+    networks:
+      - ${DOCKER_NETWORK:-apartment_net}
+
+networks:
+  apartment_net:
+    name: ${DOCKER_NETWORK:-apartment_net}
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+  pgadmin_data:
+  prometheus_data:
+  grafana_data

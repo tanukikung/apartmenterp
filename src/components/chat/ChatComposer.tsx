@@ -116,7 +116,7 @@ export function ChatComposer({
           </div>
         ) : failedUploadName && onRetryUpload ? (
           <div className="flex items-center gap-2">
-            <div className="text-xs text-red-600">อัปโหลดไม่สำเร็จ: {failedUploadName}</div>
+            <div className="text-xs text-on-error-container">อัปโหลดไม่สำเร็จ: {failedUploadName}</div>
             <button onClick={onRetryUpload} disabled={disabled || busy} className="admin-button">
               ลองอีกครั้ง
             </button>

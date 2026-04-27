@@ -42,12 +42,12 @@ export function UnavailableFeaturePage({
         </div>
       </section>
 
-      <section className="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-6 text-amber-900 shadow-sm">
+      <section className="rounded-3xl border border-warning-container/30 bg-warning-container/10 px-6 py-6 text-on-warning-container shadow-sm">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-on-warning-container" />
           <div className="space-y-2">
             <p className="font-semibold">{message}</p>
-            {detail ? <p className="text-sm text-amber-800">{detail}</p> : null}
+            {detail ? <p className="text-sm text-on-warning-container/80">{detail}</p> : null}
           </div>
         </div>
       </section>

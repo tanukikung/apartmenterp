@@ -86,8 +86,9 @@ export const POST = asyncHandler(
         text = template.body;
         templateId = template.id;
       }
-    } catch {
-      // Non-blocking: fall back to the default reminder body.
+    } catch (err) {
+      // Non-blocking: fall back to the default reminder body but log the failure
+      logger.warn({ type: 'template_lookup_failed', tenantId: params.id, error: err instanceof Error ? err.message : String(err) });
     }
 
     const tenantFullName = `${tenant.firstName ?? ''} ${tenant.lastName ?? ''}`.trim();

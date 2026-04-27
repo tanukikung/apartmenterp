@@ -7,6 +7,7 @@ import { isLineConfigured } from '@/lib/line';
 import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
+import { INVOICE_STATUS } from '@/lib/constants';
 
 import {
   GenerateInvoiceInput,
@@ -148,7 +149,10 @@ export class InvoiceService {
 
     const roomBilling = await prisma.roomBilling.findUnique({
       where: { id: input.billingRecordId },
-      include: { billingPeriod: true },
+      include: {
+        billingPeriod: true,
+        effectiveRule: true,
+      },
     });
 
     if (!roomBilling) {
@@ -176,6 +180,9 @@ export class InvoiceService {
 
     // Create invoice and update billing status atomically
     const invoice = await prisma.$transaction(async (tx) => {
+      const commonAreaShare = Number((roomBilling as { commonAreaWaterShare?: unknown }).commonAreaWaterShare ?? 0);
+      const totalAmount = Number(roomBilling.totalDue) + commonAreaShare;
+
       const inv = await tx.invoice.create({
         data: {
           id: uuidv4(),
@@ -183,8 +190,8 @@ export class InvoiceService {
           roomBillingId: roomBilling.id,
           year: period.year,
           month: period.month,
-          status: 'GENERATED',
-          totalAmount: roomBilling.totalDue,
+          status: INVOICE_STATUS.GENERATED,
+          totalAmount,
           dueDate,
           issuedAt: new Date(),
         },
@@ -501,7 +508,7 @@ export class InvoiceService {
         throw new NotFoundError('Invoice', id);
       }
 
-      if (invoice.status === 'SENT' || invoice.status === 'PAID') {
+      if (invoice.status === INVOICE_STATUS.SENT || invoice.status === INVOICE_STATUS.PAID) {
         throw new ValidationError(`Invoice is already ${invoice.status.toLowerCase()}`);
       }
 
@@ -629,7 +636,7 @@ export class InvoiceService {
       const sentAt = new Date();
       const updatedCount = await tx.invoice.updateMany({
         where: { id, status: invoice.status },
-        data: { status: 'SENT', sentAt },
+        data: { status: INVOICE_STATUS.SENT, sentAt },
       });
 
       if (updatedCount.count !== 1) {
@@ -710,7 +717,7 @@ export class InvoiceService {
       EventTypes.INVOICE_SENT,
       'Invoice',
       id,
-      sentPayload as any,
+      sentPayload as unknown,
       { userId: sentBy }
     );
 
@@ -736,7 +743,7 @@ export class InvoiceService {
 
     const updated = await prisma.invoice.update({
       where: { id },
-      data: { status: 'VIEWED' },
+      data: { status: INVOICE_STATUS.VIEWED },
       include: {
         room: {
           include: {
@@ -773,16 +780,16 @@ export class InvoiceService {
    * so it can be re-invoiced after corrections.
    * Only GENERATED/overdue invoices can be cancelled; SENT/PAID cannot.
    */
-  async cancelInvoice(id: string, cancelledBy: string): Promise<InvoiceResponse> {
+  async cancelInvoice(id: string, cancelledBy: string, reason: string): Promise<InvoiceResponse> {
     const invoice = await prisma.invoice.findUnique({ where: { id } });
     if (!invoice) {
       throw new NotFoundError('Invoice', id);
     }
 
-    if (invoice.status === 'CANCELLED') {
+    if (invoice.status === INVOICE_STATUS.CANCELLED) {
       throw new BadRequestError('Invoice is already cancelled');
     }
-    if (invoice.status === 'SENT' || invoice.status === 'PAID') {
+    if (invoice.status === INVOICE_STATUS.SENT || invoice.status === INVOICE_STATUS.PAID) {
       throw new BadRequestError(`Cannot cancel an invoice with status ${invoice.status}`);
     }
 
@@ -790,7 +797,7 @@ export class InvoiceService {
       // Cancel the invoice
       const cancelled = await tx.invoice.update({
         where: { id },
-        data: { status: 'CANCELLED' },
+        data: { status: INVOICE_STATUS.CANCELLED },
       });
 
       // Revert RoomBilling to LOCKED so it can be re-invoiced
@@ -814,10 +821,10 @@ export class InvoiceService {
       action: 'INVOICE_CANCELLED',
       entityType: 'INVOICE',
       entityId: id,
-      metadata: { roomBillingId: invoice.roomBillingId },
+      metadata: { roomBillingId: invoice.roomBillingId, reason },
     });
 
-    logger.info({ type: 'invoice_cancelled', invoiceId: id, cancelledBy });
+    logger.info({ type: 'invoice_cancelled', invoiceId: id, cancelledBy, reason });
 
     return this.formatInvoiceResponse(updated);
   }
@@ -831,8 +838,13 @@ export class InvoiceService {
 
     const overdueInvoices = await prisma.invoice.findMany({
       where: {
-        status: { in: ['SENT', 'VIEWED'] },
+        status: { in: ['SENT', 'VIEWED', INVOICE_STATUS.GENERATED] },
         dueDate: { lt: today },
+      },
+      include: {
+        roomBilling: {
+          include: { effectiveRule: true },
+        },
       },
     });
 
@@ -841,27 +853,40 @@ export class InvoiceService {
       return;
     }
 
-    // Build all payloads before any DB writes or event publishes
-    const events = overdueInvoices.map((invoice) => {
-      const daysOverdue = Math.floor(
-        (today.getTime() - invoice.dueDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      const payload: InvoiceOverduePayload = {
-        invoiceId: invoice.id,
-        roomId: invoice.roomNo,
-        roomNumber: invoice.roomNo,
-        daysOverdue,
-        totalAmount: Number(invoice.totalAmount),
-      };
-      return { invoice, payload };
-    });
-
     // Batch update DB + publish events concurrently
     await Promise.all(
-      events.map(async ({ invoice, payload }) => {
+      overdueInvoices.map(async (invoice) => {
+        const daysOverdue = Math.floor(
+          (today.getTime() - invoice.dueDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        // Compute late payment penalty using the billing rule's penaltyPerDay.
+        // penaltyPerDay is the daily rate (e.g., 0.0005 = ~1.5% per month on 30-day month).
+        // Apply grace period first — no penalty within grace days.
+        const gracePeriodDays = invoice.roomBilling.effectiveRule.gracePeriodDays ?? 0;
+        const chargeableDays = Math.max(0, daysOverdue - gracePeriodDays);
+        const penaltyPerDay = Number(invoice.roomBilling.effectiveRule.penaltyPerDay ?? 0);
+        const maxPenalty = Number(invoice.roomBilling.effectiveRule.maxPenalty ?? 0);
+        const lateFeeAmount = penaltyPerDay > 0
+          ? Math.min(chargeableDays * penaltyPerDay * Number(invoice.totalAmount), maxPenalty)
+          : 0;
+
+        const payload: InvoiceOverduePayload = {
+          invoiceId: invoice.id,
+          roomId: invoice.roomNo,
+          roomNumber: invoice.roomNo,
+          daysOverdue,
+          totalAmount: Number(invoice.totalAmount),
+        };
+
         await prisma.invoice.update({
           where: { id: invoice.id },
-          data: { status: 'OVERDUE' },
+          data: {
+            status: INVOICE_STATUS.OVERDUE,
+            ...(lateFeeAmount > 0
+              ? { lateFeeAmount, lateFeeAppliedAt: new Date() }
+              : {}),
+          },
         });
         await this.eventBus.publish(
           EventTypes.INVOICE_MARKED_OVERDUE,
@@ -932,7 +957,7 @@ export class InvoiceService {
       if (!invoice) {
         throw new NotFoundError('Invoice', id);
       }
-      if (invoice.status === 'SENT' || invoice.status === 'PAID') {
+      if (invoice.status === INVOICE_STATUS.SENT || invoice.status === INVOICE_STATUS.PAID) {
         throw new ValidationError(`Invoice is already ${invoice.status.toLowerCase()}`);
       }
 
@@ -977,7 +1002,7 @@ export class InvoiceService {
       const sentAt = new Date();
       const updatedCount = await tx.invoice.updateMany({
         where: { id, status: invoice.status },
-        data: { status: 'SENT', sentAt },
+        data: { status: INVOICE_STATUS.SENT, sentAt },
       });
       if (updatedCount.count !== 1) {
         throw new ConflictError('Invoice send state changed before delivery could be recorded');
@@ -1076,7 +1101,7 @@ export class InvoiceService {
       tenants?: Array<{ tenant?: { id?: string; firstName?: string; lastName?: string; phone?: string; lineUserId?: string | null } | null }>;
       roomTenants?: Array<{ tenant?: { id?: string; firstName?: string; lastName?: string; phone?: string; lineUserId?: string | null } | null }>;
     };
-    const room = invoice.room as any as RoomWithTenants | undefined;
+    const room = invoice.room as unknown as RoomWithTenants | undefined;
     const primaryTenant = room?.tenants?.[0]?.tenant ?? room?.roomTenants?.[0]?.tenant;
     const tenantName = primaryTenant
       ? `${primaryTenant.firstName ?? ''} ${primaryTenant.lastName ?? ''}`.trim() || null

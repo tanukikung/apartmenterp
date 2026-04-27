@@ -25,6 +25,11 @@ export const createMoveOutSchema = z.object({
   contractId: z.string().uuid('Invalid contract ID'),
   moveOutDate: z.string().datetime({ message: 'Invalid move-out date' }).or(z.string().date()),
   notes: z.string().max(2000).optional(),
+  // Move-out meter readings — required when tenant moves out mid-month so the
+  // system can compute a final settlement bill (prorated rent + utilities).
+  // If not provided, the system will use the last billed readings as-is.
+  moveOutWaterReading: z.number().min(0).optional(),
+  moveOutElectricReading: z.number().min(0).optional(),
 });
 
 export type CreateMoveOutInput = z.infer<typeof createMoveOutSchema>;

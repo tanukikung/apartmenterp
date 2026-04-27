@@ -314,8 +314,8 @@ export default function AdminUsersClient() {
         </div>
       </div>
 
-      {message ? <div className="rounded-lg border border-emerald-500/30 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div> : null}
-      {error ? <div className="rounded-lg border border-red-500/30 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+      {message ? <div className="rounded-lg border border-success-container/30 bg-success-container/10 px-4 py-3 text-sm text-on-success-container">{message}</div> : null}
+      {error ? <div className="rounded-lg border border-error-container/30 bg-error-container/10 px-4 py-3 text-sm text-on-error-container">{error}</div> : null}
 
       {resetLink ? (
         <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
@@ -324,7 +324,7 @@ export default function AdminUsersClient() {
               <div className="text-sm font-semibold text-on-surface">ออกลิงก์รีเซ็ตสำหรับ {resetLink.username}</div>
               <div className="text-sm text-on-surface-variant">หมดอายุ <ClientOnly fallback="-">{new Date(resetLink.expiresAt).toLocaleString('th-TH')}</ClientOnly></div>
             </div>
-            <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-500 text-white px-4 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-emerald-600" onClick={() => navigator.clipboard.writeText(resetLink.url)}>
+            <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-success-container bg-success-container text-on-success-container px-4 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-success-container/80" onClick={() => navigator.clipboard.writeText(resetLink.url)}>
               คัดลอกลิงก์รีเซ็ต
             </button>
           </div>
@@ -356,7 +356,7 @@ export default function AdminUsersClient() {
                     <td className="px-4 py-3 text-on-surface-variant"><ClientOnly fallback="-">{new Date(request.createdAt).toLocaleString('th-TH')}</ClientOnly></td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
-                        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-500 text-white px-4 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-emerald-600" onClick={() => void approveRequest(request)} disabled={working === `approve:${request.id}`}>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-success-container bg-success-container text-on-success-container px-4 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-success-container/80" onClick={() => void approveRequest(request)} disabled={working === `approve:${request.id}`}>
                           {working === `approve:${request.id}` ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
                         </button>
                         <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={() => { setRejectModalTarget(request); setRejectReason(''); }} disabled={working === `reject:${request.id}`}>
@@ -404,7 +404,7 @@ export default function AdminUsersClient() {
             <div className="rounded-3xl border border-primary-container bg-primary-container px-4 py-3 text-sm text-on-surface">
               บัญชีที่สร้างใหม่จะถูกบังคับให้เปลี่ยนรหัสผ่านชั่วคราวนี้เมื่อเข้าสู่ระบบครั้งแรก
             </div>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-500 text-white px-4 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-emerald-600" disabled={working === 'create-user'}>
+            <button className="inline-flex items-center gap-2 rounded-lg border border-success-container bg-success-container text-on-success-container px-4 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-success-container/80" disabled={working === 'create-user'}>
               {working === 'create-user' ? 'กำลังสร้าง...' : 'สร้างบัญชี'}
             </button>
           </form>
@@ -445,7 +445,7 @@ export default function AdminUsersClient() {
                       </button>
                     </td>
                     <td className="px-4 py-3">
-                      <div className={`inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface ${user.forcePasswordChange ? 'bg-amber-100 text-amber-700' : ''}`}>
+                      <div className={`inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface ${user.forcePasswordChange ? 'bg-warning-container text-on-warning-container' : ''}`}>
                         {user.forcePasswordChange ? 'รหัสผ่านชั่วคราว' : 'เป็นปัจจุบัน'}
                       </div>
                     </td>
@@ -474,7 +474,7 @@ export default function AdminUsersClient() {
                         >
                           ตั้งรหัสชั่วคราว
                         </button>
-                        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-500 text-white px-4 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-emerald-600" onClick={() => void issueReset(user)} disabled={working === `reset:${user.id}`}>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-success-container bg-success-container text-on-success-container px-4 py-2 text-sm font-semibold shadow-sm transition-colors hover:bg-success-container/80" onClick={() => void issueReset(user)} disabled={working === `reset:${user.id}`}>
                           {working === `reset:${user.id}` ? 'กำลังออกลิงก์...' : 'ออกลิงก์รีเซ็ต'}
                         </button>
                         {user.pendingReset ? (

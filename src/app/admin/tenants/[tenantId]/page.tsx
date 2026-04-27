@@ -20,6 +20,10 @@ import {
   ChevronDown,
   ChevronUp,
   Receipt,
+  Send,
+  XCircle,
+  Pencil,
+
 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -129,33 +133,33 @@ function truncateLineId(id: string | null) {
   return id.slice(0, 8) + '…' + id.slice(-6);
 }
 
-// ── Status helpers ─────────────────────────────────────────────────────────────
+// ── Status helpers — Dark Glass ─────────────────────────────────────────────────
 
 function invoiceStatusClass(s: InvoiceStatus) {
-  if (s === 'PAID') return 'inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700';
-  if (s === 'OVERDUE') return 'inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600';
-  if (s === 'SENT' || s === 'VIEWED') return 'inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700';
-  return '';
+  if (s === 'PAID') return 'inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 border border-emerald-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]';
+  if (s === 'OVERDUE') return 'inline-flex items-center gap-1.5 rounded-full bg-red-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-red-600 border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.2)]';
+  if (s === 'SENT' || s === 'VIEWED') return 'inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-amber-600 border border-amber-500/20 shadow-[0_0_10px_rgba(251,191,36,0.2)]';
+  return 'inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--color-surface))] px-2.5 py-0.5 text-[11px] font-semibold text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))]';
 }
 
 function contractStatusClass(s: ContractStatus) {
-  if (s === 'ACTIVE') return 'inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700';
-  if (s === 'TERMINATED') return 'inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600';
-  return 'inline-flex items-center gap-1.5 rounded-full bg-surface-container-lowest border border-outline-variant px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant';
+  if (s === 'ACTIVE') return 'inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 border border-emerald-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]';
+  if (s === 'TERMINATED') return 'inline-flex items-center gap-1.5 rounded-full bg-red-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-red-600 border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.2)]';
+  return 'inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--color-surface))] px-2.5 py-0.5 text-[11px] font-semibold text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))]';
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+function GlassInfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-lg border border-outline-variant bg-surface-container-lowest/80 px-4 py-3">
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant">{label}</span>
-      <span className="text-sm text-on-surface break-all">{value || '-'}</span>
+    <div className="flex flex-col gap-0.5 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur-[12px] px-4 py-3.5 hover:bg-white/[0.05] transition-all duration-200">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">{label}</span>
+      <span className="text-sm text-[hsl(var(--on-surface))] break-all">{value || '-'}</span>
     </div>
   );
 }
 
-// ── Tabs ───────────────────────────────────────────────────────────────────────
+// ── Tabs ─────────────────────────────────────────────────────────────────────
 
 type Tab = 'overview' | 'contracts' | 'invoices' | 'payments' | 'chat' | 'activity';
 
@@ -206,6 +210,26 @@ export default function TenantDetailPage() {
     openTickets: 0,
   });
 
+  // Send message dialog
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [messageSending, setMessageSending] = useState(false);
+  const [messageError, setMessageError] = useState<string | null>(null);
+  const [messageSuccess, setMessageSuccess] = useState(false);
+
+  // Edit tenant dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    email: '',
+    emergencyContact: '',
+    emergencyPhone: '',
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
   // ── Fetch tenant ────────────────────────────────────────────────────────────
 
   const loadTenant = useCallback(async () => {
@@ -216,6 +240,14 @@ export default function TenantDetailPage() {
       const res = await fetch(`/api/tenants/${tenantId}`, { cache: 'no-store' }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถโหลดผู้เช่า');
       setTenant(res.data);
+      setEditForm({
+        firstName: res.data.firstName ?? '',
+        lastName: res.data.lastName ?? '',
+        phone: res.data.phone ?? '',
+        email: res.data.email ?? '',
+        emergencyContact: res.data.emergencyContact ?? '',
+        emergencyPhone: res.data.emergencyPhone ?? '',
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดผู้เช่า');
     } finally {
@@ -266,12 +298,10 @@ export default function TenantDetailPage() {
     async function loadContracts() {
       setContractsLoading(true);
       try {
-        // Derive contracts from roomTenants for now; real endpoint if available
         const res = await fetch(`/api/tenants/${tenantId}?include=contracts`, { cache: 'no-store' }).then((r) => r.json());
         if (res.success && res.data?.contracts) {
           setContracts(res.data.contracts as Contract[]);
         } else if (tenant?.roomTenants) {
-          // Fallback: synthesise from roomTenants
           const derived: Contract[] = tenant.roomTenants.map((rt) => ({
             id: rt.id,
             roomNumber: rt.room?.roomNo ?? rt.roomNo,
@@ -386,7 +416,7 @@ export default function TenantDetailPage() {
   if (loading) {
     return (
       <main className="space-y-6">
-        <div className="flex items-center justify-center py-24 text-on-surface-variant">กำลังโหลดโปรไฟล์ผู้เช่า…</div>
+        <div className="flex items-center justify-center py-24 text-[hsl(var(--on-surface-variant))]">กำลังโหลดโปรไฟล์ผู้เช่า…</div>
       </main>
     );
   }
@@ -395,9 +425,9 @@ export default function TenantDetailPage() {
     return (
       <main className="space-y-6">
         <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
-          <AlertCircle className="h-10 w-10 text-red-400" />
-          <div className="text-on-surface-variant">{error ?? 'Tenant not found'}</div>
-          <Link href="/admin/tenants" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+          <AlertCircle className="h-10 w-10 text-red-600" />
+          <div className="text-[hsl(var(--on-surface-variant))]">{error ?? 'Tenant not found'}</div>
+          <Link href="/admin/tenants" className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))] shadow-[var(--glass-shadow)] hover:bg-white/[0.1] active:scale-[0.98] transition-all duration-200 backdrop-blur">
             Back to Tenants
           </Link>
         </div>
@@ -416,23 +446,23 @@ export default function TenantDetailPage() {
     <main className="space-y-6">
 
       {/* ── Breadcrumb ─────────────────────────────────────────────────────── */}
-      <nav className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-        <Link href="/admin/tenants" className="hover:text-on-surface transition-colors">ผู้เช่า</Link>
-        <ChevronRight size={14} className="shrink-0 text-outline-variant" />
-        <span className="font-medium text-on-surface">{tenant.fullName}</span>
+      <nav className="flex items-center gap-1.5 text-sm text-[hsl(var(--on-surface-variant))]">
+        <Link href="/admin/tenants" className="hover:text-[hsl(var(--on-surface))] transition-colors">ผู้เช่า</Link>
+        <ChevronRight size={14} className="shrink-0 text-[hsl(var(--on-surface-variant))]" />
+        <span className="font-medium text-[hsl(var(--on-surface))]">{tenant.fullName}</span>
       </nav>
 
-      {/* ── Hero card ──────────────────────────────────────────────────────── */}
-      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      {/* ── Hero card — Dark Glass ────────────────────────────────────────── */}
+      <section className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/60 backdrop-blur overflow-hidden shadow-[var(--glass-shadow)]">
         <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:gap-6">
           {/* Avatar */}
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary-container text-xl font-bold text-primary shadow-sm">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary))]/15 text-xl font-bold text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/20 shadow-glow-primary">
             {initials}
           </div>
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-semibold text-on-surface">{tenant.fullName}</h1>
-            <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-on-surface-variant">
+            <h1 className="text-lg font-semibold text-[hsl(var(--on-surface))]">{tenant.fullName}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-[hsl(var(--on-surface-variant))]">
               {tenant.phone && (
                 <span className="flex items-center gap-1">
                   <Phone size={13} /> {tenant.phone}
@@ -450,7 +480,7 @@ export default function TenantDetailPage() {
           </div>
           {/* LINE status badge */}
           <div className="shrink-0">
-            <span className={` ${tenant.lineUserId ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700' : ''}`}>
+            <span className={tenant.lineUserId ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 border border-emerald-500/20 shadow-[0_0_12px_rgba(34,197,94,0.2)]' : 'inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--color-surface))] px-2.5 py-0.5 text-[11px] font-semibold text-white/40 border border-[hsl(var(--color-border))]'}>
               {tenant.lineUserId ? (
                 <><CheckCircle size={11} className="mr-1" />LINE ลงทะเบียนแล้ว</>
               ) : (
@@ -458,33 +488,53 @@ export default function TenantDetailPage() {
               )}
             </span>
           </div>
+          {/* Edit button */}
+          <button
+            onClick={() => setEditDialogOpen(true)}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-3 py-2 text-[11px] font-medium text-[hsl(var(--on-surface))] hover:bg-white/[0.1] active:scale-[0.98] transition-all duration-200 backdrop-blur"
+          >
+            <Pencil size={12} /> แก้ไขข้อมูล
+          </button>
+          {/* Send message button */}
+          {tenant.lineUserId && (
+            <button
+              onClick={() => setMessageDialogOpen(true)}
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))] px-3 py-2 text-[11px] font-semibold text-white shadow-glow-primary shadow-glow-primary-hover hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200"
+            >
+              <Send size={12} /> ส่งข้อความ
+            </button>
+          )}
         </div>
       </section>
 
-      {/* ── Quick stats ────────────────────────────────────────────────────── */}
+      {/* ── Quick stats — Dark Glass ────────────────────────────────────── */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">ใบแจ้งหนี้</div>
-          <div className="text-xl font-semibold text-on-surface">{stats.invoicesCount}</div>
+        <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/60 backdrop-blur p-5 shadow-[var(--glass-shadow)] group hover:border-white/12 transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))]">ใบแจ้งหนี้</div>
+          <div className="text-xl font-semibold text-[hsl(var(--on-surface))]">{stats.invoicesCount}</div>
         </div>
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">ชำระแล้ว</div>
+        <div className="relative overflow-hidden rounded-xl border border-emerald-500/15 bg-[hsl(var(--color-surface))]/60 backdrop-blur p-5 shadow-[var(--glass-shadow)] group hover:border-emerald-500/25 transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))]">ชำระแล้ว</div>
           <div className="text-xl font-semibold text-emerald-600">{money(stats.totalPaid)}</div>
         </div>
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">ค้างชำระ</div>
-          <div className={`text-xl font-semibold ${stats.outstanding > 0 ? 'text-amber-600' : 'text-on-surface'}`}>{money(stats.outstanding)}</div>
+        <div className="relative overflow-hidden rounded-xl border border-amber-500/15 bg-[hsl(var(--color-surface))]/60 backdrop-blur p-5 shadow-[var(--glass-shadow)] group hover:border-amber-500/25 transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))]">ค้างชำระ</div>
+          <div className={`text-xl font-semibold ${stats.outstanding > 0 ? 'text-amber-600' : 'text-[hsl(var(--on-surface))]'}`}>{money(stats.outstanding)}</div>
         </div>
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">งานเปิด</div>
-          <div className={`text-xl font-semibold ${stats.openTickets > 0 ? 'text-red-500' : 'text-on-surface'}`}>{stats.openTickets}</div>
+        <div className="relative overflow-hidden rounded-xl border border-red-500/15 bg-[hsl(var(--color-surface))]/60 backdrop-blur p-5 shadow-[var(--glass-shadow)] group hover:border-red-500/25 transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-500/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))]">งานเปิด</div>
+          <div className={`text-xl font-semibold ${stats.openTickets > 0 ? 'text-red-600' : 'text-[hsl(var(--on-surface))]'}`}>{stats.openTickets}</div>
         </div>
       </section>
 
-      {/* ── Tabs ───────────────────────────────────────────────────────────── */}
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-visible">
+      {/* ── Tabs — Dark Glass ──────────────────────────────────────────────── */}
+      <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur shadow-[var(--glass-shadow)] overflow-visible">
         {/* Tab bar */}
-        <div className="flex overflow-x-auto border-b border-outline-variant bg-surface-container-lowest">
+        <div className="flex overflow-x-auto border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/40 backdrop-blur">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -492,10 +542,10 @@ export default function TenantDetailPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex shrink-0 items-center gap-2 border-b-2 px-5 py-3.5 text-sm font-medium transition-colors ${
+                className={`flex shrink-0 items-center gap-2 border-b-2 px-5 py-3.5 text-sm font-medium transition-all duration-200 ${
                   active
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-on-surface-variant hover:text-on-surface'
+                    ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10'
+                    : 'border-transparent text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--on-surface))] hover:bg-white/[0.04]'
                 }`}
               >
                 <Icon size={14} />
@@ -513,13 +563,13 @@ export default function TenantDetailPage() {
             <div className="grid gap-6 xl:grid-cols-2">
               {/* Personal info */}
               <div className="space-y-4">
-                <h2 className="text-base font-semibold text-on-surface">ข้อมูลส่วนตัว</h2>
+                <h2 className="text-base font-semibold text-[hsl(var(--on-surface))]">ข้อมูลส่วนตัว</h2>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <InfoRow label="ชื่อ" value={tenant.firstName} />
-                  <InfoRow label="นามสกุล" value={tenant.lastName} />
-                  <InfoRow label="โทรศัพท์" value={tenant.phone} />
-                  <InfoRow label="อีเมล" value={tenant.email} />
-                  <InfoRow
+                  <GlassInfoRow label="ชื่อ" value={tenant.firstName} />
+                  <GlassInfoRow label="นามสกุล" value={tenant.lastName} />
+                  <GlassInfoRow label="โทรศัพท์" value={tenant.phone} />
+                  <GlassInfoRow label="อีเมล" value={tenant.email} />
+                  <GlassInfoRow
                     label="LINE UID"
                     value={
                       tenant.lineUserId
@@ -527,43 +577,43 @@ export default function TenantDetailPage() {
                         : null
                     }
                   />
-                  <InfoRow label="ติดต่อฉุกเฉิน" value={tenant.emergencyContact} />
-                  <InfoRow label="โทรศัพท์ฉุกเฉิน" value={tenant.emergencyPhone} />
-                  <InfoRow label="สมาชิกตั้งแต่" value={fmtDate(tenant.createdAt)} />
+                  <GlassInfoRow label="ติดต่อฉุกเฉิน" value={tenant.emergencyContact} />
+                  <GlassInfoRow label="โทรศัพท์ฉุกเฉิน" value={tenant.emergencyPhone} />
+                  <GlassInfoRow label="สมาชิกตั้งแต่" value={fmtDate(tenant.createdAt)} />
                 </div>
               </div>
 
               {/* Room assignments */}
               {tenant.roomTenants && tenant.roomTenants.length > 0 && (
                 <div className="space-y-2">
-                  <h2 className="text-base font-semibold text-on-surface">ห้องที่ลงทะเบียน</h2>
+                  <h2 className="text-base font-semibold text-[hsl(var(--on-surface))]">ห้องที่ลงทะเบียน</h2>
                   {tenant.roomTenants.map((rt) => (
-                    <div key={rt.id} className="flex items-center justify-between rounded-lg border border-primary-container bg-primary-container/50 px-4 py-3 text-sm">
+                    <div key={rt.id} className="flex items-center justify-between rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 px-4 py-3 text-sm backdrop-blur-[12px]">
                       <div>
-                        <div className="font-medium text-on-surface">ห้อง {rt.room?.roomNo ?? rt.roomNo}</div>
-                        <div className="text-on-surface-variant">
+                        <div className="font-medium text-[hsl(var(--on-surface))]">ห้อง {rt.room?.roomNo ?? rt.roomNo}</div>
+                        <div className="text-[hsl(var(--on-surface-variant))]">
                           {rt.role} · เข้าอยู่ {fmtDate(rt.moveInDate)}
                           {rt.moveOutDate ? ` · ย้ายออก ${fmtDate(rt.moveOutDate)}` : ''}
                         </div>
                       </div>
-                      <span className={` ${!rt.moveOutDate ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700' : ''}`}>
+                      <span className={!rt.moveOutDate ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 border border-emerald-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]' : 'inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--color-surface))] px-2.5 py-0.5 text-[11px] font-semibold text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))]'}>
                         {rt.moveOutDate ? 'สิ้นสุด' : 'ใช้งานอยู่'}
                       </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {/* ── CONTRACTS ──────────────────────────────────────────────────── */}
           {activeTab === 'contracts' && (
             <div className="space-y-3">
-              <h2 className="text-base font-semibold text-on-surface">สัญญา</h2>
+              <h2 className="text-base font-semibold text-[hsl(var(--on-surface))]">สัญญา</h2>
               {contractsLoading ? (
-                <div className="py-10 text-center text-on-surface-variant">กำลังโหลดสัญญา...</div>
+                <div className="py-10 text-center text-[hsl(var(--on-surface-variant))]">กำลังโหลดสัญญา...</div>
               ) : contracts.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
+                <div className="rounded-lg border border-dashed border-[hsl(var(--color-border))] px-8 py-8 text-center text-sm text-[hsl(var(--on-surface-variant))]">
                   ไม่พบสัญญาสำหรับผู้เช่ารายนี้
                 </div>
               ) : (
@@ -571,10 +621,10 @@ export default function TenantDetailPage() {
                   {contracts.map((contract) => {
                     const expanded = expandedContracts.has(contract.id);
                     return (
-                      <div key={contract.id} className="rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm overflow-hidden">
+                      <div key={contract.id} className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] shadow-[var(--glass-shadow)] overflow-hidden">
                         {/* Row header */}
                         <button
-                          className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-surface-container-lowest transition-colors"
+                          className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-[hsl(var(--color-surface))]/[0.03] transition-colors duration-150 active:scale-[0.99]"
                           onClick={() =>
                             setExpandedContracts((prev) => {
                               const next = new Set(prev);
@@ -585,12 +635,12 @@ export default function TenantDetailPage() {
                           }
                         >
                           <div className="flex items-center gap-4 min-w-0">
-                            <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-surface-container-lowest text-on-surface-variant">
+                            <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-[hsl(var(--color-surface))] text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))]">
                               <FileText size={15} />
                             </div>
                             <div className="min-w-0">
-                              <div className="font-medium text-on-surface">ห้อง {contract.roomNumber}</div>
-                              <div className="text-xs text-on-surface-variant">
+                              <div className="font-medium text-[hsl(var(--on-surface))]">ห้อง {contract.roomNumber}</div>
+                              <div className="text-xs text-[hsl(var(--on-surface-variant))]">
                                 {fmtDate(contract.startDate)}
                                 {contract.endDate ? ` → ${fmtDate(contract.endDate)}` : ' · ดำเนินอยู่'}
                               </div>
@@ -598,27 +648,27 @@ export default function TenantDetailPage() {
                           </div>
                           <div className="flex items-center gap-3 shrink-0">
                             {contract.monthlyRent > 0 && (
-                              <span className="text-sm text-on-surface-variant">{money(contract.monthlyRent)}/mo</span>
+                              <span className="text-sm text-[hsl(var(--on-surface-variant))]">{money(contract.monthlyRent)}/mo</span>
                             )}
-                            <span className={` ${contractStatusClass(contract.status)}`}>
-                              {contract.status}
+                            <span className={contractStatusClass(contract.status)}>
+                              {contract.status === 'ACTIVE' ? 'ใช้งาน' : contract.status}
                             </span>
-                            {expanded ? <ChevronUp size={15} className="text-on-surface-variant" /> : <ChevronDown size={15} className="text-on-surface-variant" />}
+                            {expanded ? <ChevronUp size={15} className="text-[hsl(var(--on-surface-variant))]" /> : <ChevronDown size={15} className="text-[hsl(var(--on-surface-variant))]" />}
                           </div>
                         </button>
 
                         {/* Expanded details */}
                         {expanded && (
-                          <div className="border-t border-outline-variant bg-surface-container-lowest/60 px-5 py-4">
+                          <div className="border-t border-[hsl(var(--color-border))] bg-white/[0.02] px-5 py-4 backdrop-blur-[12px]">
                             <div className="grid gap-3 sm:grid-cols-3">
-                              <InfoRow label="วันเริ่มต้น" value={fmtDate(contract.startDate)} />
-                              <InfoRow label="วันสิ้นสุด" value={contract.endDate ? fmtDate(contract.endDate) : 'ดำเนินอยู่'} />
-                              <InfoRow label="Status" value={contract.status} />
+                              <GlassInfoRow label="วันเริ่มต้น" value={fmtDate(contract.startDate)} />
+                              <GlassInfoRow label="วันสิ้นสุด" value={contract.endDate ? fmtDate(contract.endDate) : 'ดำเนินอยู่'} />
+                              <GlassInfoRow label="สถานะ" value={contract.status === 'ACTIVE' ? 'ใช้งาน' : contract.status} />
                               {contract.monthlyRent > 0 && (
-                                <InfoRow label="ค่าเช่ารายเดือน" value={money(contract.monthlyRent)} />
+                                <GlassInfoRow label="ค่าเช่ารายเดือน" value={money(contract.monthlyRent)} />
                               )}
                               {contract.deposit > 0 && (
-                                <InfoRow label="เงินประกัน" value={money(contract.deposit)} />
+                                <GlassInfoRow label="เงินประกัน" value={money(contract.deposit)} />
                               )}
                             </div>
                           </div>
@@ -635,9 +685,9 @@ export default function TenantDetailPage() {
           {activeTab === 'invoices' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h2 className="text-base font-semibold text-on-surface">ใบแจ้งหนี้</h2>
+                <h2 className="text-base font-semibold text-[hsl(var(--on-surface))]">ใบแจ้งหนี้</h2>
                 <select
-                  className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface w-auto min-w-[160px]"
+                  className="rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-3 py-2 text-sm text-[hsl(var(--on-surface))] cursor-pointer focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200 w-auto min-w-[160px]"
                   value={invoiceFilter}
                   onChange={(e) => setInvoiceFilter(e.target.value)}
                 >
@@ -652,39 +702,39 @@ export default function TenantDetailPage() {
               </div>
 
               {invoicesLoading ? (
-                <div className="py-10 text-center text-on-surface-variant">กำลังโหลดใบแจ้งหนี้...</div>
+                <div className="py-10 text-center text-[hsl(var(--on-surface-variant))]">กำลังโหลดใบแจ้งหนี้...</div>
               ) : filteredInvoices.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
+                <div className="rounded-lg border border-dashed border-[hsl(var(--color-border))] px-8 py-8 text-center text-sm text-[hsl(var(--on-surface-variant))]">
                   ไม่พบใบแจ้งหนี้{invoiceFilter ? ` สถานะ ${invoiceFilter}` : ''}
                 </div>
               ) : (
-                <div className="overflow-auto rounded-xl border border-outline-variant">
-                  <table className="w-full text-sm [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-on-surface-variant [&_th]:uppercase [&_th]:tracking-wider [&_th]:pb-3 [&_td]:text-on-surface [&_td]:py-3">
+                <div className="overflow-auto rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] shadow-[var(--glass-shadow)]">
+                  <table className="w-full text-sm">
                     <thead>
-                      <tr>
-                        <th>เลขใบแจ้งหนี้</th>
-                        <th>ห้อง</th>
-                        <th>งวด</th>
-                        <th>จำนวน</th>
-                        <th>วันครบกำหนด</th>
-                        <th>สถานะ</th>
-                        <th>ชำระเมื่อ</th>
+                      <tr className="border-b border-[hsl(var(--color-border))]">
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">เลขใบแจ้งหนี้</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ห้อง</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">งวด</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">จำนวน</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">วันครบกำหนด</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สถานะ</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ชำระเมื่อ</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-white/5">
                       {filteredInvoices.map((inv) => (
-                        <tr key={inv.id}>
-                          <td>
-                            <span className="font-mono text-xs text-on-surface-variant">{inv.id.slice(0, 12)}…</span>
+                        <tr key={inv.id} className="hover:bg-[hsl(var(--color-surface))]/[0.03] transition-colors duration-150">
+                          <td className="px-4 py-3">
+                            <span className="font-mono text-xs text-[hsl(var(--on-surface-variant))]">{inv.id.slice(0, 12)}…</span>
                           </td>
-                          <td>{inv.room?.roomNumber ?? inv.room?.roomNo ?? '-'}</td>
-                          <td>{inv.year}-{String(inv.month).padStart(2, '0')}</td>
-                          <td>{money(inv.totalAmount)}</td>
-                          <td>{fmtDate(inv.dueDate)}</td>
-                          <td>
-                            <span className={` ${invoiceStatusClass(inv.status)}`}>{inv.status}</span>
+                          <td className="px-4 py-3 text-[hsl(var(--on-surface))]">{inv.room?.roomNumber ?? inv.room?.roomNo ?? '-'}</td>
+                          <td className="px-4 py-3 text-[hsl(var(--on-surface))]">{inv.year}-{String(inv.month).padStart(2, '0')}</td>
+                          <td className="px-4 py-3 text-[hsl(var(--on-surface))]">{money(inv.totalAmount)}</td>
+                          <td className="px-4 py-3 text-[hsl(var(--on-surface-variant))]">{fmtDate(inv.dueDate)}</td>
+                          <td className="px-4 py-3">
+                            <span className={invoiceStatusClass(inv.status)}>{inv.status === 'PAID' ? 'ชำระแล้ว' : inv.status === 'OVERDUE' ? 'เกินกำหนด' : inv.status === 'SENT' ? 'ส่งแล้ว' : inv.status === 'VIEWED' ? 'เปิดดูแล้ว' : inv.status === 'GENERATED' ? 'สร้างแล้ว' : 'ร่าง'}</span>
                           </td>
-                          <td>{inv.paidAt ? fmtDate(inv.paidAt) : '-'}</td>
+                          <td className="px-4 py-3 text-[hsl(var(--on-surface-variant))]">{inv.paidAt ? fmtDate(inv.paidAt) : '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -697,36 +747,36 @@ export default function TenantDetailPage() {
           {/* ── PAYMENTS ───────────────────────────────────────────────────── */}
           {activeTab === 'payments' && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-on-surface">ประวัติการชำระ</h2>
+              <h2 className="text-base font-semibold text-[hsl(var(--on-surface))]">ประวัติการชำระ</h2>
               {paymentsLoading ? (
-                <div className="py-10 text-center text-on-surface-variant">กำลังโหลดการชำระ...</div>
+                <div className="py-10 text-center text-[hsl(var(--on-surface-variant))]">กำลังโหลดการชำระ...</div>
               ) : payments.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
+                <div className="rounded-lg border border-dashed border-[hsl(var(--color-border))] px-8 py-8 text-center text-sm text-[hsl(var(--on-surface-variant))]">
                   ไม่พบรายการชำระสำหรับผู้เช่ารายนี้
                 </div>
               ) : (
-                <div className="overflow-auto rounded-xl border border-outline-variant">
-                  <table className="w-full text-sm [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-on-surface-variant [&_th]:uppercase [&_th]:tracking-wider [&_th]:pb-3 [&_td]:text-on-surface [&_td]:py-3">
+                <div className="overflow-auto rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] shadow-[var(--glass-shadow)]">
+                  <table className="w-full text-sm">
                     <thead>
-                      <tr>
-                        <th>วันที่</th>
-                        <th>จำนวน</th>
-                        <th>อ้างอิง</th>
-                        <th>ห้อง</th>
-                        <th>ใบแจ้งหนี้</th>
-                        <th>สถานะ</th>
+                      <tr className="border-b border-[hsl(var(--color-border))]">
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">วันที่</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">จำนวน</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">อ้างอิง</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ห้อง</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ใบแจ้งหนี้</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สถานะ</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-white/5">
                       {payments.map((pmt) => (
-                        <tr key={pmt.id}>
-                          <td>{fmtDate(pmt.transactionDate)}</td>
-                          <td>{money(pmt.amount)}</td>
-                          <td className="font-mono text-xs">{pmt.reference ?? pmt.description ?? '-'}</td>
-                          <td>{pmt.invoice?.room?.roomNumber ?? pmt.invoice?.room?.roomNo ?? '-'}</td>
-                          <td className="font-mono text-xs">{pmt.invoice?.id ? pmt.invoice.id.slice(0, 10) + '…' : '-'}</td>
-                          <td>
-                            <span className={` ${pmt.status === 'MATCHED' ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700' : ''}`}>
+                        <tr key={pmt.id} className="hover:bg-[hsl(var(--color-surface))]/[0.03] transition-colors duration-150">
+                          <td className="px-4 py-3 text-[hsl(var(--on-surface-variant))]">{fmtDate(pmt.transactionDate)}</td>
+                          <td className="px-4 py-3 text-[hsl(var(--on-surface))]">{money(pmt.amount)}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-[hsl(var(--on-surface-variant))]">{pmt.reference ?? pmt.description ?? '-'}</td>
+                          <td className="px-4 py-3 text-[hsl(var(--on-surface))]">{pmt.invoice?.room?.roomNumber ?? pmt.invoice?.room?.roomNo ?? '-'}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-[hsl(var(--on-surface-variant))]">{pmt.invoice?.id ? pmt.invoice.id.slice(0, 10) + '…' : '-'}</td>
+                          <td className="px-4 py-3">
+                            <span className={pmt.status === 'MATCHED' ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 border border-emerald-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]' : 'inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--color-surface))] px-2.5 py-0.5 text-[11px] font-semibold text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))]'}>
                               {pmt.status}
                             </span>
                           </td>
@@ -742,20 +792,19 @@ export default function TenantDetailPage() {
           {/* ── CHAT ───────────────────────────────────────────────────────── */}
           {activeTab === 'chat' && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-on-surface">แชท LINE</h2>
+              <h2 className="text-base font-semibold text-[hsl(var(--on-surface))]">แชท LINE</h2>
               {!tenant.lineUserId ? (
-                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
-                  <MessageSquare size={28} className="mx-auto mb-2 text-outline-variant" />
+                <div className="rounded-lg border border-dashed border-[hsl(var(--color-border))] px-8 py-8 text-center text-sm text-[hsl(var(--on-surface-variant))]">
+                  <MessageSquare size={28} className="mx-auto mb-2 text-[hsl(var(--on-surface-variant))]/30" />
                   ผู้เช่ารายนี้ยังไม่ได้ลิงก์บัญชี LINE กรุณาลิงก์ LINE UID ก่อนเพื่อส่งข้อความ
                 </div>
               ) : chatLoading ? (
-                <div className="py-10 text-center text-on-surface-variant">กำลังโหลดข้อความ...</div>
+                <div className="py-10 text-center text-[hsl(var(--on-surface-variant))]">กำลังโหลดข้อความ...</div>
               ) : (
                 <div className="space-y-4">
-                  {/* Recent messages preview */}
                   {chatMessages.length > 0 ? (
                     <div className="space-y-2">
-                      <div className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-3">
+                      <div className="text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-3">
                         ข้อความล่าสุด
                       </div>
                       {chatMessages.map((msg) => (
@@ -766,12 +815,12 @@ export default function TenantDetailPage() {
                           <div
                             className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
                               msg.direction === 'OUTGOING'
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-surface-container-lowest text-on-surface'
+                                ? 'bg-[hsl(var(--primary))]/80 text-white shadow-glow-primary'
+                                : 'bg-white/[0.05] text-[hsl(var(--on-surface))] border border-[hsl(var(--color-border))]'
                             }`}
                           >
                             <div className="break-words">{msg.content}</div>
-                            <div className={`mt-1 text-[10px] ${msg.direction === 'OUTGOING' ? 'text-primary-container' : 'text-on-surface-variant'}`}>
+                            <div className={`mt-1 text-[10px] ${msg.direction === 'OUTGOING' ? 'text-white/60' : 'text-[hsl(var(--on-surface-variant))]'}`}>
                               <ClientOnly fallback="-">{new Date(msg.sentAt).toLocaleString()}</ClientOnly>
                             </div>
                           </div>
@@ -779,17 +828,16 @@ export default function TenantDetailPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-dashed border-outline-variant p-6 text-center text-sm text-on-surface-variant">
+                    <div className="rounded-lg border border-dashed border-[hsl(var(--color-border))] px-6 py-6 text-center text-sm text-[hsl(var(--on-surface-variant))]">
                       ไม่พบข้อความในการสนทนานี้
                     </div>
                   )}
 
-                  {/* Open Chat button */}
                   {conversation && (
                     <div className="pt-2">
                       <Link
                         href={`/admin/chat?conversationId=${conversation.id}`}
-                        className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+                        className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))] shadow-[var(--glass-shadow)] hover:bg-white/[0.1] active:scale-[0.98] transition-all duration-200 backdrop-blur"
                       >
                         <ExternalLink size={14} />
                         เปิดแชทเต็ม
@@ -804,35 +852,33 @@ export default function TenantDetailPage() {
           {/* ── ACTIVITY ───────────────────────────────────────────────────── */}
           {activeTab === 'activity' && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-on-surface">กิจกรรม</h2>
+              <h2 className="text-base font-semibold text-[hsl(var(--on-surface))]">กิจกรรม</h2>
               {auditLoading ? (
-                <div className="py-10 text-center text-on-surface-variant">กำลังโหลดกิจกรรม...</div>
+                <div className="py-10 text-center text-[hsl(var(--on-surface-variant))]">กำลังโหลดกิจกรรม...</div>
               ) : auditRows.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-on-surface-variant">
+                <div className="rounded-lg border border-dashed border-[hsl(var(--color-border))] px-8 py-8 text-center text-sm text-[hsl(var(--on-surface-variant))]">
                   ไม่มีกิจกรรมสำหรับผู้เช่ารายนี้
                 </div>
               ) : (
-                <div className="overflow-auto rounded-xl border border-outline-variant">
-                  <table className="w-full text-sm [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-on-surface-variant [&_th]:uppercase [&_th]:tracking-wider [&_th]:pb-3 [&_td]:text-on-surface [&_td]:py-3">
+                <div className="overflow-auto rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] shadow-[var(--glass-shadow)]">
+                  <table className="w-full text-sm">
                     <thead>
-                      <tr>
-                        <th>เวลา</th>
-                        <th>ผู้ใช้</th>
-                        <th>การดำเนินการ</th>
-                        <th>เอนทิตี</th>
-                        <th>รายละเอียด</th>
+                      <tr className="border-b border-[hsl(var(--color-border))]">
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">เวลา</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ผู้ใช้</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">การดำเนินการ</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">เอนทิตี</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">รายละเอียด</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-white/5">
                       {auditRows.map((row) => (
-                        <tr key={row.id}>
-                          <td className="whitespace-nowrap"><ClientOnly fallback="-">{new Date(row.createdAt).toLocaleString('th-TH')}</ClientOnly></td>
-                          <td>{row.userName || row.userId}</td>
-                          <td>
-                            <span className="">{row.action}</span>
-                          </td>
-                          <td className="font-mono text-xs text-on-surface-variant">{row.entityType}:{row.entityId.slice(0, 8)}</td>
-                          <td className="max-w-[300px] truncate text-xs text-on-surface-variant">
+                        <tr key={row.id} className="hover:bg-[hsl(var(--color-surface))]/[0.03] transition-colors duration-150">
+                          <td className="px-4 py-3 whitespace-nowrap text-[hsl(var(--on-surface-variant))]"><ClientOnly fallback="-">{new Date(row.createdAt).toLocaleString('th-TH')}</ClientOnly></td>
+                          <td className="px-4 py-3 text-[hsl(var(--on-surface))]">{row.userName || row.userId}</td>
+                          <td className="px-4 py-3 text-[hsl(var(--on-surface))]">{row.action}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-[hsl(var(--on-surface-variant))]">{row.entityType}:{row.entityId.slice(0, 8)}</td>
+                          <td className="px-4 py-3 max-w-[300px] truncate text-xs text-[hsl(var(--on-surface-variant))]">
                             {row.details ? JSON.stringify(row.details) : '-'}
                           </td>
                         </tr>
@@ -846,6 +892,213 @@ export default function TenantDetailPage() {
 
         </div>
       </div>
+
+      {/* Send message dialog */}
+      {messageDialogOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={() => setMessageDialogOpen(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-[hsl(var(--color-surface))]/80 backdrop-blur rounded-xl border border-[hsl(var(--color-border))] shadow-[var(--glass-shadow)] w-full max-w-md">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[hsl(var(--color-border))]">
+                <h3 className="text-base font-semibold text-[hsl(var(--on-surface))]">ส่งข้อความ LINE</h3>
+                <button onClick={() => setMessageDialogOpen(false)} className="p-1.5 hover:bg-[hsl(var(--color-surface))] rounded-lg transition-colors active:scale-[0.95]">
+                  <XCircle size={18} className="text-[hsl(var(--on-surface-variant))]" />
+                </button>
+              </div>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!tenant?.lineUserId) return;
+                setMessageSending(true);
+                setMessageError(null);
+                setMessageSuccess(false);
+                try {
+                  const convRes = await fetch(`/api/conversations?lineUserId=${encodeURIComponent(tenant.lineUserId!)}&pageSize=1`, { cache: 'no-store' }).then(r => r.json());
+                  const convList = convRes.success ? (convRes.data?.data ?? []) : [];
+                  if (!convList.length) throw new Error('ไม่พบการสนทนา กรุณาลิงก์ LINE UID ก่อน');
+                  const conv = convList[0];
+                  const res = await fetch(`/api/conversations/${conv.id}/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: messageText }),
+                  }).then(r => r.json());
+                  if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถส่งข้อความได้');
+                  setMessageSuccess(true);
+                  setMessageText('');
+                  setTimeout(() => setMessageDialogOpen(false), 1500);
+                } catch (err) {
+                  setMessageError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
+                } finally {
+                  setMessageSending(false);
+                }
+              }} className="p-6 space-y-4">
+                <div className="text-sm text-[hsl(var(--on-surface-variant))]">
+                  ส่งข้อความไปยัง <span className="font-semibold text-[hsl(var(--on-surface))]">{tenant.fullName}</span>
+                </div>
+                <textarea
+                  className="w-full px-4 py-2.5 bg-white/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200 min-h-[120px] resize-y"
+                  placeholder="พิมพ์ข้อความ..."
+                  value={messageText}
+                  onChange={e => setMessageText(e.target.value)}
+                  required
+                />
+                {messageError && (
+                  <div className="text-xs text-red-600 flex items-center gap-1">
+                    <XCircle size={12} /> {messageError}
+                  </div>
+                )}
+                {messageSuccess && (
+                  <div className="text-xs text-emerald-600 flex items-center gap-1 font-medium">
+                    <CheckCircle size={12} /> ส่งข้อความสำเร็จแล้ว
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setMessageDialogOpen(false)} className="flex-1 py-2.5 border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] text-sm font-medium text-[hsl(var(--on-surface))] rounded-lg hover:bg-white/[0.06] transition-colors active:scale-[0.98] backdrop-blur">
+                    ยกเลิก
+                  </button>
+                  <button type="submit" disabled={messageSending || !messageText.trim()} className="flex-1 py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-glow-primary shadow-glow-primary-hover hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2">
+                    {messageSending ? (
+                      <>
+                        <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        กำลังส่ง...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={14} /> ส่งข้อความ
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Edit tenant dialog */}
+      {editDialogOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={() => setEditDialogOpen(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-[hsl(var(--color-surface))]/80 backdrop-blur rounded-xl border border-[hsl(var(--color-border))] shadow-[var(--glass-shadow)] w-full max-w-md">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[hsl(var(--color-border))]">
+                <h3 className="text-base font-semibold text-[hsl(var(--on-surface))]">แก้ไขข้อมูลผู้เช่า</h3>
+                <button onClick={() => setEditDialogOpen(false)} className="p-1.5 hover:bg-[hsl(var(--color-surface))] rounded-lg transition-colors active:scale-[0.95]">
+                  <XCircle size={18} className="text-[hsl(var(--on-surface-variant))]" />
+                </button>
+              </div>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setEditSaving(true);
+                setEditError(null);
+                try {
+                  const res = await fetch(`/api/tenants/${tenantId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(editForm),
+                  }).then(r => r.json());
+                  if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถบันทึกข้อมูลได้');
+                  setTenant(res.data);
+                  setEditForm({
+                    firstName: res.data.firstName ?? '',
+                    lastName: res.data.lastName ?? '',
+                    phone: res.data.phone ?? '',
+                    email: res.data.email ?? '',
+                    emergencyContact: res.data.emergencyContact ?? '',
+                    emergencyPhone: res.data.emergencyPhone ?? '',
+                  });
+                  setEditDialogOpen(false);
+                } catch (err) {
+                  setEditError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
+                } finally {
+                  setEditSaving(false);
+                }
+              }} className="p-6 space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-[11px] font-medium text-[hsl(var(--on-surface-variant))] mb-1">ชื่อ</label>
+                    <input
+                      type="text"
+                      value={editForm.firstName}
+                      onChange={e => setEditForm(f => ({ ...f, firstName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-[hsl(var(--on-surface-variant))] mb-1">นามสกุล</label>
+                    <input
+                      type="text"
+                      value={editForm.lastName}
+                      onChange={e => setEditForm(f => ({ ...f, lastName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-[hsl(var(--on-surface-variant))] mb-1">โทรศัพท์</label>
+                  <input
+                    type="text"
+                    value={editForm.phone}
+                    onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                    className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-[hsl(var(--on-surface-variant))] mb-1">อีเมล</label>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                    className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-[hsl(var(--on-surface-variant))] mb-1">ติดต่อฉุกเฉิน</label>
+                  <input
+                    type="text"
+                    value={editForm.emergencyContact}
+                    onChange={e => setEditForm(f => ({ ...f, emergencyContact: e.target.value }))}
+                    className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-[hsl(var(--on-surface-variant))] mb-1">โทรศัพท์ฉุกเฉิน</label>
+                  <input
+                    type="text"
+                    value={editForm.emergencyPhone}
+                    onChange={e => setEditForm(f => ({ ...f, emergencyPhone: e.target.value }))}
+                    className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200"
+                  />
+                </div>
+                {editError && (
+                  <div className="text-xs text-red-600 flex items-center gap-1">
+                    <XCircle size={12} /> {editError}
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setEditDialogOpen(false)} className="flex-1 py-2.5 border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] text-sm font-medium text-[hsl(var(--on-surface))] rounded-lg hover:bg-white/[0.06] transition-colors active:scale-[0.98] backdrop-blur">
+                    ยกเลิก
+                  </button>
+                  <button type="submit" disabled={editSaving} className="flex-1 py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-glow-primary shadow-glow-primary-hover hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2">
+                    {editSaving ? (
+                      <>
+                        <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        กำลังบันทึก...
+                      </>
+                    ) : (
+                      <>
+                        <Pencil size={14} /> บันทึก
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </>
+      )}
     </main>
   );
 }

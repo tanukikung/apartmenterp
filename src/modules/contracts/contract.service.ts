@@ -134,6 +134,10 @@ export class ContractService {
           primaryTenant: true,
         },
       });
+      await tx.room.update({
+        where: { roomNo: input.roomId },
+        data: { roomStatus: 'OCCUPIED' },
+      });
       await tx.outboxEvent.create({
         data: {
           id: uuidv4(),
@@ -475,6 +479,10 @@ export class ContractService {
           primaryTenant: true,
         },
       });
+      await tx.room.update({
+        where: { roomNo: result.roomNo },
+        data: { roomStatus: 'VACANT' },
+      });
       await tx.outboxEvent.create({
         data: {
           id: uuidv4(),
@@ -566,7 +574,7 @@ export class ContractService {
           EventTypes.CONTRACT_EXPIRING_SOON,
           'Contract',
           contract.id,
-          eventPayloads[i] as any
+          eventPayloads[i] as unknown
         )
       )
     );

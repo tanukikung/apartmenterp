@@ -1,0 +1,57 @@
+# Dependencies
+node_modules
+.npm
+
+# Next.js build output
+.next
+out
+dist
+
+# Environment files (keep .env.example)
+.env
+.env.local
+.env.development
+.env.production
+
+# Git
+.git
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test artifacts
+test-results/
+coverage/
+playwright-report/
+*.test-results/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Deploy
+# (entrypoint.sh is needed, exclude docker-compose variants)
+deploy/docker-compose*.yml
+deploy/docker-compose*.yaml
+
+# Turborepo / cache
+.turbo/
+
+# Runtime data
+.data/
+tmp/
+*.csv
+uploads/
+
+# Docker files (keep Dockerfile and docker-compose.yml in root)
+docker-compose*.yml
+docker-compose*.yaml
+.dockerignore

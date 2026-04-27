@@ -43,13 +43,13 @@ type FadeInProps = {
   delay?: number;
   y?: number;
   className?: string;
-  as?: keyof JSX.IntrinsicElements;
+  motionAs?: keyof JSX.IntrinsicElements;
 };
 
 /** Fade + subtle rise. Use for any page content block. */
-export function FadeIn({ children, delay = 0, y = 8, className, as = 'div' }: FadeInProps) {
+export function FadeIn({ children, delay = 0, y = 8, className, motionAs = 'div' }: FadeInProps) {
   const reduce = useReducedMotion();
-  const Comp = motion[as as 'div'] as any;
+  const Comp = motion[motionAs as 'div']; // eslint-disable-line @typescript-eslint/no-explicit-any
   return (
     <Comp
       initial={reduce ? false : { opacity: 0, y }}
@@ -320,6 +320,8 @@ export const Pressable = React.forwardRef<HTMLButtonElement, PressableProps>(fun
   const reduce = useReducedMotion();
   if (reduce) {
     return (
+      // ButtonHTMLAttributes includes properties not in HTMLButtonElement; safe cast
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       <button ref={ref} className={className} {...(rest as any)}>
         {children}
       </button>

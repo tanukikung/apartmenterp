@@ -12,6 +12,7 @@ const envSchema = z.object({
   LINE_CHANNEL_ID: z.string().min(1).optional(),
   LINE_CHANNEL_SECRET: z.string().min(1).optional(),
   LINE_ACCESS_TOKEN: z.string().min(1).optional(),
+  REDIS_URL: z.string().url().optional(), // optional — falls back to in-memory rate limiter
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -32,6 +33,7 @@ export function getEnv(): Env {
       LINE_CHANNEL_ID: process.env.LINE_CHANNEL_ID,
       LINE_CHANNEL_SECRET: process.env.LINE_CHANNEL_SECRET,
       LINE_ACCESS_TOKEN: process.env.LINE_ACCESS_TOKEN,
+      REDIS_URL: process.env.REDIS_URL,
     };
     return partial;
   }

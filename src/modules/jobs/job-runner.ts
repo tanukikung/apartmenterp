@@ -10,6 +10,7 @@ import { prisma } from '@/lib';
 import { logAudit } from '@/modules/audit';
 import { runLateFeeJob } from './late-fee.job';
 import { getOutboxProcessor } from '@/lib/outbox';
+import { createReminderService } from '@/modules/reminders/reminder.service';
 import {
   GeneratedDocumentStatus,
   UploadedFileStatus,
@@ -268,13 +269,13 @@ export async function runDocumentNotify(): Promise<JobResult> {
     // Look up uploader LINE user ID — try admin first, then staff
     const admin = await prisma.adminUser.findFirst({ where: { id: file.uploadedBy } });
     // StaffUser model may not exist — wrap in try/catch
-    let staff = null;
+    let staff: { lineUserId?: string | null } | null = null;
     try {
-      staff = await (prisma as any).staffUser?.findFirst({ where: { id: file.uploadedBy } }) ?? null;
+      staff = await (prisma as unknown as { staffUser?: { findFirst: (args: { where: { id: string } }) => Promise<{ lineUserId?: string | null } | null> } }).staffUser?.findFirst({ where: { id: file.uploadedBy } }) ?? null;
     } catch {
       staff = null;
     }
-    const lineUserId = (admin as any)?.lineUserId ?? (staff as any)?.lineUserId;
+    const lineUserId = admin?.lineUserId ?? staff?.lineUserId;
     if (!lineUserId) continue;
     if (!isLineConfigured()) continue;
 
@@ -539,6 +540,18 @@ export async function runOutboxCleanup(): Promise<JobResult> {
   };
 }
 
+// ── 11. Auto-reminder ──────────────────────────────────────────────────────────
+// Reads ReminderConfig and sends LINE reminder messages to tenants with outstanding invoices.
+export async function runAutoReminder(): Promise<JobResult> {
+  const service = createReminderService();
+  const result = await service.runDaily(new Date());
+  const total = result.scheduled + result.dueSoon + result.dueToday + result.overdue;
+  return {
+    count: total,
+    message: `${total} reminder(s) queued (dueSoon:${result.dueSoon} dueToday:${result.dueToday} overdue:${result.overdue})`,
+  };
+}
+
 export const JOB_RUNNERS: Record<string, () => Promise<JobResult>> = {
   'overdue-flag':      runOverdueFlag,
   'billing-generate':  runBillingGenerate,
@@ -550,6 +563,7 @@ export const JOB_RUNNERS: Record<string, () => Promise<JobResult>> = {
   'document-notify':   runDocumentNotify,
   'document-cleanup':  runDocumentCleanup,
   'backup-cleanup':    runBackupCleanup,
+  'auto-reminder':     runAutoReminder,
 };
 
 export const VALID_JOB_IDS = Object.keys(JOB_RUNNERS);

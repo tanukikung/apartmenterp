@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   ClipboardCopy,
-  Info,
   Loader2,
   MessageSquare,
   Pencil,
@@ -44,7 +43,7 @@ interface TemplateFormData {
 // Default templates
 // ---------------------------------------------------------------------------
 
-const DEFAULT_TEMPLATES: MessageTemplate[] = [
+const _DEFAULT_TEMPLATES: MessageTemplate[] = [
   {
     id: 'default-1',
     name: 'แจ้งส่งใบแจ้งหนี้',
@@ -88,10 +87,10 @@ const VARIABLE_HINTS: { label: string; value: string }[] = [
 ];
 
 const TYPE_BADGE: Record<TemplateType, { cls: string; label: string }> = {
-  INVOICE_SEND: { cls: 'bg-blue-100 text-blue-700 border-blue-200', label: 'INVOICE' },
-  PAYMENT_REMINDER: { cls: 'bg-amber-100 text-amber-700 border-amber-200', label: 'REMINDER' },
-  OVERDUE_NOTICE: { cls: 'bg-error-container text-on-error-container border-error-container/30', label: 'OVERDUE' },
-  CUSTOM: { cls: 'bg-surface-container text-on-surface-variant border-outline-variant', label: 'CUSTOM' },
+  INVOICE_SEND: { cls: 'border border-[hsl(217,100%,67%,0.3)] bg-[hsl(217,100%,67%,0.1)] text-[hsl(217,100%,90%)]', label: 'INVOICE' },
+  PAYMENT_REMINDER: { cls: 'border border-[hsl(38,92%,55%,0.3)] bg-[hsl(38,92%,55%,0.1)] text-[hsl(38,92%,80%)]', label: 'REMINDER' },
+  OVERDUE_NOTICE: { cls: 'border border-[hsl(0,72%,55%,0.3)] bg-[hsl(0,72%,55%,0.1)] text-[hsl(0,72%,80%)]', label: 'OVERDUE' },
+  CUSTOM: { cls: 'border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))]', label: 'CUSTOM' },
 };
 
 const EMPTY_FORM: TemplateFormData = { name: '', type: 'INVOICE_SEND', body: '' };
@@ -105,7 +104,7 @@ function extractVariables(body: string): string[] {
   return matches ? Array.from(new Set(matches)) : [];
 }
 
-function generateId() {
+function _generateId() {
   return `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
@@ -114,7 +113,7 @@ function generateId() {
 // ---------------------------------------------------------------------------
 
 function TypeBadge({ type }: { type: TemplateType }) {
-  const { cls, label } = TYPE_BADGE[type] ?? { cls: 'bg-surface-container text-on-surface-variant border-outline-variant', label: type };
+  const { cls, label } = TYPE_BADGE[type] ?? { cls: 'border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))]', label: type };
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold tracking-wide ${cls}`}>
       {label}
@@ -128,7 +127,7 @@ function TypeBadge({ type }: { type: TemplateType }) {
 
 function VarChip({ value }: { value: string }) {
   return (
-    <code className="inline-flex items-center gap-1 rounded-md border border-outline-variant bg-surface-container px-2 py-0.5 font-mono text-xs text-on-surface-variant">
+    <code className="inline-flex items-center gap-1 rounded-md border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-2 py-0.5 font-mono text-xs text-[hsl(var(--on-surface-variant))]">
       {value}
     </code>
   );
@@ -151,21 +150,21 @@ function ConfirmDeleteModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-error-container/30 bg-surface-container-lowest p-6 shadow-xl">
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-error-container/20">
-          <Trash2 className="h-5 w-5 text-on-error-container" />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-[hsl(0,72%,55%,0.3)] bg-[hsl(var(--card))] backdrop-blur-[var(--glass-blur)] shadow-[0_4px_16px_rgba(0,0,0,0.08)] p-6 overflow-hidden">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-[hsl(0,72%,55%,0.3)] bg-[hsl(0,72%,55%,0.1)]">
+          <Trash2 className="h-5 w-5 text-[hsl(0,72%,80%)]" />
         </div>
-        <h3 className="mb-1 text-base font-semibold text-on-surface">ลบเทมเพลต</h3>
-        <p className="mb-5 text-sm text-on-surface-variant">
+        <h3 className="mb-1 font-display text-base font-semibold text-[hsl(var(--card-foreground))]">ลบเทมเพลต</h3>
+        <p className="mb-5 text-sm text-[hsl(var(--on-surface-variant))]">
           คุณแน่ใจหรือไม่ว่าต้องการลบ{' '}
-          <span className="font-medium text-on-surface">&ldquo;{templateName}&rdquo;</span>? This action cannot be undone.
+          <span className="font-medium text-[hsl(var(--card-foreground))]">&ldquo;{templateName}&rdquo;</span>? This action cannot be undone.
         </p>
         <div className="flex gap-2">
           <button
             onClick={onConfirm}
             disabled={deleting}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-error-container px-4 py-2.5 text-sm font-semibold text-on-error-container transition-colors hover:bg-error-container/90 disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-[hsl(0,72%,55%,0.3)] bg-[hsl(0,72%,55%,0.1)] px-4 py-2.5 text-sm font-semibold text-[hsl(0,72%,80%)] transition-all hover:bg-[hsl(0,72%,55%,0.2)] active:scale-[0.98] disabled:opacity-50"
           >
             {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
             ลบ
@@ -173,7 +172,7 @@ function ConfirmDeleteModal({
           <button
             onClick={onCancel}
             disabled={deleting}
-            className="flex-1 rounded-xl border border-outline bg-surface-container-lowest px-4 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
+            className="flex-1 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))] backdrop-blur-sm transition-all hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary)/0.1)] active:scale-[0.98]"
           >
             ยกเลิก
           </button>
@@ -206,65 +205,70 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
   const vars = extractVariables(form.body);
 
   return (
-    <div className="rounded-2xl border border-primary/20 bg-primary-container/10 p-5">
+    <div className="rounded-2xl border border-[hsl(var(--primary)/0.15)] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-semibold text-on-surface">{title}</h3>
+        <h3 className="font-display text-base font-semibold text-[hsl(var(--card-foreground))]">{title}</h3>
         <button
           onClick={onCancel}
-          className="rounded-lg p-1.5 text-on-surface-variant hover:bg-surface-container transition-colors"
+          className="rounded-lg p-1.5 text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--card))] transition-all active:scale-[0.98]"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container">
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-[hsl(0,72%,55%,0.3)] bg-[hsl(0,72%,55%,0.1)] px-4 py-3 text-sm text-[hsl(0,72%,80%)]">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {/* Name */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-on-surface">
-            ชื่อเทมเพลต <span className="text-error-container">*</span>
+          <label className="mb-1.5 block text-xs font-medium text-[hsl(var(--on-surface-variant))] uppercase tracking-wider">
+            ชื่อเทมเพลต <span className="text-[hsl(0,72%,80%)]">*</span>
           </label>
           <input
             type="text"
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="ตัวอย่าง: ใบแจ้งหนี้ประจำเดือน — ภาษาไทย"
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))] backdrop-blur-sm focus:border-[hsl(217,100%,67%,0.5)] focus:outline-none focus:ring-2 focus:ring-[hsl(217,100%,67%,0.2)] transition-all"
           />
         </div>
 
         {/* Type */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-on-surface">
-            ประเภท <span className="text-error-container">*</span>
+          <label className="mb-1.5 block text-xs font-medium text-[hsl(var(--on-surface-variant))] uppercase tracking-wider">
+            ประเภท <span className="text-[hsl(0,72%,80%)]">*</span>
           </label>
-          <select
-            value={form.type}
-            onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as TemplateType }))}
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            {TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={form.type}
+              onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as TemplateType }))}
+              className="w-full appearance-none rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] backdrop-blur-sm focus:border-[hsl(217,100%,67%,0.5)] focus:outline-none focus:ring-2 focus:ring-[hsl(217,100%,67%,0.2)] transition-all cursor-pointer"
+            >
+              {TYPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value} className="bg-[hsl(var(--card))]">{o.label}</option>
+              ))}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[hsl(var(--on-surface-variant))]">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+          </div>
         </div>
 
         {/* Variable hints */}
         <div>
-          <p className="mb-2 text-xs font-medium text-on-surface-variant">แทรกตัวแปร</p>
+          <p className="mb-2 text-xs font-medium text-[hsl(var(--on-surface-variant))] uppercase tracking-wider">แทรกตัวแปร</p>
           <div className="flex flex-wrap gap-1.5">
             {VARIABLE_HINTS.map((hint) => (
               <button
                 key={hint.value}
                 type="button"
                 onClick={() => insertVariable(hint.value)}
-                className="inline-flex items-center gap-1 rounded-md border border-outline-variant bg-surface-container px-2.5 py-1 font-mono text-xs text-on-surface-variant shadow-sm transition-colors hover:border-primary30 hover:bg-primary-container/20 hover:text-primary"
+                className="inline-flex items-center gap-1 rounded-md border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-2.5 py-1 font-mono text-xs text-[hsl(var(--on-surface-variant))] shadow-sm transition-all hover:border-[hsl(217,100%,67%,0.3)] hover:bg-[hsl(217,100%,67%,0.1)] hover:text-[hsl(217,100%,90%)] active:scale-[0.98]"
               >
                 <Plus className="h-3 w-3" />
                 {hint.label}
@@ -275,23 +279,23 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
 
         {/* Body */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-on-surface">
-            เนื้อหาข้อความ <span className="text-error-container">*</span>
+          <label className="mb-1.5 block text-xs font-medium text-[hsl(var(--on-surface-variant))] uppercase tracking-wider">
+            เนื้อหาข้อความ <span className="text-[hsl(0,72%,80%)]">*</span>
           </label>
           <textarea
             value={form.body}
             onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
             placeholder="เขียนข้อความที่นี่ ใช้ตัวแปร เช่น {{tenant_name}} เพื่อปรับแต่งข้อความ"
             rows={6}
-            className="w-full rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 font-mono text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-y"
+            className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 font-mono text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))] backdrop-blur-sm focus:border-[hsl(217,100%,67%,0.5)] focus:outline-none focus:ring-2 focus:ring-[hsl(217,100%,67%,0.2)] transition-all resize-y"
           />
-          <p className="mt-1.5 text-xs text-on-surface-variant">{form.body.length} characters</p>
+          <p className="mt-1.5 text-xs text-[hsl(var(--on-surface-variant))]">{form.body.length} characters</p>
         </div>
 
         {/* Detected variables */}
         {vars.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-on-surface-variant">ตัวแปรที่พบ:</span>
+            <span className="text-xs font-medium text-[hsl(var(--on-surface-variant))]">ตัวแปรที่พบ:</span>
             {vars.map((v) => (<VarChip key={v} value={v} />))}
           </div>
         )}
@@ -301,7 +305,7 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
           <button
             onClick={() => void onSave(form)}
             disabled={saving || !form.name.trim() || !form.body.trim()}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(217,100%,67%,0.2)] bg-[hsl(217,100%,67%,0.1)] px-5 py-2.5 text-sm font-semibold text-[hsl(217,100%,90%)] shadow-[0_4px_16px_rgba(99,102,241,0.15)] transition-all hover:border-[hsl(217,100%,67%,0.4)] hover:bg-[hsl(217,100%,67%,0.2)] hover:shadow-[0_4px_16px_rgba(99,102,241,0.25)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             บันทึกเทมเพลต
@@ -309,7 +313,7 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
           <button
             onClick={onCancel}
             disabled={saving}
-            className="rounded-xl border border-outline bg-surface-container-lowest px-5 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
+            className="rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))] backdrop-blur-sm transition-all hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
           >
             ยกเลิก
           </button>
@@ -338,50 +342,53 @@ function TemplateCard({ template, onEdit, onDelete, onDuplicate }: TemplateCardP
   const vars = template.variables ?? extractVariables(template.body);
 
   return (
-    <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-5 shadow-sm transition-shadow hover:shadow-md">
+    <div className="group relative overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] p-5 transition-all hover:border-[hsl(var(--glass-border))] hover:shadow-[var(--glow-primary)]">
+      {/* Glow accent on hover */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.03)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-container text-primary">
-            <MessageSquare className="h-4 w-4" />
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--primary)/0.1)] shadow-[var(--glow-primary)]">
+            <MessageSquare className="h-4 w-4 text-[hsl(var(--primary))]" />
           </div>
           <div className="min-w-0">
-            <div className="truncate font-semibold text-on-surface">{template.name}</div>
+            <div className="truncate font-semibold text-[hsl(var(--card-foreground))] font-display">{template.name}</div>
           </div>
         </div>
         <TypeBadge type={template.type} />
       </div>
 
       {/* Preview */}
-      <p className="mt-3 text-sm text-on-surface-variant leading-relaxed break-words">{preview}</p>
+      <p className="relative mt-3 text-sm text-[hsl(var(--on-surface-variant))] leading-relaxed break-words">{preview}</p>
 
       {/* Variables */}
       {vars.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-on-surface-variant/60">ตัวแปร:</span>
+        <div className="relative mt-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-[hsl(var(--on-surface-variant))]">ตัวแปร:</span>
           {vars.map((v) => (<VarChip key={v} value={v} />))}
         </div>
       )}
 
       {/* Actions */}
-      <div className="mt-4 flex items-center gap-2 border-t border-outline-variant/10 pt-4">
+      <div className="relative mt-4 flex items-center gap-2 pt-4 border-t border-[hsl(var(--glass-border))]">
         <button
           onClick={() => onEdit(template)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] backdrop-blur-sm transition-all hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
         >
           <Pencil className="h-3.5 w-3.5" />
           แก้ไข
         </button>
         <button
           onClick={() => onDuplicate(template)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] backdrop-blur-sm transition-all hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
         >
           <ClipboardCopy className="h-3.5 w-3.5" />
           คัดลอก
         </button>
         <button
           onClick={() => onDelete(template)}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-error-container/30 bg-error-container/10 px-3 py-1.5 text-xs font-medium text-on-error-container transition-colors hover:bg-error-container/20"
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-[hsl(0,72%,55%,0.2)] bg-[hsl(0,72%,55%,0.05)] px-3 py-1.5 text-xs font-medium text-[hsl(0,72%,80%)] transition-all hover:border-[hsl(0,72%,55%,0.4)] hover:bg-[hsl(0,72%,55%,0.15)] active:scale-[0.98]"
         >
           <Trash2 className="h-3.5 w-3.5" />
           ลบ
@@ -398,7 +405,6 @@ function TemplateCard({ template, onEdit, onDelete, onDuplicate }: TemplateCardP
 export default function MessageTemplatesPage() {
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [usingDefaults, setUsingDefaults] = useState(false);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
@@ -419,7 +425,9 @@ export default function MessageTemplatesPage() {
     setLoading(true);
     try {
       const res = await fetch('/api/message-templates', { cache: 'no-store' });
-      if (res.status === 404 || !res.ok) throw new Error('not found');
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const json = await res.json();
       const list: MessageTemplate[] = Array.isArray(json)
         ? json
@@ -429,10 +437,8 @@ export default function MessageTemplatesPage() {
         ? json.data.templates
         : [];
       setTemplates(list);
-      setUsingDefaults(false);
     } catch {
-      setTemplates(DEFAULT_TEMPLATES);
-      setUsingDefaults(true);
+      setTemplates([]);
     } finally {
       setLoading(false);
     }
@@ -457,17 +463,6 @@ export default function MessageTemplatesPage() {
     setFormSaving(true);
     setFormError(null);
     try {
-      if (usingDefaults) {
-        const newT: MessageTemplate = {
-          id: generateId(),
-          ...data,
-          variables: extractVariables(data.body),
-        };
-        setTemplates((prev) => [newT, ...prev]);
-        setShowAddForm(false);
-        showToast(true, 'เพิ่มเทมเพลตแล้ว (โหมดทดลอง — ไม่บันทึกไปยัง API)');
-        return;
-      }
       const res = await fetch('/api/message-templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -496,18 +491,6 @@ export default function MessageTemplatesPage() {
     setFormSaving(true);
     setFormError(null);
     try {
-      if (usingDefaults) {
-        setTemplates((prev) =>
-          prev.map((t) =>
-            t.id === editingTemplate.id
-              ? { ...t, ...data, variables: extractVariables(data.body) }
-              : t
-          )
-        );
-        setEditingTemplate(null);
-        showToast(true, 'อัปเดตเทมเพลตแล้ว (โหมดทดลอง — ไม่บันทึกไปยัง API)');
-        return;
-      }
       const res = await fetch(`/api/message-templates/${editingTemplate.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -535,12 +518,6 @@ export default function MessageTemplatesPage() {
     if (!deletingTemplate) return;
     setDeleteInProgress(true);
     try {
-      if (usingDefaults) {
-        setTemplates((prev) => prev.filter((t) => t.id !== deletingTemplate.id));
-        setDeletingTemplate(null);
-        showToast(true, 'ลบเทมเพลตแล้ว (โหมดทดลอง)');
-        return;
-      }
       const res = await fetch(`/api/message-templates/${deletingTemplate.id}`, { method: 'DELETE' });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -563,20 +540,10 @@ export default function MessageTemplatesPage() {
 
   async function handleDuplicate(template: MessageTemplate) {
     const data: TemplateFormData = {
-      name: `${template.name} (copy)`,
+      name: template.name + ' (คัดลอก)',
       type: template.type,
       body: template.body,
     };
-    if (usingDefaults) {
-      const newT: MessageTemplate = {
-        id: generateId(),
-        ...data,
-        variables: extractVariables(data.body),
-      };
-      setTemplates((prev) => [...prev, newT]);
-      showToast(true, 'คัดลอกเทมเพลตแล้ว (โหมดทดลอง)');
-      return;
-    }
     try {
       const res = await fetch('/api/message-templates', {
         method: 'POST',
@@ -587,13 +554,12 @@ export default function MessageTemplatesPage() {
       if (!res.ok || json.success === false) {
         throw new Error(json.error?.message ?? json.message ?? 'ไม่สามารถคัดลอกเทมเพลตได้');
       }
-      showToast(true, 'คัดลอกเทมเพลตสำเร็จแล้ว');
+      showToast(true, 'คัดลอกเทมเพลตแล้ว');
       await load();
     } catch (err) {
       showToast(false, err instanceof Error ? err.message : 'Duplicate failed');
     }
   }
-
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -604,32 +570,33 @@ export default function MessageTemplatesPage() {
       {toast && (
         <div
           className={[
-            'fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium shadow-lg',
+            'fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium shadow-lg backdrop-blur-sm',
             toast.ok
-              ? 'border-tertiary-container bg-tertiary-container/20 text-on-tertiary-container'
-              : 'border-error-container bg-error-container/20 text-on-error-container',
+              ? 'border-[hsl(142,70%,45%,0.3)] bg-[hsl(142,70%,45%,0.1)] text-[hsl(142,70%,70%)]'
+              : 'border-[hsl(0,72%,55%,0.3)] bg-[hsl(0,72%,55%,0.1)] text-[hsl(0,72%,80%)]',
           ].join(' ')}
         >
           {toast.ok ? (
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-on-tertiary-container" />
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-[hsl(142,70%,70%)]" />
           ) : (
-            <AlertTriangle className="h-4 w-4 shrink-0 text-on-error-container" />
+            <AlertTriangle className="h-4 w-4 shrink-0 text-[hsl(0,72%,80%)]" />
           )}
           {toast.msg}
         </div>
       )}
 
       {/* Page header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+      <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur px-6 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
+        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.08)] to-transparent pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[hsl(var(--primary)/0.06)] blur-3xl pointer-events-none" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
-              <MessageSquare className="h-5 w-5 text-on-primary" strokeWidth={1.75} />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--primary)/0.1)] shadow-[var(--glow-primary)]">
+              <MessageSquare className="h-5 w-5 text-[hsl(var(--primary))]" strokeWidth={1.75} />
             </div>
             <div>
-              <h1 className="text-base font-semibold text-on-primary">เทมเพลตข้อความ</h1>
-              <p className="text-xs text-on-primary/80 mt-0.5">จัดการเทมเพลตข้อความ LINE สำหรับใบแจ้งหนี้ การแจ้งเตือน และประกาศ</p>
+              <h1 className="font-display text-xl font-semibold tracking-tight text-[hsl(var(--card-foreground))]">เทมเพลตข้อความ</h1>
+              <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">จัดการเทมเพลตข้อความ LINE สำหรับใบแจ้งหนี้ การแจ้งเตือน และประกาศ</p>
             </div>
           </div>
           <button
@@ -638,24 +605,13 @@ export default function MessageTemplatesPage() {
               setFormError(null);
               setShowAddForm(true);
             }}
-            className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-white/30"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--primary)/0.1)] px-4 py-2 text-sm font-semibold text-[hsl(var(--primary)/0.9)] shadow-[var(--glow-primary)] transition-all hover:border-[hsl(var(--primary)/0.3)] hover:bg-[hsl(var(--primary)/0.2)] hover:shadow-[var(--glow-primary)] active:scale-[0.98]"
           >
             <Plus className="h-4 w-4" />
             สร้างเทมเพลต
           </button>
         </div>
       </div>
-
-      {/* Demo notice */}
-      {!loading && usingDefaults && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/50 px-4 py-3 text-sm text-amber-800">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-          <span>
-            <span className="font-semibold">โหมดทดลอง</span> — The{' '}
-            <code className="font-mono text-xs">/api/message-templates</code> endpoint is not available. Showing built-in default templates — changes will not be persisted.
-          </span>
-        </div>
-      )}
 
       {/* Add form */}
       {showAddForm && !editingTemplate && (
@@ -672,25 +628,27 @@ export default function MessageTemplatesPage() {
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="animate-pulse rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-5 space-y-3">
+            <div key={i} className="animate-pulse rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur-[var(--glass-blur)] p-5 space-y-3">
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-surface-container" />
-                <div className="h-4 w-32 rounded bg-surface-container" />
+                <div className="h-9 w-9 rounded-xl bg-[hsl(var(--card))]" />
+                <div className="h-4 w-32 rounded bg-[hsl(var(--card))]" />
               </div>
-              <div className="h-3 w-full rounded bg-surface-container" />
-              <div className="h-3 w-3/4 rounded bg-surface-container" />
-              <div className="h-8 w-24 rounded-lg bg-surface-container" />
+              <div className="h-3 w-full rounded bg-[hsl(var(--card))]" />
+              <div className="h-3 w-3/4 rounded bg-[hsl(var(--card))]" />
+              <div className="h-8 w-24 rounded-lg bg-[hsl(var(--card))]" />
             </div>
           ))}
         </div>
       ) : templates.length === 0 && !showAddForm ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-outline-variant bg-surface-container-lowest py-20 text-center">
-          <MessageSquare className="mb-3 h-12 w-12 text-on-surface-variant/30" />
-          <p className="font-semibold text-on-surface">ยังไม่มีเทมเพลต</p>
-          <p className="mt-1 text-sm text-on-surface-variant">สร้างเทมเพลตข้อความแรกของคุณเพื่อเริ่มต้น</p>
+        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur-[var(--glass-blur)] py-20 text-center">
+          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))]">
+            <MessageSquare className="h-7 w-7 text-[hsl(var(--card-foreground))]/15" />
+          </div>
+          <p className="font-semibold text-[hsl(var(--on-surface-variant))]">ยังไม่มีเทมเพลต</p>
+          <p className="mt-1 text-sm text-[hsl(var(--on-surface-variant))]">สร้างเทมเพลตข้อความแรกของคุณเพื่อเริ่มต้น</p>
           <button
             onClick={() => setShowAddForm(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition-colors hover:bg-primary/90"
+            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[hsl(217,100%,67%,0.2)] bg-[hsl(217,100%,67%,0.1)] px-4 py-2 text-sm font-semibold text-[hsl(217,100%,90%)] shadow-[0_4px_16px_rgba(99,102,241,0.15)] transition-all hover:border-[hsl(217,100%,67%,0.4)] hover:bg-[hsl(217,100%,67%,0.2)] hover:shadow-[0_4px_16px_rgba(99,102,241,0.25)] active:scale-[0.98]"
           >
             <Plus className="h-4 w-4" />
             สร้างเทมเพลต
@@ -726,7 +684,7 @@ export default function MessageTemplatesPage() {
 
       {/* Template count */}
       {!loading && templates.length > 0 && (
-        <p className="text-right text-xs text-on-surface-variant/60">
+        <p className="text-right text-xs text-[hsl(var(--on-surface-variant))]">
           {templates.length} template{templates.length !== 1 ? 's' : ''}
         </p>
       )}

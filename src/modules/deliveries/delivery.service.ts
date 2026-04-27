@@ -74,7 +74,7 @@ export class DeliveryService {
     const order = await prisma.deliveryOrder.create({
       data: {
         channel: 'LINE',
-        documentType: input.documentType as any as Prisma.DeliveryOrderCreateInput['documentType'],
+        documentType: input.documentType as unknown as Prisma.DeliveryOrderCreateInput['documentType'],
         description: input.description,
         year: input.year,
         month: input.month,

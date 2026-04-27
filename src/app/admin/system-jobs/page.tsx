@@ -67,7 +67,7 @@ const JOB_CONFIG: Job[] = [
     id: 'late-fee',
     name: 'คิดค่าปรับ',
     description: 'คิดค่าปรับสำหรับบัญชีที่ค้างชำระ',
-    schedule: 'ทุกวัน 09:30 น.',
+    schedule: 'ทุกวัน 02:00 น.',
     lastRun: null,
     status: 'idle',
   },
@@ -76,6 +76,54 @@ const JOB_CONFIG: Job[] = [
     name: 'ล้างข้อมูลฐานข้อมูล',
     description: 'เก็บถาวร log เก่าและปรับปรุงตารางฐานข้อมูล',
     schedule: 'ทุกวันอาทิตย์ 02:00 น.',
+    lastRun: null,
+    status: 'idle',
+  },
+  {
+    id: 'contract-expiry',
+    name: 'ตรวจสอบสัญญาใกล้หมด',
+    description: 'ส่งแจ้งเตือนสัญญาเช่าที่ใกล้หมดอายุ (30/60/90 วัน)',
+    schedule: 'ทุกวัน 09:00 น.',
+    lastRun: null,
+    status: 'idle',
+  },
+  {
+    id: 'auto-reminder',
+    name: 'ส่งเตือนชำระเงิน',
+    description: 'ส่งเตือน LINE ให้ผู้เช่าที่มียอดค้างตาม ReminderConfig',
+    schedule: 'ทุกวัน 08:00 น.',
+    lastRun: null,
+    status: 'idle',
+  },
+  {
+    id: 'outbox-cleanup',
+    name: 'ล้าง outbox queue',
+    description: 'ลบ outbox event ที่เก่ากว่า 30 วัน',
+    schedule: 'ทุกวันอาทิตย์ 04:00 น.',
+    lastRun: null,
+    status: 'idle',
+  },
+  {
+    id: 'document-notify',
+    name: 'แจ้งเตือนเอกสาร',
+    description: 'ส่ง LINE แจ้งเตือนเอกสารที่รอดำเนินการ',
+    schedule: 'ทุกวัน 07:00 น.',
+    lastRun: null,
+    status: 'idle',
+  },
+  {
+    id: 'document-cleanup',
+    name: 'ล้างไฟล์เอกสาร',
+    description: 'เก็บถาวร/ลบไฟล์เอกสารที่หมดอายุ',
+    schedule: 'ทุกวันอาทิตย์ 07:00 น.',
+    lastRun: null,
+    status: 'idle',
+  },
+  {
+    id: 'backup-cleanup',
+    name: 'ล้างไฟล์สำรอง',
+    description: 'ลบไฟล์ backup เก่ากว่า retention period',
+    schedule: 'ทุกวัน 08:00 น.',
     lastRun: null,
     status: 'idle',
   },
@@ -130,7 +178,7 @@ function StatusBadge({ status }: { status: JobStatus }) {
   }
   if (status === 'error') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-error-container text-on-error-container">
         <XCircle className="w-3 h-3" />
         ข้อผิดพลาด
       </span>
@@ -279,8 +327,8 @@ export default function SystemJobsPage() {
 
       {/* Worker unavailable notice — shown until workerAvailable is confirmed true */}
       {workerAvailable === false && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+        <div className="flex items-start gap-3 rounded-lg border border-warning-container/30 bg-warning-container/10 px-4 py-3 text-sm text-on-warning-container">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-on-warning-container" />
           <div>
             <span className="font-semibold">เวิร์กเกอร์เบื้องหลังไม่ทำงาน</span>
             {' '}งานจะทำงานอัตโนมัติตามตารางเวลาที่กำหนดไว้เมื่อเวิร์กเกอร์ทำงานอยู่ การรันด้วยตนเองไม่พร้อมใช้งานในสภาพแวดล้อมนี้
@@ -296,14 +344,14 @@ export default function SystemJobsPage() {
               key={idx}
               className={`flex items-start gap-2 rounded-lg border px-4 py-3 text-sm shadow-lg ${
                 toast.type === 'success'
-                  ? 'border-green-200 bg-green-50 text-green-800'
-                  : 'border-red-200 bg-red-50 text-red-800'
+                  ? 'border-success-container/30 bg-success-container/10 text-on-success-container'
+                  : 'border-error-container/30 bg-error-container/10 text-on-error-container'
               }`}
             >
               {toast.type === 'success' ? (
-                <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-green-600" />
+                <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-on-success-container" />
               ) : (
-                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-600" />
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-on-error-container" />
               )}
               <span>{toast.message}</span>
             </div>
@@ -369,7 +417,7 @@ export default function SystemJobsPage() {
                     </div>
                     <div className="flex items-center gap-1.5">
                       {job.lastRun ? (
-                        <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                        <CheckCircle className="w-3.5 h-3.5 text-on-success-container" />
                       ) : (
                         <AlertCircle className="w-3.5 h-3.5 text-gray-400" />
                       )}
@@ -383,8 +431,8 @@ export default function SystemJobsPage() {
                     <div
                       className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs ${
                         jobToast.type === 'success'
-                          ? 'bg-green-50 text-green-700 border border-green-200'
-                          : 'bg-red-50 text-red-700 border border-red-200'
+                          ? 'bg-success-container/20 text-on-success-container border border-success-container/30'
+                          : 'bg-error-container/20 text-on-error-container border border-error-container/30'
                       }`}
                     >
                       {jobToast.type === 'success' ? (

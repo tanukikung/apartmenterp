@@ -24,10 +24,11 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     year: url.searchParams.get('year') || undefined,
     month: url.searchParams.get('month') || undefined,
     status: url.searchParams.get('status') || undefined,
+    floor: url.searchParams.get('floor') || undefined,
     page: url.searchParams.get('page') || '1',
-    pageSize: url.searchParams.get('pageSize') || '20',
-    sortBy: url.searchParams.get('sortBy') || 'createdAt',
-    sortOrder: url.searchParams.get('sortOrder') || 'desc',
+    pageSize: url.searchParams.get('pageSize') || '50',
+    sortBy: url.searchParams.get('sortBy') || 'roomNo',
+    sortOrder: url.searchParams.get('sortOrder') || 'asc',
   };
 
   const validatedQuery = listBillingRecordsQuerySchema.parse(query);

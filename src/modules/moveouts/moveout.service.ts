@@ -1,5 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
-import { prisma, logger } from '@/lib';
+import { Prisma } from '@prisma/client';
+import { prisma, logger, EventTypes } from '@/lib';
+import { ROOM_STATUS, CONTRACT_STATUS } from '@/lib/constants';
 
 import type { MoveOutStatus, MoveOutItemCondition } from './types';
 import {
@@ -41,7 +43,7 @@ export class MoveOutService {
       throw new NotFoundError('Contract', input.contractId);
     }
 
-    if (contract.status !== 'ACTIVE') {
+    if (contract.status !== CONTRACT_STATUS.ACTIVE) {
       throw new BadRequestError('Can only create move-out for active contracts');
     }
 
@@ -62,6 +64,11 @@ export class MoveOutService {
         depositAmount: contract.deposit || 0,
         notes: input.notes,
         status: 'PENDING',
+        // Capture meter readings at departure for final settlement billing.
+        // If readings are lower than last billed (meter replaced), the difference
+        // is waived as a meter reset — no additional charge to tenant.
+        moveOutWaterReading: input.moveOutWaterReading as unknown as undefined,
+        moveOutElectricReading: input.moveOutElectricReading as unknown as undefined,
       },
       include: {
         contract: {
@@ -78,7 +85,7 @@ export class MoveOutService {
     await prisma.contract.update({
       where: { id: input.contractId },
       data: {
-        status: 'TERMINATED',
+        status: CONTRACT_STATUS.TERMINATED,
         terminationDate: new Date(input.moveOutDate),
       },
     });
@@ -86,7 +93,7 @@ export class MoveOutService {
     // Update room status to VACANT
     await prisma.room.update({
       where: { roomNo: contract.roomNo },
-      data: { roomStatus: 'VACANT' },
+      data: { roomStatus: ROOM_STATUS.VACANT },
     });
 
     // Update room tenant move-out date
@@ -389,6 +396,7 @@ export class MoveOutService {
 
     const moveOut = await prisma.moveOut.findUnique({
       where: { id: moveOutId },
+      include: { contract: { select: { roomNo: true } } },
     });
 
     if (!moveOut) {
@@ -399,8 +407,25 @@ export class MoveOutService {
       throw new BadRequestError('Cannot calculate deposit for move-out in final status');
     }
 
+    // Security deposit must be applied against outstanding invoices before any
+    // cash refund is issued — Thai civil law / standard apartment practice.
+    // Query unpaid invoices for this room that are still open (not PAID/CANCELLED).
+    const unpaidInvoices = await prisma.invoice.findMany({
+      where: {
+        roomNo: moveOut.contract.roomNo,
+        status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
+      },
+    });
+    const totalUnpaidAmount = unpaidInvoices.reduce(
+      (sum, inv) => sum + Number(inv.totalAmount),
+      0
+    );
+
     const totalDeduction = input.cleaningFee + input.damageRepairCost + input.otherDeductions;
-    const finalRefund = Math.max(0, Number(moveOut.depositAmount) - totalDeduction);
+    // Offset deposit against outstanding invoices first, then deduct cleaning/damage
+    const amountOffsetFromDeposit = Math.min(Number(moveOut.depositAmount), totalUnpaidAmount);
+    const afterOffset = Math.max(0, Number(moveOut.depositAmount) - amountOffsetFromDeposit);
+    const finalRefund = Math.max(0, afterOffset - totalDeduction);
 
     // Create deduction items if they don't exist
     const existingCategories = await prisma.moveOutItem.findMany({
@@ -498,23 +523,68 @@ export class MoveOutService {
       throw new BadRequestError('Can only confirm move-out after deposit calculation');
     }
 
-    const updated = await prisma.moveOut.update({
+    // Guard: Re-verify that no outstanding invoices remain unpaid.
+    // Even if calculateDeposit() was called, the invoice offset must have been
+    // applied. If invoices remain open, the deposit refund is incorrect.
+    // Fetch the roomNo from the contract first.
+    const moveOutWithContract = await prisma.moveOut.findUnique({
       where: { id },
-      data: {
-        status: 'CONFIRMED',
-        confirmedAt: new Date(),
-        confirmedBy,
-        notes: input.notes ? `${moveOut.notes || ''}\n${input.notes}`.trim() : moveOut.notes,
+      include: { contract: { select: { roomNo: true } } },
+    });
+
+    const unpaidInvoices = await prisma.invoice.findMany({
+      where: {
+        roomNo: moveOutWithContract!.contract.roomNo,
+        status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
       },
-      include: {
-        contract: {
-          include: {
-            primaryTenant: true,
-            room: true,
-          },
+    });
+
+    // SECURITY: If calculateDeposit was skipped or invoices were added after
+    // deposit calculation, the finalRefund may be wrong. Block confirmation
+    // and require deposit recalculation.
+    if (unpaidInvoices.length > 0) {
+      throw new BadRequestError(
+        `ห้องมีใบแจ้งหนี้ที่ยังไม่ชำระ ${unpaidInvoices.length} รายการ — กรุณาคำนวณค่ามัดจำใหม่ก่อนยืนยันย้ายออก`
+      );
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.moveOut.update({
+        where: { id },
+        data: {
+          status: 'CONFIRMED',
+          confirmedAt: new Date(),
+          confirmedBy,
+          notes: input.notes ? `${moveOut.notes || ''}\n${input.notes}`.trim() : moveOut.notes,
         },
-        items: true,
-      },
+        include: {
+          contract: {
+            include: {
+              primaryTenant: true,
+              room: true,
+            },
+          },
+          items: true,
+        },
+      });
+
+      await tx.outboxEvent.create({
+        data: {
+          id: uuidv4(),
+          aggregateType: 'MoveOut',
+          aggregateId: id,
+          eventType: EventTypes.MOVE_OUT_CONFIRMED,
+          payload: {
+            moveOutId: id,
+            contractId: result.contractId,
+            roomNo: result.contract.roomNo,
+            confirmedBy,
+          } as Prisma.InputJsonValue,
+          retryCount: 0,
+        },
+      });
+
+      return result;
     });
 
     return this.formatMoveOutResponse(updated);
@@ -611,7 +681,7 @@ export class MoveOutService {
     await prisma.contract.update({
       where: { id: moveOut.contractId },
       data: {
-        status: 'ACTIVE',
+        status: CONTRACT_STATUS.ACTIVE,
         terminationDate: null,
       },
     });

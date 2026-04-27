@@ -20,7 +20,7 @@ export class Outbox {
   private prisma: PrismaClient;
 
   constructor(prismaClient?: PrismaClient) {
-    this.prisma = prismaClient || (sharedPrisma as any as PrismaClient);
+    this.prisma = prismaClient || (sharedPrisma as unknown as PrismaClient);
   }
 
   /**
@@ -43,7 +43,7 @@ export class Outbox {
       },
     });
 
-    return outboxEvent as any as OutboxEvent;
+    return outboxEvent as unknown as OutboxEvent;
   }
 
   /**
@@ -73,7 +73,7 @@ export class Outbox {
       )
     );
 
-    return createdEvents as any as OutboxEvent[];
+    return createdEvents as unknown as OutboxEvent[];
   }
 
   /**

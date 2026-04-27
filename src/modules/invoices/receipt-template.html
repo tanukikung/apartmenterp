@@ -1,0 +1,174 @@
+<!--template-meta:{"pageSize":"A4","orientation":"PORTRAIT","marginPreset":"narrow","fontFamily":"sarabun","fontSize":"base","lineHeight":"relaxed"}-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: 'Sarabun', 'Noto Sans Thai', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #1a1a1a;
+    background: #fff;
+  }
+  @page { size: A4 portrait; margin: 0; }
+  body { width: 210mm; min-height: 297mm; overflow: hidden; position: relative; }
+
+  .header {
+    background: #1c3860;
+    color: #fff;
+    padding: 12px 40px 10px;
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: #f29d21;
+  }
+  .header-left .header-name { font-size: 18px; font-weight: 700; }
+  .header-left .header-sub { font-size: 11px; color: #c8d4ee; margin-top: 3px; }
+  .header-title-main { font-size: 26px; font-weight: 700; color: #f29d21; text-align: right; line-height: 1.1; }
+  .header-title-sub { font-size: 11px; color: #c8d4ee; text-align: right; }
+
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 40px 8px;
+    gap: 24px;
+  }
+  .receipt-for .label { font-size: 12px; color: #888; }
+  .receipt-for .name { font-size: 18px; font-weight: 700; color: #1c3860; margin-top: 2px; }
+  .receipt-for .detail { font-size: 16px; color: #444; margin-top: 1px; }
+
+  .receipt-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid #ccc;
+    overflow: hidden;
+    align-self: flex-start;
+    min-width: 240px;
+  }
+  .inv-cell { padding: 6px 10px; font-size: 14px; }
+  .inv-row:nth-child(odd) .inv-cell { background: #f0f0f2; }
+  .inv-cell:first-child { color: #666; }
+  .inv-cell:last-child { font-weight: 700; color: #1c3860; text-align: right; }
+
+  .divider { border: none; border-top: 1px solid #1c3860; margin: 0 40px; }
+
+  .table-section { padding: 8px 40px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: #1c3860; color: #fff; font-size: 16px; font-weight: 700;
+    padding: 8px 12px; text-align: left;
+  }
+  thead th:not(:first-child) { text-align: right; }
+  tbody td { padding: 8px 12px; font-size: 16px; border-bottom: 0.5px solid #e0e0e8; }
+  tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody td.bold { font-weight: 700; }
+  .row-even td { background: #fff; }
+  .row-odd td { background: #f4f5fb; }
+
+  .amount-box {
+    display: flex;
+    justify-content: flex-end;
+    padding: 12px 40px 0;
+  }
+  .amount-inner {
+    background: #1c3860;
+    border-radius: 8px;
+    padding: 14px 26px;
+    text-align: center;
+    min-width: 210px;
+  }
+  .amount-label { font-size: 14px; color: #f29d21; font-weight: 700; }
+  .amount-value { font-size: 32px; font-weight: 700; color: #fff; line-height: 1; margin-top: 4px; }
+
+  .paid-watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    font-size: 72px;
+    font-weight: 700;
+    color: rgba(30, 120, 50, 0.12);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .footer {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: #1c3860;
+  }
+  .footer::before { content: ''; display: block; height: 2px; background: #f29d21; }
+  .footer-inner { display: flex; justify-content: space-between; align-items: center; padding: 6px 40px; }
+  .footer-text { font-size: 11px; color: #c8d4ee; }
+  .footer-id { font-size: 10px; color: #7a8ab0; }
+</style>
+
+<!-- Paid watermark -->
+<div class="paid-watermark">ชำระแล้ว / PAID</div>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-name" data-template-field="apartment.name">{{apartment.name}}</div>
+    <div class="header-sub" data-template-field="apartment.address">{{apartment.address}}</div>
+  </div>
+  <div>
+    <div class="header-title-main">ใบเสร็จรับเงิน</div>
+    <div class="header-title-sub">RECEIPT</div>
+  </div>
+</div>
+
+<!-- Meta -->
+<div class="meta">
+  <div class="receipt-for">
+    <div class="label">ได้รับเงินจาก / Received From</div>
+    <div class="name" data-template-field="tenant.fullName">{{tenant.fullName}}</div>
+    <div class="detail">ห้อง <span data-template-field="room.number">{{room.number}}</span>  ชั้น <span data-template-field="room.floorNumber">{{room.floorNumber}}</span></div>
+  </div>
+  <div class="receipt-info">
+    <div class="inv-row"><div class="inv-cell">เลขที่ใบเสร็จ</div><div class="inv-cell" data-template-field="computed.invoiceNumber">{{computed.invoiceNumber}}</div></div>
+    <div class="inv-row"><div class="inv-cell">วันที่</div><div class="inv-cell" data-template-field="computed.issuedDateLabel">{{computed.issuedDateLabel}}</div></div>
+    <div class="inv-row"><div class="inv-cell">งวด / Period</div><div class="inv-cell" data-template-field="computed.billingMonthLabel">{{computed.billingMonthLabel}}</div></div>
+    <div class="inv-row"><div class="inv-cell">ยอดชำระ</div><div class="inv-cell" data-template-field="computed.totalAmountFormatted">{{computed.totalAmountFormatted}}</div></div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- Payment breakdown -->
+<div class="table-section">
+  <table>
+    <thead>
+      <tr>
+        <th>รายการ</th>
+        <th class="num">จำนวนเงิน (บาท)</th>
+      </tr>
+    </thead>
+    <tbody data-template-repeat="billing_items">
+      <tr class="row-even">
+        <td data-template-field="typeName">{{typeName}}</td>
+        <td class="num bold" data-template-field="amountFormatted">{{amountFormatted}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Total -->
+<div class="amount-box">
+  <div class="amount-inner">
+    <div class="amount-label">รวมทั้งสิ้น / TOTAL</div>
+    <div class="amount-value" data-template-field="computed.totalAmountFormatted">{{computed.totalAmountFormatted}}</div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="footer-inner">
+    <span class="footer-text">ขอบคุณที่ไว้วางใจในบริการของเรา  •  Thank you for your business</span>
+    <span class="footer-id">ID: <span data-template-field="billing.invoiceId">{{billing.invoiceId}}</span></span>
+  </div>
+</div>

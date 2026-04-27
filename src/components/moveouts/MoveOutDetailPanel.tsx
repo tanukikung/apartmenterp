@@ -96,7 +96,7 @@ export function MoveOutDetailPanel({
           {canCancel && (
             <button
               onClick={onCancel}
-              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+              className="inline-flex items-center gap-1 rounded-lg border border-error-container bg-error-container/20 px-3 py-1.5 text-xs font-medium text-on-error-container hover:bg-error-container/30"
             >
               <XCircle size={12} />
               ยกเลิก
@@ -105,7 +105,7 @@ export function MoveOutDetailPanel({
           {moveOut.contract?.primaryTenant?.lineUserId && (
             <button
               onClick={onSendNotice}
-              className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+              className="inline-flex items-center gap-1 rounded-lg border border-info-container bg-info-container/20 px-3 py-1.5 text-xs font-medium text-on-info-container hover:bg-info-container/30"
             >
               <Send size={12} />
               ส่ง LINE
@@ -152,7 +152,7 @@ export function MoveOutDetailPanel({
             {fmtMoney(moveOut.depositAmount)}
           </span>
         </div>
-        <div className="flex items-center justify-between text-red-600">
+        <div className="flex items-center justify-between text-on-error-container">
           <span className="text-[11px] font-semibold uppercase tracking-wider">
             หักลงาด
           </span>
@@ -162,7 +162,7 @@ export function MoveOutDetailPanel({
           <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
             คืนเงินสุทธิ
           </span>
-          <span className="font-bold text-lg text-emerald-600">
+          <span className="font-bold text-lg text-on-success-container">
             {fmtMoney(moveOut.finalRefund)}
           </span>
         </div>
@@ -174,7 +174,7 @@ export function MoveOutDetailPanel({
           <button
             onClick={onCalculate}
             disabled={calculating}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-warning-container px-4 py-2 text-sm font-semibold text-on-warning-container shadow-sm hover:bg-warning-container/80 disabled:opacity-50"
           >
             <Calculator size={14} />
             {calculating ? 'กำลังคำนวณ...' : 'คำนวณมัดจำ'}
@@ -183,7 +183,7 @@ export function MoveOutDetailPanel({
         {canConfirm && (
           <button
             onClick={onConfirm}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-600"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700"
           >
             <CheckCircle2 size={14} />
             ยืนยันการย้ายออก
@@ -192,7 +192,7 @@ export function MoveOutDetailPanel({
         {canRefund && (
           <button
             onClick={onRefund}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-600"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-success-container px-4 py-2 text-sm font-semibold text-on-success-container shadow-sm hover:bg-success-container/80"
           >
             <CheckCircle2 size={14} />
             บันทึกคืนเงิน
@@ -255,12 +255,12 @@ export function MoveOutDetailPanel({
             />
           </div>
           {calcError && (
-            <div className="text-xs text-red-600">{calcError}</div>
+            <div className="text-xs text-on-error-container">{calcError}</div>
           )}
           <button
             type="submit"
             disabled={calculating}
-            className="w-full rounded-lg bg-amber-500 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+            className="w-full rounded-lg bg-warning-container py-2 text-sm font-semibold text-on-warning-container hover:bg-warning-container/80 disabled:opacity-50"
           >
             {calculating ? 'กำลังคำนวณ...' : 'คำนวณและบันทึก'}
           </button>
@@ -366,12 +366,12 @@ export function MoveOutDetailPanel({
                     <span
                       className={`text-[10px] px-1.5 py-0.5 rounded ${
                         item.condition === 'GOOD'
-                          ? 'bg-emerald-100 text-emerald-700'
+                          ? 'bg-success-container text-on-success-container'
                           : item.condition === 'FAIR'
-                            ? 'bg-amber-100 text-amber-700'
+                            ? 'bg-warning-container text-on-warning-container'
                             : item.condition === 'DAMAGED'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-gray-100 text-gray-700'
+                              ? 'bg-error-container text-on-error-container'
+                              : 'bg-surface-container-low text-on-surface-variant'
                       }`}
                     >
                       {item.condition === 'GOOD'
@@ -389,13 +389,13 @@ export function MoveOutDetailPanel({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-red-600">
+                  <span className="text-sm font-medium text-on-error-container">
                     {fmtMoney(item.cost)}
                   </span>
                   {canCalculate && (
                     <button
                       onClick={() => onDeleteItem(item.id)}
-                      className="text-red-500 hover:text-red-700"
+                      className="text-on-error-container hover:text-error-container"
                     >
                       <Trash2 size={14} />
                     </button>

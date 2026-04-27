@@ -20,11 +20,11 @@ function FieldRow({
 }) {
   return (
     <div className="flex items-start gap-4">
-      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-container text-on-surface-variant">
+      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--color-surface))] text-[hsl(var(--on-surface))]/40">
         {icon}
       </div>
       <div className="flex-1">
-        <label className="mb-1.5 block text-sm font-medium text-on-surface">{label}</label>
+        <label className="mb-1.5 block text-sm font-medium text-[hsl(var(--on-surface))]/70">{label}</label>
         {children}
       </div>
     </div>
@@ -35,26 +35,26 @@ export function AdminAccountStep({ data, onChange, errors = {} }: AdminAccountSt
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-container">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur-md">
           <Shield className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-on-surface">ข้อมูลผู้ดูแลระบบ</h2>
-          <p className="text-sm text-on-surface-variant">สร้างบัญชีผู้ดูแลระบบหลักของคุณ</p>
+          <h2 className="text-lg font-semibold text-[hsl(var(--on-surface))]">ข้อมูลผู้ดูแลระบบ</h2>
+          <p className="text-sm text-[hsl(var(--on-surface))]/40">สร้างบัญชีผู้ดูแลระบบหลักของคุณ</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5 space-y-5">
+      <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur-sm p-5 space-y-5">
         <FieldRow label="Username" icon={<User className="h-4 w-4" />}>
           <input
             type="text"
             value={data.username}
             onChange={(e) => onChange({ username: e.target.value })}
             placeholder="owner"
-            className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/20 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
           />
-          {errors.username && <p className="mt-1 text-xs text-color-danger">{errors.username}</p>}
-          <p className="mt-1 text-xs text-on-surface-variant">3-32 ตัวอักษร ประกอบด้วย a-z, A-Z, 0-9, ., _, -</p>
+          {errors.username && <p className="mt-1 text-xs text-red-400">{errors.username}</p>}
+          <p className="mt-1 text-xs text-[hsl(var(--on-surface))]/30">3-32 ตัวอักษร ประกอบด้วย a-z, A-Z, 0-9, ., _, -</p>
         </FieldRow>
 
         <FieldRow label="Display Name" icon={<User className="h-4 w-4" />}>
@@ -63,9 +63,9 @@ export function AdminAccountStep({ data, onChange, errors = {} }: AdminAccountSt
             value={data.displayName}
             onChange={(e) => onChange({ displayName: e.target.value })}
             placeholder="ชื่อผู้ดูแลระบบ"
-            className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/20 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
           />
-          {errors.displayName && <p className="mt-1 text-xs text-color-danger">{errors.displayName}</p>}
+          {errors.displayName && <p className="mt-1 text-xs text-red-400">{errors.displayName}</p>}
         </FieldRow>
 
         <FieldRow label="Password" icon={<Shield className="h-4 w-4" />}>
@@ -74,10 +74,10 @@ export function AdminAccountStep({ data, onChange, errors = {} }: AdminAccountSt
             value={data.password}
             onChange={(e) => onChange({ password: e.target.value })}
             placeholder="••••••••"
-            className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/20 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
           />
-          {errors.password && <p className="mt-1 text-xs text-color-danger">{errors.password}</p>}
-          <p className="mt-1 text-xs text-on-surface-variant">8-128 ตัวอักษร</p>
+          {errors.password && <p className="mt-1 text-xs text-red-400">{errors.password}</p>}
+          <p className="mt-1 text-xs text-[hsl(var(--on-surface))]/30">8-128 ตัวอักษร</p>
         </FieldRow>
 
         <FieldRow label="ยืนยัน Password" icon={<Shield className="h-4 w-4" />}>
@@ -86,16 +86,10 @@ export function AdminAccountStep({ data, onChange, errors = {} }: AdminAccountSt
             value={data.confirmPassword}
             onChange={(e) => onChange({ confirmPassword: e.target.value })}
             placeholder="••••••••"
-            className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/20 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
           />
-          {errors.confirmPassword && <p className="mt-1 text-xs text-color-danger">{errors.confirmPassword}</p>}
+          {errors.confirmPassword && <p className="mt-1 text-xs text-red-400">{errors.confirmPassword}</p>}
         </FieldRow>
-      </div>
-
-      <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
-        <p className="text-sm text-blue-800">
-          <strong>หมายเหตุ:</strong> คุณจะถูกบังคับให้เปลี่ยนรหัสผ่านหลังจากเข้าสู่ระบบครั้งแรก
-        </p>
       </div>
     </div>
   );

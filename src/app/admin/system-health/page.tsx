@@ -10,7 +10,6 @@ import {
   Gauge,
   HardDrive,
   MessageSquare,
-  MemoryStick,
   RefreshCw,
   Server,
   Wifi,
@@ -18,38 +17,12 @@ import {
   Zap,
 } from 'lucide-react';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 type ServiceStatus = 'ok' | 'connected' | 'degraded' | 'error' | 'not_configured';
 
 type HealthData = {
   status: 'ok' | 'degraded' | 'error';
-  services: {
-    database: ServiceStatus;
-    env: ServiceStatus;
-    app: ServiceStatus;
-    redis?: ServiceStatus;
-    backup?: {
-      lastAttempt: string | null;
-      lastSuccess: string | null;
-      lastError: string | null;
-    };
-  };
-  servicesDetailed?: {
-    database?: { status: ServiceStatus; latencyMs: number | null };
-    redis?: { status: ServiceStatus; latencyMs: number | null };
-    outbox?: { status: ServiceStatus; queueLength: number; failedCount: number };
-    worker?: { status: ServiceStatus; lastHeartbeatAt: string | null; heartbeatSource?: 'redis' | 'in_memory' };
-    backup?: {
-      status: ServiceStatus;
-      lastAttempt: string | null;
-      lastSuccess: string | null;
-      lastError: string | null;
-      consecutiveFailures: number;
-    };
-  };
+  services: { database: ServiceStatus; env: ServiceStatus; app: ServiceStatus; redis?: ServiceStatus; backup?: { lastAttempt: string | null; lastSuccess: string | null; lastError: string | null } };
+  servicesDetailed?: { database?: { status: ServiceStatus; latencyMs: number | null }; redis?: { status: ServiceStatus; latencyMs: number | null }; outbox?: { status: ServiceStatus; queueLength: number; failedCount: number }; worker?: { status: ServiceStatus; lastHeartbeatAt: string | null; heartbeatSource?: 'redis' | 'in_memory' }; backup?: { status: ServiceStatus; lastAttempt: string | null; lastSuccess: string | null; lastError: string | null; consecutiveFailures: number } };
   version: string;
   environment: string;
   latencies?: { databaseMs: number | null };
@@ -58,306 +31,99 @@ type HealthData = {
   timestamp: string;
 };
 
-type HealthCard = {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-  status: ServiceStatus | null;
-  detail: string | null;
-  latencyMs?: number | null;
-};
+type HealthCard = { id: string; label: string; icon: React.ReactNode; status: ServiceStatus | null; detail: string | null; latencyMs?: number | null };
 
-type JobStatus = 'idle' | 'running' | 'error' | ServiceStatus;
+type Alert = { id: string; severity: 'critical' | 'warning' | 'info'; source: string; message: string; timestamp: string };
 
-type BackgroundJob = {
-  id: string;
-  name: string;
-  lastRun: string | null;
-  lastMessage: string | null;
-  durationMs: number | null;
-  status: JobStatus;
-};
-
-type Alert = {
-  id: string;
-  severity: 'critical' | 'warning' | 'info';
-  source: string;
-  message: string;
-  timestamp: string;
-};
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function statusIcon(status: ServiceStatus | JobStatus | null, size = 'h-5 w-5') {
-  if (status === 'ok' || status === 'connected')
-    return <CheckCircle2 className={`${size} text-emerald-500`} />;
-  if (status === 'degraded')
-    return <AlertTriangle className={`${size} text-amber-500`} />;
-  if (status === 'error')
-    return <XCircle className={`${size} text-red-500`} />;
-  if (status === 'running')
-    return <Activity className={`${size} text-blue-500 animate-pulse`} />;
-  if (status === 'not_configured')
-    return <AlertTriangle className={`${size} text-on-surface-variant`} />;
-  if (status === 'idle')
-    return <Clock className={`${size} text-outline-variant`} />;
-  return <Clock className={`${size} text-outline-variant`} />;
+function statusIcon(status: ServiceStatus | null, size = 'h-5 w-5') {
+  if (status === 'ok' || status === 'connected') return <CheckCircle2 className={`${size}`} style={{ color: '#4ade80' }} />;
+  if (status === 'degraded') return <AlertTriangle className={`${size}`} style={{ color: '#fbbf24' }} />;
+  if (status === 'error') return <XCircle className={`${size}`} style={{ color: '#f87171' }} />;
+  if (status === 'not_configured') return <AlertTriangle className={`${size}`} style={{ color: 'hsl(var(--on-surface-variant))' }} />;
+  return <Clock className={`${size}`} style={{ color: 'hsl(var(--on-surface-variant))' }} />;
 }
 
-function statusLabel(status: ServiceStatus | JobStatus | null): string {
+function statusLabel(status: ServiceStatus | null): string {
   switch (status) {
-    case 'ok':
-    case 'connected':
-      return 'ปกติ';
-    case 'degraded':
-      return 'เสื่อม';
-    case 'error':
-      return 'ข้อผิดพลาด';
-    case 'not_configured':
-      return 'ไม่ได้ตั้งค่า';
-    case 'idle':
-      return 'รอ';
-    case 'running':
-      return 'กำลังทำงาน';
-    default:
-      return 'ไม่ทราบ';
+    case 'ok': case 'connected': return 'ปกติ';
+    case 'degraded': return 'เสื่อม';
+    case 'error': return 'ข้อผิดพลาด';
+    case 'not_configured': return 'ไม่ได้ตั้งค่า';
+    default: return 'ไม่ทราบ';
   }
 }
 
-function statusCardBorder(status: ServiceStatus | JobStatus | null): string {
-  if (status === 'ok' || status === 'connected') return 'border-emerald-200 bg-emerald-50/40';
-  if (status === 'degraded') return 'border-amber-200 bg-amber-50/40';
-  if (status === 'error') return 'border-red-200 bg-red-50/40';
-  if (status === 'running') return 'border-blue-200 bg-blue-50/40';
-  return 'border-outline-variant bg-surface-container-lowest';
+function statusCardBorder(status: ServiceStatus | null): string {
+  if (status === 'ok' || status === 'connected') return 'border-emerald-500/30';
+  if (status === 'degraded') return 'border-amber-500/30';
+  if (status === 'error') return 'border-red-500/30';
+  return 'border-[hsl(var(--glass-border))]';
 }
 
-function statusTextColor(status: ServiceStatus | JobStatus | null): string {
-  if (status === 'ok' || status === 'connected') return 'text-emerald-700';
-  if (status === 'degraded') return 'text-amber-700';
-  if (status === 'error') return 'text-red-700';
-  if (status === 'running') return 'text-blue-700';
-  return 'text-on-surface-variant';
+function statusBg(status: ServiceStatus | null): string {
+  if (status === 'ok' || status === 'connected') return 'rgba(34,197,94,0.1)';
+  if (status === 'degraded') return 'rgba(251,191,36,0.1)';
+  if (status === 'error') return 'rgba(239,68,68,0.1)';
+  return 'transparent';
+}
+
+function statusTextColor(status: ServiceStatus | null): string {
+  if (status === 'ok' || status === 'connected') return 'text-emerald-400';
+  if (status === 'degraded') return 'text-amber-400';
+  if (status === 'error') return 'text-red-400';
+  return 'text-[hsl(var(--on-surface-variant))]';
 }
 
 function globalBadgeClass(status: 'ok' | 'degraded' | 'error' | undefined): string {
-  if (status === 'ok') return 'inline-flex items-center gap-2 rounded-full bg-success-container/30 px-3 py-1 text-xs font-semibold text-color-success';
-  if (status === 'degraded') return 'inline-flex items-center gap-2 rounded-full bg-warning-container/30 px-3 py-1 text-xs font-semibold text-color-warning';
-  if (status === 'error') return 'inline-flex items-center gap-2 rounded-full bg-error-container/30 px-3 py-1 text-xs font-semibold text-color-danger';
-  return 'inline-flex items-center gap-2 rounded-full bg-surface-container-lowest px-3 py-1 text-xs font-semibold text-on-surface-variant';
+  if (status === 'ok') return 'inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold';
+  if (status === 'degraded') return 'inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold';
+  if (status === 'error') return 'inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold';
+  return 'inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold';
 }
 
 function fmtTs(iso: string | null | undefined): string {
   if (!iso) return 'Never';
-  return new Date(iso).toLocaleString('th-TH', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+  return new Date(iso).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
-
-// ---------------------------------------------------------------------------
-// Derive health cards from API response
-// ---------------------------------------------------------------------------
 
 function buildHealthCards(data: HealthData): HealthCard[] {
   const detailed = data.servicesDetailed;
-  const dbStatus: ServiceStatus =
-    data.services.database === 'connected' || data.services.database === 'ok'
-      ? 'ok'
-      : (data.services.database ?? 'error');
+  const dbStatus: ServiceStatus = data.services.database === 'connected' || data.services.database === 'ok' ? 'ok' : (data.services.database ?? 'error');
 
-  const cards: HealthCard[] = [
-    {
-      id: 'database',
-      label: 'ฐานข้อมูล',
-      icon: <Database className="h-6 w-6" />,
-      status: dbStatus,
-      detail:
-        dbStatus === 'ok'
-          ? `เชื่อมต่อแล้ว`
-          : data.error
-            ? data.error.slice(0, 80)
-            : 'การเชื่อมต่อล้มเหลว',
-      latencyMs: detailed?.database?.latencyMs ?? data.latencies?.databaseMs,
-    },
-    {
-      id: 'line',
-      label: 'API LINE',
-      icon: <MessageSquare className="h-6 w-6" />,
-      status:
-        data.missingEnv?.some((k) => k.toLowerCase().includes('line')) === false
-          ? 'ok'
-          : 'not_configured',
-      detail:
-        data.missingEnv?.some((k) => k.toLowerCase().includes('line')) === false
-          ? 'กำหนดค่าข้อมูลรับรองแล้ว'
-          : 'ไม่ได้ตั้งค่า LINE_CHANNEL_ID หรือ LINE_ACCESS_TOKEN',
-    },
-    {
-      id: 'redis',
-      label: 'Redis',
-      icon: <Zap className="h-6 w-6" />,
-      status: detailed?.redis?.status ?? 'not_configured',
-      detail:
-        detailed?.redis?.status === 'ok'
-          ? 'เชื่อมต่อ Redis แล้ว'
-          : detailed?.redis?.status === 'not_configured'
-            ? 'ไม่ได้ตั้งค่า (ตัวเลือก - ใช้ in-memory heartbeat)'
-            : 'การเชื่อมต่อ Redis ล้มเหลว',
-      latencyMs: detailed?.redis?.latencyMs,
-    },
-    {
-      id: 'memory',
-      label: 'หน่วยความจำ',
-      icon: <MemoryStick className="h-6 w-6" />,
-      status: 'ok',
-      detail: 'รันไทม์ Node.js — การใช้งาน heap ติดตามฝั่งเซิร์ฟเวอร์',
-    },
-    {
-      id: 'disk',
-      label: 'ดิสก์',
-      icon: <HardDrive className="h-6 w-6" />,
-      status: 'ok',
-      detail: 'ข้อมูลการใช้งานดิสก์ไม่แสดงผ่าน endpoint นี้',
-    },
-    {
-      id: 'worker',
-      label: 'โปรแกรมทำงานเบื้องหลัง',
-      icon: <Activity className="h-6 w-6" />,
-      status: detailed?.worker?.status ?? 'not_configured',
-      detail: detailed?.worker?.lastHeartbeatAt
-        ? `สัญญาณชีพล่าสุด: ${fmtTs(detailed.worker.lastHeartbeatAt)} (${detailed.worker.heartbeatSource === 'in_memory' ? 'in-memory' : 'Redis'})`
-        : detailed?.worker?.heartbeatSource === 'in_memory'
-          ? 'Worker กำลังทำงาน (ใช้ in-memory heartbeat - Redis ไม่ได้ตั้งค่า)'
-          : 'Worker ไม่ได้ทำงาน หรือ Worker process ไม่ได้เริ่มต้น',
-    },
-  ];
-
-  return cards;
-}
-
-// ---------------------------------------------------------------------------
-// Derive service list
-// ---------------------------------------------------------------------------
-
-type ServiceRow = {
-  name: string;
-  status: ServiceStatus;
-  lastHeartbeat: string | null;
-};
-
-function buildServiceRows(data: HealthData): ServiceRow[] {
-  const detailed = data.servicesDetailed;
-  const backupStatus: ServiceStatus = detailed?.backup?.status ?? 'not_configured';
   return [
-    {
-      name: 'เซิร์ฟเวอร์แอปพลิเคชัน',
-      status: data.services.app === 'ok' ? 'ok' : 'error',
-      lastHeartbeat: data.timestamp,
-    },
-    {
-      name: 'ฐานข้อมูล PostgreSQL',
-      status:
-        data.services.database === 'connected' || data.services.database === 'ok'
-          ? 'ok'
-          : 'error',
-      lastHeartbeat: data.timestamp,
-    },
-    {
-      name: 'แคช Redis',
-      status:
-        detailed?.redis?.status === 'ok'
-          ? 'ok'
-          : detailed?.redis?.status === 'not_configured'
-            ? 'not_configured'
-            : 'error',
-      lastHeartbeat: detailed?.redis?.status === 'ok' ? data.timestamp : null,
-    },
-    {
-      name: 'ตัวประมวลผลกล่องขาออก',
-      status: detailed?.outbox?.status ?? 'not_configured',
-      lastHeartbeat:
-        detailed?.outbox
-          ? data.timestamp
-          : null,
-    },
-    {
-      name: 'โปรแกรมทำงานเบื้องหลัง',
-      status: detailed?.worker?.status ?? 'not_configured',
-      lastHeartbeat: detailed?.worker?.lastHeartbeatAt ?? null,
-    },
-    {
-      name: 'การสำรองข้อมูล (Backup)',
-      status: backupStatus,
-      lastHeartbeat: detailed?.backup?.lastAttempt ?? null,
-    },
-    {
-      name: 'การส่งข้อความ LINE',
-      status: data.missingEnv?.some((k) => k.toLowerCase().includes('line'))
-        ? 'not_configured'
-        : 'ok',
-      lastHeartbeat: null,
-    },
+    { id: 'database', label: 'ฐานข้อมูล', icon: <Database className="h-6 w-6" />, status: dbStatus, detail: dbStatus === 'ok' ? 'เชื่อมต่อแล้ว' : data.error ? data.error.slice(0, 80) : 'การเชื่อมต่อล้มเหลว', latencyMs: detailed?.database?.latencyMs ?? data.latencies?.databaseMs },
+    { id: 'line', label: 'API LINE', icon: <MessageSquare className="h-6 w-6" />, status: data.missingEnv?.some((k) => k.toLowerCase().includes('line')) === false ? 'ok' : 'not_configured', detail: data.missingEnv?.some((k) => k.toLowerCase().includes('line')) === false ? 'กำหนดค่าข้อมูลรับรองแล้ว' : 'ไม่ได้ตั้งค่า LINE_CHANNEL_ID หรือ LINE_ACCESS_TOKEN' },
+    { id: 'redis', label: 'Redis', icon: <Zap className="h-6 w-6" />, status: detailed?.redis?.status ?? 'not_configured', detail: detailed?.redis?.status === 'ok' ? 'เชื่อมต่อ Redis แล้ว' : detailed?.redis?.status === 'not_configured' ? 'ไม่ได้ตั้งค่า (ใช้ in-memory heartbeat)' : 'การเชื่อมต่อ Redis ล้มเหลว', latencyMs: detailed?.redis?.latencyMs },
+    { id: 'memory', label: 'หน่วยความจำ', icon: <HardDrive className="h-6 w-6" />, status: 'ok', detail: 'รันไทม์ Node.js — การใช้งาน heap ติดตามฝั่งเซิร์ฟเวอร์' },
+    { id: 'disk', label: 'ดิสก์', icon: <HardDrive className="h-6 w-6" />, status: 'ok', detail: 'ข้อมูลการใช้งานดิสก์ไม่แสดงผ่าน endpoint นี้' },
+    { id: 'worker', label: 'โปรแกรมทำงานเบื้องหลัง', icon: <Activity className="h-6 w-6" />, status: detailed?.worker?.status ?? 'not_configured', detail: detailed?.worker?.lastHeartbeatAt ? `สัญญาณชีพล่าสุด: ${fmtTs(detailed.worker.lastHeartbeatAt)} (${detailed.worker.heartbeatSource === 'in_memory' ? 'in-memory' : 'Redis'})` : detailed?.worker?.heartbeatSource === 'in_memory' ? 'Worker กำลังทำงาน (ใช้ in-memory heartbeat)' : 'Worker ไม่ได้ทำงาน หรือ Worker process ไม่ได้เริ่มต้น' },
   ];
 }
 
-// ---------------------------------------------------------------------------
-// Static background jobs (not exposed by /api/health, shown for completeness)
-// ---------------------------------------------------------------------------
-
-// Human-readable labels for job IDs returned by /api/admin/jobs
 const JOB_LABELS: Record<string, string> = {
-  'overdue-flag':     'Mark Overdue Invoices',
-  'billing-generate': 'Generate Billing Period',
-  'invoice-send':     'Send Invoices',
-  'late-fee':         'Late Fee Check',
-  'db-cleanup':      'Database Cleanup',
-  'contract-expiry':  'Contract Expiry Check',
-  'outbox-cleanup':   'Outbox Cleanup',
-  'document-notify':  'Document Notify',
-  'document-cleanup': 'Document Cleanup',
-  'backup-cleanup':   'Backup Cleanup',
+  'overdue-flag': 'Mark Overdue Invoices', 'billing-generate': 'Generate Billing Period',
+  'invoice-send': 'Send Invoices', 'late-fee': 'Late Fee Check', 'db-cleanup': 'Database Cleanup',
+  'contract-expiry': 'Contract Expiry Check', 'outbox-cleanup': 'Outbox Cleanup',
+  'document-notify': 'Document Notify', 'document-cleanup': 'Document Cleanup', 'backup-cleanup': 'Backup Cleanup',
 };
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
 
 function HealthCardItem({ card }: { card: HealthCard }) {
   return (
-    <div
-      className={[
-        'rounded-xl border p-4 flex flex-col gap-2',
-        statusCardBorder(card.status),
-      ].join(' ')}
-    >
+    <div className={`rounded-xl border p-4 flex flex-col gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] ${statusCardBorder(card.status)}`} style={{ backgroundColor: statusBg(card.status), borderColor: `rgba(${card.status === 'ok' || card.status === 'connected' ? '34,197,94' : card.status === 'degraded' ? '251,191,36' : card.status === 'error' ? '239,68,68' : '100,116,139'},0.3)` }}>
       <div className="flex items-center justify-between">
-        <span className="text-on-surface-variant">{card.icon}</span>
+        <span className="text-[hsl(var(--on-surface-variant))]">{card.icon}</span>
         {statusIcon(card.status)}
       </div>
       <div>
-        <div className="font-semibold text-on-surface">{card.label}</div>
-        <div className={['text-xs font-medium mt-0.5', statusTextColor(card.status)].join(' ')}>
-          {statusLabel(card.status)}
-          {card.latencyMs != null ? ` · ${card.latencyMs}ms` : ''}
+        <div className="font-semibold text-[hsl(var(--card-foreground))]">{card.label}</div>
+        <div className={`text-xs font-medium mt-0.5 ${statusTextColor(card.status)}`}>
+          {statusLabel(card.status)}{card.latencyMs != null ? ` · ${card.latencyMs}ms` : ''}
         </div>
       </div>
-      {card.detail ? (
-        <p className="text-xs text-on-surface-variant leading-relaxed">{card.detail}</p>
-      ) : null}
+      {card.detail ? <p className="text-xs text-[hsl(var(--on-surface-variant))] leading-relaxed">{card.detail}</p> : null}
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Main page
-// ---------------------------------------------------------------------------
 
 export default function SystemHealthPage() {
   const [data, setData] = useState<HealthData | null>(null);
@@ -373,7 +139,6 @@ export default function SystemHealthPage() {
     else setLoading(true);
     setError(null);
     try {
-      // Use deep health endpoint to get outbox queue stats and worker heartbeat
       const res = await fetch('/api/health/deep').then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'ตรวจสอบสถานะระบบไม่สำเร็จ');
       setData(res.data as HealthData);
@@ -393,88 +158,62 @@ export default function SystemHealthPage() {
       if (json.success && json.data?.jobs) {
         const map: Record<string, { lastRun: string | null; lastMessage: string | null; durationMs: number | null; status: 'idle' | 'running' | 'error' }> = {};
         for (const job of json.data.jobs) {
-          map[job.id] = {
-            lastRun: job.lastRun,
-            lastMessage: job.lastMessage,
-            durationMs: job.durationMs,
-            status: job.status,
-          };
+          map[job.id] = { lastRun: job.lastRun, lastMessage: job.lastMessage, durationMs: job.durationMs, status: job.status };
         }
         setJobEntries(map);
       }
-    } catch {
-      // Silently ignore — jobs panel will show empty until next poll
-    }
+    } catch { /* silent */ }
   }, []);
 
   const loadAlerts = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/system-health/alerts');
       const json = await res.json();
-      if (json.success && json.data?.alerts) {
-        setAlerts(json.data.alerts as Alert[]);
-      }
-    } catch {
-      // Silently ignore
-    }
+      if (json.success && json.data?.alerts) setAlerts(json.data.alerts as Alert[]);
+    } catch { /* silent */ }
   }, []);
 
   useEffect(() => {
     void load();
     void loadJobs();
     void loadAlerts();
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      void load();
-      void loadJobs();
-      void loadAlerts();
-    }, 30_000);
+    const interval = setInterval(() => { void load(); void loadJobs(); void loadAlerts(); }, 30_000);
     return () => clearInterval(interval);
   }, [load, loadJobs, loadAlerts]);
-
-  // ---------------------------------------------------------------------------
-  // Render — loading
-  // ---------------------------------------------------------------------------
 
   if (loading) {
     return (
       <main className="space-y-6">
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
+          </div>
           <div className="relative flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-base font-semibold text-on-primary">สถานะระบบ</h1>
-              <p className="text-xs text-on-primary/80 mt-0.5">กำลังตรวจสอบ...</p>
+              <h1 className="text-base font-semibold text-[hsl(var(--card-foreground))]">สถานะระบบ</h1>
+              <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">กำลังตรวจสอบ...</p>
             </div>
-            <div className="flex items-center gap-3"></div>
           </div>
         </div>
       </main>
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Render — error
-  // ---------------------------------------------------------------------------
-
   if (error && !data) {
     return (
       <main className="space-y-6">
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+        <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
+          </div>
           <div className="relative flex items-center justify-between gap-4">
-            <div>
-              <h1 className="text-base font-semibold text-on-primary">สถานะระบบ</h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <button onClick={() => void load(true)} className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
-                <RefreshCw className="h-4 w-4" />
-                ลองอีกครั้ง
-              </button>
-            </div>
+            <h1 className="text-base font-semibold text-[hsl(var(--card-foreground))]">สถานะระบบ</h1>
+            <button onClick={() => void load(true)} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95">
+              <RefreshCw className="h-4 w-4" />ลองอีกครั้ง
+            </button>
           </div>
         </div>
-        <div className="rounded-xl border border-color-danger/30 bg-error-container/20 px-4 py-3 text-sm text-color-danger">{error}</div>
+        <div className="rounded-xl border border-red-500/30 px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>{error}</div>
       </main>
     );
   }
@@ -482,177 +221,128 @@ export default function SystemHealthPage() {
   if (!data) return null;
 
   const healthCards = buildHealthCards(data);
-  const serviceRows = buildServiceRows(data);
   const outbox = data.servicesDetailed?.outbox;
 
-  // Build jobs list from live job store entries
-  const jobs: BackgroundJob[] = Object.entries(JOB_LABELS).map(([id, name]) => {
+  const jobs = Object.entries(JOB_LABELS).map(([id, name]) => {
     const entry = jobEntries[id];
-    return {
-      id,
-      name,
-      lastRun: entry?.lastRun ?? null,
-      lastMessage: entry?.lastMessage ?? null,
-      durationMs: entry?.durationMs ?? null,
-      status: entry?.status ?? 'idle',
-    };
+    return { id, name, lastRun: entry?.lastRun ?? null, lastMessage: entry?.lastMessage ?? null, durationMs: entry?.durationMs ?? null, status: entry?.status ?? 'idle' };
   });
 
   return (
     <main className="space-y-6">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
+        </div>
         <div className="relative flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-base font-semibold text-on-primary">สถานะระบบ</h1>
-            <p className="text-xs text-on-primary/80 mt-0.5">
-              {lastChecked
-                ? `ตรวจสอบล่าสุด: ${fmtTs(lastChecked)}`
-                : 'การวินิจฉัยแบบเรียลไทม์ข้างบริการทั้งหมด'}
+            <h1 className="text-base font-semibold text-[hsl(var(--card-foreground))]">สถานะระบบ</h1>
+            <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">
+              {lastChecked ? `ตรวจสอบล่าสุด: ${fmtTs(lastChecked)}` : 'การวินิจฉัยแบบเรียลไทม์ข้างบริการทั้งหมด'}
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className={globalBadgeClass(data.status)}>
+            <span className={globalBadgeClass(data.status)} style={data.status === 'ok' ? { background: 'rgba(34,197,94,0.15)', color: '#4ade80' } : data.status === 'degraded' ? { background: 'rgba(251,191,36,0.15)', color: '#fbbf24' } : { background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>
               {data.status?.toUpperCase() ?? 'UNKNOWN'}
             </span>
-            {alerts.filter((a) => a.severity === 'critical' || a.severity === 'warning').length > 0 ? (
-              <span className="inline-flex items-center gap-2 rounded-full bg-error-container/30 px-3 py-1 text-xs font-semibold text-color-danger">
+            {alerts.filter((a) => a.severity === 'critical' || a.severity === 'warning').length > 0 && (
+              <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-red-400" style={{ background: 'rgba(239,68,68,0.15)' }}>
                 <AlertTriangle className="h-3.5 w-3.5" />
                 {alerts.filter((a) => a.severity === 'critical' || a.severity === 'warning').length} การแจ้งเตือน
               </span>
-            ) : null}
-            <span className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface-variant shadow-sm">v{data.version}</span>
-            <button
-              onClick={() => void load(true)}
-              disabled={refreshing}
-              className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
-            >
-              <RefreshCw className={['h-4 w-4', refreshing ? 'animate-spin' : ''].join(' ')} />
+            )}
+            <span className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm">v{data.version}</span>
+            <button onClick={() => void load(true)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95">
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing ? 'กำลังรีเฟรช...' : 'รีเฟรช'}
             </button>
           </div>
         </div>
       </div>
 
-      {error ? <div className="rounded-xl border border-color-danger/30 bg-error-container/20 px-4 py-3 text-sm text-color-danger">{error}</div> : null}
+      {error ? <div className="rounded-xl border border-red-500/30 px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>{error}</div> : null}
 
-      {/* ── Health indicator cards ──────────────────────────────────────── */}
+      {/* Health cards */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-          ตัวชี้วัดบริการ
-        </h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-[hsl(var(--on-surface-variant))]">ตัวชี้วัดบริการ</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {healthCards.map((card) => (
-            <HealthCardItem key={card.id} card={card} />
-          ))}
+          {healthCards.map((card) => <HealthCardItem key={card.id} card={card} />)}
         </div>
       </section>
 
-      {/* ── Missing env vars warning ───────────────────────────────────── */}
-      {data.missingEnv && data.missingEnv.length > 0 ? (
-        <section className="rounded-xl border border-color-warning/30 bg-warning-container/20 px-4 py-3">
-          <div className="flex items-center gap-2 font-semibold text-color-warning text-sm">
-            <AlertTriangle className="h-4 w-4" />
-            ตัวแปรสภาพแวดล้อมที่ขาดหายไป
+      {/* Missing env vars */}
+      {data.missingEnv && data.missingEnv.length > 0 && (
+        <section className="rounded-xl border border-amber-500/30 px-4 py-3" style={{ background: 'rgba(251,191,36,0.1)' }}>
+          <div className="flex items-center gap-2 font-semibold text-amber-400 text-sm">
+            <AlertTriangle className="h-4 w-4" />ตัวแปรสภาพแวดล้อมที่ขาดหายไป
           </div>
           <ul className="mt-2 flex flex-wrap gap-2">
             {data.missingEnv.map((key) => (
-              <li
-                key={key}
-                className="rounded bg-warning-container/50 px-2 py-0.5 font-mono text-xs text-color-warning"
-              >
-                {key}
-              </li>
+              <li key={key} className="rounded px-2 py-0.5 font-mono text-xs text-amber-400" style={{ background: 'rgba(251,191,36,0.15)' }}>{key}</li>
             ))}
           </ul>
         </section>
-      ) : null}
+      )}
 
-      {/* ── Alerts panel ─────────────────────────────────────────────── */}
-      {alerts.length > 0 ? (
-        <section className="rounded-xl border border-color-danger/30 bg-error-container/10 px-4 py-3">
-          <div className="flex items-center gap-2 font-semibold text-color-danger text-sm mb-3">
-            <AlertTriangle className="h-4 w-4" />
-            การแจ้งเตือนล่าสุด ({alerts.length})
+      {/* Alerts panel */}
+      {alerts.length > 0 && (
+        <section className="rounded-xl border border-red-500/30 px-4 py-3" style={{ background: 'rgba(239,68,68,0.05)' }}>
+          <div className="mb-3 flex items-center gap-2 font-semibold text-red-400 text-sm">
+            <AlertTriangle className="h-4 w-4" />การแจ้งเตือนล่าสุด ({alerts.length})
           </div>
           <div className="space-y-2">
             {alerts.slice(0, 5).map((alert) => (
-              <div
-                key={alert.id}
-                className={[
-                  'flex items-start gap-3 rounded-lg px-3 py-2 text-sm',
-                  alert.severity === 'critical'
-                    ? 'bg-error-container/40 border border-color-danger/20'
-                    : alert.severity === 'warning'
-                      ? 'bg-warning-container/40 border border-color-warning/20'
-                      : 'bg-primary-container/30 border border-primary/20',
-                ].join(' ')}
-              >
-                {alert.severity === 'critical' ? (
-                  <XCircle className="h-4 w-4 text-color-danger mt-0.5 shrink-0" />
-                ) : alert.severity === 'warning' ? (
-                  <AlertTriangle className="h-4 w-4 text-color-warning mt-0.5 shrink-0" />
-                ) : (
-                  <Activity className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-                )}
+              <div key={alert.id} className="flex items-start gap-3 rounded-lg px-3 py-2 text-sm" style={alert.severity === 'critical' ? { background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.2)' } : alert.severity === 'warning' ? { background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.2)' } : { background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                {alert.severity === 'critical' ? <XCircle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" /> : alert.severity === 'warning' ? <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" /> : <Activity className="h-4 w-4 text-blue-400 mt-0.5 shrink-0" />}
                 <div className="flex-1 min-w-0">
-                  <div className={[
-                    'font-medium',
-                    alert.severity === 'critical' ? 'text-color-danger' :
-                    alert.severity === 'warning' ? 'text-color-warning' : 'text-blue-700',
-                  ].join(' ')}>
-                    {alert.message}
-                  </div>
-                  <div className="text-xs text-on-surface-variant mt-0.5">
-                    {alert.source} &middot; {fmtTs(alert.timestamp)}
-                  </div>
+                  <div className="font-medium" style={alert.severity === 'critical' ? { color: 'hsl(0,72%,68%)' } : alert.severity === 'warning' ? { color: 'hsl(38,92%,65%)' } : { color: 'hsl(var(--color-primary-light))' }}>{alert.message}</div>
+                  <div className="mt-0.5 text-xs text-[hsl(var(--on-surface-variant))]">{alert.source} &middot; {fmtTs(alert.timestamp)}</div>
                 </div>
               </div>
             ))}
           </div>
         </section>
-      ) : null}
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        {/* ── Service status list ─────────────────────────────────────── */}
-        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-          <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-medium text-on-surface">
-              <Server className="h-4 w-4 text-on-surface-variant" />
-              สถานะบริการ
+        {/* Service status */}
+        <section className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
+          <div className="border-b border-[hsl(var(--glass-border))] px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--card-foreground))]">
+              <Server className="h-4 w-4 text-[hsl(var(--primary))]" />สถานะบริการ
             </div>
-            <span className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1 text-xs font-medium text-on-surface-variant shadow-sm">{serviceRows.length} บริการ</span>
+            <span className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-1 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm">7 บริการ</span>
           </div>
           <div className="overflow-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr>
-                  <th>บริการ</th>
-                  <th>สถานะ</th>
-                  <th>สัญญาณชีพล่าสุด</th>
+                <tr className="border-b border-[hsl(var(--glass-border))]">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">บริการ</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สถานะ</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สัญญาณชีพล่าสุด</th>
                 </tr>
               </thead>
               <tbody>
-                {serviceRows.map((row) => (
-                  <tr key={row.name}>
-                    <td>
-                      <div className="flex items-center gap-2 font-medium text-on-surface">
-                        {statusIcon(row.status, 'h-4 w-4')}
-                        {row.name}
+                {[
+                  { name: 'เซิร์ฟเวอร์แอปพลิเคชัน', status: data.services.app === 'ok' ? 'ok' : 'error' as ServiceStatus, last: data.timestamp },
+                  { name: 'ฐานข้อมูล PostgreSQL', status: data.services.database === 'connected' || data.services.database === 'ok' ? 'ok' : 'error' as ServiceStatus, last: data.timestamp },
+                  { name: 'แคช Redis', status: data.servicesDetailed?.redis?.status ?? 'not_configured' as ServiceStatus, last: data.servicesDetailed?.redis?.status === 'ok' ? data.timestamp : null },
+                  { name: 'ตัวประมวลผลกล่องขาออก', status: data.servicesDetailed?.outbox?.status ?? 'not_configured' as ServiceStatus, last: data.servicesDetailed?.outbox ? data.timestamp : null },
+                  { name: 'โปรแกรมทำงานเบื้องหลัง', status: data.servicesDetailed?.worker?.status ?? 'not_configured' as ServiceStatus, last: data.servicesDetailed?.worker?.lastHeartbeatAt ?? null },
+                  { name: 'การสำรองข้อมูล (Backup)', status: data.servicesDetailed?.backup?.status ?? 'not_configured' as ServiceStatus, last: data.servicesDetailed?.backup?.lastAttempt ?? null },
+                  { name: 'การส่งข้อความ LINE', status: data.missingEnv?.some((k) => k.toLowerCase().includes('line')) ? 'not_configured' : 'ok' as ServiceStatus, last: null },
+                ].map((row) => (
+                  <tr key={row.name} className="border-b border-[hsl(var(--glass-border))] hover:bg-white/5 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 font-medium text-[hsl(var(--card-foreground))]">
+                        {statusIcon(row.status, 'h-4 w-4')} {row.name}
                       </div>
                     </td>
-                    <td>
-                      <span
-                        className={[
-                          'text-xs font-semibold',
-                          statusTextColor(row.status),
-                        ].join(' ')}
-                      >
-                        {statusLabel(row.status)}
-                      </span>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-semibold ${statusTextColor(row.status)}`}>{statusLabel(row.status)}</span>
                     </td>
-                    <td className="text-xs text-on-surface-variant">{fmtTs(row.lastHeartbeat)}</td>
+                    <td className="px-4 py-3 text-xs text-[hsl(var(--on-surface-variant))]">{fmtTs(row.last)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -660,113 +350,79 @@ export default function SystemHealthPage() {
           </div>
         </section>
 
-        {/* ── Background jobs ──────────────────────────────────────────── */}
-        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-          <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-medium text-on-surface">
-              <Gauge className="h-4 w-4 text-on-surface-variant" />
-              งานเบื้องหลัง
+        {/* Background jobs */}
+        <section className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
+          <div className="border-b border-[hsl(var(--glass-border))] px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--card-foreground))]">
+              <Gauge className="h-4 w-4 text-[hsl(var(--primary))]" />งานเบื้องหลัง
             </div>
           </div>
           <div className="overflow-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr>
-                  <th>งาน</th>
-                  <th>รันล่าสุด</th>
-                  <th>สถานะ</th>
-                  <th>ระยะเวลา</th>
-                  <th>ข้อความ</th>
+                <tr className="border-b border-[hsl(var(--glass-border))]">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">งาน</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">รันล่าสุด</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สถานะ</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ระยะเวลา</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ข้อความ</th>
                 </tr>
               </thead>
               <tbody>
                 {jobs.map((job) => (
-                  <tr key={job.id}>
-                    <td className="font-medium text-on-surface text-sm">{job.name}</td>
-                    <td className="text-xs text-on-surface-variant">{fmtTs(job.lastRun)}</td>
-                    <td>
+                  <tr key={job.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-white/5 transition-colors">
+                    <td className="px-4 py-3 text-sm font-medium text-[hsl(var(--card-foreground))]">{job.name}</td>
+                    <td className="px-4 py-3 text-xs text-[hsl(var(--on-surface-variant))]">{fmtTs(job.lastRun)}</td>
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
-                        {statusIcon(job.status, 'h-3.5 w-3.5')}
-                        <span className={['text-xs font-semibold', statusTextColor(job.status)].join(' ')}>
-                          {statusLabel(job.status)}
-                        </span>
+                        {statusIcon(job.status as ServiceStatus, 'h-3.5 w-3.5')}
+                        <span className={`text-xs font-semibold ${statusTextColor(job.status as ServiceStatus)}`}>{statusLabel(job.status as ServiceStatus)}</span>
                       </div>
                     </td>
-                    <td className="text-xs text-on-surface-variant">
-                      {job.durationMs != null ? `${(job.durationMs / 1000).toFixed(1)}s` : '—'}
-                    </td>
-                    <td className="text-xs text-on-surface-variant max-w-[160px] truncate" title={job.lastMessage ?? undefined}>
-                      {job.lastMessage ?? '—'}
-                    </td>
+                    <td className="px-4 py-3 text-xs text-[hsl(var(--on-surface-variant))]">{job.durationMs != null ? `${(job.durationMs / 1000).toFixed(1)}s` : '—'}</td>
+                    <td className="px-4 py-3 text-xs text-[hsl(var(--on-surface-variant))] max-w-[160px] truncate" title={job.lastMessage ?? undefined}>{job.lastMessage ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* Outbox stats */}
-          {outbox ? (
-            <div className="grid grid-cols-2 gap-3 border-t border-outline-variant/10 p-4">
-              <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">
-                  ความยาวคิว
-                </div>
-                <div className="mt-1 text-2xl font-bold text-on-surface">
-                  {outbox.queueLength}
-                </div>
+          {outbox && (
+            <div className="grid grid-cols-2 gap-3 border-t border-[hsl(var(--glass-border))] p-4">
+              <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card px-4 py-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[hsl(var(--on-surface-variant))]">ความยาวคิว</div>
+                <div className="mt-1 text-2xl font-bold text-[hsl(var(--card-foreground))]">{outbox.queueLength}</div>
               </div>
-              <div
-                className={[
-                  'rounded-xl border px-4 py-3',
-                  outbox.failedCount > 0
-                    ? 'border-color-danger/30 bg-error-container/20'
-                    : 'border-outline-variant/10 bg-surface-container-lowest',
-                ].join(' ')}
-              >
-                <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">
-                  เหตุการณ์ที่ล้มเหลว
-                </div>
-                <div
-                  className={[
-                    'mt-1 text-2xl font-bold',
-                    outbox.failedCount > 0 ? 'text-color-danger' : 'text-on-surface',
-                  ].join(' ')}
-                >
-                  {outbox.failedCount}
-                </div>
+              <div className={`rounded-xl border px-4 py-3 ${outbox.failedCount > 0 ? 'border-red-500/30' : 'border-[hsl(var(--glass-border))]'}`} style={outbox.failedCount > 0 ? { background: 'rgba(239,68,68,0.1)' } : {}}>
+                <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[hsl(var(--on-surface-variant))]">เหตุการณ์ที่ล้มเหลว</div>
+                <div className={`mt-1 text-2xl font-bold ${outbox.failedCount > 0 ? 'text-red-400' : 'text-[hsl(var(--card-foreground))]'}`}>{outbox.failedCount}</div>
               </div>
             </div>
-          ) : null}
+          )}
         </section>
       </div>
 
-      {/* ── Environment info ────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary shadow-lg">
-        <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm font-medium text-on-surface">
-            <Wifi className="h-4 w-4 text-on-surface-variant" />
-            สภาพแวดล้อม
+      {/* Environment info */}
+      <section className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--card))' }}>
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
+        </div>
+        <div className="px-4 py-3 border-b border-[hsl(var(--glass-border))] flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--card-foreground))]">
+            <Wifi className="h-4 w-4 text-[hsl(var(--primary))]" />สภาพแวดล้อม
           </div>
         </div>
         <div className="grid gap-3 p-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest/60 px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">เวอร์ชัน</div>
-            <div className="mt-1 font-mono text-sm font-medium text-on-surface">{data.version}</div>
-          </div>
-          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest/60 px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">สภาพแวดล้อม</div>
-            <div className="mt-1 font-mono text-sm font-medium text-on-surface">{data.environment}</div>
-          </div>
-          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest/60 px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.07em] text-on-surface-variant">เวลาตอบสนอง DB</div>
-            <div className="mt-1 font-mono text-sm font-medium text-on-surface">
-              {data.latencies?.databaseMs != null
-                ? `${data.latencies.databaseMs}ms`
-                : data.servicesDetailed?.database?.latencyMs != null
-                  ? `${data.servicesDetailed.database.latencyMs}ms`
-                  : 'N/A'}
+          {[
+            { label: 'เวอร์ชัน', value: data.version },
+            { label: 'สภาพแวดล้อม', value: data.environment },
+            { label: 'เวลาตอบสนอง DB', value: data.latencies?.databaseMs != null ? `${data.latencies.databaseMs}ms` : data.servicesDetailed?.database?.latencyMs != null ? `${data.servicesDetailed.database.latencyMs}ms` : 'N/A' },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded-xl border border-[hsl(var(--glass-border))] glass-card px-4 py-3">
+              <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[hsl(var(--on-surface-variant))]">{label}</div>
+              <div className="mt-1 font-mono text-sm font-medium text-[hsl(var(--card-foreground))]">{value}</div>
             </div>
-          </div>
+          ))}
         </div>
       </section>
     </main>

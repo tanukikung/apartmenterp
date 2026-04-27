@@ -62,7 +62,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   const actor = getVerifiedActor(req);
   requireRole(req, ['ADMIN', 'STAFF']);
 
-  const input = createPaymentSchema.parse(body) as any as CreatePaymentInput;
+  const input = createPaymentSchema.parse(body) as CreatePaymentInput;
 
   const { paymentService: svc } = getServiceContainer();
   const { payment, invoice, settled } = await svc.createPayment(input, actor.actorId);

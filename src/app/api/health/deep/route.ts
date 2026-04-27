@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { redisPing, getWorkerHeartbeat, isRedisConfigured } from '@/infrastructure/redis';
 import { requireRole } from '@/lib/auth/guards';
+import { logger } from '@/lib/utils/logger';
 
 // Backup status is tracked by the backup scheduler process, fall back to safe defaults if not available
 function getBackupStatus(): { lastAttempt: string | null; lastSuccess: string | null; lastError: string | null; consecutiveFailures: number } {
@@ -18,8 +19,9 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     const t0 = Date.now();
     await prisma.$queryRaw`SELECT 1`;
     dbLatencyMs = Date.now() - t0;
-  } catch {
+  } catch (err) {
     database = 'error';
+    logger.error({ type: 'deep_health_db_check_failed', error: err instanceof Error ? err.message : String(err) });
   }
 
   const redisConfigured = isRedisConfigured();
@@ -40,9 +42,10 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     outboxStuck = await prisma.outboxEvent.count({
       where: { processedAt: null, retryCount: { gte: 3 } },
     });
-  } catch {
+  } catch (err) {
     outboxPending = 0;
     outboxStuck = 0;
+    logger.error({ type: 'deep_health_outbox_check_failed', error: err instanceof Error ? err.message : String(err) });
   }
 
   const hb = await getWorkerHeartbeat();

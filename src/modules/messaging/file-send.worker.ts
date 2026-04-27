@@ -29,7 +29,7 @@ async function handleFileSend(payload: LineSendFileRequested): Promise<void> {
       data: {
         metadata: {
           status: 'SENT',
-        } as any as Prisma.InputJsonValue,
+        } as unknown as Prisma.InputJsonValue,
       },
     });
 
@@ -41,7 +41,7 @@ async function handleFileSend(payload: LineSendFileRequested): Promise<void> {
         metadata: {
           status: 'FAILED',
           error: err instanceof Error ? err.message : 'Failed to send',
-        } as any as Prisma.InputJsonValue,
+        } as unknown as Prisma.InputJsonValue,
       },
     });
     logger.error({
@@ -210,6 +210,22 @@ export function registerFileSendWorker(options?: { allowInTest?: boolean }): voi
       logger.info({ type: 'manual_reminder_sent', conversationId: payload.conversationId });
     } catch (err) {
       logger.error({ type: 'manual_reminder_failed', error: err instanceof Error ? err.message : String(err) });
+      throw err;
+    }
+  });
+
+  // Handle move-out notice LINE notifications
+  bus.subscribe('MoveOutNoticeRequested', async (evt: unknown) => {
+    const payload = (evt as { payload?: { conversationId: string; text: string; moveOutId: string } })?.payload;
+    if (!payload) return;
+
+    try {
+      const conversation = await prisma.conversation.findUnique({ where: { id: payload.conversationId } });
+      if (!conversation) return;
+      await sendLineMessage(conversation.lineUserId, payload.text);
+      logger.info({ type: 'moveout_notice_sent', moveOutId: payload.moveOutId, conversationId: payload.conversationId });
+    } catch (err) {
+      logger.error({ type: 'moveout_notice_failed', error: err instanceof Error ? err.message : String(err) });
       throw err;
     }
   });

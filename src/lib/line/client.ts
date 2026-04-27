@@ -107,6 +107,29 @@ class LineClientWrapper {
       channelSecret: config.channelSecret,
     });
   }
+
+  /**
+   * Upload image/content to LINE CDN — returns messageId
+   * Use returned messageId as: https://api-data.line.me/v2/bot/message/{messageId}/content
+   */
+  async uploadContent(buffer: Buffer, mimeType: string): Promise<string> {
+    const config = this.getConfig();
+    const url = 'https://api-data.line.me/v2/bot/message/content';
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.accessToken}`,
+        'Content-Type': mimeType,
+        'Content-Length': String(buffer.length),
+      },
+      body: new Uint8Array(buffer),
+    });
+    if (!response.ok) {
+      throw new Error(`LINE content upload failed: ${response.status} ${response.statusText}`);
+    }
+    const data = await response.json() as { messageId: string };
+    return data.messageId;
+  }
 }
 
 // Singleton instance
@@ -187,6 +210,15 @@ export function getLineConfig(): LineConfig {
  */
 export function resetLineClient(): void {
   lineClientWrapper.reset();
+}
+
+/**
+ * Upload binary content to LINE CDN.
+ * Returns a messageId — form the content URL as:
+ * https://api-data.line.me/v2/bot/message/{messageId}/content
+ */
+export async function uploadContentToLine(buffer: Buffer, mimeType: string): Promise<string> {
+  return lineClientWrapper.uploadContent(buffer, mimeType);
 }
 
 /**
@@ -495,7 +527,7 @@ export function parseWebhookEvent(event: WebhookEvent): {
   replyToken: string | undefined;
   timestamp: number;
 } {
-  const e = event as any as {
+  const e = event as unknown as {
     source?: { userId?: string };
     message?: { id?: string; type?: string; text?: string };
     replyToken?: string;
@@ -569,7 +601,10 @@ export async function sendLineFileMessage(
   );
 }
 
-// Send image message
+// Send image message — requires pre-upload to LINE CDN.
+// Unlike file messages (which accept a direct URL), image messages must be
+// uploaded first so LINE can return a messageId. Without CDN upload the image
+// appears broken/thumbnailed in the LINE chat.
 export async function sendLineImageMessage(
   userId: string,
   imageUrl: string,
@@ -577,17 +612,30 @@ export async function sendLineImageMessage(
 ): Promise<MessageAPIResponseBase> {
   return withRetry(
     async () => {
+      // Download the image buffer first
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+      }
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const mimeType = response.headers.get('content-type') ?? 'image/png';
+
+      // Upload to LINE CDN to get a messageId
+      const messageId = await uploadContentToLine(buffer, mimeType);
+      const contentUrl = `https://api-data.line.me/v2/bot/message/${messageId}/content`;
+
       const client = getLineClient();
       const result = await client.pushMessage(userId, {
         type: 'image',
-        originalContentUrl: imageUrl,
-        previewImageUrl: imageUrl,
+        originalContentUrl: contentUrl,
+        previewImageUrl: contentUrl,
       });
 
       logger.info({
         type: 'line_image_sent',
         userId,
         imageUrl,
+        messageId,
       });
 
       return result;

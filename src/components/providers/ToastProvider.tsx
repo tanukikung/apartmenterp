@@ -51,21 +51,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               'pointer-events-auto flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-sm font-medium shadow-xl',
               'transition-all duration-300 ease-out',
               t.variant === 'success'
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                ? 'border-success-container/30 bg-success-container/10 text-on-success-container'
                 : t.variant === 'error'
-                ? 'border-red-200 bg-red-50 text-red-800'
+                ? 'border-error-container/30 bg-error-container/10 text-on-error-container'
                 : t.variant === 'warning'
-                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                ? 'border-warning-container/30 bg-warning-container/10 text-on-warning-container'
                 : 'border-blue-200 bg-blue-50 text-blue-800',
             ].join(' ')}
             style={{ animation: 'toast-slide-in 300ms cubic-bezier(0.16, 1, 0.3, 1)' }}
           >
             {t.variant === 'success' ? (
-              <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
+              <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-on-success-container" />
             ) : t.variant === 'error' ? (
-              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-red-600" />
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-on-error-container" />
             ) : t.variant === 'warning' ? (
-              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-on-warning-container" />
             ) : (
               <Info className="h-4 w-4 mt-0.5 shrink-0 text-blue-600" />
             )}

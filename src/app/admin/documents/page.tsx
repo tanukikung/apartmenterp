@@ -170,35 +170,55 @@ export default function DocumentsPage() {
 
   return (
     <main className="space-y-6">
-      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
-        <div>
-          <h1 className="text-xl font-semibold text-on-primary">เอกสารที่สร้างแล้ว</h1>
-          <p className="text-sm text-on-primary/80">
-            เอกสารที่บันทึกแยกตามห้องพร้อมข้อมูลต้นแบบเทมเพลต ประวัติเวอร์ชัน และไฟล์ที่ดาวน์โหลดได้
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 mt-4">
-          <Link href="/admin/documents/generate" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors">
-            สร้างเอกสาร
-          </Link>
-          <Link href="/admin/templates" className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
-            เทมเพลต
-          </Link>
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" aria-hidden="true" />
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="ค้นหาเอกสาร, ห้อง, หรือผู้เช่า..."
-              aria-label="ค้นหาเอกสาร"
-              className="w-full rounded-xl border border-outline bg-surface-container-lowest py-2.5 pl-9 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
+      {/* Hero Header */}
+      <section className="relative overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] glass-card shadow-[0_4px_16px_rgba(0,0,0,0.08)] px-6 py-5">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-violet-500/10 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/20 border border-blue-500/30">
+              <FolderOpen className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold text-[hsl(var(--card-foreground))]">เอกสารที่สร้างแล้ว</h1>
+              <p className="text-sm text-[hsl(var(--on-surface-variant))] mt-0.5">
+                เอกสารที่บันทึกแยกตามห้องพร้อมข้อมูลต้นแบบเทมเพลต ประวัติเวอร์ชัน และไฟล์ที่ดาวน์โหลดได้
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admin/documents/generate"
+              className="inline-flex items-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 hover:border-blue-500/50 px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98]"
+            >
+              สร้างเอกสาร
+            </Link>
+            <Link
+              href="/admin/templates"
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] glass-card text-[hsl(var(--card-foreground))] px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98]"
+            >
+              เทมเพลต
+            </Link>
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--on-surface-variant))]" aria-hidden="true" />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="ค้นหาเอกสาร, ห้อง, หรือผู้เช่า..."
+                aria-label="ค้นหาเอกสาร"
+                className="w-full rounded-xl border border-[hsl(var(--glass-border))] glass-card py-2.5 pl-9 pr-4 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      {fetchError ? <div className="auth-alert auth-alert-error">{fetchError instanceof Error ? fetchError.message : String(fetchError)}</div> : null}
+      {fetchError ? (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600 backdrop-blur-sm">
+          {fetchError instanceof Error ? fetchError.message : String(fetchError)}
+        </div>
+      ) : null}
 
       <BulkActions
         count={selected.size}
@@ -242,13 +262,18 @@ export default function DocumentsPage() {
         onCancel={() => setDeleteTarget(null)}
       />
 
-      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-        <div className="px-5 py-4 border-b border-outline-variant">
-          <div className="text-sm font-semibold text-primary flex items-center gap-2">
-            <Layers3 className="h-4 w-4 text-primary" />
-            ทะเบียนเอกสาร
+      {/* Main Table Card */}
+      <section className="rounded-2xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
+        <div className="px-5 py-4 border-b border-[hsl(var(--glass-border))]">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--card-foreground))]">
+              <Layers3 className="h-4 w-4 text-blue-600" />
+              ทะเบียนเอกสาร
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold glass-card text-[hsl(var(--on-surface-variant))]">
+              {documents.length} เอกสาร
+            </span>
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-surface-container text-on-surface-variant mt-1">{documents.length} เอกสาร</span>
         </div>
         {isLoading ? (
           <div className="p-5">
@@ -264,67 +289,71 @@ export default function DocumentsPage() {
         ) : (
           <div className="overflow-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-surface-container">
-                <tr>
+              <thead>
+                <tr className="border-b border-[hsl(var(--glass-border))]">
                   <th className="px-4 py-3 w-10">
                     <input
                       type="checkbox"
                       aria-label="เลือกทั้งหมด"
                       checked={documents.length > 0 && selected.size === documents.length}
                       onChange={toggleAll}
+                      className="rounded border-[hsl(var(--glass-border))] accent-blue-500"
                     />
                   </th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ชื่อเรื่อง</th>
-                  <th className="hidden md:table-cell px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ประเภท</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ห้อง</th>
-                  <th className="hidden lg:table-cell px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เทมเพลต</th>
-                  <th className="hidden lg:table-cell px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">เวอร์ชัน</th>
-                  <th className="hidden md:table-cell px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สร้างเมื่อ</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">สถานะ</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">การดำเนินการ</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ชื่อเรื่อง</th>
+                  <th className="hidden md:table-cell px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ประเภท</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ห้อง</th>
+                  <th className="hidden lg:table-cell px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">เทมเพลต</th>
+                  <th className="hidden lg:table-cell px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">เวอร์ชัน</th>
+                  <th className="hidden md:table-cell px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สร้างเมื่อ</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สถานะ</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">การดำเนินการ</th>
                 </tr>
               </thead>
               <tbody>
                 {documents.map((document) => (
-                  <tr key={document.id}>
+                  <tr key={document.id} className="border-t border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--card))]/50 transition-colors duration-150 group">
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
                         aria-label={`เลือก ${document.title}`}
                         checked={selected.has(document.id)}
                         onChange={() => toggleOne(document.id)}
+                        className="rounded border-[hsl(var(--glass-border))] accent-blue-500"
                       />
                     </td>
                     <td>
-                      <div className="font-semibold text-slate-900">{document.title}</div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="font-semibold text-[hsl(var(--card-foreground))] group-hover:text-blue-600 transition-colors">{document.title}</div>
+                      <div className="mt-1 text-xs text-[hsl(var(--on-surface-variant))]">
                         {document.year && document.month ? `${document.year}-${String(document.month).padStart(2, '0')}` : 'ไม่มีงวดการเรียกเก็บ'}
                       </div>
                     </td>
                     <td className="hidden md:table-cell">
-                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-surface-container text-on-surface-variant">{document.documentType.replace(/_/g, ' ')}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--glass-border))]">
+                        {document.documentType.replace(/_/g, ' ')}
+                      </span>
                     </td>
                     <td>
-                      <div className="font-semibold text-on-surface">{document.room.roomNumber ?? document.room.roomNo ?? '-'}</div>
-                      <div className="mt-1 text-xs text-on-surface-variant">
+                      <div className="font-semibold text-[hsl(var(--card-foreground))]">{document.room.roomNumber ?? document.room.roomNo ?? '-'}</div>
+                      <div className="mt-1 text-xs text-[hsl(var(--on-surface-variant))]">
                         ชั้น {document.room.floorNumber ?? '—'} · {document.tenantName ?? 'ไม่มีผู้เช่า'}
                       </div>
                     </td>
                     <td className="hidden lg:table-cell">
-                      <div className="font-medium text-on-surface">{document.template.name}</div>
-                      <div className="mt-1 text-xs text-on-surface-variant">เวอร์ชันเทมเพลต v{document.templateVersion.version}</div>
+                      <div className="font-medium text-[hsl(var(--card-foreground))]">{document.template.name}</div>
+                      <div className="mt-1 text-xs text-[hsl(var(--on-surface-variant))]">เวอร์ชันเทมเพลต v{document.templateVersion.version}</div>
                     </td>
-                    <td className="hidden lg:table-cell">Doc v{document.documentVersion}</td>
-                    <td className="hidden md:table-cell"><ClientOnly fallback="-">{new Date(document.generatedAt).toLocaleString('th-TH')}</ClientOnly></td>
+                    <td className="hidden lg:table-cell text-[hsl(var(--on-surface-variant))]">Doc v{document.documentVersion}</td>
+                    <td className="hidden md:table-cell text-[hsl(var(--on-surface-variant))]"><ClientOnly fallback="-">{new Date(document.generatedAt).toLocaleString('th-TH')}</ClientOnly></td>
                     <td>
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
                         document.status === 'GENERATED' || document.status === 'EXPORTED'
-                          ? 'bg-tertiary-container text-on-tertiary-container'
+                          ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/20'
                           : document.status === 'FAILED'
-                            ? 'bg-error-container text-on-error-container'
+                            ? 'bg-red-500/15 text-red-600 border border-red-500/20'
                             : document.status === 'SENT'
-                              ? 'bg-primary-container text-primary-container'
-                              : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              ? 'bg-blue-500/15 text-blue-600 border border-blue-500/20'
+                              : 'bg-amber-500/15 text-amber-600 border border-amber-500/20'
                       }`}
                       >
                         {document.status === 'GENERATED' ? 'สร้างแล้ว' : document.status === 'EXPORTED' ? 'ส่งออกแล้ว' : document.status === 'FAILED' ? 'ล้มเหลว' : document.status === 'SENT' ? 'ส่งแล้ว' : document.status}
@@ -336,7 +365,7 @@ export default function DocumentsPage() {
                           <button
                             type="button"
                             aria-label="ส่ง PDF"
-                            className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+                            className="inline-flex items-center gap-1 rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-600 shadow-sm transition-all duration-200 hover:bg-blue-500/20 hover:border-blue-500/40 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] active:scale-[0.98] disabled:opacity-50"
                             onClick={() => void sendDocument(document.id)}
                             disabled={sendingIds.has(document.id)}
                           >
@@ -344,22 +373,36 @@ export default function DocumentsPage() {
                             {sendingIds.has(document.id) ? 'กำลังส่ง...' : 'ส่ง PDF'}
                           </button>
                         )}
-                        <Link href={`/admin/documents/${document.id}`} aria-label="รายละเอียดเอกสาร" className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+                        <Link
+                          href={`/admin/documents/${document.id}`}
+                          aria-label="รายละเอียดเอกสาร"
+                          className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:bg-white/5 hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] active:scale-[0.98]"
+                        >
                           <FolderOpen className="h-3.5 w-3.5" />
                           รายละเอียด
                         </Link>
-                        <a href={`/api/documents/${document.id}/pdf`} aria-label="เปิด PDF" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+                        <a
+                          href={`/api/documents/${document.id}/pdf`}
+                          aria-label="เปิด PDF"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:bg-white/5 hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] active:scale-[0.98]"
+                        >
                           <ExternalLink className="h-3.5 w-3.5" />
                           PDF
                         </a>
-                        <a href={`/api/documents/${document.id}/download?format=docx`} aria-label="ดาวน์โหลด DOCX" className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+                        <a
+                          href={`/api/documents/${document.id}/download?format=docx`}
+                          aria-label="ดาวน์โหลด DOCX"
+                          className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:bg-white/5 hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] active:scale-[0.98]"
+                        >
                           <FileOutput className="h-3.5 w-3.5" />
                           DOCX
                         </a>
                         <button
                           type="button"
                           aria-label="ลบเอกสาร"
-                          className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-error-container shadow-sm transition-colors hover:bg-error-container hover:text-on-error-container"
+                          className="inline-flex items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-600 shadow-sm transition-all duration-200 hover:bg-red-500/20 hover:border-red-500/40 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] active:scale-[0.98]"
                           onClick={() => setDeleteTarget(document)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />

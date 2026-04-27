@@ -836,6 +836,12 @@ export const EventTypes = {
   CONTRACT_TERMINATED: 'ContractTerminated',
   CONTRACT_EXPIRED: 'ContractExpired',
   CONTRACT_EXPIRING_SOON: 'ContractExpiringSoon',
+
+  // Registration
+  REGISTRATION_APPROVED: 'RegistrationApproved',
+
+  // MoveOut
+  MOVE_OUT_CONFIRMED: 'MoveOutConfirmed',
 } as const;
 
 // ============================================================================

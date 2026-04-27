@@ -1,0 +1,20 @@
+# Caddyfile for Apartment ERP
+# Serves: App (port 3001) + Grafana (port 3000) behind single port
+
+:3001 {
+    # Next.js App
+    reverse_proxy /api/* localhost:3001
+    reverse_proxy /admin/* localhost:3001
+    reverse_proxy /_next/* localhost:3001
+
+    # Grafana - accessible at /grafana/*
+    reverse_proxy /grafana/* localhost:3000
+
+    # Fallback to Next.js for all other routes
+    reverse_proxy /* localhost:3001
+}
+
+# Development mode (uncomment for local dev)
+#:3000 {
+#    reverse_proxy /* localhost:3001
+#}

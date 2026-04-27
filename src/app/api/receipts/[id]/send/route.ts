@@ -36,7 +36,9 @@ function normalizeReceiptDownloadLink(receiptId: string, requestedLink?: string)
     if (resolved.pathname === pluralPath || resolved.pathname === singularPath) {
       return signedInvoiceLink;
     }
-  } catch {
+  } catch (err) {
+    // URL parse failed — log and return as-is (Zod will have already validated it's a valid URL format)
+    logger.warn({ type: 'receipt_link_normalize_failed', requestedLink, error: err instanceof Error ? err.message : String(err) });
     return requestedLink;
   }
 

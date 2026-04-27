@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Edit2,
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 // Natural sort collator for room numbers (e.g. "101" < "201" < "1001")
 const naturalCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
@@ -53,11 +54,11 @@ function fmtDate(iso: string) {
   });
 }
 
-function statusClass(s: RegistrationStatus) {
-  if (s === 'APPROVED') return 'bg-emerald-100 text-emerald-700';
-  if (s === 'REJECTED') return 'bg-red-100 text-red-600';
-  if (s === 'CORRECTION_REQUESTED') return 'bg-orange-100 text-orange-700';
-  return 'bg-amber-100 text-amber-700';
+function statusStyle(s: RegistrationStatus) {
+  if (s === 'APPROVED') return { bg: 'rgba(52,211,153,0.15)', text: '#34d399', border: 'rgba(52,211,153,0.3)' };
+  if (s === 'REJECTED') return { bg: 'rgba(239,68,68,0.15)', text: '#dc2626', border: 'rgba(239,68,68,0.3)' };
+  if (s === 'CORRECTION_REQUESTED') return { bg: 'rgba(251,191,36,0.15)', text: '#d97706', border: 'rgba(251,191,36,0.3)' };
+  return { bg: 'rgba(251,191,36,0.15)', text: '#d97706', border: 'rgba(251,191,36,0.3)' };
 }
 
 function statusIcon(s: RegistrationStatus) {
@@ -75,11 +76,11 @@ function initials(name: string | null) {
     : (parts[0][0] ?? '?').toUpperCase();
 }
 
-const WARNING_META: Record<RegistrationWarning, { label: string; color: string }> = {
-  DUPLICATE_LINE_ACCOUNT: { label: 'LINE ถูกลิงก์กับผู้เช่าแล้ว', color: 'text-red-600 bg-red-50 border-red-200' },
-  CLAIMED_ROOM_MISMATCH: { label: 'ไม่พบห้องที่ระบุ', color: 'text-amber-700 bg-amber-50 border-amber-200' },
-  ROOM_FULL: { label: 'ห้องเต็มแล้ว', color: 'text-red-600 bg-red-50 border-red-200' },
-  NO_PRIMARY_TENANT: { label: 'ห้องไม่มีผู้เช่าหลัก', color: 'text-amber-700 bg-amber-50 border-amber-200' },
+const WARNING_META: Record<RegistrationWarning, { label: string; bg: string; text: string; border: string }> = {
+  DUPLICATE_LINE_ACCOUNT: { label: 'LINE ถูกลิงก์กับผู้เช่าแล้ว', bg: 'rgba(239,68,68,0.15)', text: '#dc2626', border: 'rgba(239,68,68,0.3)' },
+  CLAIMED_ROOM_MISMATCH: { label: 'ไม่พบห้องที่ระบุ', bg: 'rgba(251,191,36,0.15)', text: '#d97706', border: 'rgba(251,191,36,0.3)' },
+  ROOM_FULL: { label: 'ห้องเต็มแล้ว', bg: 'rgba(239,68,68,0.15)', text: '#dc2626', border: 'rgba(239,68,68,0.3)' },
+  NO_PRIMARY_TENANT: { label: 'ห้องไม่มีผู้เช่าหลัก', bg: 'rgba(251,191,36,0.15)', text: '#d97706', border: 'rgba(251,191,36,0.3)' },
 };
 
 // ── Reject modal ──────────────────────────────────────────────────────────────
@@ -95,25 +96,25 @@ function RejectModal({
 }) {
   const [reason, setReason] = useState('');
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 shadow-xl">
-        <h2 className="mb-1 text-base font-semibold text-on-surface">ปฏิเสธการลงทะเบียน</h2>
-        <p className="mb-4 text-sm text-on-surface-variant">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--glass-border))] glass-card p-6 shadow-xl">
+        <h2 className="mb-1 text-base font-semibold text-[hsl(var(--card-foreground))]">ปฏิเสธการลงทะเบียน</h2>
+        <p className="mb-4 text-sm text-[hsl(var(--on-surface-variant))]">
           ระบุเหตุผลเพิ่มเติมได้ (ไม่บังคับ) ข้อมูลนี้จะถูกบันทึกพร้อมกับรายการ
         </p>
         <textarea
-          className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface mb-4"
+          className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--card-foreground))] mb-4"
           placeholder="เหตุผลในการปฏิเสธ (ไม่บังคับ)"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
         />
         <div className="flex justify-end gap-2">
-          <button className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={onCancel} disabled={working}>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5" onClick={onCancel} disabled={working}>
             ยกเลิก
           </button>
           <button
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-500 bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-600 hover:border-red-600"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/20 px-4 py-2 text-sm font-medium text-red-400 shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-red-500/30"
             onClick={() => onConfirm(reason)}
             disabled={working}
           >
@@ -144,38 +145,38 @@ function CorrectionModal({
   const [correctionNote, setCorrectionNote] = useState('');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 shadow-xl">
-        <h2 className="mb-1 text-base font-semibold text-on-surface">ขอแก้ไขข้อมูล</h2>
-        <p className="mb-4 text-sm text-on-surface-variant">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--glass-border))] glass-card p-6 shadow-xl">
+        <h2 className="mb-1 text-base font-semibold text-[hsl(var(--card-foreground))]">ขอแก้ไขข้อมูล</h2>
+        <p className="mb-4 text-sm text-[hsl(var(--on-surface-variant))]">
           อัปเดตรายละเอียดการลงทะเบียนและส่งบันทึกขอแก้ไขไปยังผู้เช่า
         </p>
 
         <div className="mb-4 space-y-3">
           <div>
-            <label className="mb-1 block text-sm font-medium text-on-surface">โทรศัพท์</label>
+            <label className="mb-1 block text-sm font-medium text-[hsl(var(--on-surface-variant))]">โทรศัพท์</label>
             <input
-              className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+              className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--card-foreground))]"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="หมายเลขโทรศัพท์"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-on-surface">ห้องที่ระบุ</label>
+            <label className="mb-1 block text-sm font-medium text-[hsl(var(--on-surface-variant))]">ห้องที่ระบุ</label>
             <input
-              className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+              className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--card-foreground))]"
               value={claimedRoom}
               onChange={(e) => setClaimedRoom(e.target.value)}
               placeholder="หมายเลขห้อง (เช่น 101)"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-on-surface">
-              บันทึกขอแก้ไข <span className="text-red-500">*</span>
+            <label className="mb-1 block text-sm font-medium text-[hsl(var(--on-surface-variant))]">
+              บันทึกขอแก้ไข <span className="text-red-600">*</span>
             </label>
             <textarea
-              className="w-full rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm text-on-surface"
+              className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--card-foreground))]"
               value={correctionNote}
               onChange={(e) => setCorrectionNote(e.target.value)}
               placeholder="อธิบายรายละเอียดที่ต้องแก้ไข…"
@@ -185,11 +186,11 @@ function CorrectionModal({
         </div>
 
         <div className="flex justify-end gap-2">
-          <button className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container" onClick={onCancel} disabled={working}>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5" onClick={onCancel} disabled={working}>
             ยกเลิก
           </button>
           <button
-            className="inline-flex items-center gap-1.5 rounded-lg border border-orange-500 bg-orange-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-orange-600 hover:border-orange-600"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(251,191,36,0.3)] bg-[rgba(251,191,36,0.15)] px-4 py-2 text-sm font-medium text-[#d97706] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[rgba(251,191,36,0.25)]"
             onClick={() => onConfirm({ phone, claimedRoom, correctionNote })}
             disabled={working || !correctionNote.trim()}
           >
@@ -347,30 +348,37 @@ export default function TenantRegistrationsPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <main className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-container to-primary px-6 py-5 shadow-lg">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.15),transparent_60%)]" />
+      <section className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] glass-card px-6 py-5">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
+        </div>
         <div className="relative flex items-center justify-between">
           <div>
-            <h1 className="text-base font-semibold text-on-primary">ลงทะเบียนผู้เช่า</h1>
-            <p className="text-xs text-on-primary/80 mt-0.5">
+            <h1 className="text-lg font-semibold text-[hsl(var(--card-foreground))]">ลงทะเบียนผู้เช่า</h1>
+            <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">
               ตรวจสอบและดำเนินการคำขอลงทะเบียน LINE จากผู้เช่าใหม่
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface">
+            <span className="inline-flex items-center gap-1.5 rounded-full glass-card px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--card-foreground))]">
               <Clock size={11} className="mr-1" />
               {counts.PENDING} รอตรวจ
             </span>
             {counts.CORRECTION_REQUESTED > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-semibold text-orange-700">
+              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold" style={{ background: 'rgba(251,191,36,0.15)', color: '#d97706' }}>
                 <Edit2 size={11} className="mr-1" />
                 {counts.CORRECTION_REQUESTED} แก้ไข
               </span>
             )}
             <button
-              className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5"
               onClick={() => void load()}
               disabled={loading}
             >
@@ -383,38 +391,38 @@ export default function TenantRegistrationsPage() {
 
       {/* ── Alerts ─────────────────────────────────────────────────────────── */}
       {message && (
-        <div className="auth-alert auth-alert-success flex items-center gap-2">
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 px-4 py-3 text-sm font-medium" style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399' }}>
           <CheckCircle size={15} className="shrink-0" />
           {message}
         </div>
       )}
       {error && (
-        <div className="auth-alert auth-alert-error flex items-center gap-2">
+        <div className="flex items-center gap-2 rounded-lg border border-red-500/30 px-4 py-3 text-sm font-medium" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
           <AlertCircle size={15} className="shrink-0" />
           {error}
         </div>
       )}
 
       {/* ── Content ────────────────────────────────────────────────────────── */}
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+      <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
         {/* ── Status tabs ──────────────────────────────────────────────────── */}
-        <div className="flex overflow-x-auto border-b border-outline-variant bg-surface-container-lowest">
+        <div className="flex overflow-x-auto border-b border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--card))' }}>
           {TABS.map((tab) => {
             const active = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex shrink-0 items-center gap-2 border-b-2 px-5 py-3.5 text-sm font-medium transition-colors ${
+                className={`flex shrink-0 items-center gap-2 border-b-2 px-5 py-3.5 text-sm font-medium transition-all ${
                   active
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-on-surface-variant hover:text-on-surface'
+                    ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]'
+                    : 'border-transparent text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--card-foreground))]'
                 }`}
               >
                 {tab.label}
                 <span
                   className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
-                    active ? 'bg-primary-container text-primary' : 'bg-surface-container text-on-surface-variant'
+                    active ? 'glass-card text-[hsl(var(--primary))]' : 'glass-card text-[hsl(var(--on-surface-variant))]'
                   }`}
                 >
                   {counts[tab.id]}
@@ -427,17 +435,17 @@ export default function TenantRegistrationsPage() {
         {/* ── Registration list ─────────────────────────────────────────────── */}
         <div className="p-5">
           {loading ? (
-            <div className="py-14 text-center text-on-surface-variant">กำลังโหลดรายการลงทะเบียน...</div>
+            <div className="py-14 text-center text-[hsl(var(--on-surface-variant))]">กำลังโหลดรายการลงทะเบียน...</div>
           ) : visible.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-14 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-container-lowest">
-                <MessageSquare size={22} className="text-outline-variant" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl glass-card">
+                <MessageSquare size={22} className="text-[hsl(var(--on-surface-variant))]" />
               </div>
               <div>
-                <div className="font-medium text-on-surface">
+                <div className="font-medium text-[hsl(var(--card-foreground))]">
                   {activeTab === 'PENDING' ? 'ไม่มีรายการรอตรวจ' : 'ไม่มีรายการที่จะแสดง'}
                 </div>
-                <div className="text-sm text-on-surface-variant">
+                <div className="text-sm text-[hsl(var(--on-surface-variant))]">
                   {activeTab === 'PENDING'
                     ? 'ทุกรายการได้รับการดำเนินการแล้ว'
                     : `ไม่พบรายการ${activeTab === 'APPROVED' ? 'ที่อนุมัติ' : activeTab === 'REJECTED' ? 'ที่ปฏิเสธ' : 'ที่รอดำเนินการ'}`}
@@ -446,128 +454,135 @@ export default function TenantRegistrationsPage() {
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {visible.map((reg) => (
-                <div
-                  key={reg.id}
-                  className={`flex flex-col gap-4 rounded-xl border bg-surface-container-lowest p-5 shadow-sm transition-shadow hover:shadow-md ${
-                    reg.status === 'PENDING'
-                      ? 'border-amber-300'
-                      : reg.status === 'CORRECTION_REQUESTED'
-                      ? 'border-orange-300'
-                      : 'border-outline-variant'
-                  }`}
-                >
-                  {/* Top row: avatar + name + badge */}
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-container text-sm font-bold text-primary">
-                      {initials(reg.lineDisplayName)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="truncate font-medium text-on-surface">
-                        {reg.lineDisplayName ?? 'Unknown'}
+              {visible.map((reg) => {
+                const st = statusStyle(reg.status);
+                return (
+                  <div
+                    key={reg.id}
+                    className="flex flex-col gap-4 rounded-xl border p-5 shadow-sm transition-all hover:shadow-md"
+                    style={{
+                      borderColor: reg.status === 'PENDING'
+                        ? 'rgba(251,191,36,0.3)'
+                        : reg.status === 'CORRECTION_REQUESTED'
+                        ? 'rgba(251,191,36,0.3)'
+                        : 'hsl(var(--glass-border))',
+                      background: 'hsl(var(--card))',
+                    }}
+                  >
+                    {/* Top row: avatar + name + badge */}
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl glass-card text-sm font-bold text-[hsl(var(--primary))]">
+                        {initials(reg.lineDisplayName)}
                       </div>
-                      <div
-                        className="truncate font-mono text-[10px] text-outline-variant"
-                        title={reg.lineUserId}
-                      >
-                        {reg.lineUserId.slice(0, 20)}
-                        {reg.lineUserId.length > 20 ? '…' : ''}
-                      </div>
-                    </div>
-                    <span className={`inline-flex items-center gap-1.5 rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface shrink-0 ${statusClass(reg.status)}`}>
-                      {statusIcon(reg.status)}
-                      {reg.status.replace('_', ' ')}
-                    </span>
-                  </div>
-
-                  {/* ── Warning badges ──────────────────────────────────── */}
-                  {reg.warnings.length > 0 && (
-                    <div className="space-y-1.5">
-                      {reg.warnings.map((w) => (
-                        <div
-                          key={w}
-                          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium ${WARNING_META[w].color}`}
-                        >
-                          <AlertTriangle size={11} className="shrink-0" />
-                          {WARNING_META[w].label}
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate font-medium text-[hsl(var(--card-foreground))]">
+                          {reg.lineDisplayName ?? 'Unknown'}
                         </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Details */}
-                  <div className="grid gap-1.5 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-outline-variant">โทรศัพท์</span>
-                      <span className="font-medium text-on-surface">{reg.phone ?? '-'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-outline-variant">ห้องที่ระบุ</span>
-                      <span className="font-medium text-on-surface">{reg.claimedRoom ?? '-'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-outline-variant">ลงทะเบียนเมื่อ</span>
-                      <span className="text-on-surface-variant">{fmtDate(reg.createdAt)}</span>
-                    </div>
-                    {reg.correctionNote && (
-                      <div className="mt-1 rounded-lg bg-orange-50 px-3 py-2 text-xs text-orange-700">
-                        <span className="font-semibold">บันทึกขอแก้ไข:</span> {reg.correctionNote}
-                      </div>
-                    )}
-                    {reg.rejectionReason && (
-                      <div className="mt-1 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-                        <span className="font-semibold">เหตุผล:</span> {reg.rejectionReason}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions (PENDING + CORRECTION_REQUESTED) */}
-                  {isActionable(reg) && (
-                    <div className="flex flex-col gap-2 pt-1">
-                      <div className="flex gap-2">
-                        <button
-                          className="inline-flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-600 hover:border-emerald-600 disabled:opacity-50 flex-1 justify-center"
-                          onClick={() => void approve(reg)}
-                          disabled={
-                            !!working ||
-                            reg.warnings.includes('DUPLICATE_LINE_ACCOUNT') ||
-                            reg.warnings.includes('ROOM_FULL') ||
-                            !reg.claimedRoom
-                          }
-                          title={
-                            reg.warnings.includes('DUPLICATE_LINE_ACCOUNT')
-                              ? 'ไม่สามารถอนุมัติ: LINE ถูกลิงก์แล้ว'
-                              : reg.warnings.includes('ROOM_FULL')
-                              ? 'ไม่สามารถอนุมัติ: ห้องเต็มแล้ว'
-                              : !reg.claimedRoom
-                              ? 'ไม่สามารถอนุมัติ: ไม่ระบุห้อง'
-                              : undefined
-                          }
+                        <div
+                          className="truncate font-mono text-[10px] text-[hsl(var(--on-surface-variant))]"
+                          title={reg.lineUserId}
                         >
-                          <CheckCircle size={13} />
-                          {working === `approve:${reg.id}` ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
-                        </button>
+                          {reg.lineUserId.slice(0, 20)}
+                          {reg.lineUserId.length > 20 ? '…' : ''}
+                        </div>
+                      </div>
+                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold shrink-0`}
+                        style={{ background: st.bg, color: st.text, borderColor: st.border }}>
+                        {statusIcon(reg.status)}
+                        {reg.status.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    {/* ── Warning badges ──────────────────────────────────── */}
+                    {reg.warnings.length > 0 && (
+                      <div className="space-y-1.5">
+                        {reg.warnings.map((w) => (
+                          <div
+                            key={w}
+                            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium`}
+                            style={{ background: WARNING_META[w].bg, color: WARNING_META[w].text, borderColor: WARNING_META[w].border }}
+                          >
+                            <AlertTriangle size={11} className="shrink-0" />
+                            {WARNING_META[w].label}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Details */}
+                    <div className="grid gap-1.5 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[hsl(var(--on-surface-variant))]">โทรศัพท์</span>
+                        <span className="font-medium text-[hsl(var(--card-foreground))]">{reg.phone ?? '-'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[hsl(var(--on-surface-variant))]">ห้องที่ระบุ</span>
+                        <span className="font-medium text-[hsl(var(--card-foreground))]">{reg.claimedRoom ?? '-'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[hsl(var(--on-surface-variant))]">ลงทะเบียนเมื่อ</span>
+                        <span className="text-[hsl(var(--on-surface-variant))]">{fmtDate(reg.createdAt)}</span>
+                      </div>
+                      {reg.correctionNote && (
+                        <div className="mt-1 rounded-lg border px-3 py-2 text-xs" style={{ background: 'rgba(251,191,36,0.1)', color: '#d97706', borderColor: 'rgba(251,191,36,0.2)' }}>
+                          <span className="font-semibold">บันทึกขอแก้ไข:</span> {reg.correctionNote}
+                        </div>
+                      )}
+                      {reg.rejectionReason && (
+                        <div className="mt-1 rounded-lg border px-3 py-2 text-xs" style={{ background: 'rgba(239,68,68,0.1)', color: '#dc2626', borderColor: 'rgba(239,68,68,0.2)' }}>
+                          <span className="font-semibold">เหตุผล:</span> {reg.rejectionReason}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions (PENDING + CORRECTION_REQUESTED) */}
+                    {isActionable(reg) && (
+                      <div className="flex flex-col gap-2 pt-1">
+                        <div className="flex gap-2">
+                          <button
+                            className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/20 px-4 py-2 text-sm font-medium text-[#34d399] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-emerald-500/30 flex-1 justify-center disabled:opacity-50"
+                            onClick={() => void approve(reg)}
+                            disabled={
+                              !!working ||
+                              reg.warnings.includes('DUPLICATE_LINE_ACCOUNT') ||
+                              reg.warnings.includes('ROOM_FULL') ||
+                              !reg.claimedRoom
+                            }
+                            title={
+                              reg.warnings.includes('DUPLICATE_LINE_ACCOUNT')
+                                ? 'ไม่สามารถอนุมัติ: LINE ถูกลิงก์แล้ว'
+                                : reg.warnings.includes('ROOM_FULL')
+                                ? 'ไม่สามารถอนุมัติ: ห้องเต็มแล้ว'
+                                : !reg.claimedRoom
+                                ? 'ไม่สามารถอนุมัติ: ไม่ระบุห้อง'
+                                : undefined
+                            }
+                          >
+                            <CheckCircle size={13} />
+                            {working === `approve:${reg.id}` ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
+                          </button>
+                          <button
+                            className="inline-flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/20 px-4 py-2 text-sm font-medium text-red-600 shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-red-500/30 disabled:opacity-50 flex-1 justify-center"
+                            onClick={() => setRejectTarget(reg)}
+                            disabled={!!working}
+                          >
+                            <XCircle size={13} />
+                            ปฏิเสธ
+                          </button>
+                        </div>
                         <button
-                          className="inline-flex items-center gap-2 rounded-lg border border-red-500 bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-600 hover:border-red-600 disabled:opacity-50 flex-1 justify-center"
-                          onClick={() => setRejectTarget(reg)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-[rgba(251,191,36,0.3)] bg-[rgba(251,191,36,0.1)] px-4 py-2 text-sm font-medium text-[#d97706] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[rgba(251,191,36,0.2)] disabled:opacity-50 w-full justify-center"
+                          onClick={() => setCorrectionTarget(reg)}
                           disabled={!!working}
                         >
-                          <XCircle size={13} />
-                          ปฏิเสธ
+                          <Edit2 size={13} />
+                          {working === `correction:${reg.id}` ? 'กำลังบันทึก...' : 'ขอแก้ไข'}
                         </button>
                       </div>
-                      <button
-                        className="inline-flex items-center gap-2 rounded-lg border border-orange-400 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-700 shadow-sm transition-colors hover:bg-orange-100 disabled:opacity-50 w-full justify-center"
-                        onClick={() => setCorrectionTarget(reg)}
-                        disabled={!!working}
-                      >
-                        <Edit2 size={13} />
-                        {working === `correction:${reg.id}` ? 'กำลังบันทึก...' : 'ขอแก้ไข'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -576,35 +591,35 @@ export default function TenantRegistrationsPage() {
       {/* ── KPI summary ────────────────────────────────────────────────────── */}
       {!loading && registrations.length > 0 && (
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant flex items-center gap-1.5">
+          <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))] flex items-center gap-1.5">
               <Users size={12} />
               ทั้งหมด
             </div>
-            <div className="text-xl font-semibold text-on-surface">{counts.ALL}</div>
+            <div className="text-xl font-semibold text-[hsl(var(--card-foreground))]">{counts.ALL}</div>
           </div>
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant flex items-center gap-1.5">
+          <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))] flex items-center gap-1.5">
               <Clock size={12} />
               รอตรวจ
             </div>
-            <div className={`text-xl font-semibold ${counts.PENDING > 0 ? 'text-amber-600' : 'text-on-surface'}`}>
+            <div className={`text-xl font-semibold ${counts.PENDING > 0 ? 'text-[#d97706]' : 'text-[hsl(var(--card-foreground))]'}`}>
               {counts.PENDING}
             </div>
           </div>
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant flex items-center gap-1.5">
+          <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))] flex items-center gap-1.5">
               <CheckCircle size={12} />
               อนุมัติ
             </div>
-            <div className="text-xl font-semibold text-emerald-600">{counts.APPROVED}</div>
+            <div className="text-xl font-semibold text-[#34d399]">{counts.APPROVED}</div>
           </div>
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant flex items-center gap-1.5">
+          <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))] flex items-center gap-1.5">
               <XCircle size={12} />
               ปฏิเสธ
             </div>
-            <div className={`text-xl font-semibold ${counts.REJECTED > 0 ? 'text-red-500' : 'text-on-surface'}`}>
+            <div className={`text-xl font-semibold ${counts.REJECTED > 0 ? 'text-red-600' : 'text-[hsl(var(--card-foreground))]'}`}>
               {counts.REJECTED}
             </div>
           </div>
@@ -629,6 +644,6 @@ export default function TenantRegistrationsPage() {
           onCancel={() => setCorrectionTarget(null)}
         />
       )}
-    </main>
+    </motion.div>
   );
 }

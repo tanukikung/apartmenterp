@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle,
+  Check,
   CheckCircle2,
   Clock,
   Download,
@@ -16,6 +17,7 @@ import {
   Send,
 } from 'lucide-react';
 import { exportToCsv } from '@/lib/utils/export-csv';
+import { statusBadgeClass } from '@/lib/status-colors';
 import { BulkActions } from '@/components/ui/bulk-actions';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/components/providers/ToastProvider';
@@ -54,14 +56,30 @@ const THAI_MONTHS = [
   'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
 ];
 
-const STATUS_META: Record<InvoiceStatus, { label: string; cls: string }> = {
-  GENERATED: { label: 'สร้างแล้ว',     cls: 'bg-blue-100 text-blue-700 border-blue-200'       },
-  SENT:      { label: 'ส่งแล้ว',       cls: 'bg-primary-container text-primary-container'    },
-  VIEWED:    { label: 'เปิดดูแล้ว',   cls: 'bg-tertiary-container text-on-tertiary-container' },
-  PAID:      { label: 'ชำระแล้ว',     cls: 'bg-tertiary-container text-on-tertiary-container' },
-  OVERDUE:   { label: 'เกินกำหนด',   cls: 'bg-error-container text-on-error-container'       },
-  CANCELLED: { label: 'ยกเลิก',        cls: 'bg-slate-100 text-slate-500 border-slate-200'    },
+const STATUS_LABELS: Record<InvoiceStatus, string> = {
+  GENERATED: 'สร้างแล้ว',
+  SENT:      'ส่งแล้ว',
+  VIEWED:    'เปิดดูแล้ว',
+  PAID:      'ชำระแล้ว',
+  OVERDUE:   'เกินกำหนด',
+  CANCELLED: 'ยกเลิก',
 };
+
+function getStatusColor(status: InvoiceStatus): StatusColor {
+  switch (status) {
+    case 'PAID':      return 'success';
+    case 'VIEWED':    return 'violet';
+    case 'OVERDUE':   return 'danger';
+    case 'CANCELLED': return 'neutral';
+    default:          return 'info';
+  }
+}
+
+function getStatusBadgeCls(status: InvoiceStatus): string {
+  return statusBadgeClass(getStatusColor(status));
+}
+
+type StatusColor = 'success' | 'warning' | 'danger' | 'info' | 'violet' | 'neutral';
 
 const STATUS_TABS: { value: StatusFilter; label: string }[] = [
   { value: 'ALL',       label: 'ทั้งหมด'    },
@@ -110,14 +128,14 @@ function billingCycleLink(inv: InvoiceRow): string {
 
 function KpiCard({ label, value, icon, iconBg }: { label: string; value: number; icon: React.ReactNode; iconBg: string }) {
   return (
-    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 hover:shadow-lg transition-all">
+    <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5 hover:bg-[hsl(var(--color-surface))]/[0.05] hover:border-[hsl(var(--color-border))] transition-all duration-200 active:scale-[0.99]">
       <div className="flex items-start gap-4">
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${iconBg}`}>
           {icon}
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">{label}</p>
-          <p className="mt-0.5 text-2xl font-bold tabular-nums text-on-surface">{value}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--on-surface-variant))]">{label}</p>
+          <p className="mt-0.5 text-2xl font-bold tabular-nums text-[hsl(var(--on-surface))]">{value}</p>
         </div>
       </div>
     </div>
@@ -150,8 +168,6 @@ export default function AdminInvoicesPage() {
   const [bulkSending, setBulkSending] = useState(false);
   const toast = useToast();
 
-  // Debounce the search term so typing doesn't hammer the API. We keep `search`
-  // for the input's controlled value and `searchDebounced` for the fetch.
   const [searchDebounced, setSearchDebounced] = useState('');
   useEffect(() => {
     const t = setTimeout(() => setSearchDebounced(search.trim()), 300);
@@ -169,7 +185,6 @@ export default function AdminInvoicesPage() {
       if (status !== 'ALL') params.set('status', status);
       if (q) params.set('q', q);
 
-      // Fetch the list page AND the per-status totals (for KPI cards) in parallel.
       const STATUSES: InvoiceStatus[] = ['GENERATED', 'SENT', 'VIEWED', 'PAID', 'OVERDUE'];
       const [listRes, ...statusRes] = await Promise.all([
         fetch(`/api/invoices?${params.toString()}`, { cache: 'no-store' }).then((r) => r.json()),
@@ -203,7 +218,6 @@ export default function AdminInvoicesPage() {
   useEffect(() => { void load(1, statusFilter, searchDebounced); }, [load, statusFilter, searchDebounced]);
 
   async function sendInvoice(id: string) {
-    // LINE configuration check is done server-side; proceed and let API return error if not configured
     setSending(id);
     setError(null);
     setMessage(null);
@@ -223,8 +237,6 @@ export default function AdminInvoicesPage() {
     }
   }
 
-  // Send LINE to every selected invoice. Runs sequentially to avoid LINE rate
-  // limits and to surface a partial success count in the toast.
   async function bulkSendInvoices() {
     setBulkSendConfirm(false);
     const ids = Array.from(selected);
@@ -270,14 +282,8 @@ export default function AdminInvoicesPage() {
     });
   };
 
-  // Search is now server-side (via `searchDebounced`). We display whatever the
-  // server returns without additional client-side filtering so pagination totals
-  // stay accurate.
   const filtered = invoices;
-
-  // KPI cards show totals across the entire dataset, not just the current page.
   const kpi = statusTotals;
-
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -285,10 +291,10 @@ export default function AdminInvoicesPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-on-surface">ใบแจ้งหนี้</h1>
-          <p className="mt-1 text-sm text-on-surface-variant">
+          <h1 className="text-2xl font-bold text-[hsl(var(--on-surface))]">ใบแจ้งหนี้</h1>
+          <p className="mt-1 text-sm text-[hsl(var(--on-surface))]/50">
             ติดตามสถานะใบแจ้งหนี้ทุกรอบบิล หากต้องการสร้างหรือส่งเป็นกลุ่ม ให้ไปที่{' '}
-            <Link href="/admin/billing" className="text-primary hover:underline font-medium">
+            <Link href="/admin/billing" className="text-[hsl(var(--color-primary-light))] hover:underline font-medium">
               รอบบิล
             </Link>
             .
@@ -304,7 +310,7 @@ export default function AdminInvoicesPage() {
                 tenant: inv.tenantName ?? '',
                 period: fmtPeriod(inv.year, inv.month),
                 amount: inv.totalAmount,
-                status: STATUS_META[inv.status]?.label ?? inv.status,
+                status: STATUS_LABELS[inv.status] ?? inv.status,
                 dueDate: inv.dueDate,
                 paidDate: inv.paidAt ?? '',
               })),
@@ -320,7 +326,7 @@ export default function AdminInvoicesPage() {
               ],
             )}
             disabled={loading || filtered.length === 0}
-            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-40"
           >
             <Download className="h-4 w-4" />
             ส่งออก CSV
@@ -328,7 +334,7 @@ export default function AdminInvoicesPage() {
           <button
             onClick={() => void load(page, statusFilter, searchDebounced)}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98]"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -336,37 +342,38 @@ export default function AdminInvoicesPage() {
       </div>
 
       {message && (
-        <div className="flex items-center gap-3 rounded-xl border border-tertiary-container bg-tertiary-container/20 px-4 py-3 text-sm text-on-tertiary-container">
+        <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           {message}
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-3 rounded-xl border border-error-container bg-error-container/20 px-4 py-3 text-sm text-on-error-container">
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
         </div>
       )}
 
       {/* KPI row */}
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="สร้างแล้ว" value={kpi.GENERATED ?? 0} icon={<FileText className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-100 border-blue-200" />
-        <KpiCard label="ส่ง/เปิดดูแล้ว" value={(kpi.SENT ?? 0) + (kpi.VIEWED ?? 0)} icon={<Send className="h-5 w-5 text-primary" />} iconBg="bg-primary-container border-primary-container/20" />
-        <KpiCard label="ชำระแล้ว" value={kpi.PAID ?? 0} icon={<CheckCircle2 className="h-5 w-5 text-tertiary-container" />} iconBg="bg-tertiary-container border-tertiary-container/20" />
-        <KpiCard label="เกินกำหนด" value={kpi.OVERDUE ?? 0} icon={<AlertTriangle className="h-5 w-5 text-on-error-container" />} iconBg="bg-error-container border-error-container/20" />
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <KpiCard label="สร้างแล้ว" value={kpi.GENERATED ?? 0} icon={<FileText className="h-5 w-5 text-blue-600" />} iconBg="border border-blue-500/30 bg-blue-500/20" />
+        <KpiCard label="ส่งแล้ว" value={kpi.SENT ?? 0} icon={<Send className="h-5 w-5 text-[hsl(var(--color-primary-light))]" />} iconBg="border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/20" />
+        <KpiCard label="เปิดดูแล้ว" value={kpi.VIEWED ?? 0} icon={<Check className="h-5 w-5 text-violet-600" />} iconBg="border border-violet-500/30 bg-violet-500/20" />
+        <KpiCard label="ชำระแล้ว" value={kpi.PAID ?? 0} icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />} iconBg="border border-emerald-500/30 bg-emerald-500/20" />
+        <KpiCard label="เกินกำหนด" value={kpi.OVERDUE ?? 0} icon={<AlertTriangle className="h-5 w-5 text-red-600" />} iconBg="border border-red-500/30 bg-red-500/20" />
       </section>
 
       {/* Status tabs + Search */}
       <section className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex items-center gap-1 rounded-xl bg-surface-container p-1">
+        <div className="inline-flex items-center gap-1 rounded-xl bg-[hsl(var(--color-surface))]/[0.05] backdrop-blur border border-[hsl(var(--color-border))] p-1">
           {STATUS_TABS.map((tab) => (
             <button
               key={tab.value}
               onClick={() => { setStatusFilter(tab.value); setSearch(''); }}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all active:scale-[0.98] ${
                 statusFilter === tab.value
-                  ? 'bg-surface-container-lowest text-primary shadow-sm'
-                  : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
+                  ? 'bg-[hsl(var(--primary))]/20 text-[hsl(var(--color-primary-light))] shadow-glow-primary'
+                  : 'text-[hsl(var(--on-surface-variant))] hover:bg-[hsl(var(--color-surface))]/[0.05] hover:text-[hsl(var(--on-surface))]/70'
               }`}
             >
               {tab.label}
@@ -375,22 +382,22 @@ export default function AdminInvoicesPage() {
         </div>
 
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--on-surface))]/30" />
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="ค้นหาห้อง, ผู้เช่า, เลขใบแจ้งหนี้..."
-            className="w-full rounded-lg border border-outline bg-surface-container-lowest py-2 pl-9 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur py-2 pl-9 pr-4 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
           />
         </div>
 
-        <span className="text-sm text-on-surface-variant">
+        <span className="text-sm text-[hsl(var(--on-surface-variant))]">
           {total} ใบแจ้งหนี้{searchDebounced ? ` (ค้นหา "${searchDebounced}")` : ''}
         </span>
       </section>
 
-      {/* Bulk action bar (shows when at least one invoice is selected) */}
+      {/* Bulk action bar */}
       <BulkActions
         count={selected.size}
         onClear={() => setSelected(new Set())}
@@ -414,12 +421,12 @@ export default function AdminInvoicesPage() {
       />
 
       {/* Invoice table */}
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
-          <span className="text-sm font-semibold text-on-surface">รายการใบแจ้งหนี้</span>
+      <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between border-b border-[hsl(var(--color-border))] px-4 py-3">
+          <span className="text-sm font-semibold text-[hsl(var(--on-surface))]">รายการใบแจ้งหนี้</span>
           {statusFilter !== 'ALL' && (
-            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_META[statusFilter as InvoiceStatus]?.cls ?? ''}`}>
-              {STATUS_META[statusFilter as InvoiceStatus]?.label ?? statusFilter}
+            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getStatusBadgeCls(statusFilter as InvoiceStatus)}`}>
+              {STATUS_LABELS[statusFilter as InvoiceStatus] ?? statusFilter}
             </span>
           )}
         </div>
@@ -427,16 +434,16 @@ export default function AdminInvoicesPage() {
         {/* Empty state */}
         {!loading && invoices.length === 0 && (
           <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-container">
-              <Inbox className="h-7 w-7 text-on-surface-variant" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[hsl(var(--color-surface))]/[0.05]">
+              <Inbox className="h-7 w-7 text-[hsl(var(--on-surface))]/30" />
             </div>
-            <p className="text-base font-semibold text-on-surface">ไม่พบใบแจ้งหนี้</p>
-            <p className="text-sm text-on-surface-variant">
+            <p className="text-base font-semibold text-[hsl(var(--on-surface))]/80">ไม่พบใบแจ้งหนี้</p>
+            <p className="text-sm text-[hsl(var(--on-surface-variant))]">
               {statusFilter !== 'ALL'
                 ? `ไม่มีใบแจ้งหนี้สถานะ ${statusFilter.toLowerCase()} ลองเปลี่ยนตัวกรอง`
                 : 'ยังไม่มีการสร้างใบแจ้งหนี้ ไปที่รอบบิลเพื่อเริ่มต้น'}
             </p>
-            <Link href="/admin/billing" className="mt-1 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90">
+            <Link href="/admin/billing" className="mt-1 inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-glow-primary transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover active:scale-[0.98]">
               ไปที่รอบบิล
             </Link>
           </div>
@@ -444,9 +451,9 @@ export default function AdminInvoicesPage() {
 
         {/* Mobile card view */}
         {!loading && invoices.length > 0 && (
-          <div className="md:hidden divide-y divide-outline-variant/10">
+          <div className="md:hidden divide-y divide-[hsl(var(--color-border))]">
             {filtered.map((inv) => {
-              const meta = STATUS_META[inv.status];
+              const badgeCls = getStatusBadgeCls(inv.status);
               const canSend = SENDABLE.includes(inv.status);
               const isSending = sending === inv.id;
               return (
@@ -458,29 +465,29 @@ export default function AdminInvoicesPage() {
                         aria-label={`เลือกใบแจ้งหนี้ ${inv.invoiceNumber}`}
                         checked={selected.has(inv.id)}
                         onChange={() => toggleSelect(inv.id)}
-                        className="mt-1 h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
+                        className="mt-1 h-4 w-4 rounded border-white/20 text-[hsl(var(--primary))] focus:ring-[hsl(var(--primary))]/30"
                       />
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <Link href={`/admin/invoices/${inv.id}`} className="font-mono text-xs font-medium text-primary hover:underline truncate">
+                        <Link href={`/admin/invoices/${inv.id}`} className="font-mono text-xs font-medium text-[hsl(var(--color-primary-light))] hover:underline truncate">
                           {inv.invoiceNumber}
                         </Link>
-                        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold shrink-0 ${meta?.cls ?? 'bg-surface-container text-on-surface-variant'}`}>
-                          {meta?.label ?? inv.status}
+                        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold shrink-0 ${badgeCls}`}>
+                          {STATUS_LABELS[inv.status] ?? inv.status}
                         </span>
                       </div>
                       <div className="mt-1 flex items-center justify-between gap-2 text-sm">
-                        <span className="font-semibold text-on-surface">ห้อง {roomNum(inv)}</span>
+                        <span className="font-semibold text-[hsl(var(--on-surface))]/90">ห้อง {roomNum(inv)}</span>
                         <span className={`tabular-nums font-semibold ${
-                          inv.status === 'PAID' ? 'text-on-tertiary-container'
-                            : inv.status === 'OVERDUE' ? 'text-on-error-container'
-                            : 'text-on-surface'
+                          inv.status === 'PAID' ? 'text-emerald-600'
+                            : inv.status === 'OVERDUE' ? 'text-red-600'
+                            : 'text-[hsl(var(--on-surface))]/90'
                         }`}>
                           {money(inv.totalAmount)}
                         </span>
                       </div>
-                      <div className="mt-0.5 text-xs text-on-surface-variant">
+                      <div className="mt-0.5 text-xs text-[hsl(var(--on-surface-variant))]">
                         {fmtPeriod(inv.year, inv.month)}
                         {inv.tenantName ? ` · ${inv.tenantName}` : ''}
                       </div>
@@ -490,7 +497,7 @@ export default function AdminInvoicesPage() {
                             href={`/api/invoices/${inv.id}/pdf`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1 text-xs font-medium text-on-surface hover:bg-surface-container"
+                            className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-2.5 py-1 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98]"
                           >
                             <FileText className="h-3.5 w-3.5" />
                             PDF
@@ -500,7 +507,7 @@ export default function AdminInvoicesPage() {
                           <button
                             onClick={() => void sendInvoice(inv.id)}
                             disabled={isSending || sending !== null}
-                            className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1 text-xs font-medium text-on-surface hover:bg-surface-container disabled:opacity-60"
+                            className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-2.5 py-1 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98] disabled:opacity-40"
                           >
                             <Send className="h-3.5 w-3.5" />
                             {isSending ? 'กำลังส่ง…' : 'ส่ง'}
@@ -519,7 +526,7 @@ export default function AdminInvoicesPage() {
           <div className="hidden md:block overflow-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b border-outline-variant">
+                <tr className="border-b border-[hsl(var(--color-border))]">
                   <th className="w-10 px-3 py-3">
                     <input
                       type="checkbox"
@@ -529,23 +536,23 @@ export default function AdminInvoicesPage() {
                         return sendable.length > 0 && sendable.every((i) => selected.has(i.id));
                       })()}
                       onChange={toggleSelectAllVisible}
-                      className="h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
+                      className="h-4 w-4 rounded border-white/20 text-[hsl(var(--primary))] focus:ring-[hsl(var(--primary))]/30"
                     />
                   </th>
-                  <th className="hidden md:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">เลขใบแจ้งหนี้</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">ห้อง</th>
-                  <th className="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">ผู้เช่า</th>
-                  <th className="hidden md:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">เดือน</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">สถานะ</th>
-                  <th className="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">วันครบกำหนด</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">จำนวน</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-on-surface-variant">จัดการ</th>
+                  <th className="hidden md:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--on-surface-variant))]">เลขใบแจ้งหนี้</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--on-surface-variant))]">ห้อง</th>
+                  <th className="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--on-surface-variant))]">ผู้เช่า</th>
+                  <th className="hidden md:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--on-surface-variant))]">เดือน</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--on-surface-variant))]">สถานะ</th>
+                  <th className="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--on-surface-variant))]">วันครบกำหนด</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[hsl(var(--on-surface-variant))]">จำนวน</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--on-surface-variant))]">จัดการ</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={`skl-${i}`} className="border-b border-outline-variant/10">
+                    <tr key={`skl-${i}`} className="border-b border-white/[0.05]">
                       <td colSpan={9} className="px-4 py-3">
                         <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
                       </td>
@@ -553,23 +560,23 @@ export default function AdminInvoicesPage() {
                   ))
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-16 text-center text-sm text-on-surface-variant">
-                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-container">
-                        <ScrollText className="h-5 w-5 text-outline" />
+                    <td colSpan={9} className="px-4 py-16 text-center text-sm text-[hsl(var(--on-surface-variant))]">
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[hsl(var(--color-surface))]/[0.05]">
+                        <ScrollText className="h-5 w-5 text-[hsl(var(--on-surface))]/20" />
                       </div>
-                      <p className="mt-3 font-semibold text-on-surface">ไม่พบใบแจ้งหนี้ที่ตรงกับตัวกรอง</p>
-                      <p className="mt-1 text-xs">ลองปรับตัวกรองหรือล้างการค้นหา</p>
+                      <p className="mt-3 font-semibold text-[hsl(var(--on-surface))]/60">ไม่พบใบแจ้งหนี้ที่ตรงกับตัวกรอง</p>
+                      <p className="mt-1 text-xs text-[hsl(var(--on-surface))]/30">ลองปรับตัวกรองหรือล้างการค้นหา</p>
                     </td>
                   </tr>
                 ) : (
                   filtered.map((inv) => {
-                    const meta = STATUS_META[inv.status];
+                    const badgeCls = getStatusBadgeCls(inv.status);
                     const canSend = SENDABLE.includes(inv.status);
                     const isSending = sending === inv.id;
 
                     return (
-                      <tr key={inv.id} className="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors">
-                        {/* Select checkbox — only meaningful for invoices that can be sent */}
+                      <tr key={inv.id} className="border-b border-white/[0.05] hover:bg-[hsl(var(--color-surface))] transition-colors">
+                        {/* Select checkbox */}
                         <td className="px-3 py-3">
                           {canSend ? (
                             <input
@@ -577,35 +584,35 @@ export default function AdminInvoicesPage() {
                               aria-label={`เลือกใบแจ้งหนี้ ${inv.invoiceNumber}`}
                               checked={selected.has(inv.id)}
                               onChange={() => toggleSelect(inv.id)}
-                              className="h-4 w-4 rounded border-outline text-primary focus:ring-primary/30"
+                              className="h-4 w-4 rounded border-white/20 text-[hsl(var(--primary))] focus:ring-[hsl(var(--primary))]/30"
                             />
                           ) : null}
                         </td>
                         {/* Invoice number */}
                         <td className="hidden md:table-cell px-4 py-3">
-                          <Link href={`/admin/invoices/${inv.id}`} className="font-mono text-xs font-medium text-primary hover:underline">
+                          <Link href={`/admin/invoices/${inv.id}`} className="font-mono text-xs font-medium text-[hsl(var(--color-primary-light))] hover:underline">
                             {inv.invoiceNumber}
                           </Link>
                         </td>
 
                         {/* Room */}
                         <td className="px-4 py-3">
-                          <span className="font-semibold text-on-surface">{roomNum(inv)}</span>
+                          <span className="font-semibold text-[hsl(var(--on-surface))]/90">{roomNum(inv)}</span>
                         </td>
 
                         {/* Tenant */}
-                        <td className="hidden lg:table-cell px-4 py-3 text-on-surface-variant">{inv.tenantName ?? '—'}</td>
+                        <td className="hidden lg:table-cell px-4 py-3 text-[hsl(var(--on-surface))]/50">{inv.tenantName ?? '—'}</td>
 
                         {/* Period */}
-                        <td className="hidden md:table-cell px-4 py-3 text-on-surface-variant">{fmtPeriod(inv.year, inv.month)}</td>
+                        <td className="hidden md:table-cell px-4 py-3 text-[hsl(var(--on-surface))]/50">{fmtPeriod(inv.year, inv.month)}</td>
 
                         {/* Status */}
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${meta?.cls ?? 'bg-surface-container text-on-surface-variant'}`}>
-                            {meta?.label ?? inv.status}
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badgeCls}`}>
+                            {STATUS_LABELS[inv.status] ?? inv.status}
                           </span>
                           {inv.sentAt && (
-                            <div className="mt-0.5 flex items-center gap-1 text-[10px] text-on-surface-variant/60">
+                            <div className="mt-0.5 flex items-center gap-1 text-[10px] text-[hsl(var(--on-surface))]/30">
                               <Clock className="h-2.5 w-2.5" />
                               {fmtDate(inv.sentAt)}
                             </div>
@@ -614,7 +621,7 @@ export default function AdminInvoicesPage() {
 
                         {/* Due date */}
                         <td className="hidden lg:table-cell px-4 py-3">
-                          <span className={inv.status === 'OVERDUE' ? 'font-semibold text-on-error-container' : 'text-on-surface-variant'}>
+                          <span className={inv.status === 'OVERDUE' ? 'font-semibold text-red-600' : 'text-[hsl(var(--on-surface))]/50'}>
                             {fmtDate(inv.dueDate)}
                           </span>
                         </td>
@@ -622,9 +629,9 @@ export default function AdminInvoicesPage() {
                         {/* Amount */}
                         <td className="px-4 py-3 text-right">
                           <span className={`tabular-nums font-semibold ${
-                            inv.status === 'PAID' ? 'text-on-tertiary-container'
-                              : inv.status === 'OVERDUE' ? 'text-on-error-container'
-                              : 'text-on-surface'
+                            inv.status === 'PAID' ? 'text-emerald-400'
+                              : inv.status === 'OVERDUE' ? 'text-red-400'
+                              : 'text-[hsl(var(--on-surface))]/90'
                           }`}>
                             {money(inv.totalAmount)}
                           </span>
@@ -633,23 +640,21 @@ export default function AdminInvoicesPage() {
                         {/* Actions */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
-                            {inv.status !== 'CANCELLED' && (
-                              <a
-                                href={`/api/invoices/${inv.id}/pdf`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
-                              >
-                                <FileText className="h-3.5 w-3.5" />
-                                PDF
-                              </a>
-                            )}
+                            <a
+                              href={`/api/invoices/${inv.id}/pdf`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98]"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              PDF
+                            </a>
 
                             {canSend && (
                               <button
                                 onClick={() => void sendInvoice(inv.id)}
                                 disabled={isSending || sending !== null}
-                                className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container disabled:opacity-60"
+                                className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98] disabled:opacity-40"
                               >
                                 <Send className="h-3.5 w-3.5" />
                                 {isSending ? 'กำลังส่ง…' : 'ส่ง'}
@@ -658,7 +663,7 @@ export default function AdminInvoicesPage() {
 
                             <Link
                               href={billingCycleLink(inv)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container"
+                              className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98]"
                             >
                               <ExternalLink className="h-3.5 w-3.5" />
                               รอบบิล
@@ -676,22 +681,22 @@ export default function AdminInvoicesPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-outline-variant px-4 py-3">
-            <span className="text-xs text-on-surface-variant">
+          <div className="flex items-center justify-between border-t border-[hsl(var(--color-border))] px-4 py-3">
+            <span className="text-xs text-[hsl(var(--on-surface-variant))]">
               หน้า {page} จาก {totalPages} · {total} รายการ
             </span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => void load(page - 1, statusFilter, searchDebounced)}
                 disabled={page <= 1 || loading}
-                className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container disabled:opacity-40"
+                className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-40"
               >
                 ← ก่อนหน้า
               </button>
               <button
                 onClick={() => void load(page + 1, statusFilter, searchDebounced)}
                 disabled={page >= totalPages || loading}
-                className="rounded-lg border border-outline bg-surface-container-lowest px-3 py-1.5 text-xs font-medium text-on-surface transition-colors hover:bg-surface-container disabled:opacity-40"
+                className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-40"
               >
                 ถัดไป →
               </button>

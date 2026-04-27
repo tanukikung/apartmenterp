@@ -19,6 +19,8 @@ export default function SetupPage() {
     state,
     updateAdmin,
     updateBuilding,
+    updateRooms,
+    updateBankAccount,
     updateBilling,
     updateLineNotify,
     updateEmailNotify,
@@ -31,7 +33,6 @@ export default function SetupPage() {
   const [submitError, setSubmitError] = useState<string>('');
   const [submitResult, setSubmitResult] = useState<{ adminUserId: string; roomsCreated: number } | null>(null);
 
-  // Check setup status on mount (with 5-second timeout as fail-safe)
   useEffect(() => {
     async function checkStatus() {
       const controller = new AbortController();
@@ -41,18 +42,15 @@ export default function SetupPage() {
         clearTimeout(timeoutId);
         const json = await res.json();
         if (json.success) {
-          // If already initialized, redirect to dashboard
           if (json.data.initialized) {
             router.replace('/admin/dashboard');
             return;
           }
         } else {
-          // API returned error response — fail-safe: assume initialized, redirect to dashboard
           router.replace('/admin/dashboard');
           return;
         }
       } catch {
-        // Network/fetch error or timeout — fail-safe: assume initialized, redirect to dashboard
         clearTimeout(timeoutId);
         router.replace('/admin/dashboard');
         return;
@@ -63,12 +61,11 @@ export default function SetupPage() {
     checkStatus();
   }, [router]);
 
-  // Validation functions
   function validateStep(step: number): boolean {
     const newErrors: Record<string, string> = {};
 
     switch (step) {
-      case 1: // Admin
+      case 1:
         if (!state.admin.username || state.admin.username.length < 3) {
           newErrors.username = 'Username ต้องมีอย่างน้อย 3 ตัวอักษร';
         }
@@ -86,7 +83,7 @@ export default function SetupPage() {
         }
         break;
 
-      case 2: // Building & Rooms
+      case 2:
         if (!state.building.name) {
           newErrors.name = 'กรุณากรอกชื่ออาคาร';
         }
@@ -98,7 +95,7 @@ export default function SetupPage() {
         }
         break;
 
-      case 3: // Billing
+      case 3:
         if (state.billing.billingDay < 1 || state.billing.billingDay > 28) {
           newErrors.billingDay = 'วันออกบิลต้องอยู่ระหว่าง 1-28';
         }
@@ -129,6 +126,21 @@ export default function SetupPage() {
           phone: state.building.phone,
           email: state.building.email,
           taxId: state.building.taxId,
+        },
+        rooms: {
+          format: state.rooms.format,
+          floors: state.rooms.floors,
+          roomsPerFloor: state.rooms.roomsPerFloor,
+          defaultRentAmount: state.rooms.defaultRentAmount,
+          prefix: state.rooms.prefix,
+          mixedSpecialFloor: state.rooms.mixedSpecialFloor,
+          customRooms: state.rooms.customRooms,
+        },
+        bankAccount: {
+          bankName: state.bankAccount.bankName,
+          bankAccountNo: state.bankAccount.bankAccountNo,
+          bankAccountName: state.bankAccount.bankAccountName,
+          promptpay: state.bankAccount.promptpay,
         },
         billing: {
           billingDay: state.billing.billingDay,
@@ -170,7 +182,6 @@ export default function SetupPage() {
 
       setSubmitResult(json.data);
 
-      // Redirect to dashboard after short delay
       setTimeout(() => {
         router.replace('/admin/dashboard');
       }, 3000);
@@ -191,20 +202,20 @@ export default function SetupPage() {
     return (
       <div className="flex min-h-[80vh] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-on-surface-variant">กำลังโหลด...</p>
+          <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'hsl(var(--primary))' }} />
+          <p className="text-sm" style={{ color: 'hsl(var(--color-text-3))' }}>กำลังโหลด...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-surface-container-lowest py-6 px-4">
+    <main className="min-h-screen py-6 px-4" style={{ background: 'hsl(var(--color-bg))' }}>
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Header */}
         <div className="text-center space-y-1">
-          <h1 className="text-2xl font-bold text-on-surface">ตั้งค่าระบบ Apartment ERP</h1>
-          <p className="text-sm text-on-surface-variant">
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'hsl(var(--color-text))' }}>ตั้งค่าระบบ Apartment ERP</h1>
+          <p className="text-sm" style={{ color: 'hsl(var(--color-text-3))' }}>
             กำหนดค่าเริ่มต้นสำหรับระบบจัดการอาคารของคุณ
           </p>
         </div>
@@ -223,7 +234,7 @@ export default function SetupPage() {
         )}
 
         {/* Step Content */}
-        <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-6 shadow-sm">
+        <div className="rounded-2xl border p-6" style={{ borderColor: 'hsl(var(--color-border))', background: 'hsl(var(--color-surface))', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
           {state.currentStep === 1 && (
             <AdminAccountStep
               data={state.admin}
@@ -235,7 +246,11 @@ export default function SetupPage() {
           {state.currentStep === 2 && (
             <BuildingRoomsStep
               building={state.building}
+              rooms={state.rooms}
+              bankAccount={state.bankAccount}
               onBuildingChange={updateBuilding}
+              onRoomsChange={updateRooms}
+              onBankAccountChange={updateBankAccount}
               errors={errors[2]}
             />
           )}
@@ -269,7 +284,8 @@ export default function SetupPage() {
             <button
               onClick={prevStep}
               disabled={state.currentStep === 1}
-              className="flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2.5 text-sm font-medium text-on-surface hover:bg-surface-container transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ borderColor: 'hsl(var(--color-border))', background: 'hsl(var(--color-surface))', color: 'hsl(var(--color-text-2))' }}
             >
               <ArrowLeft className="h-4 w-4" />
               กลับ
@@ -277,7 +293,8 @@ export default function SetupPage() {
 
             <button
               onClick={handleNext}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-on-primary hover:bg-primary/90 transition-colors"
+              className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition-all"
+              style={{ background: 'hsl(var(--primary))' }}
             >
               ต่อไป
               <ArrowRight className="h-4 w-4" />
@@ -285,13 +302,12 @@ export default function SetupPage() {
           </div>
         )}
 
-        {/* Back button for step 5 before submit */}
         {!submitResult && state.currentStep === 5 && (
           <div className="flex items-center justify-between">
             <button
               onClick={prevStep}
               disabled={submitting}
-              className="flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2.5 text-sm font-medium text-on-surface hover:bg-surface-container transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-4 py-2.5 text-sm font-medium text-white/70 hover:bg-white/10 hover:scale-105 active:scale-[0.98] transition-all disabled:opacity-50"
             >
               <ArrowLeft className="h-4 w-4" />
               กลับ

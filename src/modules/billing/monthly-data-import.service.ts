@@ -409,7 +409,9 @@ export async function createMonthlyDataImportPreviewBatch(input: {
 
 export async function executeMonthlyDataImportBatch(
   batchId: string,
-  _importedBy?: string
+  _importedBy?: string,
+  /** Optional file buffer — bypasses storage lookup when provided (for direct-service calls) */
+  fileBuffer?: Uint8Array
 ): Promise<{ batchId: string; cycleId: string; totalImported: number; warnings: MonthlyDataWarning[] }> {
   // 1. Find the PENDING batch
   const batch = await prisma.importBatch.findUnique({ where: { id: batchId } });
@@ -425,22 +427,24 @@ export async function executeMonthlyDataImportBatch(
   const year = errorLogObj['year'] as number;
   const month = errorLogObj['month'] as number;
 
-  if (!storageKey) {
+  // 2. Resolve file buffer — either from storage or passed directly
+  let buffer: Buffer;
+  if (fileBuffer) {
+    buffer = Buffer.from(fileBuffer);
+  } else if (storageKey) {
+    try {
+      const storage = getStorage();
+      buffer = await storage.downloadFile(storageKey);
+    } catch (err) {
+      throw new BadRequestError(
+        `Unable to retrieve workbook from storage (key: ${storageKey}). ` +
+          `Error: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  } else {
     throw new BadRequestError(
       'Batch has no associated file in storage. ' +
         'Re-upload the workbook via the Import page to create a new batch.'
-    );
-  }
-
-  // 2. Download file buffer from storage
-  let buffer: Buffer;
-  try {
-    const storage = getStorage();
-    buffer = await storage.downloadFile(storageKey);
-  } catch (err) {
-    throw new BadRequestError(
-      `Unable to retrieve workbook from storage (key: ${storageKey}). ` +
-        `Error: ${err instanceof Error ? err.message : String(err)}`
     );
   }
 

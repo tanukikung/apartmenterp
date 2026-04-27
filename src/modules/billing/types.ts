@@ -64,9 +64,11 @@ export const listBillingRecordsQuerySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100).optional(),
   month: z.coerce.number().int().min(1).max(12).optional(),
   status: billingStatusSchema.optional(),
+  /** Floor number (1-8) — filters roomNo by first digit prefix */
+  floor: z.coerce.number().int().min(1).max(10).optional(),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
-  sortBy: z.enum(['year', 'month', 'totalAmount', 'createdAt']).default('createdAt'),
+  pageSize: z.coerce.number().int().min(1).max(500).default(50),
+  sortBy: z.enum(['year', 'month', 'totalAmount', 'createdAt', 'roomNo']).default('roomNo'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 

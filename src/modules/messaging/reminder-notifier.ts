@@ -24,7 +24,7 @@ async function sendReminder(invoiceId: string, eventType: string) {
     },
   });
   if (!invoice || !invoice.room) return;
-  const tenant = (invoice.room as any as RoomWithTenants).tenants?.[0]?.tenant;
+  const tenant = (invoice.room as unknown as RoomWithTenants).tenants?.[0]?.tenant;
   const lineUserId = tenant?.lineUserId;
   if (!lineUserId) {
     logger.warn({ type: 'reminder_skipped_no_line', invoiceId });
@@ -33,7 +33,9 @@ async function sendReminder(invoiceId: string, eventType: string) {
   const dueDate = new Date(invoice.dueDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
   const baseUrl = process.env.APP_BASE_URL || '';
   const paymentLink = buildInvoiceAccessUrl(invoice.id, { absoluteBaseUrl: baseUrl, signed: true });
-  const amount = `฿${Number(invoice.totalAmount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+  // Include late fee if already applied (late fee accrues daily after due date)
+  const effectiveAmount = Number(invoice.totalAmount) + Number(invoice.lateFeeAmount ?? 0);
+  const amount = `฿${effectiveAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
 
   // Calculate overdue days
   let daysOverdue: number | undefined;

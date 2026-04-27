@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { getOutboxProcessor } from '@/lib/outbox';
-
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
 import { prisma } from '@/lib/db/client';
@@ -161,8 +160,9 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         },
       );
       results.sent++;
-    } catch {
+    } catch (err) {
       results.errors++;
+      logger.warn({ type: 'bulk_reminder_send_failed', invoiceId: invoice.id, roomNo: invoice.roomNo, error: err instanceof Error ? err.message : String(err) });
     }
   }
 

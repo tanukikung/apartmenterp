@@ -6,7 +6,28 @@ import { useState, useCallback } from 'react';
 // Types
 // ============================================================================
 
-export type RoomNumberFormat = 'SIMPLE' | 'HOTEL' | 'CUSTOM_PREFIX' | 'MIXED';
+export type RoomNumberFormat = 'SIMPLE' | 'HOTEL' | 'CUSTOM_PREFIX' | 'MIXED' | 'CUSTOM';
+
+/** Single custom room entry */
+export interface CustomRoomEntry {
+  roomNo: string;
+  floorNo: number;
+  rent: number;
+}
+
+export interface RoomsData {
+  format: RoomNumberFormat;
+  floors: number;
+  roomsPerFloor: number;
+  defaultRentAmount: number;
+  prefix: string;
+  mixedSpecialFloor: {
+    floorNo: number;
+    roomNumbers: string[];
+  } | null;
+  /** For CUSTOM format: list of rooms (one per line: "roomNo, rent") */
+  customRooms: CustomRoomEntry[];
+}
 
 export interface AdminData {
   username: string;
@@ -23,23 +44,18 @@ export interface BuildingData {
   taxId: string;
 }
 
-export interface RoomsData {
-  format: RoomNumberFormat;
-  floors: number;
-  roomsPerFloor: number;
-  defaultRentAmount: number;
-  prefix: string;
-  mixedSpecialFloor: {
-    floorNo: number;
-    roomNumbers: string[];
-  } | null;
-}
-
 export interface BillingData {
   billingDay: number;
   dueDay: number;
   reminderDays: number;
   lateFeePerDay: number;
+}
+
+export interface BankAccountData {
+  bankName: string;
+  bankAccountNo: string;
+  bankAccountName: string;
+  promptpay: string;
 }
 
 export interface LineNotifyData {
@@ -63,6 +79,7 @@ export interface SetupWizardState {
   admin: AdminData;
   building: BuildingData;
   rooms: RoomsData;
+  bankAccount: BankAccountData;
   billing: BillingData;
   lineNotify: LineNotifyData;
   emailNotify: EmailNotifyData;
@@ -94,6 +111,7 @@ const DEFAULT_ROOMS: RoomsData = {
   defaultRentAmount: 10000,
   prefix: '',
   mixedSpecialFloor: null,
+  customRooms: [],
 };
 
 const DEFAULT_BILLING: BillingData = {
@@ -101,6 +119,13 @@ const DEFAULT_BILLING: BillingData = {
   dueDay: 5,
   reminderDays: 3,
   lateFeePerDay: 10,
+};
+
+const DEFAULT_BANK_ACCOUNT: BankAccountData = {
+  bankName: '',
+  bankAccountNo: '',
+  bankAccountName: '',
+  promptpay: '',
 };
 
 const DEFAULT_LINE_NOTIFY: LineNotifyData = {
@@ -129,6 +154,7 @@ export function useSetupWizard() {
     admin: DEFAULT_ADMIN,
     building: DEFAULT_BUILDING,
     rooms: DEFAULT_ROOMS,
+    bankAccount: DEFAULT_BANK_ACCOUNT,
     billing: DEFAULT_BILLING,
     lineNotify: DEFAULT_LINE_NOTIFY,
     emailNotify: DEFAULT_EMAIL_NOTIFY,
@@ -146,6 +172,10 @@ export function useSetupWizard() {
     setState((prev) => ({ ...prev, rooms: { ...prev.rooms, ...data } }));
   }, []);
 
+  const updateBankAccount = useCallback((data: Partial<BankAccountData>) => {
+    setState((prev) => ({ ...prev, bankAccount: { ...prev.bankAccount, ...data } }));
+  }, []);
+
   const updateBilling = useCallback((data: Partial<BillingData>) => {
     setState((prev) => ({ ...prev, billing: { ...prev.billing, ...data } }));
   }, []);
@@ -159,7 +189,7 @@ export function useSetupWizard() {
   }, []);
 
   const nextStep = useCallback(() => {
-    setState((prev) => ({ ...prev, currentStep: Math.min(prev.currentStep + 1, 5) }));
+    setState((prev) => ({ ...prev, currentStep: Math.min(prev.currentStep + 1, 4) }));
   }, []);
 
   const prevStep = useCallback(() => {
@@ -167,7 +197,7 @@ export function useSetupWizard() {
   }, []);
 
   const goToStep = useCallback((step: number) => {
-    setState((prev) => ({ ...prev, currentStep: Math.max(1, Math.min(step, 5)) }));
+    setState((prev) => ({ ...prev, currentStep: Math.max(1, Math.min(step, 4)) }));
   }, []);
 
   const reset = useCallback(() => {
@@ -176,6 +206,7 @@ export function useSetupWizard() {
       admin: DEFAULT_ADMIN,
       building: DEFAULT_BUILDING,
       rooms: DEFAULT_ROOMS,
+      bankAccount: DEFAULT_BANK_ACCOUNT,
       billing: DEFAULT_BILLING,
       lineNotify: DEFAULT_LINE_NOTIFY,
       emailNotify: DEFAULT_EMAIL_NOTIFY,
@@ -187,6 +218,7 @@ export function useSetupWizard() {
     updateAdmin,
     updateBuilding,
     updateRooms,
+    updateBankAccount,
     updateBilling,
     updateLineNotify,
     updateEmailNotify,

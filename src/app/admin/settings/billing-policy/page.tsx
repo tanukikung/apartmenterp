@@ -40,10 +40,10 @@ function SettingRow({
   onChange: (value: number) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5">
+    <div className="glass-card rounded-xl p-5 flex items-center justify-between gap-4">
       <div>
-        <div className="font-semibold text-on-surface">{label}</div>
-        <p className="mt-1 text-sm text-on-surface-variant">{description}</p>
+        <div className="font-semibold text-[hsl(var(--card-foreground))]">{label}</div>
+        <p className="mt-1 text-sm text-[hsl(var(--on-surface-variant))]">{description}</p>
       </div>
       <input
         type="number"
@@ -51,7 +51,7 @@ function SettingRow({
         max={max}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="w-24 rounded-xl border border-outline bg-surface-container-lowest px-3 py-2.5 text-sm text-on-surface text-center tabular-nums focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="w-24 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] text-center tabular-nums focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
       />
     </div>
   );
@@ -60,7 +60,6 @@ function SettingRow({
 export default function BillingPolicyPage() {
   const queryClient = useQueryClient();
 
-  // useQuery for billing settings
   const {
     isLoading,
     data: queryData,
@@ -77,14 +76,12 @@ export default function BillingPolicyPage() {
     },
   });
 
-  // Local state mirroring original behaviour
   const [fields, setFields] = useState<BillingSettings>(DEFAULTS);
   const [originalFields, setOriginalFields] = useState<BillingSettings>(DEFAULTS);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Sync from useQuery result to local state
   useEffect(() => {
     if (queryError) {
       setError(queryError instanceof Error ? queryError.message : 'ไม่สามารถโหลดการตั้งค่าการเรียกเก็บได้');
@@ -97,7 +94,6 @@ export default function BillingPolicyPage() {
     }
   }, [queryData, queryError]);
 
-  // Replace load() with invalidate + refetch
   const _load = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
   }, [queryClient]);
@@ -131,17 +127,20 @@ export default function BillingPolicyPage() {
 
   return (
     <main className="space-y-6">
-      <section className="rounded-2xl border border-outline-variant/10 bg-gradient-to-br from-primary-container to-primary px-6 py-5">
-        <div className="flex items-center gap-3">
+      <section className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
+        </div>
+        <div className="relative flex items-center gap-3">
           <Link
             href="/admin/settings"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-colors hover:border-primary30 hover:bg-surface-container"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] glass-card shadow-sm transition-all hover:scale-105 active:scale-95"
           >
-            <ArrowLeft className="h-4 w-4 text-on-primary" />
+            <ArrowLeft className="h-4 w-4 text-[hsl(var(--primary))]" />
           </Link>
           <div>
-            <h1 className="text-xl font-semibold text-on-primary">ปฏิทินการเรียกเก็บ</h1>
-            <p className="text-sm text-on-primary/80">
+            <h1 className="text-xl font-semibold text-[hsl(var(--card-foreground))]">ปฏิทินการเรียกเก็บ</h1>
+            <p className="text-sm text-[hsl(var(--on-surface-variant))]">
               หน้านี้เชื่อมต่อกับ API ตั้งค่าการเรียกเก็บจริง
             </p>
           </div>
@@ -149,18 +148,26 @@ export default function BillingPolicyPage() {
       </section>
 
       {message ? (
-        <div className="auth-alert auth-alert-success">{message}</div>
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 px-4 py-3 text-sm font-medium" style={{ background: 'rgba(34,197,94,0.1)', color: '#4ade80' }}>
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {message}
+        </div>
       ) : null}
-      {error ? <div className="auth-alert auth-alert-error">{error}</div> : null}
+      {error ? (
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/30 px-4 py-3 text-sm font-medium" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      ) : null}
 
-      <section className="rounded-2xl border border-sky-100 bg-sky-50/60 px-5 py-4 text-sm text-sky-800">
+      <section className="rounded-xl border border-blue-500/20 px-5 py-4 text-sm" style={{ background: 'rgba(99,102,241,0.05)', color: 'hsl(var(--primary))' }}>
         รองรับเฉพาะวันเรียกเก็บ วันครบกำหนด และวันค้างชำระเท่านั้น ค่าปรับ ระยะปลอดค่าปรับ และการควบคุมนโยบายอื่นๆ จะทยอยเพิ่มเมื่อมีการสนับสนุน backend
       </section>
 
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="h-24 animate-pulse rounded-xl bg-surface-container" />
+            <div key={index} className="h-24 animate-pulse rounded-xl glass-card" />
           ))}
         </div>
       ) : (
@@ -192,8 +199,8 @@ export default function BillingPolicyPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between rounded-xl border border-outline-variant/10 bg-surface-container-lowest px-5 py-4">
-        <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+      <div className="glass-card rounded-xl px-5 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-[hsl(var(--on-surface-variant))]">
           <CalendarDays className="h-4 w-4" />
           {isDirty ? 'คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก' : 'ปฏิทินการเรียกเก็บเป็นปัจจุบันแล้ว'}
         </div>
@@ -205,7 +212,7 @@ export default function BillingPolicyPage() {
                 setMessage(null);
                 setError(null);
               }}
-              className="inline-flex items-center gap-2 rounded-lg border border-outline bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5"
             >
               รีเซ็ต
             </button>
@@ -213,7 +220,7 @@ export default function BillingPolicyPage() {
           <button
             onClick={() => void handleSave()}
             disabled={saving || isLoading || !isDirty}
-            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-primary text-on-primary hover:bg-primary/90 px-4 py-2 text-sm font-medium shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] text-white px-4 py-2 text-sm font-medium shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--primary))]/90 disabled:cursor-not-allowed disabled:opacity-50 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
           >
             <Save className="h-4 w-4" />
             {saving ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}
@@ -221,19 +228,19 @@ export default function BillingPolicyPage() {
         </div>
       </div>
 
-      <section className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+      <section className="rounded-xl border border-amber-500/20 px-5 py-4 text-sm" style={{ background: 'rgba(251,191,36,0.05)' }}>
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-          <p>
+          <p style={{ color: '#d97706' }}>
             ค่าเหล่านี้ส่งผลต่อการเรียกเก็บและการคำนวณค้างชำระในอนาคตเท่านั้น ใบแจ้งหนี้ที่มีอยู่แล้วจะไม่ถูกเขียนใหม่เมื่อเปลี่ยนปฏิทิน
           </p>
         </div>
       </section>
 
       {message ? (
-        <div className="flex items-center gap-2 text-sm text-emerald-700">
+        <div className="flex items-center gap-2 text-sm text-emerald-600">
           <CheckCircle2 className="h-4 w-4" />
-          บันทึกผ่าน <code className="rounded bg-emerald-50 px-1">PUT /api/admin/settings</code>
+          บันทึกผ่าน <code className="rounded px-1" style={{ background: 'rgba(34,197,94,0.15)' }}>PUT /api/admin/settings</code>
         </div>
       ) : null}
     </main>

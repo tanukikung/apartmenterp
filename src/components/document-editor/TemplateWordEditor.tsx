@@ -43,6 +43,7 @@ import {
   Indent,
   Italic,
   Link2,
+  Link as LinkIcon,
   List,
   ListOrdered,
   Loader2,
@@ -54,7 +55,7 @@ import {
   Redo2,
   RemoveFormatting,
   Rows3,
-  Save,
+  Settings2,
   SplitSquareVertical,
   Underline as UnderlineIcon,
   Undo2,
@@ -74,22 +75,22 @@ import { Columns } from './extensions/Columns';
 import { LineSpacing } from './extensions/LineSpacing';
 import { PageBreak } from './extensions/PageBreak';
 import { ResizableImage } from './extensions/ResizableImage';
-
-type QuickBlock = {
-  label: string;
-  html: string;
-};
+import { PageSetupModal } from './extensions/PageSetupModal';
+import { BlockPalette } from './extensions/BlockPalette';
+import { FindReplaceModal } from './extensions/FindReplaceModal';
+import { FloatingToolbar, FontFamilyPicker, FontSizePicker } from './extensions/FloatingToolbar';
+import { TableToolbar } from './extensions/TableToolbar';
 
 type TemplateWordEditorProps = {
   value: string;
   subject: string;
   previewValues: Record<string, string>;
-  variables: string[];
-  quickBlocks: QuickBlock[];
   onChange: (html: string) => void;
   onUploadImage: (file: File) => Promise<{ url: string; name?: string }>;
   /** When set, the "Real Preview" button resolves DB data and renders with真实 values */
   templateId?: string;
+  /** Exposes the TipTap editor instance so parent can insert content directly */
+  editorRef?: React.MutableRefObject<import('@tiptap/react').Editor | null>;
 };
 
 type RegionKey = 'header' | 'body' | 'footer';
@@ -109,30 +110,30 @@ type PageMetrics = {
 
 const TEXT_COLORS = ['#0f172a', '#4338ca', '#0f766e', '#b45309', '#be123c'];
 const HIGHLIGHT_COLORS = ['#fef08a', '#bfdbfe', '#fecdd3', '#bbf7d0', '#fde68a'];
-const FONT_FAMILIES = [
-  { label: 'Document Default', value: '' },
-  { label: 'Segoe UI', value: '"Segoe UI", "Inter", system-ui, sans-serif' },
-  { label: 'Sarabun', value: '"Sarabun", "Segoe UI", system-ui, sans-serif' },
-  { label: 'Serif', value: 'Georgia, "Times New Roman", serif' },
-];
 
 function resolvePageMetrics(meta: TemplateDocumentMeta): PageMetrics {
-  const isLetter = meta.pageSize === 'LETTER';
+  const PAGE_DIMS: Record<string, { w: number; h: number }> = {
+    A5: { w: 148, h: 210 },
+    A4: { w: 210, h: 297 },
+    A3: { w: 297, h: 420 },
+    LETTER: { w: 216, h: 279 },
+    LEGAL: { w: 216, h: 356 },
+    CUSTOM: { w: meta.customWidthMm ?? 210, h: meta.customHeightMm ?? 297 },
+  };
+  const dims = PAGE_DIMS[meta.pageSize] ?? PAGE_DIMS.A4;
   const isLandscape = meta.orientation === 'LANDSCAPE';
-  const marginPreset = meta.marginPreset ?? 'normal';
-  const marginXMm = MARGIN_PRESET_MM[marginPreset] ?? 18;
-  const marginTopMm = MARGIN_TOP_BOTTOM_MM[marginPreset] ?? 18;
-  const marginBottomMm = MARGIN_TOP_BOTTOM_MM[marginPreset] ?? 18;
+  const isCustomMargin = meta.marginPreset === 'custom';
+  const marginXMm = isCustomMargin ? (meta.customMarginLeftMm ?? 18) : (MARGIN_PRESET_MM[meta.marginPreset ?? 'normal'] ?? 18);
+  const marginTopMm = isCustomMargin ? (meta.customMarginTopMm ?? 18) : (MARGIN_TOP_BOTTOM_MM[meta.marginPreset ?? 'normal'] ?? 18);
+  const marginBottomMm = isCustomMargin ? (meta.customMarginBottomMm ?? 18) : (MARGIN_TOP_BOTTOM_MM[meta.marginPreset ?? 'normal'] ?? 18);
 
-  // Portrait: width < height. Landscape: swap them.
-  const portraitWidth = isLetter ? '216mm' : '210mm';
-  const portraitHeight = isLetter ? '279mm' : '297mm';
-  const portraitWidthMm = isLetter ? 216 : 210;
+  const pw = isLandscape ? dims.h : dims.w;
+  const ph = isLandscape ? dims.w : dims.h;
 
   return {
-    pageWidth: isLandscape ? portraitHeight : portraitWidth,
-    pageMinHeight: isLandscape ? portraitWidth : portraitHeight,
-    pageWidthMm: isLandscape ? portraitWidthMm : portraitWidthMm,
+    pageWidth: `${pw}mm`,
+    pageMinHeight: `${ph}mm`,
+    pageWidthMm: pw,
     marginX: `${marginXMm}mm`,
     marginXMm,
     marginTop: `${marginTopMm}mm`,
@@ -266,13 +267,12 @@ function RegionButton({
 
 export function TemplateWordEditor({
   value,
-  subject,
+  subject: _subject,
   previewValues,
-  variables,
-  quickBlocks,
   onChange,
   onUploadImage,
   templateId,
+  editorRef,
 }: TemplateWordEditorProps) {
   const parsedDocument = useMemo(() => parseTemplateDocument(value), [value]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -289,6 +289,11 @@ export function TemplateWordEditor({
   const [puppeteerPreviewUrl, setPuppeteerPreviewUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [showPageSetup, setShowPageSetup] = useState(false);
+  const [, setShowFindReplace] = useState(false);
+  const [undoToast, setUndoToast] = useState<string | null>(null);
+  const [previewFlash, setPreviewFlash] = useState(false);
+  const [_showHistory, _setShowHistory] = useState(false);
 
   async function generatePuppeteerPreview() {
     setIsGeneratingPreview(true);
@@ -470,6 +475,25 @@ export function TemplateWordEditor({
         ? footerEditor
         : bodyEditor;
 
+  // Expose body editor to parent via ref
+  useEffect(() => {
+    if (editorRef) {
+      editorRef.current = bodyEditor;
+    }
+  }, [bodyEditor, editorRef]);
+
+  // Ctrl+F opens Find & Replace
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowFindReplace(true);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const previewHtml = useMemo(
     () =>
       applyTemplateVariables(
@@ -523,6 +547,13 @@ export function TemplateWordEditor({
     lastSerializedRef.current = serializedDocument;
     onChange(serializedDocument);
   }, [onChange, serializedDocument]);
+
+  // Flash preview on content change
+  useEffect(() => {
+    setPreviewFlash(true);
+    const t = setTimeout(() => setPreviewFlash(false), 300);
+    return () => clearTimeout(t);
+  }, [editorBody, headerHtml, footerHtml]);
 
   async function insertUploadedImage(targetEditor: Editor | null | undefined, file: File, position?: number) {
     const upload = await onUploadImage(file);
@@ -620,33 +651,38 @@ export function TemplateWordEditor({
               <div className="word-region-switcher">
                 <RegionButton
                   active={activeRegion === 'header'}
-                  label="Header"
-                  description="Repeats on every page"
+                  label="ส่วนหัว"
+                  description="ปรากฏทุกหน้า"
                   onClick={() => focusRegion('header')}
                 />
                 <RegionButton
                   active={activeRegion === 'body'}
-                  label="Body"
-                  description="Main document content"
+                  label="เนื้อหา"
+                  description="เนื้อหาหลัก"
                   onClick={() => focusRegion('body')}
                 />
                 <RegionButton
                   active={activeRegion === 'footer'}
-                  label="Footer"
-                  description="Sign-off and references"
+                  label="ส่วนท้าย"
+                  description="ลายเซ็น & อ้างอิง"
                   onClick={() => focusRegion('footer')}
                 />
-              </div>
-              <div className="word-toolbar-context">
-                Editing <strong>{activeRegion}</strong>
               </div>
             </div>
 
             <div className="word-toolbar-row">
-              <ToolbarButton label="Undo" onClick={() => activeEditor.chain().focus().undo().run()}>
+              <ToolbarButton label="Undo" onClick={() => {
+                activeEditor.chain().focus().undo().run();
+                setUndoToast('ย้อนกลับ');
+                setTimeout(() => setUndoToast(null), 1200);
+              }}>
                 <Undo2 className="h-4 w-4" />
               </ToolbarButton>
-              <ToolbarButton label="Redo" onClick={() => activeEditor.chain().focus().redo().run()}>
+              <ToolbarButton label="Redo" onClick={() => {
+                activeEditor.chain().focus().redo().run();
+                setUndoToast('ทำซ้ำ');
+                setTimeout(() => setUndoToast(null), 1200);
+              }}>
                 <Redo2 className="h-4 w-4" />
               </ToolbarButton>
               <div className="word-toolbar-separator" />
@@ -772,29 +808,10 @@ export function TemplateWordEditor({
             </div>
 
             <div className="word-toolbar-row">
+              <FontFamilyPicker editor={activeEditor} />
+              <FontSizePicker editor={activeEditor} />
               <div className="word-color-group">
-                <span className="word-toolbar-label">Font</span>
-                <select
-                  className="admin-select !w-auto !py-1.5"
-                  value={(activeEditor.getAttributes('textStyle').fontFamily as string | undefined) || ''}
-                  onChange={(event) => {
-                    const nextValue = event.target.value;
-                    if (!nextValue) {
-                      activeEditor.chain().focus().unsetFontFamily().run();
-                    } else {
-                      activeEditor.chain().focus().setFontFamily(nextValue).run();
-                    }
-                  }}
-                >
-                  {FONT_FAMILIES.map((family) => (
-                    <option key={family.label} value={family.value}>
-                      {family.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="word-color-group">
-                <span className="word-toolbar-label">Spacing</span>
+                <span className="word-toolbar-label">Line</span>
                 <select
                   className="admin-select !w-auto !py-1.5"
                   value=""
@@ -802,8 +819,12 @@ export function TemplateWordEditor({
                     const [spacing, value] = event.target.value.split(':');
                     const chain = activeEditor.chain().focus();
                     if (spacing === 'lh') {
+                      // tiptap chain() return type doesn't expose extension methods; safe to narrow
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       void (chain as any as { setLineHeight(v: string): { run(): boolean } }).setLineHeight(value).run();
                     } else if (spacing === 'pa') {
+                      // tiptap chain() return type doesn't expose extension methods; safe to narrow
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       void (chain as any as { setParagraphSpacing(v: string): { run(): boolean } }).setParagraphSpacing(value).run();
                     }
                   }}
@@ -830,8 +851,12 @@ export function TemplateWordEditor({
                   type="button"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
                   onClick={() => {
+                    // tiptap chain() return type doesn't expose extension methods; safe to narrow
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const chain = activeEditor.chain().focus() as any;
+                    const chain = (activeEditor.chain().focus() as any) as {
+                      selectParentNode(): { lift(): { run(): boolean } };
+                      insertContent(node: object): { run(): boolean };
+                    };
                     if (activeEditor.isActive('columns')) {
                       chain.selectParentNode().lift().run();
                     } else {
@@ -952,6 +977,75 @@ export function TemplateWordEditor({
                 onChange={(event) => void handleImageSelect(event)}
               />
             </div>
+
+            {/* Row 3: Block Palette + Table Toolbar + Font Size + Page Setup */}
+            <div className="word-toolbar-row word-toolbar-row-gap-sm">
+              <BlockPalette activeEditor={activeEditor} />
+
+              <div className="word-toolbar-separator" style={{ margin: '0 4px' }} />
+
+              <TableToolbar activeEditor={activeEditor} />
+
+              <div className="word-toolbar-separator" style={{ margin: '0 4px' }} />
+
+              <div className="word-color-group" style={{ flexShrink: 0 }}>
+                <span className="word-toolbar-label">ขนาด</span>
+                <select
+                  className="admin-select !w-auto !py-1.5"
+                  value={layout.fontSize}
+                  onChange={(event) =>
+                    setLayout((current) => ({
+                      ...current,
+                      fontSize: event.target.value as TemplateDocumentMeta['fontSize'],
+                    }))
+                  }
+                >
+                  <option value="sm">12px</option>
+                  <option value="sm">14px</option>
+                  <option value="base">16px</option>
+                  <option value="lg">18px</option>
+                </select>
+              </div>
+
+              <ToolbarButton label="ตั้งค่าหน้า"
+                onClick={() => setShowPageSetup(true)}
+              >
+                <Settings2 className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                label="ใส่รูปจาก URL"
+                onClick={() => {
+                  const raw = window.prompt('แปะ URL รูปภาพจากเว็บ:');
+                  if (!raw?.trim()) return;
+                  const url = raw.trim();
+                  setEditorError(null);
+                  setUploadingImage(true);
+                  void (async () => {
+                    try {
+                      const res = await fetch(`/api/templates/${templateId}/upload-image-from-url`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url }),
+                      });
+                      const json = await res.json();
+                      if (!json.success) throw new Error(json.error?.message ?? 'ดึงรูปไม่สำเร็จ');
+                      activeEditor.chain().focus().setResizableImage({
+                        src: json.data.url,
+                        alt: url.split('/').pop() ?? 'image',
+                        width: 640,
+                        align: 'center',
+                      }).run();
+                    } catch (e) {
+                      setEditorError(e instanceof Error ? e.message : 'ดึงรูปไม่สำเร็จ');
+                    } finally {
+                      setUploadingImage(false);
+                    }
+                  })();
+                }}
+              >
+                <LinkIcon className="h-4 w-4" />
+              </ToolbarButton>
+            </div>
           </div>
 
           <div className="word-editor-shell">
@@ -982,92 +1076,69 @@ export function TemplateWordEditor({
             </div>
 
             <div className="word-editor-page" style={pageStyle}>
-              <div className="word-editor-page-header">
-                <div>
-                  <div className="word-editor-page-label">Document Title</div>
-                  <div className="word-editor-page-title">{subject || 'Untitled template'}</div>
-                </div>
-                <div className="word-editor-page-meta">
-                  Header and footer repeat on every page. Insert page breaks where you want the layout to split.
-                </div>
-              </div>
-
               <section
-                className={`word-editor-region ${activeRegion === 'header' ? 'word-editor-region-active' : ''}`}
+                className={`word-editor-region word-editor-region-header ${activeRegion === 'header' ? 'word-editor-region-active' : ''}`}
                 onMouseDown={() => setActiveRegion('header')}
               >
-                <div className="word-editor-region-bar">
-                  <div>
-                    <div className="word-editor-region-label">Header</div>
-                    <div className="word-editor-region-copy">Letterhead, logo, address, repeating document markers</div>
-                  </div>
-                  <button type="button" className="word-editor-region-action" onClick={() => focusRegion('header')}>
-                    Edit header
-                  </button>
-                </div>
                 <EditorContent editor={headerEditor} />
               </section>
 
               <section
-                className={`word-editor-region ${activeRegion === 'body' ? 'word-editor-region-active' : ''}`}
+                className={`word-editor-region word-editor-region-body ${activeRegion === 'body' ? 'word-editor-region-active' : ''}`}
                 onMouseDown={() => setActiveRegion('body')}
               >
-                <div className="word-editor-region-bar">
-                  <div>
-                    <div className="word-editor-region-label">Body</div>
-                    <div className="word-editor-region-copy">Main content, tables, images, page breaks, and merge fields</div>
-                  </div>
-                  <button type="button" className="word-editor-region-action" onClick={() => focusRegion('body')}>
-                    Edit body
-                  </button>
-                </div>
                 <EditorContent editor={bodyEditor} />
               </section>
 
+              {/* Floating inline toolbar — appears on text selection */}
+              {bodyEditor && <FloatingToolbar editor={bodyEditor} />}
+
+              {/* Undo/Redo toast */}
+              {undoToast && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+                  <div className="bg-slate-800 text-white text-xs font-medium px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
+                    <Undo2 className="h-3 w-3" />
+                    {undoToast}
+                  </div>
+                </div>
+              )}
+
               <section
-                className={`word-editor-region ${activeRegion === 'footer' ? 'word-editor-region-active' : ''}`}
+                className={`word-editor-region word-editor-region-footer ${activeRegion === 'footer' ? 'word-editor-region-active' : ''}`}
                 onMouseDown={() => setActiveRegion('footer')}
               >
-                <div className="word-editor-region-bar">
-                  <div>
-                    <div className="word-editor-region-label">Footer</div>
-                    <div className="word-editor-region-copy">Approvals, legal text, references, and repeating sign-off blocks</div>
-                  </div>
-                  <button type="button" className="word-editor-region-action" onClick={() => focusRegion('footer')}>
-                    Edit footer
-                  </button>
-                </div>
                 <EditorContent editor={footerEditor} />
               </section>
             </div>
           </div>
 
           <div className="word-editor-footer">
-            <div className="word-editor-footer-hint">
-              {uploadingImage
-                ? 'Uploading image...'
-                : 'Supports repeating headers/footers, page setup, tables, resizeable images, links, and drag-drop screenshots.'}
-            </div>
             <div className="word-editor-footer-stats">
-              <span>{designedPages} designed page{designedPages === 1 ? '' : 's'}</span>
-              <span>{wordCount} words</span>
-              <span>{characterCount} characters</span>
+              <span>{wordCount} คำ</span>
+              <span>{characterCount} ตัวอักษร</span>
+              <span>{designedPages} หน้า</span>
             </div>
-            <div className="word-editor-footer-hint flex items-center gap-2">
-              <Save className="h-4 w-4" />
-              Saved as structured HTML with document layout metadata.
-            </div>
+            {uploadingImage && (
+              <span className="text-xs text-on-surface-variant animate-pulse">กำลังอัปโหลดรูป...</span>
+            )}
           </div>
         </section>
 
         {editorError ? <div className="auth-alert auth-alert-error">{editorError}</div> : null}
 
-        <section className="admin-card word-preview-card">
+        <section className={`admin-card word-preview-card${previewFlash ? ' word-preview-flash' : ''}`}>
           {/* ── Print Preview Header ────────────────────────────── */}
           <div className="admin-card-header flex-wrap gap-2">
             <div className="admin-card-title flex items-center gap-2">
               <Eye className="h-4 w-4 text-primary" />
               Print Preview
+              <span className="flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Live</span>
+              </span>
             </div>
             <div className="flex items-center gap-2 ml-auto">
               {/* Zoom controls */}
@@ -1096,6 +1167,41 @@ export function TemplateWordEditor({
                   title="Fit to width"
                 >
                   <Maximize2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Page navigation */}
+              <div className="flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-1 py-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pages = document.querySelectorAll('[data-page-break]');
+                    const current = document.querySelector('[data-page-break="true"]');
+                    if (!current || pages.length === 0) return;
+                    const idx = Array.from(pages).indexOf(current);
+                    if (idx > 0) (pages[idx - 1] as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className="flex h-7 w-7 items-center justify-center rounded text-on-surface-variant hover:bg-surface-container"
+                  title="หน้าก่อนหน้า"
+                >
+                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
+                <span className="w-12 text-center text-xs font-mono font-medium text-on-surface">
+                  {countDesignedPages(editorBody)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pages = document.querySelectorAll('[data-page-break]');
+                    const current = document.querySelector('[data-page-break="true"]');
+                    if (!current || pages.length === 0) return;
+                    const idx = Array.from(pages).indexOf(current);
+                    if (idx < pages.length - 1) (pages[idx + 1] as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className="flex h-7 w-7 items-center justify-center rounded text-on-surface-variant hover:bg-surface-container"
+                  title="หน้าถัดไป"
+                >
+                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5"><path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </button>
               </div>
 
@@ -1206,6 +1312,18 @@ export function TemplateWordEditor({
                   </div>
                 )}
 
+                {/* Status bar */}
+                <div className="flex items-center justify-between border-t border-outline-variant bg-surface-container-lowest px-4 py-2">
+                  <div className="flex items-center gap-4 text-xs text-on-surface-variant">
+                    <span>{countWords(editorBody)} คำ</span>
+                    <span>{editorBody.replace(/<[^>]+>/g, '').length} ตัวอักษร</span>
+                    <span>{countDesignedPages(editorBody)} หน้า</span>
+                  </div>
+                  <span className="text-xs text-on-surface-variant">
+                    {layout.pageSize} · {layout.orientation === 'LANDSCAPE' ? 'แนวนอน' : 'แนวตั้ง'}
+                  </span>
+                </div>
+
                 {/* Page indicator */}
                 <div className="word-page-indicator">
                   Page 1 — {layout.pageSize} {layout.orientation === 'LANDSCAPE' ? 'Landscape' : 'Portrait'}
@@ -1229,211 +1347,25 @@ export function TemplateWordEditor({
       </div>
 
       <div className="space-y-4">
-        <section className="admin-card">
-          <div className="admin-card-header">
-            <div className="admin-card-title">Page Setup</div>
-          </div>
-          <div className="grid gap-3 p-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Page Size</label>
-              <select
-                className="admin-select"
-                value={layout.pageSize}
-                onChange={(event) =>
-                  setLayout((current) => ({
-                    ...current,
-                    pageSize: event.target.value as TemplateDocumentMeta['pageSize'],
-                  }))
-                }
-              >
-                <option value="A4">A4</option>
-                <option value="LETTER">Letter</option>
-              </select>
+        {/* Sample Data — only show if there are values to preview */}
+        {Object.keys(previewValues).length > 0 && (
+          <section className="admin-card">
+            <div className="admin-card-header">
+              <div className="admin-card-title">Sample Data</div>
             </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Orientation</label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-                    layout.orientation === 'PORTRAIT'
-                      ? 'border-primary bg-primary-container text-primary'
-                      : 'border-outline bg-surface-container-lowest text-on-surface-variant'
-                  }`}
-                  onClick={() => setLayout((current) => ({ ...current, orientation: 'PORTRAIT' }))}
+            <div className="space-y-2 p-4 text-sm text-slate-600">
+              {Object.entries(previewValues).map(([key, nextValue]) => (
+                <div
+                  key={key}
+                  className="flex items-start justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2"
                 >
-                  แนวตั้ง
-                </button>
-                <button
-                  type="button"
-                  className={`flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-                    layout.orientation === 'LANDSCAPE'
-                      ? 'border-primary bg-primary-container text-primary'
-                      : 'border-outline bg-surface-container-lowest text-on-surface-variant'
-                  }`}
-                  onClick={() => setLayout((current) => ({ ...current, orientation: 'LANDSCAPE' }))}
-                >
-                  แนวนอน
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Margins</label>
-              <select
-                className="admin-select"
-                value={layout.marginPreset}
-                onChange={(event) =>
-                  setLayout((current) => ({
-                    ...current,
-                    marginPreset: event.target.value as TemplateDocumentMeta['marginPreset'],
-                  }))
-                }
-              >
-                <option value="narrow">Narrow</option>
-                <option value="normal">Normal</option>
-                <option value="wide">Wide</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Document Font</label>
-              <select
-                className="admin-select"
-                value={layout.fontFamily}
-                onChange={(event) =>
-                  setLayout((current) => ({
-                    ...current,
-                    fontFamily: event.target.value as TemplateDocumentMeta['fontFamily'],
-                  }))
-                }
-              >
-                <option value="sans">Sans</option>
-                <option value="sarabun">Sarabun</option>
-                <option value="serif">Serif</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Font Size</label>
-              <select
-                className="admin-select"
-                value={layout.fontSize}
-                onChange={(event) =>
-                  setLayout((current) => ({
-                    ...current,
-                    fontSize: event.target.value as TemplateDocumentMeta['fontSize'],
-                  }))
-                }
-              >
-                <option value="sm">Small</option>
-                <option value="base">Base</option>
-                <option value="lg">Large</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Line Spacing</label>
-              <select
-                className="admin-select"
-                value={layout.lineHeight}
-                onChange={(event) =>
-                  setLayout((current) => ({
-                    ...current,
-                    lineHeight: event.target.value as TemplateDocumentMeta['lineHeight'],
-                  }))
-                }
-              >
-                <option value="normal">Normal</option>
-                <option value="relaxed">Relaxed</option>
-                <option value="loose">Loose</option>
-              </select>
-            </div>
-          </div>
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card-header">
-            <div className="admin-card-title">Editor Status</div>
-          </div>
-          <div className="grid gap-3 p-4">
-            <div className="word-status-grid">
-              <div className="word-status-card">
-                <div className="word-status-label">Active Region</div>
-                <div className="word-status-value capitalize">{activeRegion}</div>
-              </div>
-              <div className="word-status-card">
-                <div className="word-status-label">Designed Pages</div>
-                <div className="word-status-value">{designedPages}</div>
-              </div>
-              <div className="word-status-card">
-                <div className="word-status-label">Words</div>
-                <div className="word-status-value">{wordCount}</div>
-              </div>
-              <div className="word-status-card">
-                <div className="word-status-label">Characters</div>
-                <div className="word-status-value">{characterCount}</div>
-              </div>
-            </div>
-            <p className="text-xs text-slate-500">
-              This is now stored as a structured document with separate header, body, footer, page size, margin, font, and spacing metadata.
-            </p>
-          </div>
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card-header">
-            <div className="admin-card-title">Variables</div>
-          </div>
-          <div className="space-y-3 p-4">
-            <p className="text-xs text-slate-500">
-              Insert merge fields into whichever region you are editing. These remain plain tokens so the current document engine can replace them safely at runtime.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {variables.map((variable) => (
-                <button
-                  key={variable}
-                  type="button"
-                  onClick={() => activeEditor.chain().focus().insertContent(variable).run()}
-                  className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 font-mono text-xs text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-100"
-                >
-                  {variable}
-                </button>
+                  <code className="font-mono text-xs text-slate-500">{key}</code>
+                  <span className="text-right text-sm text-slate-800">{nextValue}</span>
+                </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card-header">
-            <div className="admin-card-title">Quick Blocks</div>
-          </div>
-          <div className="grid gap-2 p-4">
-            {quickBlocks.map((block) => (
-              <button
-                key={block.label}
-                type="button"
-                onClick={() => activeEditor.chain().focus().insertContent(block.html).run()}
-                className="admin-button justify-center"
-              >
-                {block.label}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="admin-card">
-          <div className="admin-card-header">
-            <div className="admin-card-title">Sample Data</div>
-          </div>
-          <div className="space-y-2 p-4 text-sm text-slate-600">
-            {Object.entries(previewValues).map(([key, nextValue]) => (
-              <div
-                key={key}
-                className="flex items-start justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2"
-              >
-                <code className="font-mono text-xs text-slate-500">{key}</code>
-                <span className="text-right text-sm text-slate-800">{nextValue}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* ── Puppeteer Real Print Preview Modal ─────────────────── */}
         {puppeteerPreviewUrl ? (
@@ -1468,6 +1400,7 @@ export function TemplateWordEditor({
 
               {/* Preview image */}
               <div className="flex-1 overflow-auto p-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={puppeteerPreviewUrl}
                   alt="Template preview"
@@ -1484,6 +1417,21 @@ export function TemplateWordEditor({
             </div>
           </div>
         ) : null}
+
+        {/* Find & Replace Modal */}
+        <FindReplaceModal activeEditor={activeEditor} />
+
+        {/* Page Setup Modal */}
+        {showPageSetup && (
+          <PageSetupModal
+            layout={layout}
+            onSave={(updated) => {
+              setLayout(updated);
+              setShowPageSetup(false);
+            }}
+            onClose={() => setShowPageSetup(false)}
+          />
+        )}
       </div>
     </div>
   );
