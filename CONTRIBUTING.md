@@ -1,13 +1,22 @@
 # Contributing to Apartment ERP
 
-## Development Setup
+## Dev Setup
 
-1. Fork and clone the repository
-2. `npm install`
-3. Copy `.env.example` to `.env` and fill in required values
-4. Start infrastructure: `docker compose -f docker-compose.dev.yml up -d`
-5. Run migrations: `npx prisma migrate dev`
-6. Start dev server: `npm run dev`
+```bash
+git clone <repo>
+npm install
+cp .env.example .env    # fill in DATABASE_URL + NEXTAUTH_SECRET
+docker compose up -d    # start PostgreSQL + Redis
+npx prisma migrate dev
+npx prisma db seed       # first run only
+npm run dev
+```
+
+Server runs at **http://localhost:3001**
+
+Default credentials: `owner / Owner@12345`
+
+---
 
 ## Branch Convention
 
@@ -15,52 +24,50 @@
 |--------|---------|
 | `feat/` | New features |
 | `fix/` | Bug fixes |
-| `refactor/` | Code refactoring without behavior change |
-| `test/` | Adding or updating tests |
-| `docs/` | Documentation only |
+| `refactor/` | Code quality (no behavior change) |
+| `test/` | Tests |
+| `docs/` | Documentation |
 | `chore/` | Tooling, dependencies, CI/CD |
 
-Example: `feat/add-tenant-portal` · `fix/payment-duplicate-detection`
+---
 
 ## Commit Messages
 
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
+Follow [Conventional Commits](https://www.conventionalcommits.org):
 
 ```
 <type>(<scope>): <description>
-
-[optional body]
-
-[optional footer]
 ```
 
 Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`
 
 Examples:
-- `feat(billing): add partial invoice update API`
-- `fix(contracts): resolve drawer z-index layering bug`
-- `docs(readme): add Docker deployment section`
+- `feat(billing): add per-unit water tier pricing`
+- `fix(contracts): prevent duplicate active contracts`
+- `docs(deploy): add Caddy reverse-proxy example`
 
-## Pull Requests
+---
 
-1. Create a branch from `master`
-2. Keep PRs focused — one logical change per PR
-3. Fill in the PR description template
-4. Ensure all tests pass locally: `npx vitest run`
-5. Ensure TypeScript compiles: `npx tsc --noEmit`
-6. Ensure no ESLint errors: `npm run lint`
-7. Push — GitHub Actions will run the full pipeline automatically
+## Pre-commit Checklist
 
-## Testing Requirements
+Before pushing, run:
 
-- **Unit tests**: Cover business logic in `modules/`
-- **Integration tests**: Cover API routes with mocked DB
-- **Smoke tests**: Playwright E2E for critical user flows
-- All new features must include tests
-- Bug fixes must include a regression test
-
-Run all tests:
 ```bash
-npx vitest run
-npx tsx tests/smoke-test.ts
+npx tsc --noEmit          # TypeScript
+npx eslint src/ --max-warnings 0   # ESLint
+npx prisma validate       # Schema
+npx vitest run             # Tests
 ```
+
+Pipeline runs automatically on push/PR.
+
+---
+
+## Architecture
+
+- **Modules** (`src/modules/`) — business logic, no Next.js dependencies
+- **API Routes** (`src/app/api/`) — request handling, auth, validation
+- **Pages** (`src/app/admin/`) — React components, server-side data fetching
+- **Lib** (`src/lib/`) — shared utilities (db, auth, rate-limit, errors, logger)
+
+Never import API routes from modules. Never import React from `modules/`.
