@@ -228,11 +228,11 @@ function StatCard({
   iconColor: string;
 }) {
   return (
-    <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-2xl p-5 hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 transition-all duration-200">
+    <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-2xl p-5 hover:bg-[hsl(var(--color-surface-hover))] transition-all duration-200">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">{label}</div>
-          <div className="text-xl font-semibold text-[hsl(var(--color-text))] mt-0.5">{value}</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface))]/40">{label}</div>
+          <div className="text-xl font-semibold text-[hsl(var(--on-surface))] mt-0.5">{value}</div>
         </div>
         <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border shadow-sm ${iconBg} ${iconColor}`}>
           {icon}
@@ -305,13 +305,13 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
 
   if (loading) {
     return (
-      <div className="py-12 text-center text-sm text-[hsl(var(--color-text))]/40">กำลังโหลดรายการบิล...</div>
+      <div className="py-12 text-center text-sm text-[hsl(var(--on-surface))]/40">กำลังโหลดรายการบิล...</div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 backdrop-blur">
+      <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
         {error}
       </div>
     );
@@ -320,8 +320,8 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
   if (records.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
-        <Inbox className="h-10 w-10 text-[hsl(var(--color-text))]/20" />
-        <p className="text-sm text-[hsl(var(--color-text))]/40">ยังไม่มีรายการบิลในรอบนี้</p>
+        <Inbox className="h-10 w-10 text-[hsl(var(--on-surface))]/20" />
+        <p className="text-sm text-[hsl(var(--on-surface))]/40">ยังไม่มีรายการบิลในรอบนี้</p>
       </div>
     );
   }
@@ -332,11 +332,11 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* Floor filter */}
         <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-[hsl(var(--color-text))]/40">ชั้น:</label>
+          <label className="text-xs font-medium text-[hsl(var(--on-surface))]/40">ชั้น:</label>
           <select
             value={floorFilter}
             onChange={e => setFloorFilter(e.target.value)}
-            className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-1.5 text-sm text-[hsl(var(--color-text))]/80 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+            className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))]/80 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
           >
             <option value="all">ทุกชั้น</option>
             <option value="1">ชั้น 1</option>
@@ -352,14 +352,14 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
 
         {/* Pagination */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-[hsl(var(--color-text))]/40">
+          <span className="text-xs text-[hsl(var(--on-surface))]/40">
             หน้า {page} / {totalPages} ({records.length} รายการ)
           </span>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page <= 1}
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] text-xs text-[hsl(var(--color-text))]/60 hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 disabled:opacity-40 active:scale-[0.98] transition-all"
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] text-xs text-[hsl(var(--on-surface))]/60 hover:bg-[hsl(var(--color-surface-hover))] disabled:opacity-40 active:scale-[0.98] transition-all"
             >
               ‹
             </button>
@@ -372,7 +372,7 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
                   className={`flex h-7 w-7 items-center justify-center rounded-lg border text-xs transition-all active:scale-[0.98] ${
                     page === pageNum
                       ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))] font-semibold'
-                      : 'border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] text-[hsl(var(--color-text))]/60 hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80'
+                      : 'border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] text-[hsl(var(--on-surface))]/60 hover:bg-[hsl(var(--color-surface-hover))]'
                   }`}
                 >
                   {pageNum}
@@ -382,7 +382,7 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] text-xs text-[hsl(var(--color-text))]/60 hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 disabled:opacity-40 active:scale-[0.98] transition-all"
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] text-xs text-[hsl(var(--on-surface))]/60 hover:bg-[hsl(var(--color-surface-hover))] disabled:opacity-40 active:scale-[0.98] transition-all"
             >
               ›
             </button>
@@ -392,14 +392,14 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
 
       <div className="overflow-auto">
         <table className="w-full text-sm text-left">
-          <thead className="bg-[hsl(var(--color-surface))]/50">
+          <thead className="bg-[hsl(var(--color-surface))]">
             <tr>
-              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40" />
-              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ห้อง</th>
-              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ผู้เช่า</th>
-              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">รายการ</th>
-              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ยอดรวม</th>
-              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">สถานะ</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface))]/40" />
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface))]/40">ห้อง</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface))]/40">ผู้เช่า</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface))]/40">รายการ</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface))]/40">ยอดรวม</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface))]/40">สถานะ</th>
             </tr>
           </thead>
           <tbody>
@@ -412,26 +412,26 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
                   : `${items.length} items`;
               return (
                 <React.Fragment key={rec.id}>
-                  <tr className="cursor-pointer hover:bg-[hsl(var(--color-surface))]/50 transition-colors border-b border-[hsl(var(--color-border))]/5" onClick={() => toggleRow(rec.id)}>
+                  <tr className="cursor-pointer hover:bg-[hsl(var(--color-surface-hover))] transition-colors border-b border-[hsl(var(--color-border))]/50" onClick={() => toggleRow(rec.id)}>
                     <td className="w-8 text-center">
                       {isOpen ? (
-                        <ChevronUp className="h-4 w-4 text-[hsl(var(--color-text))]/40 inline" />
+                        <ChevronUp className="h-4 w-4 text-[hsl(var(--on-surface))]/40 inline" />
                       ) : (
-                        <ChevronDown className="h-4 w-4 text-[hsl(var(--color-text))]/40 inline" />
+                        <ChevronDown className="h-4 w-4 text-[hsl(var(--on-surface))]/40 inline" />
                       )}
                     </td>
                     <td>
-                      <span className="font-semibold text-[hsl(var(--color-text))]/90">{getRoomNumber(rec)}</span>
+                      <span className="font-semibold text-[hsl(var(--on-surface))]">{getRoomNumber(rec)}</span>
                     </td>
-                    <td className="text-[hsl(var(--color-text))]/50">{getTenantName(rec)}</td>
-                    <td className="max-w-[240px] truncate text-[hsl(var(--color-text))]/40 text-sm">
+                    <td className="text-[hsl(var(--on-surface-variant))]">{getTenantName(rec)}</td>
+                    <td className="max-w-[240px] truncate text-[hsl(var(--on-surface))]/40 text-sm">
                       {items.length === 0 ? (
-                        <span className="text-[hsl(var(--color-text))]/30 italic">ไม่มีรายการ</span>
+                        <span className="text-[hsl(var(--on-surface))]/30 italic">ไม่มีรายการ</span>
                       ) : (
                         itemSummary
                       )}
                     </td>
-                    <td className="font-semibold text-[hsl(var(--color-text))]/90 tabular-nums">
+                    <td className="font-semibold text-[hsl(var(--on-surface))] tabular-nums">
                       {money(rec.totalAmount)}
                     </td>
                     <td>
@@ -443,14 +443,14 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
                     </td>
                   </tr>
                   {isOpen && (
-                    <tr key={`${rec.id}-expand`} className="bg-[hsl(var(--color-surface))]/20">
+                    <tr key={`${rec.id}-expand`} className="bg-[hsl(var(--color-surface-hover))]">
                       <td colSpan={6} className="px-4 pb-4 pt-2">
                         {items.length === 0 ? (
-                          <p className="text-sm text-[hsl(var(--color-text))]/30 italic">ไม่มีรายการบิล</p>
+                          <p className="text-sm text-[hsl(var(--on-surface))]/30 italic">ไม่มีรายการบิล</p>
                         ) : (
                           <table className="w-full text-sm">
                             <thead>
-                              <tr className="border-b border-[hsl(var(--color-border))]/5 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/40">
+                              <tr className="border-b border-[hsl(var(--color-border))]/50 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--on-surface))]/40">
                                 <th className="pb-1 text-left">รายการ</th>
                                 <th className="pb-1 text-right">จำนวน</th>
                                 <th className="pb-1 text-right">ราคา/หน่วย</th>
@@ -459,15 +459,15 @@ function RecordsTab({ cycleId }: { cycleId: string }) {
                             </thead>
                             <tbody>
                               {items.map((it) => (
-                                <tr key={it.id} className="border-b border-[hsl(var(--color-border))]/5 last:border-0">
-                                  <td className="py-1.5 text-[hsl(var(--color-text))]/70">{it.description}</td>
-                                  <td className="py-1.5 text-right tabular-nums text-[hsl(var(--color-text))]/50">
+                                <tr key={it.id} className="border-b border-[hsl(var(--color-border))]/50 last:border-0">
+                                  <td className="py-1.5 text-[hsl(var(--on-surface))]/70">{it.description}</td>
+                                  <td className="py-1.5 text-right tabular-nums text-[hsl(var(--on-surface-variant))]">
                                     {it.quantity}
                                   </td>
-                                  <td className="py-1.5 text-right tabular-nums text-[hsl(var(--color-text))]/50">
+                                  <td className="py-1.5 text-right tabular-nums text-[hsl(var(--on-surface-variant))]">
                                     {money(it.unitPrice)}
                                   </td>
-                                  <td className="py-1.5 text-right tabular-nums font-semibold text-[hsl(var(--color-text))]/90">
+                                  <td className="py-1.5 text-right tabular-nums font-semibold text-[hsl(var(--on-surface))]">
                                     {money(it.amount)}
                                   </td>
                                 </tr>
@@ -592,19 +592,19 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
   return (
     <div className="flex flex-col gap-4">
       {message && (
-        <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm px-4 py-3 font-medium backdrop-blur">
+        <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm px-4 py-3 font-medium">
           {message}
         </div>
       )}
       {error && (
-        <div className="rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 font-medium backdrop-blur">
+        <div className="rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 font-medium">
           {error}
         </div>
       )}
 
       {/* Bulk action bar */}
       {unsentCount > 0 && (
-        <div className="flex items-center justify-between rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 backdrop-blur">
+        <div className="flex items-center justify-between rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
           <span className="text-sm text-amber-400">
             <span className="font-semibold">{unsentCount}</span> unsent invoice
             {unsentCount !== 1 ? 's' : ''} ready to send via LINE.
@@ -612,7 +612,7 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
           <button
             onClick={() => void sendAllUnsent()}
             disabled={sendingAll}
-            className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-sm font-medium text-white shadow-glow-primary transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover active:scale-[0.98] disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-sm font-medium text-white shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98] disabled:opacity-40"
           >
             <Send className="h-4 w-4" />
             {sendingAll ? 'Sending...' : 'Send All Unsent'}
@@ -652,11 +652,11 @@ function InvoicesTab({ cycleId }: { cycleId: string }) {
                     </Link>
                   </td>
                   <td className="font-semibold text-[hsl(var(--color-text))]/90">{getRoomNumber(inv)}</td>
-                  <td className="text-[hsl(var(--color-text))]/50">{getTenantName(inv)}</td>
+                  <td className="text-[hsl(var(--on-surface-variant))]">{getTenantName(inv)}</td>
                   <td className="tabular-nums font-semibold text-[hsl(var(--color-text))]/90">
                     {money(inv.totalAmount)}
                   </td>
-                  <td className="text-[hsl(var(--color-text))]/50">{fmtDate(inv.dueDate)}</td>
+                  <td className="text-[hsl(var(--on-surface-variant))]">{fmtDate(inv.dueDate)}</td>
                   <td>
                     <span
                       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${invoiceBadgeClass(inv.status)}`}
@@ -731,7 +731,7 @@ function BatchTab({ batchId }: { batchId: string }) {
 
   if (error) {
     return (
-      <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 backdrop-blur">
+      <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
         {error}
       </div>
     );
@@ -756,7 +756,7 @@ function BatchTab({ batchId }: { batchId: string }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Batch info card */}
-      <div className="grid gap-3 rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <div className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/40">ไฟล์</div>
           <div className="mt-1 text-sm font-medium text-[hsl(var(--color-text))]/80 break-all">{filename}</div>
@@ -897,22 +897,22 @@ export default function BillingCycleDetailPage() {
   if (notFound || (!loading && !cycle)) {
     return (
       <main className="space-y-6">
-        <nav className="flex items-center gap-1.5 text-sm text-[hsl(var(--color-text))]/40">
+        <nav className="flex items-center gap-1.5 text-sm text-[hsl(var(--on-surface))]/40">
           <Link href="/admin/billing" className="hover:text-[hsl(var(--primary))] transition-colors">
             Billing
           </Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <span className="font-medium text-[hsl(var(--color-text))]/60">ไม่พบ</span>
+          <span className="font-medium text-[hsl(var(--on-surface))]/60">ไม่พบ</span>
         </nav>
-        <div className="flex flex-col items-center gap-4 rounded-3xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur py-20 text-center">
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] py-20 text-center">
           <AlertTriangle className="h-12 w-12 text-amber-400" />
           <div>
-            <h2 className="text-lg font-semibold text-[hsl(var(--color-text))]">ไม่พบรอบบิล</h2>
-            <p className="mt-1 text-sm text-[hsl(var(--color-text))]/40">
+            <h2 className="text-lg font-semibold text-[hsl(var(--on-surface))]">ไม่พบรอบบิล</h2>
+            <p className="mt-1 text-sm text-[hsl(var(--on-surface))]/40">
               ไม่พบรอบบิลหรือใบแจ้งหนี้ที่มี ID <code className="font-mono text-xs text-[hsl(var(--primary))]">{billingId}</code>
             </p>
           </div>
-          <Link href="/admin/billing" className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white shadow-glow-primary transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover active:scale-[0.98] mt-2">
+          <Link href="/admin/billing" className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] mt-2">
             <ArrowLeft className="h-4 w-4" />
             Back to Billing
           </Link>
@@ -940,17 +940,17 @@ export default function BillingCycleDetailPage() {
       </nav>
 
       {/* Page header */}
-      <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-6 py-5 shadow-[var(--glow-primary)]">
+      <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-4">
           <Link
             href="/admin/billing"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/50 shadow-sm transition-all hover:border-[hsl(var(--primary))]/30 hover:bg-[hsl(var(--color-surface))]/80 active:scale-[0.98]"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] transition-all hover:bg-[hsl(var(--color-surface-hover))] active:scale-[0.98]"
           >
-            <ArrowLeft className="h-4 w-4 text-[hsl(var(--color-text))]/70" />
+            <ArrowLeft className="h-4 w-4 text-[hsl(var(--on-surface))]/70" />
           </Link>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold text-[hsl(var(--color-text))]">{cycleLabel}</h1>
+              <h1 className="text-xl font-semibold text-[hsl(var(--on-surface))]">{cycleLabel}</h1>
               {cycle?.status && (
                 <span
                   className={`inline-flex items-center rounded-full border px-3 py-0.5 text-xs font-semibold ${cycleBadgeClass(cycle.status as CycleStatus)}`}
@@ -959,10 +959,10 @@ export default function BillingCycleDetailPage() {
                 </span>
               )}
             </div>
-            <p className="text-sm text-[hsl(var(--color-text))]/50">
+            <p className="text-sm text-[hsl(var(--on-surface-variant))]">
               {building}
               {batchId && (
-                <span className="ml-2 font-mono text-xs text-[hsl(var(--color-text))]/30">
+                <span className="ml-2 font-mono text-xs text-[hsl(var(--on-surface))]/30">
                   Batch: {batchId.slice(0, 8)}…
                 </span>
               )}
@@ -972,7 +972,7 @@ export default function BillingCycleDetailPage() {
         <div className="flex items-center gap-2 mt-4">
           <button
             onClick={() => void load()}
-            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))] transition-all hover:bg-[hsl(var(--color-surface-hover))] active:scale-[0.98]"
           >
             <RefreshCw className="h-4 w-4" />
             Refresh
@@ -1074,7 +1074,7 @@ export default function BillingCycleDetailPage() {
       </section>
 
       {error && (
-        <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400 backdrop-blur">
+        <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
           {error}
         </div>
       )}
@@ -1112,7 +1112,7 @@ export default function BillingCycleDetailPage() {
       </section>
 
       {/* Tabs + content */}
-      <section className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-2xl overflow-hidden">
+      <section className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-2xl overflow-hidden">
         {/* Tab bar */}
         <div className="flex border-b border-[hsl(var(--color-border))] px-4">
           <TabButton active={activeTab === 'records'} onClick={() => setActiveTab('records')}>

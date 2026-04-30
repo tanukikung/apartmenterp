@@ -114,7 +114,7 @@ export function ReviewStep({
           </p>
         </div>
 
-        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur-sm p-5 space-y-4">
+        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-5 space-y-4">
           <h3 className="text-sm font-semibold text-[hsl(var(--on-surface))]/40 uppercase tracking-wide">สรุปการตั้งค่า</h3>
 
           {summaryItems.map((item, idx) => (
@@ -149,7 +149,7 @@ export function ReviewStep({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur-md">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]">
           <CheckCircle className="h-5 w-5 text-primary" />
         </div>
         <div>
@@ -158,7 +158,7 @@ export function ReviewStep({
         </div>
       </div>
 
-      <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur-sm p-5 space-y-4">
+      <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-5 space-y-4">
         <h3 className="text-sm font-semibold text-[hsl(var(--on-surface))]/40 uppercase tracking-wide">รายการที่จะสร้าง</h3>
 
         {summaryItems.map((item, idx) => (
@@ -191,7 +191,7 @@ export function ReviewStep({
       )}
 
       {submitError && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur-sm p-4">
+        <div className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4">
           <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-red-400">เกิดข้อผิดพลาด</p>

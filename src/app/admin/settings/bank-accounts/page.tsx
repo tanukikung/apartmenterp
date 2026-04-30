@@ -67,7 +67,7 @@ function getBankColor(bankName: string) {
   for (const [k, v] of Object.entries(BANK_COLORS)) {
     if (key.includes(k.toLowerCase())) return v;
   }
-  return { bg: 'bg-white/5', text: 'text-[hsl(var(--on-surface-variant))]', border: 'border-[hsl(var(--glass-border))]', dot: 'bg-[hsl(var(--on-surface-variant))]' };
+  return { bg: 'bg-white/5', text: 'text-[hsl(var(--on-surface-variant))]', border: 'border-[hsl(var([hsl(var(--color-border))]))]', dot: 'bg-[hsl(var(--on-surface-variant))]' };
 }
 
 // ---------------------------------------------------------------------------
@@ -76,8 +76,8 @@ function getBankColor(bankName: string) {
 
 function KpiCard({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) {
   return (
-    <div className={`glass-card rounded-2xl p-5 flex items-center gap-4 transition-all hover:scale-[1.01] active:scale-[0.98] hover:shadow-glow ${color}`}>
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--card))' }}>
+    <div className={` rounded-2xl p-5 flex items-center gap-4 transition-all hover:scale-[1.01] active:scale-[0.98] hover:shadow-glow ${color}`}>
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))]" style={{ background: 'hsl(var(--card))' }}>
         {icon}
       </div>
       <div>
@@ -244,14 +244,14 @@ export default function BankAccountsPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <section className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+      <section className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.15) 0%, transparent 60%)' }} />
         </div>
         <div className="relative flex items-center gap-3">
           <Link
             href="/admin/settings"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] glass-card shadow-sm transition-all hover:scale-105 active:scale-95"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  shadow-sm transition-all hover:scale-105 active:scale-95"
           >
             <ArrowLeft className="h-4 w-4 text-[hsl(var(--primary))]" />
           </Link>
@@ -297,10 +297,10 @@ export default function BankAccountsPage() {
       {/* Two-column layout */}
       <div className="grid gap-6 xl:grid-cols-5">
         {/* Left: Table */}
-        <div className="glass-card rounded-xl xl:col-span-3 overflow-hidden">
-          <div className="mb-4 flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--glass-border))]">
+        <div className=" rounded-xl xl:col-span-3 overflow-hidden">
+          <div className="mb-4 flex items-center justify-between px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))]">
             <h2 className="text-base font-semibold text-[hsl(var(--card-foreground))]">บัญชีธนาคารทั้งหมด</h2>
-            <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold glass-card text-[hsl(var(--on-surface-variant))]">
+            <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold  text-[hsl(var(--on-surface-variant))]">
               {totalAccounts} บัญชี
             </span>
           </div>
@@ -308,7 +308,7 @@ export default function BankAccountsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="border-b border-[hsl(var(--glass-border))]">
+                <tr className="border-b border-[hsl(var([hsl(var(--color-border))]))]">
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] text-left">ธนาคาร</th>
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] text-left">เลขบัญชี</th>
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] text-left">PromptPay</th>
@@ -319,7 +319,7 @@ export default function BankAccountsPage() {
               <tbody>
                 {isLoading ? (
                   Array.from({ length: 3 }).map((_, i) => (
-                    <tr key={i} className="border-b border-[hsl(var(--glass-border))]">
+                    <tr key={i} className="border-b border-[hsl(var([hsl(var(--color-border))]))]">
                       {[...Array(5)].map((_, j) => (
                         <td key={j} className="px-4 py-3">
                           <div className="h-4 animate-pulse rounded-lg" style={{ background: 'hsl(var(--card))' }} />
@@ -337,7 +337,7 @@ export default function BankAccountsPage() {
                   accounts.map((account) => {
                     const colors = getBankColor(account.bankName);
                     return (
-                      <tr key={account.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-white/[0.02] transition-colors">
+                      <tr key={account.id} className="border-b border-[hsl(var([hsl(var(--color-border))]))] hover:bg-white/[0.02] transition-colors">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5">
                             <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${colors.dot}`} />
@@ -362,7 +362,7 @@ export default function BankAccountsPage() {
                               ใช้งาน
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-white/5 border border-[hsl(var(--glass-border))] px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--on-surface-variant))]">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white/5 border border-[hsl(var([hsl(var(--color-border))]))] px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--on-surface-variant))]">
                               <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--on-surface-variant))]" />
                               ไม่ใช้งาน
                             </span>
@@ -382,7 +382,7 @@ export default function BankAccountsPage() {
                                 </button>
                                 <button
                                   onClick={() => setDeleteConfirmId(null)}
-                                  className="rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-2.5 py-1 text-xs font-semibold text-[hsl(var(--card-foreground))] hover:bg-white/5 transition-all hover:scale-105 active:scale-95"
+                                  className="rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-2.5 py-1 text-xs font-semibold text-[hsl(var(--card-foreground))] hover:bg-white/5 transition-all hover:scale-105 active:scale-95"
                                 >
                                   ยกเลิก
                                 </button>
@@ -391,7 +391,7 @@ export default function BankAccountsPage() {
                               <>
                                 <button
                                   onClick={() => startEdit(account)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-[hsl(var(--glass-border))] glass-card text-[hsl(var(--on-surface-variant))] transition-all hover:scale-105 active:scale-95 hover:border-[hsl(var(--primary))]/40 hover:text-[hsl(var(--primary))]"
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  text-[hsl(var(--on-surface-variant))] transition-all hover:scale-105 active:scale-95 hover:border-[hsl(var(--primary))]/40 hover:text-[hsl(var(--primary))]"
                                   title="แก้ไข"
                                 >
                                   <Edit2 className="h-3.5 w-3.5" />
@@ -402,7 +402,7 @@ export default function BankAccountsPage() {
                                       setDeleteConfirmId(account.id);
                                       setEditId(null);
                                     }}
-                                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-[hsl(var(--glass-border))] glass-card text-[hsl(var(--on-surface-variant))] opacity-50 transition-all hover:scale-105 active:scale-95 hover:border-red-500/30 hover:text-red-600 hover:opacity-100"
+                                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  text-[hsl(var(--on-surface-variant))] opacity-50 transition-all hover:scale-105 active:scale-95 hover:border-red-500/30 hover:text-red-600 hover:opacity-100"
                                     title="ปิดใช้งาน"
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
@@ -422,8 +422,8 @@ export default function BankAccountsPage() {
         </div>
 
         {/* Right: Add / Edit form */}
-        <div className="glass-card rounded-xl xl:col-span-2">
-          <div className="mb-5 flex items-center gap-3 px-5 py-4 border-b border-[hsl(var(--glass-border))]">
+        <div className=" rounded-xl xl:col-span-2">
+          <div className="mb-5 flex items-center gap-3 px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))]">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(var(--primary))]/20">
               {isEditing ? (
                 <Edit2 className="h-4 w-4 text-[hsl(var(--primary))]" />
@@ -444,7 +444,7 @@ export default function BankAccountsPage() {
                 </label>
                 <input
                   type="text"
-                  className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 font-mono transition-all"
+                  className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 font-mono transition-all"
                   placeholder="เช่น ACC_KBANK_01"
                   value={form.id}
                   onChange={(e) => setForm((prev) => ({ ...prev, id: e.target.value }))}
@@ -459,7 +459,7 @@ export default function BankAccountsPage() {
               </label>
               <input
                 type="text"
-                className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all"
+                className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all"
                 placeholder="เช่น บัญชีหลัก กสิกรไทย"
                 value={form.name}
                 onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -472,7 +472,7 @@ export default function BankAccountsPage() {
               </label>
               <input
                 type="text"
-                className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all"
+                className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all"
                 placeholder="เช่น กสิกรไทย"
                 list="bank-suggestions"
                 value={form.bankName}
@@ -499,7 +499,7 @@ export default function BankAccountsPage() {
               </label>
               <input
                 type="text"
-                className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 font-mono tracking-wider transition-all"
+                className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 font-mono tracking-wider transition-all"
                 placeholder="xxx-x-xxxxx-x"
                 value={form.bankAccountNo}
                 onChange={(e) => setForm((prev) => ({ ...prev, bankAccountNo: e.target.value }))}
@@ -512,20 +512,20 @@ export default function BankAccountsPage() {
               </label>
               <input
                 type="text"
-                className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 font-mono transition-all"
+                className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 font-mono transition-all"
                 placeholder="0XX-XXX-XXXX or เลขผู้เสียภาษี"
                 value={form.promptpay}
                 onChange={(e) => setForm((prev) => ({ ...prev, promptpay: e.target.value }))}
               />
             </div>
 
-            <div className="flex items-center gap-3 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-3">
+            <div className="flex items-center gap-3 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-4 py-3">
               <input
                 type="checkbox"
                 id="active-toggle"
                 checked={form.active}
                 onChange={(e) => setForm((prev) => ({ ...prev, active: e.target.checked }))}
-                className="h-4 w-4 rounded border-[hsl(var(--glass-border))] text-[hsl(var(--primary))] focus:ring-[hsl(var(--primary))]/20"
+                className="h-4 w-4 rounded border-[hsl(var([hsl(var(--color-border))]))] text-[hsl(var(--primary))] focus:ring-[hsl(var(--primary))]/20"
               />
               <label htmlFor="active-toggle" className="text-sm font-medium text-[hsl(var(--card-foreground))]">
                 ใช้งาน (พร้อมใช้ในใบแจ้งหนี้)
@@ -544,7 +544,7 @@ export default function BankAccountsPage() {
                   </button>
                   <button
                     onClick={cancelEdit}
-                    className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] hover:bg-white/5 px-4 py-2 text-sm font-medium shadow-sm transition-all hover:scale-105 active:scale-95 justify-center"
+                    className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] hover:bg-white/5 px-4 py-2 text-sm font-medium shadow-sm transition-all hover:scale-105 active:scale-95 justify-center"
                   >
                     ยกเลิก
                   </button>
@@ -553,7 +553,7 @@ export default function BankAccountsPage() {
                 <button
                   onClick={() => void handleCreate()}
                   disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] text-white px-4 py-2 text-sm font-medium shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--primary))]/90 w-full justify-center disabled:opacity-50 hover:shadow-glow-primary-hover"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] text-white px-4 py-2 text-sm font-medium shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--primary))]/90 w-full justify-center disabled:opacity-50 hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)]"
                 >
                   <PlusCircle className="h-4 w-4" />
                   {saving ? 'กำลังสร้าง...' : 'เพิ่มบัญธนาคาร'}

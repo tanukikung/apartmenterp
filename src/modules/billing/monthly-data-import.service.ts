@@ -12,7 +12,10 @@ import { v4 as uuidv4 } from 'uuid';
 import type { ImportBatchStatus } from '@prisma/client';
 import { BadRequestError, NotFoundError } from '@/lib/utils/errors';
 import { prisma } from '@/lib/db/client';
-import { logger } from '@/lib/utils/logger';
+
+// sql and join are runtime utilities in Prisma 5.x not in all TS declarations.
+const sql = (prisma as unknown as Record<string, unknown>).sql as (s: TemplateStringsArray, ...v: unknown[]) => unknown;
+const join = (prisma as unknown as Record<string, unknown>).join as (a: unknown[]) => unknown;
 import {
   parseMonthlyDataWorkbook,
   parseAllMonthlyDataRows,
@@ -488,164 +491,152 @@ export async function executeMonthlyDataImportBatch(
     // Collection of all warnings for the execute result
     const allWarnings: MonthlyDataWarning[] = [];
 
+    // HIGH-01: prefetch rooms + existing billings in bulk, then batch upsert in a single SQL round-trip.
+    // Previously each row caused 3 sequential queries: room lookup, billingRule lookup, upsert.
+    const allRoomNos = [...new Set(allRows.map(r => r.roomNo))];
+    const [dbRooms, existingBillings] = await Promise.all([
+      prisma.room.findMany({ where: { roomNo: { in: allRoomNos } } }),
+      prisma.roomBilling.findMany({ where: { billingPeriodId: period.id, roomNo: { in: allRoomNos } } }),
+    ]);
+    const roomsMap = new Map(dbRooms.map(r => [r.roomNo, r]));
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const existingBillingsMap = new Map(existingBillings.map(b => [b.roomNo, b]));
+    const ruleMap = new Map<string, typeof defaultRule>();
+    const uniqueRuleCodes = [...new Set(allRows.map(r => roomsMap.get(r.roomNo)?.defaultRuleCode ?? defaultRule.code))];
+    const rulesFromDb = await prisma.billingRule.findMany({ where: { code: { in: uniqueRuleCodes } } });
+    for (const r of rulesFromDb) { ruleMap.set(r.code, r as typeof defaultRule); }
+
+    // Partition rows and compute per-row upsert data
+    const validRows: typeof allRows = [];
     for (const row of allRows) {
-      try {
-        // Find room
-        const room = await prisma.room.findUnique({
-          where: { roomNo: row.roomNo },
+      if (!roomsMap.has(row.roomNo)) { errors++; continue; }
+      validRows.push(row);
+    }
+
+    const upsertData: Array<{
+      row: typeof allRows[number]; calculated: ReturnType<typeof calculateChargesFromRule>;
+      finalWaterTotal: number; finalElectricTotal: number; finalTotalDue: number; rule: typeof defaultRule;
+      room: typeof roomsMap extends Map<string, infer V> ? V : never;
+    }> = [];
+    for (const row of validRows) {
+      const room = roomsMap.get(row.roomNo)!;
+      const roomRule = ruleMap.get(room.defaultRuleCode) ?? defaultRule;
+      const rule = roomRule ?? defaultRule;
+      const isOccupied = row.rentAmount > 0;
+      const calculated = calculateChargesFromRule(
+        {
+          waterEnabled: rule.waterEnabled, waterUnitPrice: Number(rule.waterUnitPrice),
+          waterMinCharge: Number(rule.waterMinCharge),
+          waterServiceFeeMode: rule.waterServiceFeeMode as 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE',
+          waterServiceFeeAmount: Number(rule.waterServiceFeeAmount),
+          electricEnabled: rule.electricEnabled, electricUnitPrice: Number(rule.electricUnitPrice),
+          electricMinCharge: Number(rule.electricMinCharge),
+          electricServiceFeeMode: rule.electricServiceFeeMode as 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE',
+          electricServiceFeeAmount: Number(rule.electricServiceFeeAmount),
+        },
+        row.waterUnits, row.electricUnits, row.waterPrev, row.waterCurr, row.electricPrev, row.electricCurr,
+        isOccupied, row.meterResetNote
+      );
+      const { warnings, finalWaterTotal, finalElectricTotal, finalTotalDue } = compareWithExcel(row, calculated);
+      if (warnings.length > 0) {
+        allWarnings.push({
+          roomNumber: row.roomNo, year, month, expectedTotal: row.totalDue, calculatedTotal: finalTotalDue,
+          difference: Math.round((finalTotalDue - row.totalDue) * 100) / 100,
+          type: warnings.some(w => w.includes('ค่าน้ำ')) ? 'water_mismatch' :
+                warnings.some(w => w.includes('ค่าไฟ')) ? 'electric_mismatch' :
+                warnings.some(w => w.includes('มิเตอร์')) ? 'meter_reset' : 'total_mismatch',
+          message: warnings.join('; '),
         });
+      }
+      if (row.meterResetNote) {
+        const waterReset = row.waterPrev !== null && row.waterCurr !== null && row.waterCurr < row.waterPrev;
+        const electricReset = row.electricPrev !== null && row.electricCurr !== null && row.electricCurr < row.electricPrev;
+        const meterType = (waterReset && electricReset) ? 'both' : waterReset ? 'water' : 'electric';
+        const prevReading = waterReset ? row.waterPrev! : row.electricPrev!;
+        const currReading = waterReset ? row.waterCurr! : row.electricPrev!;
+        await logMeterResetAlert({ roomNumber: row.roomNo, meterType, previousReading: prevReading, currentReading: currReading, billingPeriod: { year, month }, batchId });
+      }
+      upsertData.push({ row, calculated, finalWaterTotal, finalElectricTotal, finalTotalDue, rule, room });
+    }
 
-        if (!room) {
-          errors++;
-          continue;
-        }
+    // Single SQL batch upsert — one round-trip regardless of row count
+    if (upsertData.length > 0) {
+      await prisma.$executeRaw`
+        INSERT INTO "room_billings" (
+          "id", "billingPeriodId", "roomNo", "status",
+          "recvAccountId", "ruleCode",
+          "rentAmount",
+          "waterMode", "waterPrev", "waterCurr",
+          "waterUnits", "waterUsageCharge", "waterServiceFee", "waterTotal",
+          "electricMode", "electricPrev", "electricCurr",
+          "electricUnits", "electricUsageCharge", "electricServiceFee", "electricTotal",
+          "furnitureFee", "otherFee", "totalDue",
+          "note"
+        ) VALUES ${join(upsertData.map(({ row, calculated, finalWaterTotal, finalElectricTotal, finalTotalDue, rule }) =>
+          sql`(
+            ${uuidv4()}, ${period.id}, ${row.roomNo}, ${'DRAFT'},
+            ${defaultAccount.id}, ${rule.code},
+            ${row.rentAmount}::decimal,
+            ${'NORMAL'},
+            ${row.waterPrev ?? sql`NULL`},
+            ${row.waterCurr ?? sql`NULL`},
+            ${row.waterUnits}::decimal,
+            ${(calculated.calcWaterTotal - row.waterServiceFee)}::decimal,
+            ${row.waterServiceFee}::decimal,
+            ${finalWaterTotal}::decimal,
+            ${'NORMAL'},
+            ${row.electricPrev ?? sql`NULL`},
+            ${row.electricCurr ?? sql`NULL`},
+            ${row.electricUnits}::decimal,
+            ${(calculated.calcElectricTotal - row.electricServiceFee)}::decimal,
+            ${row.electricServiceFee}::decimal,
+            ${finalElectricTotal}::decimal,
+            ${row.furnitureFee}::decimal,
+            ${row.otherFee}::decimal,
+            ${finalTotalDue}::decimal,
+            ${row.note ?? sql`NULL`}
+          )`
+        ))}
+        ON CONFLICT ("billingPeriodId", "roomNo")
+        DO UPDATE SET
+          "rentAmount" = EXCLUDED."rentAmount",
+          "ruleCode" = EXCLUDED."ruleCode",
+          "waterMode" = EXCLUDED."waterMode",
+          "waterPrev" = EXCLUDED."waterPrev",
+          "waterCurr" = EXCLUDED."waterCurr",
+          "waterUnits" = EXCLUDED."waterUnits",
+          "waterUsageCharge" = EXCLUDED."waterUsageCharge",
+          "waterServiceFee" = EXCLUDED."waterServiceFee",
+          "waterTotal" = EXCLUDED."waterTotal",
+          "electricMode" = EXCLUDED."electricMode",
+          "electricPrev" = EXCLUDED."electricPrev",
+          "electricCurr" = EXCLUDED."electricCurr",
+          "electricUnits" = EXCLUDED."electricUnits",
+          "electricUsageCharge" = EXCLUDED."electricUsageCharge",
+          "electricServiceFee" = EXCLUDED."electricServiceFee",
+          "electricTotal" = EXCLUDED."electricTotal",
+          "furnitureFee" = EXCLUDED."furnitureFee",
+          "otherFee" = EXCLUDED."otherFee",
+          "totalDue" = EXCLUDED."totalDue",
+          "note" = EXCLUDED."note",
+          "updatedAt" = NOW()
+      `;
+      imported = upsertData.length;
 
-        // Get the billing rule for this room
-        const roomRule = await prisma.billingRule.findFirst({
-          where: { code: room.defaultRuleCode },
+      // Batch room status updates after upsert
+      const roomsToVacate = upsertData.filter(({ row, room }) => row.roomStatus === 'INACTIVE' && room.roomStatus !== 'VACANT');
+      const roomsToOccupy = upsertData.filter(({ row, room }) => row.roomStatus === 'ACTIVE' && room.roomStatus === 'VACANT');
+      if (roomsToVacate.length > 0) {
+        await prisma.room.updateMany({
+          where: { roomNo: { in: roomsToVacate.map(r => r.row.roomNo) } },
+          data: { roomStatus: 'VACANT' },
         });
-        const rule = roomRule ?? defaultRule;
-
-        const isOccupied = row.rentAmount > 0;
-
-        // Calculate charges based on billing rule
-        const calculated = calculateChargesFromRule(
-          {
-            waterEnabled: rule.waterEnabled,
-            waterUnitPrice: Number(rule.waterUnitPrice),
-            waterMinCharge: Number(rule.waterMinCharge),
-            waterServiceFeeMode: rule.waterServiceFeeMode as 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE',
-            waterServiceFeeAmount: Number(rule.waterServiceFeeAmount),
-            electricEnabled: rule.electricEnabled,
-            electricUnitPrice: Number(rule.electricUnitPrice),
-            electricMinCharge: Number(rule.electricMinCharge),
-            electricServiceFeeMode: rule.electricServiceFeeMode as 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE',
-            electricServiceFeeAmount: Number(rule.electricServiceFeeAmount),
-          },
-          row.waterUnits,
-          row.electricUnits,
-          row.waterPrev,
-          row.waterCurr,
-          row.electricPrev,
-          row.electricCurr,
-          isOccupied,
-          row.meterResetNote
-        );
-
-        // Compare with Excel values
-        const { warnings, finalWaterTotal, finalElectricTotal, finalTotalDue } = compareWithExcel(
-          row,
-          calculated
-        );
-
-        // Add warnings
-        if (warnings.length > 0) {
-          allWarnings.push({
-            roomNumber: row.roomNo,
-            year,
-            month,
-            expectedTotal: row.totalDue,
-            calculatedTotal: finalTotalDue,
-            difference: Math.round((finalTotalDue - row.totalDue) * 100) / 100,
-            type: warnings.some(w => w.includes('ค่าน้ำ')) ? 'water_mismatch' :
-                  warnings.some(w => w.includes('ค่าไฟ')) ? 'electric_mismatch' :
-                  warnings.some(w => w.includes('มิเตอร์')) ? 'meter_reset' : 'total_mismatch',
-            message: warnings.join('; '),
-          });
-        }
-
-        // Alert admins when meter reset is detected
-        if (row.meterResetNote) {
-          const waterReset = row.waterPrev !== null && row.waterCurr !== null && row.waterCurr < row.waterPrev;
-          const electricReset = row.electricPrev !== null && row.electricCurr !== null && row.electricCurr < row.electricPrev;
-          const meterType = (waterReset && electricReset) ? 'both' : waterReset ? 'water' : 'electric';
-          const prevReading = waterReset ? row.waterPrev! : row.electricPrev!;
-          const currReading = waterReset ? row.waterCurr! : row.electricCurr!;
-
-          await logMeterResetAlert({
-            roomNumber: row.roomNo,
-            meterType,
-            previousReading: prevReading,
-            currentReading: currReading,
-            billingPeriod: { year, month },
-            batchId,
-          });
-        }
-
-        // Upsert RoomBilling
-        await prisma.roomBilling.upsert({
-          where: {
-            billingPeriodId_roomNo: {
-              billingPeriodId: period.id,
-              roomNo: row.roomNo,
-            },
-          },
-          create: {
-            billingPeriodId: period.id,
-            roomNo: row.roomNo,
-            recvAccountId: defaultAccount.id,
-            ruleCode: rule.code,
-            rentAmount: row.rentAmount,
-            waterMode: 'NORMAL',
-            waterPrev: row.waterPrev ?? undefined,
-            waterCurr: row.waterCurr ?? undefined,
-            waterUnits: row.waterUnits,
-            waterUsageCharge: calculated.calcWaterTotal - row.waterServiceFee, // usage charge without service fee
-            waterServiceFee: row.waterServiceFee,
-            waterTotal: finalWaterTotal,
-            electricMode: 'NORMAL',
-            electricPrev: row.electricPrev ?? undefined,
-            electricCurr: row.electricCurr ?? undefined,
-            electricUnits: row.electricUnits,
-            electricUsageCharge: calculated.calcElectricTotal - row.electricServiceFee,
-            electricServiceFee: row.electricServiceFee,
-            electricTotal: finalElectricTotal,
-            furnitureFee: row.furnitureFee,
-            otherFee: row.otherFee,
-            totalDue: finalTotalDue,
-            note: row.note ?? undefined,
-          },
-          update: {
-            rentAmount: row.rentAmount,
-            waterPrev: row.waterPrev ?? undefined,
-            waterCurr: row.waterCurr ?? undefined,
-            waterUnits: row.waterUnits,
-            waterUsageCharge: calculated.calcWaterTotal - row.waterServiceFee,
-            waterServiceFee: row.waterServiceFee,
-            waterTotal: finalWaterTotal,
-            electricPrev: row.electricPrev ?? undefined,
-            electricCurr: row.electricCurr ?? undefined,
-            electricUnits: row.electricUnits,
-            electricUsageCharge: calculated.calcElectricTotal - row.electricServiceFee,
-            electricServiceFee: row.electricServiceFee,
-            electricTotal: finalElectricTotal,
-            furnitureFee: row.furnitureFee,
-            otherFee: row.otherFee,
-            totalDue: finalTotalDue,
-            note: row.note ?? undefined,
-          },
+      }
+      if (roomsToOccupy.length > 0) {
+        await prisma.room.updateMany({
+          where: { roomNo: { in: roomsToOccupy.map(r => r.row.roomNo) } },
+          data: { roomStatus: 'OCCUPIED' },
         });
-
-        // Update room status based on billing presence
-        // row.roomStatus 'INACTIVE' in import = room has no billing = VACANT
-        // row.roomStatus 'ACTIVE' in import = room has billing = OCCUPIED
-        if (row.roomStatus === 'INACTIVE' && room.roomStatus !== 'VACANT') {
-          await prisma.room.update({
-            where: { roomNo: row.roomNo },
-            data: { roomStatus: 'VACANT' },
-          });
-        } else if (row.roomStatus === 'ACTIVE' && room.roomStatus === 'VACANT') {
-          // Reactivate room if it was vacant but now has billing
-          await prisma.room.update({
-            where: { roomNo: row.roomNo },
-            data: { roomStatus: 'OCCUPIED' },
-          });
-        }
-
-        imported++;
-      } catch (err) {
-        errors++;
-        logger.error({ type: 'monthly_data_import_row_failed', roomNo: row.roomNo, error: err instanceof Error ? err.message : String(err) });
       }
     }
 

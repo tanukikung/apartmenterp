@@ -4,6 +4,8 @@ import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
 import { prisma } from '@/lib/db/client';
 
+export const dynamic = 'force-dynamic';
+
 type MaintenanceStatus = 'OPEN' | 'IN_PROGRESS' | 'WAITING_PARTS' | 'DONE' | 'CLOSED';
 
 const VALID_STATUSES: MaintenanceStatus[] = ['OPEN', 'IN_PROGRESS', 'WAITING_PARTS', 'DONE', 'CLOSED'];
@@ -22,7 +24,7 @@ type MaintenanceSearchClause =
 // tenant-detail "Open Tickets" KPI is correctly scoped per-tenant.
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const { searchParams } = req.nextUrl;
   const tenantId = searchParams.get('tenantId') ?? undefined;

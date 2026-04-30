@@ -5,6 +5,10 @@ import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
 import { logAudit } from '@/modules/audit/audit.service';
 import { logger } from '@/lib/utils/logger';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 20;
 
 const resetSchema = z.object({
   backup: z.boolean().default(false),
@@ -51,8 +55,17 @@ async function writeBackupToS3(key: string, jsonData: string): Promise<string> {
 }
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`admin-setup-reset:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
   // Only ADMIN can reset the system
-  const session = requireRole(req, ['ADMIN']);
+  const session = requireRole(req, ['OWNER']);
 
   const body = await resetSchema.parse(await req.json());
 
@@ -109,13 +122,11 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   }
 
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
+    req,
     action: 'SYSTEM_RESET',
     entityType: 'SYSTEM',
     entityId: 'system',
     metadata: { backupEnabled: body.backup === true, backupS3Uri },
-    ipAddress: req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? null,
   });
 
   // Delete all data in a specific order to avoid foreign key violations

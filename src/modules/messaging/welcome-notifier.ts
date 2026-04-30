@@ -32,10 +32,9 @@ async function handleRegistrationApproved(payload: RegistrationApprovedPayload) 
   await sendLineMessage(lineUserId, message);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-bus.subscribe(EventTypes.REGISTRATION_APPROVED, async (evt: any) => {
+bus.subscribe(EventTypes.REGISTRATION_APPROVED, async (evt: unknown) => {
   try {
-    await handleRegistrationApproved(evt.payload as RegistrationApprovedPayload);
+    await handleRegistrationApproved(evt as RegistrationApprovedPayload);
   } catch (err) {
     logger.error({ type: 'welcome_notification_error', error: (err as Error).message });
   }

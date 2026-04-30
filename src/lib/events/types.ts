@@ -842,6 +842,9 @@ export const EventTypes = {
 
   // MoveOut
   MOVE_OUT_CONFIRMED: 'MoveOutConfirmed',
+
+  // Messaging Sequences
+  MESSAGE_SEQUENCE_STEP: 'MessageSequenceStep',
 } as const;
 
 // ============================================================================

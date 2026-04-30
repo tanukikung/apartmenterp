@@ -2,6 +2,7 @@ import { getLineClient } from '@/lib/line/client';
 import { sendLineMessage } from '@/lib/line/client';
 import { logger } from '@/lib/utils/logger';
 import { prisma } from '@/lib/db/client';
+import { MS_PER_MINUTE, MS_PER_DAY } from '@/lib/constants';
 import type { Prisma } from '@prisma/client';
 
 // ============================================================================
@@ -31,7 +32,13 @@ export interface LineMaintenanceRequestData {
 const _maintenanceRequestCache = new Map<string, LineMaintenanceRequestData>();
 
 // How long to keep a pending maintenance request before expiring (30 minutes)
-const REQUEST_EXPIRY_MS = 30 * 60 * 1000;
+const REQUEST_EXPIRY_MS = 30 * MS_PER_MINUTE;
+
+// How long to keep a state before expiring it (step-specific TTL)
+// AWAITING_DESCRIPTION: 7 days — tenant may need time to describe the problem
+// DESCRIPTION_PROVIDED: 3 days — tenant has already sent description, should complete quickly
+const AWAITING_DESCRIPTION_TTL_MS = 7 * MS_PER_DAY;
+const DESCRIPTION_PROVIDED_TTL_MS = 3 * MS_PER_DAY;
 
 // ============================================================================
 // Helper: Resolve tenant from LINE user
@@ -256,20 +263,45 @@ async function notifyStaffOfNewTicket(ticket: { id: string; priority: string; ro
 // ============================================================================
 
 async function pruneExpiredRequests() {
-  const cutoff = new Date(Date.now() - REQUEST_EXPIRY_MS);
+  const now = Date.now();
+  const awaitingCutoff = new Date(now - AWAITING_DESCRIPTION_TTL_MS);
+  const providedCutoff = new Date(now - DESCRIPTION_PROVIDED_TTL_MS);
+
   try {
-    const result = await prisma.lineMaintenanceState.deleteMany({
-      where: { updatedAt: { lt: cutoff } },
+    // Expire AWAITING_DESCRIPTION states older than 7 days
+    const awaitingResult = await prisma.lineMaintenanceState.deleteMany({
+      where: {
+        currentStep: 'AWAITING_DESCRIPTION',
+        updatedAt: { lt: awaitingCutoff },
+      },
     });
+
+    // Expire DESCRIPTION_PROVIDED states older than 3 days
+    const providedResult = await prisma.lineMaintenanceState.deleteMany({
+      where: {
+        currentStep: 'DESCRIPTION_PROVIDED',
+        updatedAt: { lt: providedCutoff },
+      },
+    });
+
     // Clean up cache for deleted entries
     for (const [key, data] of Array.from(_maintenanceRequestCache.entries())) {
-      const age = Date.now() - data.createdAt;
-      if (age > REQUEST_EXPIRY_MS) {
+      const age = now - data.createdAt;
+      const ttl = data.state.step === 'AWAITING_DESCRIPTION'
+        ? AWAITING_DESCRIPTION_TTL_MS
+        : DESCRIPTION_PROVIDED_TTL_MS;
+      if (age > ttl) {
         _maintenanceRequestCache.delete(key);
       }
     }
-    if (result.count > 0) {
-      logger.info({ type: 'line_maintenance_pruned', count: result.count });
+
+    const total = awaitingResult.count + providedResult.count;
+    if (total > 0) {
+      logger.info({
+        type: 'line_maintenance_pruned',
+        awaitingExpired: awaitingResult.count,
+        providedExpired: providedResult.count,
+      });
     }
   } catch (err) {
     logger.warn({ type: 'line_maintenance_prune_failed', error: (err as Error).message });
@@ -277,7 +309,7 @@ async function pruneExpiredRequests() {
 }
 
 // Run cleanup every 10 minutes
-setInterval(() => { pruneExpiredRequests().catch(() => {}); }, 10 * 60 * 1000);
+setInterval(() => { pruneExpiredRequests().catch((err: unknown) => logger.warn({ type: 'prune_expired_requests_failed', error: err instanceof Error ? err.message : String(err) })); }, 10 * MS_PER_MINUTE);
 
 // ============================================================================
 // Public API
@@ -302,7 +334,9 @@ export async function getMaintenanceRequestState(lineUserId: string): Promise<Li
   // Prune if expired
   const age = Date.now() - data.createdAt;
   if (age > REQUEST_EXPIRY_MS) {
-    await prisma.lineMaintenanceState.delete({ where: { lineUserId } }).catch(() => {});
+    await prisma.lineMaintenanceState.deleteMany({ where: { lineUserId } }).catch((err) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err), lineUserId }, 'line-maintenance: failed to delete expired state');
+    });
     _maintenanceRequestCache.delete(lineUserId);
     return undefined;
   }
@@ -374,7 +408,9 @@ export async function handleMaintenanceRequestMessage(
 ): Promise<{ replyText: string } | null> {
   // Cancel command — always honoured
   if (text.trim() === 'ยกเลิก') {
-    await prisma.lineMaintenanceState.delete({ where: { lineUserId } }).catch(() => {});
+    await prisma.lineMaintenanceState.deleteMany({ where: { lineUserId } }).catch((err) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err), lineUserId }, 'line-maintenance: failed to delete state on cancel');
+    });
     _maintenanceRequestCache.delete(lineUserId);
     return { replyText: '❌ การแจ้งซ่อมถูกยกเลิกแล้วค่ะ หากต้องการแจ้งซ่อมใหม่ กรุณาเลือก "แจ้งซ่อม" จากเมนูค่ะ' };
   }
@@ -534,7 +570,9 @@ export async function finalizeMaintenanceRequest(lineUserId: string): Promise<{ 
   }
 
   // Clear the pending request state
-  await prisma.lineMaintenanceState.delete({ where: { lineUserId } }).catch(() => {});
+  await prisma.lineMaintenanceState.deleteMany({ where: { lineUserId } }).catch((err) => {
+    logger.warn({ err: err instanceof Error ? err.message : String(err), lineUserId }, 'line-maintenance: failed to delete state after ticket creation');
+  });
   _maintenanceRequestCache.delete(lineUserId);
 
   // Notify staff
@@ -557,6 +595,8 @@ export async function finalizeMaintenanceRequest(lineUserId: string): Promise<{ 
  * Call this when the user cancels or when the request is completed.
  */
 export async function clearMaintenanceRequest(lineUserId: string): Promise<void> {
-  await prisma.lineMaintenanceState.delete({ where: { lineUserId } }).catch(() => {});
+  await prisma.lineMaintenanceState.deleteMany({ where: { lineUserId } }).catch((err) => {
+    logger.warn({ err: err instanceof Error ? err.message : String(err), lineUserId }, 'line-maintenance: failed to clear state');
+  });
   _maintenanceRequestCache.delete(lineUserId);
 }

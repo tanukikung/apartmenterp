@@ -47,9 +47,9 @@ type Room = {
 function GlassCard({ children, className = '', hover = false }: { children: React.ReactNode; className?: string; hover?: boolean }) {
   return (
     <div className={[
-      'rounded-2xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))] backdrop-blur',
+      'rounded-2xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]',
       'shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_1px_rgba(255,255,255,0.04)]',
-      hover ? 'hover:bg-[hsl(var(--color-surface))]/80 hover:shadow-[0_4px_16px_rgba(0,0,0,0.12),shadow-glow-primary] hover:scale-[1.01] transition-all duration-200 cursor-pointer' : '',
+      hover ? 'hover:bg-[hsl(var(--color-surface))]/80 hover:shadow-[0_4px_16px_rgba(0,0,0,0.12),shadow-[0_0_20px_rgba(99,102,241,0.15)]] hover:scale-[1.01] transition-all duration-200 cursor-pointer' : '',
       className,
     ].join(' ')}>
       {children}
@@ -134,7 +134,7 @@ export default function OverdueRoomDetailPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))]/50 px-6 py-5 shadow-[0_8px_32px_rgba(0,0,0,0.5),shadow-glow-primary]">
+      <div className="relative overflow-hidden rounded-2xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))]/50 px-6 py-5 shadow-[0_8px_32px_rgba(0,0,0,0.5),shadow-[0_0_20px_rgba(99,102,241,0.15)]]">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.1),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -210,7 +210,7 @@ export default function OverdueRoomDetailPage() {
               <div className="text-xl font-semibold text-[hsl(var(--color-text))] mt-1">{loading ? '...' : maxOverdueDays}</div>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50">
-              <Calendar className="h-5 w-5 text-[hsl(var(--color-text))]/50" />
+              <Calendar className="h-5 w-5 text-[hsl(var(--on-surface-variant))]" />
             </div>
           </div>
         </GlassCard>
@@ -221,7 +221,7 @@ export default function OverdueRoomDetailPage() {
         <GlassCard>
           <div className="flex items-center justify-between border-b border-[hsl(var(--color-border))]/50 px-4 py-3">
             <div className="text-sm font-semibold text-[hsl(var(--color-text))]">ใบแจ้งหนี้ค้างชำระ</div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--color-text))]/50">{invoices.length}</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--on-surface-variant))]">{invoices.length}</span>
           </div>
           <div className="overflow-auto">
             <table className="w-full text-sm">
@@ -260,7 +260,7 @@ export default function OverdueRoomDetailPage() {
                             maximumFractionDigits: 0,
                           }).format(inv.totalAmount)}
                         </td>
-                        <td className="px-4 py-3 text-[hsl(var(--color-text))]/50"><ClientOnly fallback="-">{new Date(inv.dueDate).toLocaleDateString('th-TH')}</ClientOnly></td>
+                        <td className="px-4 py-3 text-[hsl(var(--on-surface-variant))]"><ClientOnly fallback="-">{new Date(inv.dueDate).toLocaleDateString('th-TH')}</ClientOnly></td>
                         <td className="px-4 py-3">
                           <span className={`font-semibold ${days > 30 ? 'text-red-600' : 'text-amber-600'}`}>
                             {days}d
@@ -291,7 +291,7 @@ export default function OverdueRoomDetailPage() {
               ) : primaryTenant ? (
                 <div className="space-y-2">
                   <div className="font-semibold text-[hsl(var(--color-text))]">{primaryTenant.fullName}</div>
-                  <div className="text-sm text-[hsl(var(--color-text))]/50">{primaryTenant.phone}</div>
+                  <div className="text-sm text-[hsl(var(--on-surface-variant))]">{primaryTenant.phone}</div>
                   <div className="text-xs text-[hsl(var(--color-text))]/30">
                     LINE: {primaryTenant.lineUserId ? 'เชื่อมต่อแล้ว' : 'ยังไม่ได้เชื่อมต่อ'}
                   </div>

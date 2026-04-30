@@ -16,8 +16,10 @@ export type RoomBillingStatus = 'BILLABLE' | 'NON_BILLABLE' | 'SUSPENDED';
 // Create Room DTO
 // ============================================================================
 
+const stripHtml = (v: string) => v.replace(/<[^>]*>/g, '').trim();
+
 export const createRoomSchema = z.object({
-  roomNo: z.string().min(1, 'Room number is required').max(20, 'Room number must be at most 20 characters'),
+  roomNo: z.string().min(1, 'Room number is required').max(20, 'Room number must be at most 20 characters').transform(stripHtml),
   floorNo: z.number().int().min(1, 'Floor number must be at least 1'),
   defaultAccountId: z.string().min(1, 'Default account is required'),
   defaultRuleCode: z.string().min(1, 'Default rule code is required'),

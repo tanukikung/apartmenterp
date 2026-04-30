@@ -142,7 +142,7 @@ function KpiCard({
   iconColor?: string;
 }) {
   return (
-    <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur shadow-[0_4px_16px_hsl(var(--color-primary)/_0.06)] flex items-center gap-4 py-4 px-5 hover:border-[hsl(var(--color-border))] transition-all duration-300">
+    <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] shadow-[0_1px_3px_rgba(0,0,0,0.5)] flex items-center gap-4 py-4 px-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-all duration-200">
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${color}`}>
         <Icon size={20} className={iconColor} strokeWidth={2} />
       </div>
@@ -496,12 +496,12 @@ export default function AdminContractsPage() {
         }`}
       >
         {/* Hero Header */}
-        <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur shadow-[0_4px_20px_rgba(0,0,0,0.1)] px-6 py-5">
+        <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-6 py-5">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-violet-500/10 pointer-events-none" />
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/20 border border-blue-500/30 shadow-glow-primary">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/20 border border-blue-500/30 shadow-[0_0_20px_rgba(99,102,241,0.15)]">
                 <FileSignature size={20} className="text-blue-400" strokeWidth={2} />
               </div>
               <div>
@@ -567,14 +567,14 @@ export default function AdminContractsPage() {
           <div className="relative flex-1 min-w-[200px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--on-surface))]/30" />
             <input
-              className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 pl-8 w-full backdrop-blur-sm transition-all duration-200"
+              className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 pl-8 w-full transition-all duration-200"
               placeholder="ค้นหาหมายเลขห้องหรือชื่อผู้เช่า..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <select
-            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
             value={filterStatus}
             onChange={(e) => {
               setFilterStatus(e.target.value);
@@ -591,18 +591,18 @@ export default function AdminContractsPage() {
 
         {/* Error banner */}
         {error && (
-          <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400 backdrop-blur-sm">
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400">
             <AlertCircle size={15} />
             {error}
           </div>
         )}
 
         {/* Table Card */}
-        <div className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur shadow-[0_4px_20px_rgba(0,0,0,0.1)] overflow-hidden p-0">
+        <div className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] overflow-hidden p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="bg-[hsl(var(--color-surface))]/[0.02]">
+                <tr className="bg-[hsl(var(--color-surface))]">
                   <th className="pl-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">หมายเลขห้อง</th>
                   <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ชื่อผู้เช่า</th>
                   <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">วันที่เริ่ม</th>
@@ -723,7 +723,7 @@ export default function AdminContractsPage() {
 
       {/* ── Side Panel ───────────────────────────────────────────── */}
       {panelMode !== 'none' && (
-        <aside className="fixed right-0 top-0 z-30 flex h-full w-full flex-col border-l border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/95 backdrop-blur shadow-[-4px_0_20px_rgba(0,0,0,0.1)] xl:w-[420px]">
+        <aside className="fixed right-0 top-0 z-30 flex h-full w-full flex-col border-l border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/95 shadow-[-4px_0_20px_rgba(0,0,0,0.1)] xl:w-[420px]">
           {/* Panel header */}
           <div className="flex items-center justify-between border-b border-[hsl(var(--color-border))] px-5 py-4 bg-[hsl(var(--color-surface))]/[0.02]">
             <div className="flex items-center gap-2">
@@ -803,7 +803,7 @@ export default function AdminContractsPage() {
       {/* Backdrop for panel on mobile */}
       {panelMode !== 'none' && (
         <div
-          className="fixed inset-0 z-20 bg-black/40 backdrop-blur-sm xl:hidden"
+          className="fixed inset-0 z-20 bg-black/40 xl:hidden"
           onClick={closePanel}
         />
       )}
@@ -852,7 +852,7 @@ function NewContractForm({
           หมายเลขห้อง <span className="text-red-400">*</span>
         </label>
         <select
-          className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+          className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
           required
           value={form.roomId}
           onChange={(e) => onRoomChange(e.target.value)}
@@ -877,7 +877,7 @@ function NewContractForm({
           </div>
         ) : (
           <select
-            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
             required
             disabled={!form.roomId}
             value={form.primaryTenantId}
@@ -906,7 +906,7 @@ function NewContractForm({
           </label>
           <ThaiDateInput
             ariaLabel="วันที่เริ่ม"
-            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
             required
             value={form.startDate}
             onChange={(iso) => patch('startDate', iso)}
@@ -918,7 +918,7 @@ function NewContractForm({
           </label>
           <ThaiDateInput
             ariaLabel="วันที่สิ้นสุด"
-            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
             required
             value={form.endDate}
             onChange={(iso) => patch('endDate', iso)}
@@ -934,7 +934,7 @@ function NewContractForm({
           </label>
           <CurrencyInput
             ariaLabel="ค่าเช่ารายเดือน"
-            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
             required
             placeholder="e.g. 8000"
             value={form.rentAmount === '' ? null : Number(form.rentAmount)}
@@ -947,7 +947,7 @@ function NewContractForm({
           </label>
           <CurrencyInput
             ariaLabel="เงินมัดจำ"
-            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
             placeholder="e.g. 16000"
             value={form.depositAmount === '' ? null : Number(form.depositAmount)}
             onChange={(n) => patch('depositAmount', n === null ? '' : String(n))}
@@ -959,7 +959,7 @@ function NewContractForm({
       <div>
         <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">หมายเหตุ</label>
         <textarea
-          className="w-full resize-none rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+          className="w-full resize-none rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
           rows={3}
           placeholder="หมายเหตุเพิ่มเติมเกี่ยวกับสัญญานี้…"
           value={form.notes}
@@ -969,7 +969,7 @@ function NewContractForm({
 
       {/* Error */}
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-400 backdrop-blur-sm">
+        <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-400">
           <AlertCircle size={13} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -1099,7 +1099,7 @@ function EditContractForm({
       </div>
 
       {contract.status !== 'ACTIVE' && (
-        <div className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-xs font-medium text-amber-400 backdrop-blur-sm">
+        <div className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-xs font-medium text-amber-400">
           <AlertCircle size={13} className="shrink-0" />
           สามารถแก้ไขได้เฉพาะสัญญาที่ใช้งานอยู่เท่านั้น สัญญานี้มีสถานะ <strong>{contract.status}</strong>.
         </div>
@@ -1111,7 +1111,7 @@ function EditContractForm({
           <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">วันที่เริ่ม</label>
           <ThaiDateInput
             ariaLabel="วันที่เริ่ม"
-            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
             disabled={contract.status !== 'ACTIVE'}
             value={form.startDate}
             onChange={(iso) => patch('startDate', iso)}
@@ -1121,7 +1121,7 @@ function EditContractForm({
           <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">วันที่สิ้นสุด</label>
           <ThaiDateInput
             ariaLabel="วันที่สิ้นสุด"
-            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
             disabled={contract.status !== 'ACTIVE'}
             value={form.endDate}
             onChange={(iso) => patch('endDate', iso)}
@@ -1135,7 +1135,7 @@ function EditContractForm({
           <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">ค่าเช่ารายเดือน (฿)</label>
           <CurrencyInput
             ariaLabel="ค่าเช่ารายเดือน"
-            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
             disabled={contract.status !== 'ACTIVE'}
             value={form.rentAmount === '' ? null : Number(form.rentAmount)}
             onChange={(n) => patch('rentAmount', n === null ? '' : String(n))}
@@ -1145,7 +1145,7 @@ function EditContractForm({
           <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">เงินมัดจำ (฿)</label>
           <CurrencyInput
             ariaLabel="เงินมัดจำ"
-            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
             disabled={contract.status !== 'ACTIVE'}
             value={form.depositAmount === '' ? null : Number(form.depositAmount)}
             onChange={(n) => patch('depositAmount', n === null ? '' : String(n))}
@@ -1155,13 +1155,13 @@ function EditContractForm({
 
       {/* Error / success */}
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-400 backdrop-blur-sm">
+        <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-xs font-medium text-red-400">
           <AlertCircle size={13} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2.5 text-xs font-medium text-emerald-400 backdrop-blur-sm">
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2.5 text-xs font-medium text-emerald-400">
           <CheckCircle2 size={13} />
           {success}
         </div>
@@ -1182,7 +1182,7 @@ function EditContractForm({
             </label>
             <ThaiDateInput
               ariaLabel="วันที่สิ้นสุดสัญญาใหม่"
-              className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+              className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
               required
               value={renewEndDate}
               onChange={(iso) => setRenewEndDate(iso)}
@@ -1193,7 +1193,7 @@ function EditContractForm({
               <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">ค่าเช่าใหม่ (฿)</label>
               <CurrencyInput
                 ariaLabel="ค่าเช่าใหม่"
-                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                 value={renewRentAmount === '' ? null : Number(renewRentAmount)}
                 onChange={(n) => setRenewRentAmount(n === null ? '' : String(n))}
               />
@@ -1202,20 +1202,20 @@ function EditContractForm({
               <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">เงินมัดจำใหม่ (฿)</label>
               <CurrencyInput
                 ariaLabel="เงินมัดจำใหม่"
-                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                 value={renewDepositAmount === '' ? null : Number(renewDepositAmount)}
                 onChange={(n) => setRenewDepositAmount(n === null ? '' : String(n))}
               />
             </div>
           </div>
           {renewError && (
-            <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-[11px] font-medium text-red-400 backdrop-blur-sm">
+            <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-[11px] font-medium text-red-400">
               <AlertCircle size={12} className="mt-0.5 shrink-0" />
               <span>{renewError}</span>
             </div>
           )}
           {renewSuccess && (
-            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] font-medium text-emerald-400 backdrop-blur-sm">
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] font-medium text-emerald-400">
               <CheckCircle2 size={12} />
               {renewSuccess}
             </div>
@@ -1298,8 +1298,8 @@ function EditContractForm({
       {/* Terminate Dialog */}
       {showTerminateDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onCloseTerminateForm} />
-          <div className="relative z-10 w-full max-w-sm rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/95 p-6 shadow-[0_4px_20px_rgba(0,0,0,0.12)] backdrop-blur">
+          <div className="absolute inset-0 bg-black/60" onClick={onCloseTerminateForm} />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.12)]">
             <div className="flex items-start gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500/20 border border-red-500/30">
                 <XCircle size={20} className="text-red-400" />
@@ -1323,7 +1323,7 @@ function EditContractForm({
                 </label>
                 <ThaiDateInput
                   ariaLabel="วันที่ยกเลิก"
-                  className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                  className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                   required
                   value={terminateDate}
                   onChange={(iso) => setTerminateDate(iso)}
@@ -1332,7 +1332,7 @@ function EditContractForm({
               <div>
                 <label className="mb-1 block text-[12px] font-semibold text-[hsl(var(--on-surface))]/70">เหตุผล</label>
                 <textarea
-                  className="w-full resize-none rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                  className="w-full resize-none rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                   rows={3}
                   placeholder="ระบุเหตุผลการยกเลิกสัญญา…"
                   value={terminateReason}
@@ -1340,7 +1340,7 @@ function EditContractForm({
                 />
               </div>
               {terminateError && (
-                <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400 backdrop-blur-sm">
+                <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400">
                   <AlertCircle size={12} className="mt-0.5 shrink-0" />
                   <span>{terminateError}</span>
                 </div>

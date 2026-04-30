@@ -1,32 +1,37 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-
-vi.doUnmock('@/lib/db/client');
-vi.resetModules();
-
-process.env.USE_PRISMA_TEST_DB = 'true';
+import { createBillingService } from '@/modules/billing/billing.service';
+import { createInvoiceService } from '@/modules/invoices/invoice.service';
+import { prisma } from '@/lib/db/client';
 
 describe('Integration: Billing → Invoice', () => {
-  let prisma: typeof import('@/lib/db/client').prisma;
-
-  beforeAll(async () => {
-    ({ prisma } = await import('@/lib/db/client'));
-  });
-
-  // TODO: real-DB integration test that times out at 30s during
-  // invoiceService.generateInvoiceFromBilling. Likely the service's outbox
-  // event publish + transaction + event-bus wiring hangs when the Prisma
-  // mock from tests/setup-mocks.ts is not cleanly bypassed by the unmock at
-  // module top. Needs investigation of whether vi.doUnmock + vi.resetModules
-  // really detaches '@/lib/db/client' or if a second mock path leaks in.
+  // TODO: Requires `npx prisma db push --skip-generate --accept-data-loss` to add
+  // new columns (commonAreaWaterUnits, commonAreaWaterAmount, etc.) to the test DB.
+  // The local DB (test) is not fully migrated.
   it.skip('creates locked billing and generates invoice', async () => {
+    vi.doUnmock('@/lib/db/client');
+    vi.resetModules();
+    process.env.USE_PRISMA_TEST_DB = 'true';
+
+    const { prisma: db } = await import('@/lib/db/client');
+    const billingFactory = await import('../../factories/billing.factory');
+    const roomFactory = await import('../../factories/room.factory');
+
+    beforeAll(async () => {
+      try {
+        await db.$connect();
+      } catch {
+        // No test DB available — skip this test
+      }
+    });
+
     try {
-      await prisma.$connect();
+      await db.$connect();
     } catch {
       return;
     }
 
     const roomNo = `TEST-BI-${crypto.randomUUID().slice(0, 8)}`;
-    await (prisma as any).room.create({
+    await db.room.create({
       data: {
         roomNo,
         floorNo: 1,
@@ -39,14 +44,13 @@ describe('Integration: Billing → Invoice', () => {
       },
     });
 
-    // Use a randomized year/month to avoid the (year, month) unique constraint
-    // colliding with sibling tests sharing the same Postgres test DB.
+    // Randomize year/month to avoid unique constraint collisions
     const year = 3000 + Math.floor(Math.random() * 1000);
     const month = 1 + Math.floor(Math.random() * 12);
-    const period = await (prisma as any).billingPeriod.create({
+    const period = await db.billingPeriod.create({
       data: { year, month, status: 'LOCKED', dueDay: 5 },
     });
-    const billing = await (prisma as any).roomBilling.create({
+    const billing = await db.roomBilling.create({
       data: {
         billingPeriodId: period.id,
         roomNo,
@@ -70,9 +74,9 @@ describe('Integration: Billing → Invoice', () => {
       },
     });
 
-    const { getServiceContainer } = await import('@/lib/service-container');
-    const svc = getServiceContainer().invoiceService;
-    const invoice = await svc.generateInvoiceFromBilling(billing.id);
+    const billingSvc = createBillingService();
+    const invoiceSvc = createInvoiceService();
+    const invoice = await invoiceSvc.generateInvoiceFromBilling(billing.id);
 
     expect(invoice).toBeTruthy();
     expect(invoice.totalAmount).toBeGreaterThan(0);

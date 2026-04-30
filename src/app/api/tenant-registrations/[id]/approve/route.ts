@@ -5,12 +5,25 @@ import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, NotFoundError, ConflictError, BadRequestError } from '@/lib/utils/errors';
 import { getOutboxProcessor } from '@/lib/outbox';
 import { logAudit } from '@/modules/audit';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 10;
 
 type Params = { params: { id: string } };
 
 // POST /api/tenant-registrations/[id]/approve
 export const POST = asyncHandler(async (req: NextRequest, context: Params): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN']);
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`tenant-registration-approve:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  const session = requireRole(req, ['ADMIN', 'OWNER']);
   const { id } = context.params;
 
   const reg = await prisma.tenantRegistration.findUnique({ where: { id } });
@@ -126,8 +139,7 @@ export const POST = asyncHandler(async (req: NextRequest, context: Params): Prom
     );
 
     await logAudit({
-      actorId: session.sub,
-      actorRole: session.role,
+      req,
       action: 'TENANT_REGISTRATION_APPROVED',
       entityType: 'TenantRegistration',
       entityId: id,
@@ -162,39 +174,41 @@ export const POST = asyncHandler(async (req: NextRequest, context: Params): Prom
     }
   }
 
-  // Link LINE account to existing primary tenant
-  if (reg.lineUserId && primaryRT.tenant && !primaryRT.tenant.lineUserId) {
-    await prisma.tenant.update({
-      where: { id: primaryRT.tenantId },
-      data: { lineUserId: reg.lineUserId },
-    });
-  }
+  // All writes wrapped in transaction — if any step fails, registration stays PENDING.
+  await prisma.$transaction(async (tx) => {
+    // Link LINE account to existing primary tenant
+    if (reg.lineUserId && primaryRT.tenant && !primaryRT.tenant.lineUserId) {
+      await tx.tenant.update({
+        where: { id: primaryRT.tenantId },
+        data: { lineUserId: reg.lineUserId },
+      });
+    }
 
-  // Update registration
-  const approved = await prisma.tenantRegistration.update({
-    where: { id },
-    data: {
-      status: 'APPROVED',
-      resolvedRoomNo: room.roomNo,
-      resolvedTenantId: primaryRT.tenantId,
-      reviewedById: session.sub,
-      reviewedAt: new Date(),
-      updatedAt: new Date(),
-    },
+    // Update registration to APPROVED
+    await tx.tenantRegistration.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        resolvedRoomNo: room.roomNo,
+        resolvedTenantId: primaryRT.tenantId,
+        reviewedById: session.sub,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
   });
 
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
-    action: 'TENANT_REGISTRATION_APPROVED',
-    entityType: 'TenantRegistration',
-    entityId: id,
-    metadata: { lineUserId: reg.lineUserId, roomNo: room.roomNo, resolvedTenantId: primaryRT.tenantId },
-  });
+      req,
+      action: 'TENANT_REGISTRATION_APPROVED',
+      entityType: 'TenantRegistration',
+      entityId: id,
+      metadata: { lineUserId: reg.lineUserId, roomNo: room.roomNo, resolvedTenantId: primaryRT.tenantId },
+    });
 
   return NextResponse.json({
     success: true,
-    data: approved,
+    data: { registrationId: id, tenantId: primaryRT.tenantId, roomNo: room.roomNo },
     message: 'Registration approved — LINE account linked to existing primary tenant',
-  } as ApiResponse<typeof approved>);
+  } as ApiResponse<{ registrationId: string; tenantId: string; roomNo: string }>);
 });

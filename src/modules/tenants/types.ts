@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+const sanitize = (v: string) => v.replace(/<[^>]*>/g, '').trim();
+
+// ============================================================================
 // Tenant Types
 // ============================================================================
 
@@ -14,13 +20,16 @@ export type TenantRole = z.infer<typeof tenantRoleSchema>;
 export const createTenantSchema = z.object({
   firstName: z.string()
     .min(1, 'First name is required')
-    .max(100, 'First name must be at most 100 characters'),
+    .max(100, 'First name must be at most 100 characters')
+    .transform(sanitize),
   lastName: z.string()
     .min(1, 'Last name is required')
-    .max(100, 'Last name must be at most 100 characters'),
+    .max(100, 'Last name must be at most 100 characters')
+    .transform(sanitize),
   phone: z.string()
     .min(1, 'Phone is required')
-    .max(20, 'Phone must be at most 20 characters'),
+    .max(20, 'Phone must be at most 20 characters')
+    .regex(/^0[6-9][0-9]{8}$/, 'Phone must be a valid Thai mobile number (9-10 digits starting with 06-09)'),
   email: z.string()
     .email('Invalid email format')
     .optional()
@@ -45,14 +54,17 @@ export const updateTenantSchema = z.object({
   firstName: z.string()
     .min(1, 'First name is required')
     .max(100, 'First name must be at most 100 characters')
+    .transform(sanitize)
     .optional(),
   lastName: z.string()
     .min(1, 'Last name is required')
     .max(100, 'Last name must be at most 100 characters')
+    .transform(sanitize)
     .optional(),
   phone: z.string()
     .min(1, 'Phone is required')
     .max(20, 'Phone must be at most 20 characters')
+    .regex(/^0[6-9][0-9]{8}$/, 'Phone must be a valid Thai mobile number (9-10 digits starting with 06-09)')
     .optional(),
   email: z.string()
     .email('Invalid email format')

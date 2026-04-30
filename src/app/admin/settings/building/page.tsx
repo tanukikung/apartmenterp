@@ -56,7 +56,7 @@ function FieldRow({
 }) {
   return (
     <div className="flex items-start gap-4">
-      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl glass-card">
+      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ">
         {icon}
       </div>
       <div className="flex-1">
@@ -69,11 +69,12 @@ function FieldRow({
 
 function LetterheadPreview({ profile }: { profile: BuildingProfile }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] glass-card shadow-md">
+    <div className="overflow-hidden rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))]  shadow-md">
       <div className="h-1 w-full bg-gradient-to-r from-[hsl(var(--primary))] via-purple-500 to-pink-500" />
       <div className="p-5">
         <div className="flex items-center gap-4">
           {profile.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={profile.logoUrl}
               alt="โลโก้อาคาร"
@@ -96,7 +97,7 @@ function LetterheadPreview({ profile }: { profile: BuildingProfile }) {
             )}
           </div>
         </div>
-        <div className="my-4 border-t border-[hsl(var(--glass-border))]" />
+        <div className="my-4 border-t border-[hsl(var([hsl(var(--color-border))]))]" />
         <div className="space-y-2 text-sm text-[hsl(var(--on-surface-variant))]">
           {profile.address && (
             <div className="flex items-start gap-2">
@@ -120,7 +121,7 @@ function LetterheadPreview({ profile }: { profile: BuildingProfile }) {
             <p className="italic">กรอกข้อมูลติดต่อเพื่อดูตัวอย่าง</p>
           )}
         </div>
-        <div className="mt-4 rounded-xl glass-card px-3 py-2 text-xs text-[hsl(var(--on-surface-variant))]">
+        <div className="mt-4 rounded-xl  px-3 py-2 text-xs text-[hsl(var(--on-surface-variant))]">
           ตัวอย่างการแสดงผลข้อมูลอาคารบนใบแจ้งหนี้และเอกสาร
         </div>
       </div>
@@ -226,7 +227,7 @@ export default function BuildingProfilePage() {
   return (
     <main className="space-y-6">
       {/* Page header */}
-      <section className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+      <section className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
         </div>
@@ -234,7 +235,7 @@ export default function BuildingProfilePage() {
           <div className="flex items-center gap-4">
             <Link
               href="/admin/settings"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] glass-card shadow-sm transition-all hover:scale-105 active:scale-95"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  shadow-sm transition-all hover:scale-105 active:scale-95"
             >
               <ArrowLeft className="h-4 w-4 text-[hsl(var(--primary))]" />
             </Link>
@@ -263,17 +264,17 @@ export default function BuildingProfilePage() {
       {/* Two-column layout */}
       <div className="grid gap-6 xl:grid-cols-5">
         {/* Form */}
-        <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-6 xl:col-span-3">
+        <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-6 xl:col-span-3">
           <h2 className="mb-6 text-sm font-semibold text-[hsl(var(--card-foreground))]">ข้อมูลอาคาร</h2>
 
           {isLoading ? (
             <div className="space-y-5">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-start gap-4">
-                  <div className="h-9 w-9 animate-pulse rounded-xl glass-card" />
+                  <div className="h-9 w-9 animate-pulse rounded-xl " />
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 w-24 animate-pulse rounded-lg glass-card" />
-                    <div className="h-10 w-full animate-pulse rounded-xl glass-card" />
+                    <div className="h-4 w-24 animate-pulse rounded-lg " />
+                    <div className="h-10 w-full animate-pulse rounded-xl " />
                   </div>
                 </div>
               ))}
@@ -283,7 +284,7 @@ export default function BuildingProfilePage() {
               <FieldRow label="ชื่ออาคาร" icon={<Building2 className="h-4 w-4 text-[hsl(var(--primary))]" />}>
                 <input
                   type="text"
-                  className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
+                  className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
                   placeholder="อพาร์ตเมนต์ซันเซท"
                   value={fields.name}
                   onChange={(e) => setField('name', e.target.value)}
@@ -292,7 +293,7 @@ export default function BuildingProfilePage() {
 
               <FieldRow label="ที่อยู่" icon={<MapPin className="h-4 w-4 text-[hsl(var(--primary))]" />}>
                 <textarea
-                  className="w-full resize-none rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
+                  className="w-full resize-none rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
                   rows={3}
                   placeholder="123 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10100"
                   value={fields.address}
@@ -303,7 +304,7 @@ export default function BuildingProfilePage() {
               <FieldRow label="หมายเลขโทรศัพท์" icon={<Phone className="h-4 w-4 text-[hsl(var(--primary))]" />}>
                 <input
                   type="tel"
-                  className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
+                  className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
                   placeholder="02-XXX-XXXX"
                   value={fields.phone}
                   onChange={(e) => setField('phone', e.target.value)}
@@ -313,7 +314,7 @@ export default function BuildingProfilePage() {
               <FieldRow label="อีเมล" icon={<Mail className="h-4 w-4 text-[hsl(var(--primary))]" />}>
                 <input
                   type="email"
-                  className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
+                  className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
                   placeholder="contact@yourbuilding.com"
                   value={fields.email}
                   onChange={(e) => setField('email', e.target.value)}
@@ -323,7 +324,7 @@ export default function BuildingProfilePage() {
               <FieldRow label="เลขที่ผู้เสียภาษี" icon={<ReceiptText className="h-4 w-4 text-[hsl(var(--primary))]" />}>
                 <input
                   type="text"
-                  className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm font-mono tracking-wider text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
+                  className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm font-mono tracking-wider text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
                   placeholder="0-1234-56789-01-2"
                   value={fields.taxId}
                   onChange={(e) => setField('taxId', e.target.value)}
@@ -341,7 +342,7 @@ export default function BuildingProfilePage() {
               >
                 <input
                   type="url"
-                  className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
+                  className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
                   placeholder="https://example.com/logo.png"
                   value={fields.logoUrl}
                   onChange={(e) => setField('logoUrl', e.target.value)}
@@ -356,12 +357,12 @@ export default function BuildingProfilePage() {
 
         {/* Preview */}
         <div className="space-y-4 xl:col-span-2">
-          <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-5">
+          <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-5">
             <h2 className="mb-4 text-sm font-semibold text-[hsl(var(--card-foreground))]">ตัวอย่างหัวกระดาษ</h2>
             <LetterheadPreview profile={fields} />
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] glass-card px-4 py-3 text-sm text-[hsl(var(--on-surface-variant))] shadow-sm">
+          <div className="flex items-center gap-2 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-3 text-sm text-[hsl(var(--on-surface-variant))] shadow-sm">
             <Clock className="h-4 w-4 shrink-0" />
             <span>
               บันทึกล่าสุด: <span className="font-medium text-[hsl(var(--card-foreground))]">{fields.updatedAt ? new Date(fields.updatedAt).toLocaleString('th-TH') : 'ยังไม่บันทึก'}</span>
@@ -371,7 +372,7 @@ export default function BuildingProfilePage() {
       </div>
 
       {/* Save bar */}
-      <div className="glass-card rounded-xl px-5 py-4 flex items-center justify-between">
+      <div className=" rounded-xl px-5 py-4 flex items-center justify-between">
         <div className="text-sm text-[hsl(var(--on-surface-variant))]">
           {isDirty ? (
             <span className="font-medium text-amber-600">คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก</span>
@@ -387,7 +388,7 @@ export default function BuildingProfilePage() {
                 setMessage(null);
                 setError(null);
               }}
-              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5"
+              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5"
             >
               ยกเลิก
             </button>
@@ -395,7 +396,7 @@ export default function BuildingProfilePage() {
           <button
             onClick={() => void handleSave()}
             disabled={saving || isLoading || !isDirty}
-            className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] text-white px-5 py-2 text-sm font-semibold shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--primary))]/90 disabled:cursor-not-allowed disabled:opacity-50 hover:shadow-glow-primary-hover"
+            className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] text-white px-5 py-2 text-sm font-semibold shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--primary))]/90 disabled:cursor-not-allowed disabled:opacity-50 hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)]"
           >
             <Save className="h-4 w-4" />
             {saving ? 'กำลังบันทึก...' : 'บันทึก'}

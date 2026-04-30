@@ -60,7 +60,7 @@ export default function SettingsRolesPage() {
         <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-primary/5 blur-3xl" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 backdrop-blur-md">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
               <Shield className="h-5 w-5 text-primary" strokeWidth={1.75} />
             </div>
             <div>
@@ -68,7 +68,7 @@ export default function SettingsRolesPage() {
               <p className="text-xs text-white/50 mt-0.5">ภาพรวมบทบาทระบบและระดับการเข้าถึง</p>
             </div>
           </div>
-          <Link href="/admin/settings/users" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
+          <Link href="/admin/settings/users" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
             จัดการผู้ใช้ →
           </Link>
         </div>

@@ -28,7 +28,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anand37048}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
       POSTGRES_DB: ${POSTGRES_DB:-test}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -81,7 +81,7 @@ services:
     container_name: apartment_postgres_exporter
     restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-anand37048}@apartment_postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-test}?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-}@apartment_postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-test}?sslmode=disable"
       PG_EXPORTER_DISABLE_DEFAULT_METRICS: "false"
       PG_EXPORTER_AUTO_DISCOVER_DATABASES: "true"
     ports:
@@ -213,7 +213,7 @@ services:
     ports:
       - "${APP_PORT:-3001}:3001"
     environment:
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-anand37048}@apartment_postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-test}"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-}@apartment_postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-test}"
       REDIS_URL: "redis://apartment_redis:${REDIS_PORT:-6379}/1"
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3001}

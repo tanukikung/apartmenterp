@@ -57,7 +57,7 @@ services:
     container_name: apartment_postgres_exporter
     restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-anand37048}@apartment_postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-test}?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-}@apartment_postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-test}?sslmode=disable"
       PG_EXPORTER_DISABLE_DEFAULT_METRICS: "false"
       PG_EXPORTER_AUTO_DISCOVER_DATABASES: "true"
     # ไม่มี ports:

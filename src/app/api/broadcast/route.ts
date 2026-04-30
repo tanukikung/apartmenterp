@@ -12,8 +12,12 @@ import { getLineClient } from '@/lib/line';
 import { isLineConfigured } from '@/lib/line/is-configured';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/utils/logger';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
-/** LINE pushMessage returns MessageAPIResponseBase whose response data contains messageId */
+const CHAT_WINDOW_MS = 60 * 1000;
+const CHAT_MAX_ATTEMPTS = 20;
+
+/** LINE pushMessage */
 interface LinePushResult {
   messageId?: string;
 }
@@ -34,7 +38,7 @@ const listSchema = z.object({
 
 // GET /api/broadcast — list broadcasts
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const { searchParams } = new URL(req.url);
   const raw = Object.fromEntries(searchParams.entries());
@@ -68,14 +72,31 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
 // POST /api/broadcast — create and send a broadcast
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN', 'STAFF']) as { sub: string; role: string; displayName?: string };
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`broadcast:${ip}`, CHAT_MAX_ATTEMPTS, CHAT_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many broadcast requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  const session = requireRole(req, ['ADMIN', 'OWNER']) as { sub: string; role: string; displayName?: string };
   const actorId = session.sub;
   const actorName = session.displayName;
 
-  const body = await req.json().catch(() => ({}));
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { success: false, error: { message: 'Invalid JSON body', statusCode: 400, name: 'ParseError', code: 'INVALID_JSON' } },
+      { status: 400 }
+    );
+  }
   const idempotencyKey =
     req.headers.get('Idempotency-Key') ||
-    body.idempotencyKey;
+    (body.idempotencyKey as string | null | undefined);
 
   // Check DB for existing broadcast with this idempotency key
   if (idempotencyKey) {

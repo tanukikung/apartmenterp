@@ -27,6 +27,8 @@ export interface AuthSessionPayload {
   forcePasswordChange: boolean;
   buildingId: string | null; // Reserved for multi-building isolation (not yet enforced at API layer)
   exp: number;
+  version?: number;
+  lastLoginAt?: string;
 }
 
 function encodeBase64Url(input: string): string {

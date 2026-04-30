@@ -6,6 +6,14 @@ import { prisma } from '@/lib/db/client';
 import { parsePagination } from '@/lib/utils/pagination';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+export const dynamic = 'force-dynamic';
+
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 20;
+const DELETE_WINDOW_MS = 60 * 1000;
+const DELETE_MAX_ATTEMPTS = 5;
 
 /**
  * Dead-Letter Queue (DLQ) admin API
@@ -26,7 +34,7 @@ const DEAD_LETTER_THRESHOLD = Number(process.env.OUTBOX_DEAD_LETTER_THRESHOLD ??
 // ── GET ── list dead-lettered events ─────────────────────────────────────────
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN']);
+  requireRole(req, ['ADMIN', 'OWNER']);
   const { page, pageSize, skip } = parsePagination(req, { defaultSize: 25, max: 100 });
   const { searchParams } = new URL(req.url);
   const eventType = searchParams.get('eventType') || undefined;
@@ -64,8 +72,25 @@ const requeueSchema = z.object({
 });
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN']);
-  const body = await req.json().catch(() => ({}));
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`dead-letter-requeue:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { success: false, error: { message: 'Invalid JSON body', statusCode: 400, name: 'ParseError', code: 'INVALID_JSON' } },
+      { status: 400 }
+    );
+  }
   const parsed = requeueSchema.safeParse(body);
   if (!parsed.success) {
     throw new BadRequestError('Body must be { eventIds: string[] } (1..500 UUIDs)');
@@ -86,8 +111,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   });
 
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
+    req,
     action: 'OUTBOX_DEAD_LETTER_REQUEUED',
     entityType: 'OUTBOX_EVENT',
     entityId: parsed.data.eventIds.join(','),
@@ -115,8 +139,25 @@ const dropSchema = z.object({
 });
 
 export const DELETE = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN']);
-  const body = await req.json().catch(() => ({}));
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`dead-letter-delete:${ip}`, DELETE_MAX_ATTEMPTS, DELETE_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { success: false, error: { message: 'Invalid JSON body', statusCode: 400, name: 'ParseError', code: 'INVALID_JSON' } },
+      { status: 400 }
+    );
+  }
   const parsed = dropSchema.safeParse(body);
   if (!parsed.success) {
     throw new BadRequestError('Body must be { eventIds: string[] (1..500), reason: string }');
@@ -133,8 +174,7 @@ export const DELETE = asyncHandler(async (req: NextRequest): Promise<NextRespons
   });
 
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
+    req,
     action: 'OUTBOX_DEAD_LETTER_DROPPED',
     entityType: 'OUTBOX_EVENT',
     entityId: parsed.data.eventIds.join(','),

@@ -163,24 +163,23 @@ export default function BroadcastPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur px-6 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
-        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))]/10 to-transparent pointer-events-none" />
-        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[hsl(var(--primary))]/8 blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[hsl(var(--primary))]/6 blur-3xl pointer-events-none" />
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--primary))]/10 shadow-[var(--glow-primary)]">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--primary))]/10">
               <Bell className="h-5 w-5 text-[hsl(var(--primary))]" strokeWidth={1.75} />
             </div>
             <div>
-              <h1 className="font-display text-xl font-semibold tracking-tight text-[hsl(var(--card-foreground))]">ศูนย์ประกาศและเตือน</h1>
+              <h1 className="font-display text-xl font-semibold tracking-tight text-[hsl(var(--on-surface))]">ศูนย์ประกาศและเตือน</h1>
               <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">ส่งข้อความเตือนค่าบริการหรือประกาศถึงลูกบ้าน</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/admin/overdue" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface-variant))] backdrop-blur-sm transition-all hover:border-[hsl(var(--primary))]/30 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/5 active:scale-[0.98]">
+            <Link href="/admin/overdue" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface-variant))] transition-all hover:bg-[hsl(var(--color-surface-hover))] active:scale-[0.98]">
               ไปที่ Overdue
             </Link>
-            <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface-variant))] backdrop-blur-sm transition-all hover:border-[hsl(var(--primary))]/30 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/5 active:scale-[0.98]">
+            <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface-variant))] transition-all hover:bg-[hsl(var(--color-surface-hover))] active:scale-[0.98]">
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               รีเฟรช
             </button>
@@ -189,7 +188,7 @@ export default function BroadcastPage() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-[hsl(0,72%,55%,0.3)] bg-[hsl(0,72%,55%,0.1)] px-4 py-3 text-sm text-[hsl(0,72%,90%)] backdrop-blur-sm">
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>
@@ -197,36 +196,36 @@ export default function BroadcastPage() {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <div className="group relative overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] p-4 transition-all hover:border-[hsl(var(--primary))]/30">
+        <div className="group relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-4 transition-all hover:border-[hsl(var(--primary))]/30">
           <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))]/5 to-transparent pointer-events-none" />
           <div className="relative">
             <div className="text-xs text-[hsl(var(--on-surface-variant))] font-medium">ค้างชำระทั้งหมด</div>
-            <div className="text-2xl font-semibold text-[hsl(var(--card-foreground))] mt-1 font-display tracking-tight">{stats.total}</div>
+            <div className="text-2xl font-semibold text-[hsl(var(--on-surface))] mt-1 font-display tracking-tight">{stats.total}</div>
           </div>
         </div>
-        <div className="group relative overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] p-4 transition-all hover:border-[hsl(var(--emerald))]/30">
+        <div className="group relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-4 transition-all hover:border-[hsl(var(--emerald))]/30">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none" />
           <div className="relative">
             <div className="text-xs text-[hsl(var(--on-surface-variant))] font-medium">มี LINE</div>
-            <div className="text-2xl font-semibold text-[hsl(var(--card-foreground))] mt-1 font-display tracking-tight">{stats.withLine}</div>
+            <div className="text-2xl font-semibold text-[hsl(var(--on-surface))] mt-1 font-display tracking-tight">{stats.withLine}</div>
           </div>
         </div>
-        <div className="group relative overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] p-4 transition-all hover:border-red-500/30">
+        <div className="group relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-4 transition-all hover:border-red-500/30">
           <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent pointer-events-none" />
           <div className="relative">
             <div className="text-xs text-[hsl(var(--on-surface-variant))] font-medium">ไม่มี LINE</div>
-            <div className="text-2xl font-semibold text-[hsl(var(--card-foreground))] mt-1 font-display tracking-tight">{stats.withoutLine}</div>
+            <div className="text-2xl font-semibold text-[hsl(var(--on-surface))] mt-1 font-display tracking-tight">{stats.withoutLine}</div>
           </div>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         {/* Invoice list */}
-        <section className="rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden transition-all hover:border-[hsl(var(--primary))]/30">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--glass-border))]">
-            <div className="text-sm font-semibold text-[hsl(var(--card-foreground))]">รายการค้างชำระ</div>
+        <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] overflow-hidden transition-all hover:border-[hsl(var(--primary))]/30">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--color-border))]">
+            <div className="text-sm font-semibold text-[hsl(var(--on-surface))]">รายการค้างชำระ</div>
             <div className="flex items-center gap-3 text-sm">
-              <label htmlFor="selectAll" className="cursor-pointer text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--card-foreground))] transition-colors">เลือกทั้งหมด</label>
+              <label htmlFor="selectAll" className="cursor-pointer text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--on-surface))] transition-colors">เลือกทั้งหมด</label>
               <input
                 type="checkbox"
                 id="selectAll"
@@ -235,7 +234,7 @@ export default function BroadcastPage() {
                   if (e.target.checked) setSelectedIds(new Set(overdueInvoices.map((i) => i.id)));
                   else setSelectedIds(new Set());
                 }}
-                className="h-4 w-4 rounded border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] cursor-pointer accent-[hsl(var(--primary))]"
+                className="h-4 w-4 rounded border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] cursor-pointer accent-[hsl(var(--primary))]"
               />
             </div>
           </div>
@@ -261,16 +260,16 @@ export default function BroadcastPage() {
                 </thead>
                 <tbody>
                   {overdueInvoices.map((inv) => (
-                    <tr key={inv.id} className={`border-t border-[hsl(var(--glass-border))] transition-colors ${selectedIds.has(inv.id) ? 'bg-[hsl(var(--primary))]/8' : 'hover:bg-[hsl(var(--primary))]/5'}`}>
+                    <tr key={inv.id} className={`border-t border-[hsl(var([hsl(var(--color-border))]))] transition-colors ${selectedIds.has(inv.id) ? 'bg-[hsl(var(--primary))]/8' : 'hover:bg-[hsl(var(--primary))]/5'}`}>
                       <td className="pl-4 pr-2 py-3">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(inv.id)}
                           onChange={() => toggleSelect(inv.id)}
-                          className="h-4 w-4 rounded border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] cursor-pointer accent-[hsl(var(--primary))]"
+                          className="h-4 w-4 rounded border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] cursor-pointer accent-[hsl(var(--primary))]"
                         />
                       </td>
-                      <td className="px-3 py-3 font-semibold text-[hsl(var(--card-foreground))]">{inv.roomNo}</td>
+                      <td className="px-3 py-3 font-semibold text-[hsl(var(--on-surface))]">{inv.roomNo}</td>
                       <td className="px-3 py-3 text-[hsl(var(--on-surface-variant))]">{money(inv.totalAmount)}</td>
                       <td className="px-3 py-3">
                         <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
@@ -305,9 +304,9 @@ export default function BroadcastPage() {
 
         {/* Send panel */}
         <section className="space-y-4">
-          <div className="rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden transition-all hover:border-[hsl(var(--primary))]/30">
-            <div className="px-4 py-3 border-b border-[hsl(var(--glass-border))]">
-              <div className="text-sm font-semibold text-[hsl(var(--card-foreground))]">ส่ง Reminder</div>
+          <div className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] overflow-hidden transition-all hover:border-[hsl(var(--primary))]/30">
+            <div className="px-4 py-3 border-b border-[hsl(var(--color-border))]">
+              <div className="text-sm font-semibold text-[hsl(var(--on-surface))]">ส่ง Reminder</div>
             </div>
             <div className="space-y-5 p-4">
               {/* Send type */}
@@ -321,7 +320,7 @@ export default function BroadcastPage() {
                       setSendType(val);
                       if (val !== 'SELECTED') setSelectedFloors([]);
                     }}
-                    className="w-full appearance-none rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-3 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all cursor-pointer"
+                    className="w-full appearance-none rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-3 text-sm text-[hsl(var(--on-surface))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all cursor-pointer"
                   >
                     <option value="OVERDUE" className="bg-[hsl(var(--card))]">ค้างชำระทั้งหมด</option>
                     <option value="DUE_SOON" className="bg-[hsl(var(--card))]">ใกล้ครบกำหนด (3 วัน)</option>
@@ -343,8 +342,8 @@ export default function BroadcastPage() {
                         onClick={() => toggleFloor(floor)}
                         className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
                           selectedFloors.includes(floor)
-                            ? 'border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))] shadow-[var(--glow-primary)]'
-                            : 'border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] hover:border-[hsl(var(--primary))]/30 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/5 active:scale-[0.98]'
+                            ? 'border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))] shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
+                            : 'border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] hover:border-[hsl(var(--primary))]/30 hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/5 active:scale-[0.98]'
                         }`}
                       >
                         ชั้น {floor}
@@ -363,7 +362,7 @@ export default function BroadcastPage() {
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="แจ้งเตือนค่าบริการ..."
                   rows={3}
-                  className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-3 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all resize-none"
+                  className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-3 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all resize-none"
                 />
               </div>
 
@@ -379,7 +378,7 @@ export default function BroadcastPage() {
               <button
                 onClick={() => void handleSend()}
                 disabled={sending || (sendType === 'SELECTED' && selectedIds.size === 0)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[hsl(var(--primary))]/20 bg-[hsl(var(--primary))]/10 w-full px-4 py-3 text-sm font-semibold text-[hsl(var(--primary))] shadow-[var(--glow-primary)] transition-all hover:border-[hsl(var(--primary))]/40 hover:bg-[hsl(var(--primary))]/20 hover:shadow-[var(--glow-primary)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[hsl(var(--primary))]/20 bg-[hsl(var(--primary))]/10 w-full px-4 py-3 text-sm font-semibold text-[hsl(var(--primary))] shadow-[0_1px_3px_rgba(0,0,0,0.5)] transition-all hover:border-[hsl(var(--primary))]/40 hover:bg-[hsl(var(--primary))]/20 hover:shadow-[0_1px_3px_rgba(0,0,0,0.5)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {sending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

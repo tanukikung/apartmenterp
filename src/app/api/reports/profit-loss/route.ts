@@ -16,7 +16,7 @@ const profitLossQuerySchema = z.object({
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const url = new URL(req.url);
   const yearStr = url.searchParams.get('year');

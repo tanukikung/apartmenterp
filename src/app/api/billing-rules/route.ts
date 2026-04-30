@@ -2,13 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
 import { asyncHandler, type ApiResponse, BadRequestError } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
+import { logAudit } from '@/modules/audit/audit.service';
 import { Prisma } from '@prisma/client';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
 class ConflictError extends BadRequestError {
   constructor(message: string) {
     super(message);
   }
 }
+
+// Admin write operations: 20/min
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 20;
 
 type BillingRule = {
   code: string;
@@ -66,7 +72,16 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 // ---------------------------------------------------------------------------
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN']);
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`billing-rules:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  const session = requireRole(req, ['ADMIN', 'OWNER']);
   const body = await req.json() as Partial<BillingRule> & { code: string; descriptionTh: string };
 
   if (!body.code?.trim()) {
@@ -97,7 +112,16 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       },
     });
 
-    return NextResponse.json({ success: true, data: rule } as ApiResponse<typeof rule>);
+    await logAudit({
+      actorId: session.sub,
+      actorRole: session.role,
+      action: 'BILLING_RULE_CREATED',
+      entityType: 'BillingRule',
+      entityId: rule.code,
+      metadata: { code: rule.code, descriptionTh: rule.descriptionTh },
+    });
+
+    return NextResponse.json({ success: true, data: rule });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       throw new ConflictError(`รหัสกฎ "${body.code}" มีอยู่แล้วในระบบ`);

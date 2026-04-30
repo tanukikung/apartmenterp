@@ -35,7 +35,7 @@ export function AdminAccountStep({ data, onChange, errors = {} }: AdminAccountSt
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur-md">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]">
           <Shield className="h-5 w-5 text-primary" />
         </div>
         <div>
@@ -44,7 +44,7 @@ export function AdminAccountStep({ data, onChange, errors = {} }: AdminAccountSt
         </div>
       </div>
 
-      <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur-sm p-5 space-y-5">
+      <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-5 space-y-5">
         <FieldRow label="Username" icon={<User className="h-4 w-4" />}>
           <input
             type="text"

@@ -416,9 +416,9 @@ export default function AdminDashboardPage() {
             setUserName(data.data.user.displayName || data.data.user.username || '');
           }
         }
-        const safe = async (url: string) => {
+        const safe = async (url: string, options?: RequestInit) => {
           try {
-            const r = await fetch(url, { cache: 'no-store' });
+            const r = await fetch(url, options);
             return r.ok ? r.json() : null;
           } catch {
             return null;
@@ -434,8 +434,8 @@ export default function AdminDashboardPage() {
           alertsRes,
           auditRes,
         ] = await Promise.all([
-          safe('/api/analytics/occupancy'),
-          safe('/api/analytics/summary'),
+          safe('/api/analytics/occupancy', { next: { revalidate: 30 } }),
+          safe('/api/analytics/summary', { next: { revalidate: 30 } }),
           safe('/api/admin/maintenance?status=OPEN&pageSize=5'),
           safe('/api/payments/review?limit=1'),
           safe('/api/invoices?status=OVERDUE&pageSize=5'),
@@ -698,7 +698,7 @@ export default function AdminDashboardPage() {
             <div className="rounded-2xl overflow-hidden" style={{
               background: 'hsl(var(--glass-bg))',
               backdropFilter: 'blur(20px)',
-              border: '1px solid hsl(var(--glass-border))',
+              border: '1px solid hsl(var([hsl(var(--color-border))]))',
             }}>
             <div className="px-5 py-4 border-b border-[hsl(var(--color-border))] flex items-center justify-between"
               style={{ background: 'linear-gradient(to right, hsl(217 100% 67% / 0.08), transparent)' }}

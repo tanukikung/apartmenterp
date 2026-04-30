@@ -203,12 +203,12 @@ const TABS: { id: Tab; label: string }[] = [
 
 function PanelHeader({ title, count, loading, onRefresh }: { title: string; count: number; loading: boolean; onRefresh: () => void }) {
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-3">
+    <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-3">
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold text-[hsl(var(--on-surface))]">{title}</span>
         <span className="inline-flex items-center rounded-full bg-[hsl(var(--primary)/0.15)] px-2 py-0.5 text-xs font-semibold text-[hsl(var(--primary))] border border-[hsl(var(--color-primary)/0.3)]">{count}</span>
       </div>
-      <button onClick={onRefresh} disabled={loading} className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-2 py-1 text-xs text-[hsl(var(--on-surface-variant))] transition-colors hover:bg-[hsl(var(--color-surface))] active:scale-[0.98] disabled:opacity-50">
+      <button onClick={onRefresh} disabled={loading} className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-2 py-1 text-xs text-[hsl(var(--on-surface-variant))] transition-colors hover:bg-[hsl(var(--color-surface-hover))] active:scale-[0.98] disabled:opacity-50">
         <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
       </button>
     </div>
@@ -220,7 +220,7 @@ function SearchInput({ value, onChange, placeholder }: { value: string; onChange
     <div className="relative px-3 py-2">
       <Search className="pointer-events-none absolute left-5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[hsl(var(--on-surface-variant))]" />
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur py-1.5 pl-8 pr-3 text-xs text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface-variant))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--color-primary)/0.2)]" />
+        className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] py-1.5 pl-8 pr-3 text-xs text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface-variant))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--color-primary)/0.2)]" />
       {value ? <button onClick={() => onChange('')} className="absolute right-5 top-1/2 -translate-y-1/2 text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--on-surface))] active:scale-[0.98]"><X className="h-3.5 w-3.5" /></button> : null}
     </div>
   );
@@ -276,11 +276,11 @@ function ReviewQueueTab() {
     <div className="space-y-4">
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5 transition-all hover:shadow-glow-primary-hover">
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5 transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.15)]">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface))]/40">รอตรวจสอบ</p>
           <p className="mt-1 text-2xl font-extrabold text-[hsl(var(--on-surface))]">{stats.review}</p>
         </div>
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5 transition-all hover:shadow-glow-primary-hover">
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5 transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.15)]">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface))]/40">จับคู่อัตโนมัติแล้ว</p>
           <p className="mt-1 text-2xl font-extrabold text-emerald-600">{stats.autoMatched}</p>
         </div>
@@ -358,7 +358,7 @@ function PaymentsPanel({ payments, loading, selectedPaymentId, onSelect, onRefre
   });
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur">
+    <div className="flex flex-col overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]">
       <PanelHeader title="การชำระที่ต้องจับคู่" count={payments.length} loading={loading} onRefresh={onRefresh} />
       <SearchInput value={search} onChange={setSearch} placeholder="ค้นหาอ้างอิงหรือจำนวน..." />
       <div className="flex-1 overflow-y-auto">
@@ -370,13 +370,13 @@ function PaymentsPanel({ payments, loading, selectedPaymentId, onSelect, onRefre
               return (
                 <li key={payment.id}>
                   <button onClick={() => onSelect(isSelected ? null : payment)}
-                    className={['w-full rounded-lg border p-3 my-1.5 text-left transition-all active:scale-[0.98]',
+                    className={['rounded-xl border p-3 my-1.5 text-left transition-all active:scale-[0.98]',
                       isSelected ? 'border border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 ring-1 ring-[hsl(var(--primary))]/50' : 'border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] hover:border border-[hsl(var(--primary))]/30 hover:bg-[hsl(var(--color-surface))]/[0.06]'].join(' ')}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-[hsl(var(--on-surface))] truncate">{payment.reference ?? 'ไม่มีอ้างอิง'}</span>
-                          <span className="shrink-0 inline-flex items-center rounded-full border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.06] backdrop-blur px-1.5 py-0.5 text-[10px] font-semibold text-[hsl(var(--on-surface))]/50">รอจับคู่</span>
+                          <span className="shrink-0 inline-flex items-center rounded-full border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-1.5 py-0.5 text-[10px] font-semibold text-[hsl(var(--on-surface))]/50">รอจับคู่</span>
                         </div>
                         <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[hsl(var(--on-surface))]/40">
                           <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{fmtDate(payment.transactionDate)}</span>
@@ -420,14 +420,14 @@ function InvoicesPanel({ invoices, loading, selectedPayment, onMatchRequest, onR
   });
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur">
+    <div className="flex flex-col overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]">
       <PanelHeader title="ใบแจ้งหนี้ค้างชำระ" count={invoices.length} loading={loading} onRefresh={onRefresh} />
       <SearchInput value={search} onChange={setSearch} placeholder="ค้นหาห้องหรือเลขที่ใบแจ้งหนี้..." />
       <div className="flex gap-1 border-b border-[hsl(var(--color-border))] px-3 pb-2">
         {(['ALL', 'SENT', 'OVERDUE'] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
             className={['rounded-md px-2.5 py-1 text-[11px] font-semibold transition active:scale-[0.98]',
-              filter === f ? 'bg-[hsl(var(--primary))] text-[hsl(var(--on-surface))] shadow-glow-primary' : 'text-[hsl(var(--on-surface))]/40 hover:bg-[hsl(var(--color-surface))]/[0.06] hover:text-[hsl(var(--on-surface))]'].join(' ')}>{f === 'ALL' ? 'ทั้งหมด' : f === 'SENT' ? 'ส่งแล้ว' : 'ค้างชำระ'}</button>
+              filter === f ? 'bg-[hsl(var(--primary))] text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)]' : 'text-[hsl(var(--on-surface))]/40 hover:bg-[hsl(var(--color-surface))]/[0.06] hover:text-[hsl(var(--on-surface))]'].join(' ')}>{f === 'ALL' ? 'ทั้งหมด' : f === 'SENT' ? 'ส่งแล้ว' : 'ค้างชำระ'}</button>
         ))}
       </div>
       <div className="flex-1 overflow-y-auto">
@@ -463,7 +463,7 @@ function InvoicesPanel({ invoices, loading, selectedPayment, onMatchRequest, onR
                     {selectedPayment ? (
                       <div className="mt-2 flex justify-end">
                         <button onClick={() => onMatchRequest(invoice)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-[hsl(var(--primary))] px-2.5 py-1 text-[11px] font-semibold text-[hsl(var(--on-surface))] shadow-glow-primary transition-all hover:shadow-glow-primary-hover active:scale-[0.98]">
+                          className="inline-flex items-center gap-1 rounded-lg bg-[hsl(var(--primary))] px-2.5 py-1 text-[11px] font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98]">
                           <ArrowRight className="h-3 w-3" />จับคู่กับที่เลือก
                         </button>
                       </div>
@@ -505,13 +505,13 @@ function MatchPreviewPanel({ selectedPayment, selectedInvoice, matchedTodayCount
   if (confirmState === 'success' && lastResult) {
     const cfg = matchTypeConfig(lastResult.matchType);
     return (
-      <div className="flex flex-col overflow-hidden rounded-xl border border-emerald-500/30 bg-emerald-500/10 backdrop-blur">
+      <div className="flex flex-col overflow-hidden rounded-xl border border-emerald-500/30 bg-emerald-500/10">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-emerald-500/20 bg-emerald-500/10 px-4 py-3">
           <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-600" /><span className="text-sm font-semibold text-emerald-600">จับคู่สำเร็จ</span></div>
           <span className="inline-flex items-center rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-600 border border-emerald-500/30">{matchedTodayCount} วันนี้</span>
         </div>
         <div className="flex flex-1 flex-col gap-4 p-4">
-          <div className="rounded-lg border border-emerald-500/30 bg-[hsl(var(--color-surface))] backdrop-blur p-4">
+          <div className="rounded-lg border border-emerald-500/30 bg-[hsl(var(--color-surface))] p-4">
             <div className="flex items-center gap-2 text-emerald-600"><Check className="h-5 w-5" /><span className="font-semibold">จับคู่สำเร็จแล้ว!</span></div>
             <div className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-[hsl(var(--on-surface))]/40">การชำระ</span><span className="font-medium tabular-nums text-[hsl(var(--on-surface))]">{money(lastResult.paymentAmount)}</span></div>
@@ -525,7 +525,7 @@ function MatchPreviewPanel({ selectedPayment, selectedInvoice, matchedTodayCount
             </div>
             <div className="mt-3"><span className={statusBadgeClassWithBorder(cfg.color)}>{cfg.label}</span></div>
           </div>
-          <button onClick={onMatchAnother} className="w-full rounded-lg bg-[hsl(var(--primary))] py-2.5 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-glow-primary transition-all hover:shadow-glow-primary-hover active:scale-[0.98]">จับคู่รายการถัดไป</button>
+          <button onClick={onMatchAnother} className="w-full rounded-lg bg-[hsl(var(--primary))] py-2.5 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98]">จับคู่รายการถัดไป</button>
         </div>
       </div>
     );
@@ -533,8 +533,8 @@ function MatchPreviewPanel({ selectedPayment, selectedInvoice, matchedTodayCount
 
   if (!selectedPayment && !selectedInvoice) {
     return (
-      <div className="flex flex-col overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-3">
+      <div className="flex flex-col overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-3">
           <span className="text-sm font-semibold text-[hsl(var(--on-surface))]">พรีวิวการจับคู่</span>
           <span className="inline-flex items-center rounded-full bg-[hsl(var(--primary))]/20 px-2 py-0.5 text-xs font-semibold text-blue-600 border border-[hsl(var(--primary))]/30">{matchedTodayCount} วันนี้</span>
         </div>
@@ -549,8 +549,8 @@ function MatchPreviewPanel({ selectedPayment, selectedInvoice, matchedTodayCount
 
   if (!selectedPayment || !selectedInvoice) {
     return (
-      <div className="flex flex-col overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-3">
+      <div className="flex flex-col overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-3">
           <span className="text-sm font-semibold text-[hsl(var(--on-surface))]">พรีวิวการจับคู่</span>
           <span className="inline-flex items-center rounded-full bg-[hsl(var(--primary))]/20 px-2 py-0.5 text-xs font-semibold text-blue-600 border border-[hsl(var(--primary))]/30">{matchedTodayCount} วันนี้</span>
         </div>
@@ -592,8 +592,8 @@ function MatchPreviewPanel({ selectedPayment, selectedInvoice, matchedTodayCount
   const difference = selectedPayment.amount - selectedInvoice.totalAmount;
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur">
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-3">
+    <div className="flex flex-col overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-3">
         <span className="text-sm font-semibold text-[hsl(var(--on-surface))]">พรีวิวการจับคู่</span>
         <span className="inline-flex items-center rounded-full bg-[hsl(var(--primary))]/20 px-2 py-0.5 text-xs font-semibold text-blue-600 border border-[hsl(var(--primary))]/30">{matchedTodayCount} วันนี้</span>
       </div>
@@ -636,15 +636,15 @@ function MatchPreviewPanel({ selectedPayment, selectedInvoice, matchedTodayCount
         ) : null}
         <div className="flex flex-col gap-2">
           <button onClick={() => void handleConfirm()} disabled={confirmState === 'confirming'}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[hsl(var(--primary))] py-2.5 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-glow-primary transition-all hover:shadow-glow-primary-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[hsl(var(--primary))] py-2.5 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
             {confirmState === 'confirming' ? <><Loader2 className="h-4 w-4 animate-spin" /><span>กำลังยืนยัน...</span></> : <><Check className="h-4 w-4" /><span>ยืนยันการจับคู่</span></>}
           </button>
           <button onClick={onClear} disabled={confirmState === 'confirming'}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur py-2 text-sm text-[hsl(var(--on-surface))]/60 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-50">
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] py-2 text-sm text-[hsl(var(--on-surface))]/60 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-50">
             <XCircle className="h-4 w-4" />ล้างการเลือก
           </button>
         </div>
-        <p className="text-center text-[11px] text-[hsl(var(--on-surface))]/30">กด <kbd className="rounded border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.06] backdrop-blur px-1 py-0.5 font-mono text-[10px] text-[hsl(var(--on-surface))]/60">M</kbd> เพื่อยืนยันการจับคู่</p>
+        <p className="text-center text-[11px] text-[hsl(var(--on-surface))]/30">กด <kbd className="rounded border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.06] px-1 py-0.5 font-mono text-[10px] text-[hsl(var(--on-surface))]/60">M</kbd> เพื่อยืนยันการจับคู่</p>
       </div>
     </div>
   );
@@ -747,13 +747,13 @@ function MatchWorkstationTab() {
             <CheckCircle2 className="h-3.5 w-3.5" />{matchedTodayCount} จับคู่วันนี้
           </span>
         </div>
-        <button onClick={() => { void refetchPayments(); void refetchInvoices(); }} className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all hover:bg-[hsl(var(--color-surface))]/[0.1] hover:border-[hsl(var(--color-border))] active:scale-[0.98]">
+        <button onClick={() => { void refetchPayments(); void refetchInvoices(); }} className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all hover:bg-[hsl(var(--color-surface))]/[0.1] hover:border-[hsl(var(--color-border))] active:scale-[0.98]">
           <RefreshCw className="h-4 w-4" />รีเฟรชทั้งหมด
         </button>
       </div>
 
-      {paymentsError ? <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur px-4 py-2.5 text-sm text-red-400"><AlertCircle className="h-4 w-4 shrink-0" />การชำระ: {paymentsErr?.message}</div> : null}
-      {invoicesError ? <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur px-4 py-2.5 text-sm text-red-400"><AlertCircle className="h-4 w-4 shrink-0" />ใบแจ้งหนี้: {invoicesErr?.message}</div> : null}
+      {paymentsError ? <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-400"><AlertCircle className="h-4 w-4 shrink-0" />การชำระ: {paymentsErr?.message}</div> : null}
+      {invoicesError ? <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-400"><AlertCircle className="h-4 w-4 shrink-0" />ใบแจ้งหนี้: {invoicesErr?.message}</div> : null}
 
       <div className="grid min-h-[600px] gap-4 xl:grid-cols-3">
         <PaymentsPanel payments={payments} loading={paymentsLoading} selectedPaymentId={selectedPayment?.id ?? null}
@@ -787,7 +787,7 @@ function UploadStepIndicator({ current }: { current: WizardStep }) {
           <React.Fragment key={step.n}>
             <div className="flex flex-col items-center gap-1">
               <div className={['w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-colors',
-                done ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600' : active ? 'bg-[hsl(var(--primary))] border border-[hsl(var(--primary))] text-[hsl(var(--on-surface))] shadow-glow-primary' : 'bg-[hsl(var(--color-surface))] border-[hsl(var(--color-border))] text-[hsl(var(--on-surface))]/40'].join(' ')}>
+                done ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600' : active ? 'bg-[hsl(var(--primary))] border border-[hsl(var(--primary))] text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)]' : 'bg-[hsl(var(--color-surface))] border-[hsl(var(--color-border))] text-[hsl(var(--on-surface))]/40'].join(' ')}>
                 {done ? <CheckCircle className="w-4 h-4" /> : step.n}
               </div>
               <span className={['text-xs font-medium whitespace-nowrap', active ? 'text-blue-600' : done ? 'text-emerald-600' : 'text-[hsl(var(--on-surface))]/40'].join(' ')}>{step.label}</span>
@@ -850,21 +850,21 @@ function UploadTab() {
     <div className="max-w-3xl mx-auto space-y-6">
       <UploadStepIndicator current={step} />
 
-      {errorMessage && <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 backdrop-blur px-4 py-3 text-sm text-red-400"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /><span>{errorMessage}</span></div>}
-      {successMessage && <div className="flex items-start gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 backdrop-blur px-4 py-3 text-sm text-emerald-600"><CheckCircle className="w-4 h-4 mt-0.5 shrink-0" /><span>{successMessage}</span></div>}
+      {errorMessage && <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /><span>{errorMessage}</span></div>}
+      {successMessage && <div className="flex items-start gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600"><CheckCircle className="w-4 h-4 mt-0.5 shrink-0" /><span>{successMessage}</span></div>}
 
       {/* Step 1 */}
       {step === 1 && (
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
           <div className="flex items-center justify-between border-b border-[hsl(var(--color-border))] px-4 py-3">
             <h2 className="text-sm font-semibold text-[hsl(var(--on-surface))]">ขั้นตอนที่ 1: เลือกไฟล์</h2>
-            <span className="inline-flex items-center rounded-full bg-[hsl(var(--color-surface))]/[0.06] backdrop-blur px-2 py-0.5 text-xs font-semibold text-[hsl(var(--on-surface))]/50 border border-[hsl(var(--color-border))]">CSV / Excel</span>
+            <span className="inline-flex items-center rounded-full bg-[hsl(var(--color-surface))]/[0.06] px-2 py-0.5 text-xs font-semibold text-[hsl(var(--on-surface))]/50 border border-[hsl(var(--color-border))]">CSV / Excel</span>
           </div>
           <div className="p-5">
             <div onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}
               onClick={() => fileInputRef.current?.click()}
               className={['relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-14 cursor-pointer transition-all active:scale-[0.98]',
-                dragging ? 'border border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 shadow-[var(--glow-primary-hover)]' : selectedFile ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-border))] hover:bg-[hsl(var(--color-surface))]'].join(' ')}>
+                dragging ? 'border border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_0_1px_rgba(99,102,241,0.15)]' : selectedFile ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-border))] hover:bg-[hsl(var(--color-surface))]'].join(' ')}>
               <input ref={fileInputRef} type="file" accept=".csv,.xlsx" className="hidden" onChange={handleFileChange} />
               {selectedFile ? (
                 <><FileText className="h-12 w-12 text-emerald-600" /><p className="text-base font-medium text-[hsl(var(--on-surface))]">{selectedFile.name}</p><p className="text-sm text-[hsl(var(--on-surface))]/40">{(selectedFile.size / 1024).toFixed(1)} KB — คลิกเพื่อเปลี่ยน</p></>
@@ -873,7 +873,7 @@ function UploadTab() {
               )}
             </div>
             <div className="flex justify-end mt-4">
-              <button onClick={handleNext} className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-glow-primary transition-all hover:shadow-glow-primary-hover active:scale-[0.98]">
+              <button onClick={handleNext} className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98]">
                 ถัดไป
               </button>
             </div>
@@ -883,18 +883,18 @@ function UploadTab() {
 
       {/* Step 2 */}
       {step === 2 && selectedFile && (
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
           <div className="flex items-center justify-between border-b border-[hsl(var(--color-border))] px-4 py-3">
             <h2 className="text-sm font-semibold text-[hsl(var(--on-surface))]">ขั้นตอนที่ 2: พรีวิว</h2>
-            <span className="inline-flex items-center rounded-full bg-[hsl(var(--color-surface))]/[0.06] backdrop-blur px-2 py-0.5 text-xs font-semibold text-[hsl(var(--on-surface))]/50 border border-[hsl(var(--color-border))]">{selectedFile.name}</span>
+            <span className="inline-flex items-center rounded-full bg-[hsl(var(--color-surface))]/[0.06] px-2 py-0.5 text-xs font-semibold text-[hsl(var(--on-surface))]/50 border border-[hsl(var(--color-border))]">{selectedFile.name}</span>
           </div>
           <div className="p-5 space-y-4">
-            <div className="flex items-center gap-3 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-3 text-sm text-[hsl(var(--on-surface))]">
+            <div className="flex items-center gap-3 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-3 text-sm text-[hsl(var(--on-surface))]">
               <FileText className="w-5 h-5 text-[hsl(var(--on-surface))]/30 shrink-0" />
               <div><p className="font-medium">{selectedFile.name}</p><p className="text-[hsl(var(--on-surface))]/30 text-xs">{(selectedFile.size / 1024).toFixed(1)} KB &middot; ประมวลผลแล้ว</p></div>
             </div>
             {previewRows.length === 0 ? (
-              <div className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-6 text-center text-sm text-[hsl(var(--on-surface))]/40">
+              <div className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-6 text-center text-sm text-[hsl(var(--on-surface))]/40">
                 <FileText className="w-8 h-8 text-[hsl(var(--on-surface))]/20 mx-auto mb-2" /><p className="font-medium text-[hsl(var(--on-surface))]">พรีวิวไม่พร้อมสำหรับไฟล์ Excel</p><p className="text-xs text-[hsl(var(--on-surface))]/30 mt-1">ไฟล์จะถูกประมวลผลเต็มรูปแบบระหว่างการนำเข้า</p>
               </div>
             ) : (
@@ -923,8 +923,8 @@ function UploadTab() {
             )}
             <p className="text-xs text-[hsl(var(--on-surface))]/30">แสดง {previewRows.length} รายการแรกจากไฟล์ การประมวลผลเต็มรูปแบบจะเกิดขึ้นระหว่างการนำเข้า</p>
             <div className="flex items-center justify-between">
-              <button onClick={handleBack} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98]">กลับ</button>
-              <button onClick={handleNext} className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-glow-primary transition-all hover:shadow-glow-primary-hover active:scale-[0.98]">ถัดไป</button>
+              <button onClick={handleBack} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98]">กลับ</button>
+              <button onClick={handleNext} className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98]">ถัดไป</button>
             </div>
           </div>
         </div>
@@ -932,7 +932,7 @@ function UploadTab() {
 
       {/* Step 3 */}
       {step === 3 && (
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
           <div className="flex items-center justify-between border-b border-[hsl(var(--color-border))] px-4 py-3">
             <h2 className="text-sm font-semibold text-[hsl(var(--on-surface))]">ขั้นตอนที่ 3: นำเข้า</h2>
           </div>
@@ -942,20 +942,20 @@ function UploadTab() {
                 <CheckCircle className="w-14 h-14 text-emerald-600" />
                 <div><p className="text-lg font-semibold text-[hsl(var(--on-surface))]">นำเข้าสำเร็จ!</p><p className="text-sm text-[hsl(var(--on-surface))]/40 mt-1">{successMessage}</p></div>
                 <div className="flex gap-3 mt-2">
-                  <button onClick={handleReset} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98]">อัปโหลดไฟล์ใหม่</button>
+                  <button onClick={handleReset} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98]">อัปโหลดไฟล์ใหม่</button>
                 </div>
               </div>
             ) : (
               <>
-                <div className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-4 text-sm text-[hsl(var(--on-surface))] space-y-2">
+                <div className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-4 text-sm text-[hsl(var(--on-surface))] space-y-2">
                   <p className="font-medium text-[hsl(var(--on-surface))]">พร้อมนำเข้า:</p>
                   {selectedFile && <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-[hsl(var(--on-surface))]/30" /><span>{selectedFile.name}</span><span className="text-[hsl(var(--on-surface))]/30">({(selectedFile.size / 1024).toFixed(1)} KB)</span></div>}
                   <p className="text-[hsl(var(--on-surface))]/30 text-xs">ระบบจะพยายามจับคู่แต่ละรายการกับใบแจ้งหนี้ที่ค้างชำระ รายการที่ไม่ตรงจะถูกส่งเข้าแถวตรวจสอบ</p>
                 </div>
                 <div className="flex items-center justify-between">
-                  <button onClick={handleBack} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-50" disabled={importing}>กลับ</button>
+                  <button onClick={handleBack} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-50" disabled={importing}>กลับ</button>
                   <button onClick={handleProcessImport} disabled={importing}
-                    className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-glow-primary transition-all hover:shadow-glow-primary-hover active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed">
+                    className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed">
                     {importing ? <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg><span>กำลังประมวลผล...</span></>
                       : <><Upload className="w-4 h-4" />เริ่มนำเข้า</>}
                   </button>
@@ -1084,7 +1084,7 @@ function ManualPaymentTab() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+      <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
         <div className="border-b border-[hsl(var(--color-border))] px-4 py-3">
           <h2 className="text-sm font-semibold text-[hsl(var(--on-surface))]">บันทึกการชำระเงิน</h2>
           <p className="text-xs text-[hsl(var(--on-surface))]/40 mt-0.5">บันทึกการชำระเงินสด / เช็ค / โอนเงิน โดยไม่ต้องนำเข้าจากสมุดบัญชี</p>
@@ -1110,7 +1110,7 @@ function ManualPaymentTab() {
                 }}
                 onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
                 placeholder="ค้นหาเลขที่ใบแจ้งหนี้หรือห้อง..."
-                className="w-full pl-9 pr-3 py-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               />
               {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[hsl(var(--on-surface))]/40" />}
             </div>
@@ -1161,7 +1161,7 @@ function ManualPaymentTab() {
                 onChange={setAmount}
                 ariaLabel="จำนวน (บาท)"
                 required
-                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-2 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               />
             </div>
             <div>
@@ -1169,7 +1169,7 @@ function ManualPaymentTab() {
               <select
                 value={paymentMethod}
                 onChange={e => setPaymentMethod(e.target.value as 'CASH' | 'CHECK' | 'TRANSFER')}
-                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-2 text-sm text-[hsl(var(--on-surface))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm text-[hsl(var(--on-surface))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               >
                 <option value="CASH">เงินสด</option>
                 <option value="CHECK">เช็ค</option>
@@ -1186,7 +1186,7 @@ function ManualPaymentTab() {
                 type="date"
                 value={paidAt}
                 onChange={e => setPaidAt(e.target.value)}
-                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-2 text-sm text-[hsl(var(--on-surface))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm text-[hsl(var(--on-surface))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
                 required
               />
             </div>
@@ -1196,7 +1196,7 @@ function ManualPaymentTab() {
                 type="text"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-2 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
                 placeholder="เช่น รับเงินที่เคาน์เตอร์"
               />
             </div>
@@ -1207,14 +1207,14 @@ function ManualPaymentTab() {
             <button
               type="submit"
               disabled={submitting || !selectedInvoice}
-              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-glow-primary transition-all hover:shadow-glow-primary-hover active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {submitting ? <><Loader2 className="h-4 w-4 animate-spin" />กำลังบันทึก...</> : <><CheckCircle className="h-4 w-4" />บันทึกการชำระ</>}
             </button>
             <button
               type="button"
               onClick={handleClear}
-              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2.5 text-sm font-medium text-[hsl(var(--on-surface))]/60 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2.5 text-sm font-medium text-[hsl(var(--on-surface))]/60 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98]"
             >
               <X className="h-4 w-4" />ล้าง
             </button>
@@ -1243,8 +1243,8 @@ export default function AdminPaymentsIndexPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={async () => {
             const [reviewRes, matchedRes] = await Promise.all([
-              fetch('/api/payments/review?limit=1000&offset=0').then(r => r.json()),
-              fetch('/api/payments/matched?limit=1000&offset=0').then(r => r.json()),
+              fetch('/api/payments/review?limit=50&offset=0').then(r => r.json()),
+              fetch('/api/payments/matched?limit=50&offset=0').then(r => r.json()),
             ]);
             const reviewRows: Record<string, unknown>[] = reviewRes.success ? (reviewRes.data?.transactions ?? []) : [];
             const matchedRows: Record<string, unknown>[] = matchedRes.success ? (matchedRes.data?.transactions ?? []) : [];
@@ -1262,19 +1262,19 @@ export default function AdminPaymentsIndexPage() {
               { key: 'amount', header: 'จำนวน' }, { key: 'status', header: 'สถานะ' }, { key: 'reference', header: 'อ้างอิง' },
               { key: 'queue', header: 'แถว' },
             ]);
-          }} className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all hover:bg-[hsl(var(--color-surface))]/[0.1] hover:border-[hsl(var(--color-border))] active:scale-[0.98]">
+          }} className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all hover:bg-[hsl(var(--color-surface))]/[0.1] hover:border-[hsl(var(--color-border))] active:scale-[0.98]">
             <Download className="h-4 w-4" />ส่งออก CSV
           </button>
         </div>
       </div>
 
       {/* Tab Switcher */}
-      <div className="inline-flex items-center gap-1 rounded-xl bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] p-1 w-fit">
+      <div className="inline-flex items-center gap-1 rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-1 w-fit">
         {TABS.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={['px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-[0.98]',
               activeTab === tab.id
-                ? 'bg-[hsl(var(--primary))] text-[hsl(var(--on-surface))] shadow-glow-primary'
+                ? 'bg-[hsl(var(--primary))] text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)]'
                 : 'text-[hsl(var(--on-surface))]/50 hover:bg-[hsl(var(--color-surface))]/[0.06] hover:text-[hsl(var(--on-surface))]'].join(' ')}>
             {tab.label}
           </button>

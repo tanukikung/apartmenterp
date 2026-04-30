@@ -7,6 +7,8 @@ import {
   collectJobMetrics,
 } from '@/lib/metrics/registry';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/metrics
  *

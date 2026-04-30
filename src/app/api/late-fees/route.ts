@@ -45,7 +45,7 @@ type LateFeeUpdateResult =
 
 export const GET = asyncHandler(
   async (req: NextRequest): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN', 'STAFF']);
+    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
     const url = new URL(req.url);
     const status = url.searchParams.get('status'); // OVERDUE, PAID, all
@@ -125,7 +125,7 @@ export const GET = asyncHandler(
 
 export const PUT = asyncHandler(
   async (req: NextRequest): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN']);
+    requireRole(req, ['ADMIN', 'OWNER']);
 
     const body = await req.json();
     const { updates, actorId: __actorId } = body as {

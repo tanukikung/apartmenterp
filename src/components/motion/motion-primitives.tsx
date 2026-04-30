@@ -320,9 +320,7 @@ export const Pressable = React.forwardRef<HTMLButtonElement, PressableProps>(fun
   const reduce = useReducedMotion();
   if (reduce) {
     return (
-      // ButtonHTMLAttributes includes properties not in HTMLButtonElement; safe cast
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      <button ref={ref} className={className} {...(rest as any)}>
+      <button ref={ref} className={className} {...rest}>
         {children}
       </button>
     );
@@ -334,6 +332,9 @@ export const Pressable = React.forwardRef<HTMLButtonElement, PressableProps>(fun
       whileTap={{ scale: 0.97, y: 0 }}
       transition={springSnappy}
       className={className}
+      // Framer Motion's onDrag conflicts with native HTML button's onDrag
+      // (native uses DragEvent, motion uses PanInfo-based handler) — safe cast
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       {...(rest as any)}
     >
       {children}

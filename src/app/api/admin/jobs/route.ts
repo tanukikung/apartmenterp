@@ -20,7 +20,7 @@ export interface JobsResponse {
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   // Check Redis-based heartbeat first (multi-instance deployments).
   // Fall back to true: jobs always run inline via the API within
   // the same Next.js process, so manual execution is always available.

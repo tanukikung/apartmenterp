@@ -5,6 +5,10 @@ import { getStorage } from '@/infrastructure/storage';
 import { logger } from '@/lib/utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/lib';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+const UPLOAD_WINDOW_MS = 60 * 1000;
+const UPLOAD_MAX_ATTEMPTS = 5;
 
 function guessContentType(name: string, fallback: string = 'application/octet-stream'): string {
   const lower = name.toLowerCase();
@@ -21,6 +25,15 @@ function guessContentType(name: string, fallback: string = 'application/octet-st
 }
 
 export const POST = asyncHandler(async (request: NextRequest): Promise<NextResponse> => {
+  const limiter = getLoginRateLimiter();
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`file-upload:${ip}`, UPLOAD_MAX_ATTEMPTS, UPLOAD_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
   requireRole(request, ['ADMIN']);
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
@@ -47,13 +60,13 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
   const key = `chat-uploads/${id}/${safeName}`;
   const contentType = file.type || guessContentType(file.name);
 
-  const allowedFromEnv = (process.env.FILE_ALLOWED_MIME || '').trim();
-  const allowed = new Set(
-    allowedFromEnv
-      ? allowedFromEnv.split(',').map((x) => x.trim()).filter(Boolean)
+  const allowedTypesFromEnv = (process.env.FILE_ALLOWED_MIME || '').trim();
+  const allowedTypes = new Set(
+    allowedTypesFromEnv
+      ? allowedTypesFromEnv.split(',').map((x) => x.trim()).filter(Boolean)
       : ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
   );
-  if (!allowed.has(contentType)) {
+  if (!allowedTypes.has(contentType)) {
     return NextResponse.json(
       { success: false, error: 'Unsupported file type' },
       { status: 400 }

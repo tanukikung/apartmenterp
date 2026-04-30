@@ -10,6 +10,7 @@ import {
   Gauge,
   HardDrive,
   MessageSquare,
+  Radio,
   RefreshCw,
   Server,
   Wifi,
@@ -57,7 +58,7 @@ function statusCardBorder(status: ServiceStatus | null): string {
   if (status === 'ok' || status === 'connected') return 'border-emerald-500/30';
   if (status === 'degraded') return 'border-amber-500/30';
   if (status === 'error') return 'border-red-500/30';
-  return 'border-[hsl(var(--glass-border))]';
+  return 'border-[hsl(var([hsl(var(--color-border))]))]';
 }
 
 function statusBg(status: ServiceStatus | null): string {
@@ -133,6 +134,12 @@ export default function SystemHealthPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [jobEntries, setJobEntries] = useState<Record<string, { lastRun: string | null; lastMessage: string | null; durationMs: number | null; status: 'idle' | 'running' | 'error' }>>({});
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [wsAudit, setWsAudit] = useState<{
+    connections: number;
+    messagesDelivered: number;
+    avgLatency: string | null;
+    uptime: string;
+  } | null>(null);
 
   const load = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -173,18 +180,34 @@ export default function SystemHealthPage() {
     } catch { /* silent */ }
   }, []);
 
+  const loadWsAudit = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/ws-audit');
+      const json = await res.json();
+      if (json.success && json.data) {
+        setWsAudit({
+          connections: json.data.connections,
+          messagesDelivered: json.data.messagesDelivered,
+          avgLatency: json.data.avgLatency,
+          uptime: json.data.uptime,
+        });
+      }
+    } catch { /* silent */ }
+  }, []);
+
   useEffect(() => {
     void load();
     void loadJobs();
     void loadAlerts();
-    const interval = setInterval(() => { void load(); void loadJobs(); void loadAlerts(); }, 30_000);
+    void loadWsAudit();
+    const interval = setInterval(() => { void load(); void loadJobs(); void loadAlerts(); void loadWsAudit(); }, 30_000);
     return () => clearInterval(interval);
-  }, [load, loadJobs, loadAlerts]);
+  }, [load, loadJobs, loadAlerts, loadWsAudit]);
 
   if (loading) {
     return (
       <main className="space-y-6">
-        <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+        <div className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
           </div>
@@ -202,13 +225,13 @@ export default function SystemHealthPage() {
   if (error && !data) {
     return (
       <main className="space-y-6">
-        <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+        <div className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
           </div>
           <div className="relative flex items-center justify-between gap-4">
             <h1 className="text-base font-semibold text-[hsl(var(--card-foreground))]">สถานะระบบ</h1>
-            <button onClick={() => void load(true)} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95">
+            <button onClick={() => void load(true)} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95">
               <RefreshCw className="h-4 w-4" />ลองอีกครั้ง
             </button>
           </div>
@@ -231,7 +254,7 @@ export default function SystemHealthPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+      <div className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
         </div>
@@ -252,8 +275,8 @@ export default function SystemHealthPage() {
                 {alerts.filter((a) => a.severity === 'critical' || a.severity === 'warning').length} การแจ้งเตือน
               </span>
             )}
-            <span className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm">v{data.version}</span>
-            <button onClick={() => void load(true)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95">
+            <span className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm">v{data.version}</span>
+            <button onClick={() => void load(true)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95">
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing ? 'กำลังรีเฟรช...' : 'รีเฟรช'}
             </button>
@@ -307,17 +330,17 @@ export default function SystemHealthPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         {/* Service status */}
-        <section className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
-          <div className="border-b border-[hsl(var(--glass-border))] px-4 py-3 flex items-center justify-between">
+        <section className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
+          <div className="border-b border-[hsl(var([hsl(var(--color-border))]))] px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--card-foreground))]">
               <Server className="h-4 w-4 text-[hsl(var(--primary))]" />สถานะบริการ
             </div>
-            <span className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-1 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm">7 บริการ</span>
+            <span className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-1 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm">7 บริการ</span>
           </div>
           <div className="overflow-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[hsl(var(--glass-border))]">
+                <tr className="border-b border-[hsl(var([hsl(var(--color-border))]))]">
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">บริการ</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สถานะ</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สัญญาณชีพล่าสุด</th>
@@ -333,7 +356,7 @@ export default function SystemHealthPage() {
                   { name: 'การสำรองข้อมูล (Backup)', status: data.servicesDetailed?.backup?.status ?? 'not_configured' as ServiceStatus, last: data.servicesDetailed?.backup?.lastAttempt ?? null },
                   { name: 'การส่งข้อความ LINE', status: data.missingEnv?.some((k) => k.toLowerCase().includes('line')) ? 'not_configured' : 'ok' as ServiceStatus, last: null },
                 ].map((row) => (
-                  <tr key={row.name} className="border-b border-[hsl(var(--glass-border))] hover:bg-white/5 transition-colors">
+                  <tr key={row.name} className="border-b border-[hsl(var([hsl(var(--color-border))]))] hover:bg-white/5 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 font-medium text-[hsl(var(--card-foreground))]">
                         {statusIcon(row.status, 'h-4 w-4')} {row.name}
@@ -351,8 +374,8 @@ export default function SystemHealthPage() {
         </section>
 
         {/* Background jobs */}
-        <section className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
-          <div className="border-b border-[hsl(var(--glass-border))] px-4 py-3 flex items-center justify-between">
+        <section className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
+          <div className="border-b border-[hsl(var([hsl(var(--color-border))]))] px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--card-foreground))]">
               <Gauge className="h-4 w-4 text-[hsl(var(--primary))]" />งานเบื้องหลัง
             </div>
@@ -360,7 +383,7 @@ export default function SystemHealthPage() {
           <div className="overflow-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[hsl(var(--glass-border))]">
+                <tr className="border-b border-[hsl(var([hsl(var(--color-border))]))]">
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">งาน</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">รันล่าสุด</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สถานะ</th>
@@ -370,7 +393,7 @@ export default function SystemHealthPage() {
               </thead>
               <tbody>
                 {jobs.map((job) => (
-                  <tr key={job.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-white/5 transition-colors">
+                  <tr key={job.id} className="border-b border-[hsl(var([hsl(var(--color-border))]))] hover:bg-white/5 transition-colors">
                     <td className="px-4 py-3 text-sm font-medium text-[hsl(var(--card-foreground))]">{job.name}</td>
                     <td className="px-4 py-3 text-xs text-[hsl(var(--on-surface-variant))]">{fmtTs(job.lastRun)}</td>
                     <td className="px-4 py-3">
@@ -388,12 +411,12 @@ export default function SystemHealthPage() {
           </div>
 
           {outbox && (
-            <div className="grid grid-cols-2 gap-3 border-t border-[hsl(var(--glass-border))] p-4">
-              <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card px-4 py-3">
+            <div className="grid grid-cols-2 gap-3 border-t border-[hsl(var([hsl(var(--color-border))]))] p-4">
+              <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-3">
                 <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[hsl(var(--on-surface-variant))]">ความยาวคิว</div>
                 <div className="mt-1 text-2xl font-bold text-[hsl(var(--card-foreground))]">{outbox.queueLength}</div>
               </div>
-              <div className={`rounded-xl border px-4 py-3 ${outbox.failedCount > 0 ? 'border-red-500/30' : 'border-[hsl(var(--glass-border))]'}`} style={outbox.failedCount > 0 ? { background: 'rgba(239,68,68,0.1)' } : {}}>
+              <div className={`rounded-xl border px-4 py-3 ${outbox.failedCount > 0 ? 'border-red-500/30' : 'border-[hsl(var([hsl(var(--color-border))]))]'}`} style={outbox.failedCount > 0 ? { background: 'rgba(239,68,68,0.1)' } : {}}>
                 <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[hsl(var(--on-surface-variant))]">เหตุการณ์ที่ล้มเหลว</div>
                 <div className={`mt-1 text-2xl font-bold ${outbox.failedCount > 0 ? 'text-red-400' : 'text-[hsl(var(--card-foreground))]'}`}>{outbox.failedCount}</div>
               </div>
@@ -402,12 +425,45 @@ export default function SystemHealthPage() {
         </section>
       </div>
 
+      {/* WebSocket section */}
+      <section className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] overflow-hidden">
+        <div className="border-b border-[hsl(var([hsl(var(--color-border))]))] px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--card-foreground))]">
+            <Radio className="h-4 w-4 text-[hsl(var(--primary))]" />WebSocket
+          </div>
+        </div>
+        {wsAudit ? (
+          <div className="grid gap-3 p-4 sm:grid-cols-4">
+            <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-4 py-3">
+              <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[hsl(var(--on-surface-variant))]">การเชื่อมต่อที่ใช้งาน</div>
+              <div className="mt-1 text-2xl font-bold text-[hsl(var(--card-foreground))]">{wsAudit.connections}</div>
+            </div>
+            <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-4 py-3">
+              <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[hsl(var(--on-surface-variant))]">ข้อความส่งวันนี้</div>
+              <div className="mt-1 text-2xl font-bold text-[hsl(var(--card-foreground))]">{wsAudit.messagesDelivered}</div>
+            </div>
+            <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-4 py-3">
+              <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[hsl(var(--on-surface-variant))]">เวลาตอบสนองเฉลี่ย</div>
+              <div className="mt-1 text-2xl font-bold text-[hsl(var(--card-foreground))]">{wsAudit.avgLatency ?? '—'}</div>
+            </div>
+            <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-4 py-3">
+              <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[hsl(var(--on-surface-variant))]">Uptime</div>
+              <div className="mt-1 font-mono text-sm font-medium text-[hsl(var(--card-foreground))]">{wsAudit.uptime}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center p-4 text-sm text-[hsl(var(--on-surface-variant))]">
+            กำลังโหลดข้อมูล...
+          </div>
+        )}
+      </section>
+
       {/* Environment info */}
-      <section className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--card))' }}>
+      <section className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]" style={{ background: 'hsl(var(--card))' }}>
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
         </div>
-        <div className="px-4 py-3 border-b border-[hsl(var(--glass-border))] flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-[hsl(var([hsl(var(--color-border))]))] flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--card-foreground))]">
             <Wifi className="h-4 w-4 text-[hsl(var(--primary))]" />สภาพแวดล้อม
           </div>
@@ -418,7 +474,7 @@ export default function SystemHealthPage() {
             { label: 'สภาพแวดล้อม', value: data.environment },
             { label: 'เวลาตอบสนอง DB', value: data.latencies?.databaseMs != null ? `${data.latencies.databaseMs}ms` : data.servicesDetailed?.database?.latencyMs != null ? `${data.servicesDetailed.database.latencyMs}ms` : 'N/A' },
           ].map(({ label, value }) => (
-            <div key={label} className="rounded-xl border border-[hsl(var(--glass-border))] glass-card px-4 py-3">
+            <div key={label} className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-3">
               <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[hsl(var(--on-surface-variant))]">{label}</div>
               <div className="mt-1 font-mono text-sm font-medium text-[hsl(var(--card-foreground))]">{value}</div>
             </div>

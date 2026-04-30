@@ -51,12 +51,12 @@ export default function AdminAuditLogsPage() {
   return (
     <main className="space-y-6">
       {/* Page header */}
-      <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] glass-card px-6 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.15),_transparent_60%)]" />
+      <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))]  px-6 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
+        <div className="absolute inset-0 pointer-events-none" />
         <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-primary/5 blur-3xl" />
         <div className="relative">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))]">
               <ClipboardList className="h-5 w-5 text-primary" strokeWidth={1.75} />
             </div>
             <div>
@@ -68,7 +68,7 @@ export default function AdminAuditLogsPage() {
             <input
               value={action}
               onChange={(e) => setAction(e.target.value)}
-              className="w-[220px] rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/40 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              className="w-[220px] rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/40 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
               placeholder="กรองตามการดำเนินการ"
               aria-label="กรองตามการดำเนินการ"
             />
@@ -80,7 +80,7 @@ export default function AdminAuditLogsPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="ค้นหาผู้ใช้, เอนทิตี, หรือ ID..."
                 aria-label="ค้นหา"
-                className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] py-2.5 pl-9 pr-4 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/40 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] py-2.5 pl-9 pr-4 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/40 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
               />
             </div>
           </div>
@@ -88,16 +88,16 @@ export default function AdminAuditLogsPage() {
       </div>
 
       {/* Table card */}
-      <div className="rounded-2xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--glass-border))]">
+      <div className="rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))]">
           <div className="flex items-center gap-2">
             <div className="text-sm font-semibold text-[hsl(var(--card-foreground))]">รายการกิจกรรม</div>
           </div>
-          <span className="rounded-full border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-2.5 py-0.5 text-[11px] font-semibold text-[hsl(var(--on-surface-variant))]">{rows.length} รายการ</span>
+          <span className="rounded-full border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-2.5 py-0.5 text-[11px] font-semibold text-[hsl(var(--on-surface-variant))]">{rows.length} รายการ</span>
         </div>
 
         {error && (
-          <div className="mx-5 my-4 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 backdrop-blur-sm px-4 py-3 text-sm text-red-600">
+          <div className="mx-5 my-4 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
             <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
             {error instanceof Error ? error.message : String(error)}
           </div>
@@ -118,7 +118,7 @@ export default function AdminAuditLogsPage() {
           <div className="overflow-auto">
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="border-b border-[hsl(var(--glass-border))] bg-[hsl(var(--card))]">
+                <tr className="border-b border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))]">
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">เวลา</th>
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ผู้ใช้</th>
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">การดำเนินการ</th>
@@ -128,7 +128,7 @@ export default function AdminAuditLogsPage() {
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--card))]/50 transition-colors">
+                  <tr key={row.id} className="border-b border-[hsl(var([hsl(var(--color-border))]))] hover:bg-[hsl(var(--card))]/50 transition-colors">
                     <td className="px-4 py-3 text-[hsl(var(--on-surface-variant))] text-xs"><ClientOnly fallback="-">{new Date(row.createdAt).toLocaleString('th-TH')}</ClientOnly></td>
                     <td className="px-4 py-3 text-[hsl(var(--card-foreground))]">{row.userName || row.userId}</td>
                     <td>

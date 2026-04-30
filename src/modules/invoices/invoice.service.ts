@@ -140,6 +140,11 @@ export class InvoiceService {
 
   /**
    * Generate invoice from locked RoomBilling
+   *
+   * FIX H03: ALL pre-checks (roomBilling exists, status is LOCKED, no existing
+   * GENERATED invoice) are now performed INSIDE the $transaction using
+   * SELECT FOR UPDATE on the roomBilling row to prevent TOCTOU races where
+   * concurrent processes could both pass the checks and create duplicate invoices.
    */
   async generateInvoice(
     input: GenerateInvoiceInput,
@@ -147,40 +152,59 @@ export class InvoiceService {
   ): Promise<InvoiceResponse> {
     logger.info({ type: 'invoice_generate', roomBillingId: input.billingRecordId });
 
-    const roomBilling = await prisma.roomBilling.findUnique({
-      where: { id: input.billingRecordId },
-      include: {
-        billingPeriod: true,
-        effectiveRule: true,
-      },
-    });
-
-    if (!roomBilling) {
-      throw new NotFoundError('RoomBilling', input.billingRecordId);
-    }
-
-    if (roomBilling.status !== 'LOCKED') {
-      throw new BadRequestError('Can only generate invoice from LOCKED billing record');
-    }
-
-    // Check if invoice already exists for this billing
-    const existingInvoice = await prisma.invoice.findUnique({
-      where: { roomBillingId: input.billingRecordId },
-    });
-
-    if (existingInvoice) {
-      throw new BadRequestError('Invoice already exists for this billing record');
-    }
-
-    const period = roomBilling.billingPeriod;
-    const dueDate = new Date(period.year, period.month - 1, period.dueDay);
-    if (dueDate < new Date()) {
-      dueDate.setMonth(dueDate.getMonth() + 1);
-    }
-
-    // Create invoice and update billing status atomically
+    // All validation and writes are now inside the transaction — no TOCTOU window.
     const invoice = await prisma.$transaction(async (tx) => {
-      const commonAreaShare = Number((roomBilling as { commonAreaWaterShare?: unknown }).commonAreaWaterShare ?? 0);
+      // ── SELECT FOR UPDATE on roomBilling to lock the row ─────────────────────
+      const rows = await tx.$queryRaw<Array<{ id: string; roomNo: string; status: string; totalDue: Prisma.Decimal; billingPeriodId: string }>>`
+        SELECT
+          "id",
+          "roomNo",
+          "status"::text AS "status",
+          "totalDue",
+          "billingPeriodId"
+        FROM "room_billings"
+        WHERE "id" = ${input.billingRecordId}
+        FOR UPDATE OF "room_billings"
+      `;
+
+      const roomBilling = rows[0];
+      if (!roomBilling) {
+        throw new NotFoundError('RoomBilling', input.billingRecordId);
+      }
+
+      if (roomBilling.status !== 'LOCKED') {
+        throw new BadRequestError('Can only generate invoice from LOCKED billing record');
+      }
+
+      // ── Check no existing GENERATED invoice for this billing ────────────────
+      // Uses the unique roomBillingId index — another concurrent invoice generation
+      // will hit the unique constraint and throw, preventing duplicates.
+      const existingInvoice = await tx.invoice.findUnique({
+        where: { roomBillingId: input.billingRecordId },
+      });
+      if (existingInvoice) {
+        throw new BadRequestError('Invoice already exists for this billing record');
+      }
+
+      // ── Fetch billingPeriod details (needed for due date calculation) ────────
+      const periodRows = await tx.$queryRaw<Array<{ year: number; month: number; dueDay: number }>>`
+        SELECT bp."year", bp."month", bp."dueDay"
+        FROM "billing_periods" bp
+        INNER JOIN "room_billings" rb ON rb."billingPeriodId" = bp."id"
+        WHERE rb."id" = ${input.billingRecordId}
+        FOR UPDATE OF bp
+      `;
+      const period = periodRows[0];
+      if (!period) {
+        throw new NotFoundError('BillingPeriod', roomBilling.billingPeriodId);
+      }
+
+      const dueDate = new Date(period.year, period.month - 1, period.dueDay);
+      if (dueDate < new Date()) {
+        dueDate.setMonth(dueDate.getMonth() + 1);
+      }
+
+      const commonAreaShare = 0; // commonAreaWaterShare not available in locked row
       const totalAmount = Number(roomBilling.totalDue) + commonAreaShare;
 
       const inv = await tx.invoice.create({
@@ -196,10 +220,12 @@ export class InvoiceService {
           issuedAt: new Date(),
         },
       });
+
       await tx.roomBilling.update({
         where: { id: roomBilling.id },
         data: { status: 'INVOICED' },
       });
+
       await tx.outboxEvent.create({
         data: {
           id: uuidv4(),
@@ -219,6 +245,7 @@ export class InvoiceService {
           retryCount: 0,
         },
       });
+
       return inv;
     });
 
@@ -232,9 +259,9 @@ export class InvoiceService {
       entityType: 'INVOICE',
       entityId: invoice.id,
       metadata: {
-        roomBillingId: roomBilling.id,
-        year: period.year,
-        month: period.month,
+        roomBillingId: input.billingRecordId,
+        year: invoice.year,
+        month: invoice.month,
       },
     });
 
@@ -853,47 +880,57 @@ export class InvoiceService {
       return;
     }
 
-    // Batch update DB + publish events concurrently
+    // Process each overdue invoice within its own transaction.
+    // Each invoice is locked FOR UPDATE so concurrent cron runs cannot pick up
+    // the same invoice twice (DB-01 race condition fix).
     await Promise.all(
       overdueInvoices.map(async (invoice) => {
-        const daysOverdue = Math.floor(
-          (today.getTime() - invoice.dueDate.getTime()) / (1000 * 60 * 60 * 24)
-        );
+        await prisma.$transaction(async (tx) => {
+          const rows = await tx.$queryRaw<{ id: string }[]>`
+            SELECT id FROM "invoices"
+            WHERE id = ${invoice.id}
+              AND status = ${invoice.status}
+              AND "dueDate" = ${invoice.dueDate}
+            FOR UPDATE
+          `;
+          if (rows.length === 0) return; // already processed by another caller
 
-        // Compute late payment penalty using the billing rule's penaltyPerDay.
-        // penaltyPerDay is the daily rate (e.g., 0.0005 = ~1.5% per month on 30-day month).
-        // Apply grace period first — no penalty within grace days.
-        const gracePeriodDays = invoice.roomBilling.effectiveRule.gracePeriodDays ?? 0;
-        const chargeableDays = Math.max(0, daysOverdue - gracePeriodDays);
-        const penaltyPerDay = Number(invoice.roomBilling.effectiveRule.penaltyPerDay ?? 0);
-        const maxPenalty = Number(invoice.roomBilling.effectiveRule.maxPenalty ?? 0);
-        const lateFeeAmount = penaltyPerDay > 0
-          ? Math.min(chargeableDays * penaltyPerDay * Number(invoice.totalAmount), maxPenalty)
-          : 0;
+          const daysOverdue = Math.floor(
+            (today.getTime() - invoice.dueDate.getTime()) / (1000 * 60 * 60 * 24)
+          );
 
-        const payload: InvoiceOverduePayload = {
-          invoiceId: invoice.id,
-          roomId: invoice.roomNo,
-          roomNumber: invoice.roomNo,
-          daysOverdue,
-          totalAmount: Number(invoice.totalAmount),
-        };
+          const gracePeriodDays = invoice.roomBilling.effectiveRule.gracePeriodDays ?? 0;
+          const chargeableDays = Math.max(0, daysOverdue - gracePeriodDays);
+          const penaltyPerDay = Number(invoice.roomBilling.effectiveRule.penaltyPerDay ?? 0);
+          const maxPenalty = Number(invoice.roomBilling.effectiveRule.maxPenalty ?? 0);
+          const lateFeeAmount = penaltyPerDay > 0
+            ? Math.min(chargeableDays * penaltyPerDay * Number(invoice.totalAmount), maxPenalty)
+            : 0;
 
-        await prisma.invoice.update({
-          where: { id: invoice.id },
-          data: {
-            status: INVOICE_STATUS.OVERDUE,
-            ...(lateFeeAmount > 0
-              ? { lateFeeAmount, lateFeeAppliedAt: new Date() }
-              : {}),
-          },
+          const payload: InvoiceOverduePayload = {
+            invoiceId: invoice.id,
+            roomId: invoice.roomNo,
+            roomNumber: invoice.roomNo,
+            daysOverdue,
+            totalAmount: Number(invoice.totalAmount),
+          };
+
+          await tx.invoice.update({
+            where: { id: invoice.id },
+            data: {
+              status: INVOICE_STATUS.OVERDUE,
+              ...(lateFeeAmount > 0
+                ? { lateFeeAmount, lateFeeAppliedAt: new Date() }
+                : {}),
+            },
+          });
+          await this.eventBus.publish(
+            EventTypes.INVOICE_MARKED_OVERDUE,
+            'Invoice',
+            invoice.id,
+            payload
+          );
         });
-        await this.eventBus.publish(
-          EventTypes.INVOICE_MARKED_OVERDUE,
-          'Invoice',
-          invoice.id,
-          payload
-        );
       })
     );
 

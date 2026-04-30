@@ -157,7 +157,9 @@ export function registerFileSendWorker(options?: { allowInTest?: boolean }): voi
             status: 'FAILED',
             errorMessage: err instanceof Error ? err.message : String(err),
           },
-        }).catch(() => undefined);
+        }).catch((e) => {
+          logger.warn({ err: e instanceof Error ? e.message : String(e), deliveryId: payload.deliveryId }, 'invoice-link: failed to mark delivery FAILED');
+        });
       }
 
       logger.error({
@@ -294,7 +296,9 @@ export function registerFileSendWorker(options?: { allowInTest?: boolean }): voi
         await prisma.generatedDocument.update({
           where: { id: item.generatedDocumentId },
           data: { status: 'SENT' },
-        }).catch(() => undefined);
+        }).catch((e) => {
+          logger.warn({ err: e instanceof Error ? e.message : String(e) }, 'worker: failed to update status in catch block');
+        });
       }
 
       await recalculateOrderStatus(orderId);
@@ -307,7 +311,9 @@ export function registerFileSendWorker(options?: { allowInTest?: boolean }): voi
           status: 'FAILED',
           errorMessage: err instanceof Error ? err.message : String(err),
         },
-      }).catch(() => undefined);
+      }).catch((e) => {
+          logger.warn({ err: e instanceof Error ? e.message : String(e) }, 'worker: failed to update status in catch block');
+        });
 
       await recalculateOrderStatus(orderId);
 

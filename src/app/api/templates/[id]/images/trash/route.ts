@@ -7,7 +7,7 @@ export const GET = asyncHandler(async (
   req: NextRequest,
   { params }: { params: { id: string } },
 ): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const service = getDocumentTemplateService();
   // Return trash (pending archive) images for this template
   const trash = await service.getTemplateTrashImages(params.id);

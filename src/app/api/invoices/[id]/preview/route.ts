@@ -5,7 +5,7 @@ import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN', 'STAFF']);
+    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const { id } = params;
     const { invoiceService } = getServiceContainer();
     const preview = await invoiceService.getInvoicePreview(id);

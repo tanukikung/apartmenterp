@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { prisma, EventBus, logger, EventTypes } from '@/lib';
+import { ROOM_STATUS } from '@/lib/constants';
 
 import {
   CreateTenantInput,
@@ -17,7 +18,7 @@ import {
   TenantRemovedFromRoomPayload,
   TenantLineLinkedPayload,
 } from './types';
-import type { TenantRole } from './types';
+import type { TenantRole } from '@prisma/client';
 import {
   NotFoundError,
   ConflictError,
@@ -412,41 +413,64 @@ export class TenantService {
       throw new NotFoundError('Tenant', input.tenantId);
     }
 
-    // Business rule: Only one PRIMARY tenant per room
-    if (input.role === 'PRIMARY') {
-      const existingPrimary = (room.tenants as Array<{ role: string }>).find(rt => rt.role === 'PRIMARY');
-      if (existingPrimary) {
-        throw new ConflictError('Room already has a PRIMARY tenant');
-      }
-    }
-
-    // Business rule: enforce maxResidents limit
-    if (room.tenants.length >= room.maxResidents) {
-      throw new ConflictError(
-        `Room ${roomId} already has ${room.maxResidents} tenant(s) (maxResidents limit). ` +
-        'Remove a tenant before adding a new one.'
-      );
-    }
-
-    // Check if tenant is already assigned to this room
-    const existingAssignment = await prisma.roomTenant.findFirst({
-      where: {
-        tenantId: input.tenantId,
-        roomNo: roomId,
-        moveOutDate: null,
-      },
-    });
-
-    if (existingAssignment) {
-      throw new ConflictError('Tenant is already assigned to this room');
-    }
-
     const roomTenant = await prisma.$transaction(async (tx) => {
+      // Lock the room row to prevent concurrent PRIMARY assignments from both
+      // passing the uniqueness check.  Using FOR UPDATE serialises access so
+      // that only one PRIMARY can be assigned at a time per room.
+      await tx.$executeRaw`
+        SELECT id FROM rooms
+        WHERE "roomNo" = ${roomId}
+        FOR UPDATE
+      `;
+
+      // Business rule: Only one PRIMARY tenant per room.
+      // Re-check under the row lock — no secondary query is needed because
+      // the FOR UPDATE lock is held for the remainder of this transaction.
+      if (input.role === 'PRIMARY') {
+        const primaryCount = await tx.roomTenant.count({
+          where: {
+            roomNo: roomId,
+            role: 'PRIMARY' as TenantRole,
+            moveOutDate: null,
+          },
+        });
+        if (primaryCount > 0) {
+          throw new ConflictError('Room already has a PRIMARY tenant');
+        }
+      }
+
+      // Business rule: enforce maxResidents limit
+      const currentCount = await tx.roomTenant.count({
+        where: {
+          roomNo: roomId,
+          moveOutDate: null,
+        },
+      });
+      if (currentCount >= room.maxResidents) {
+        throw new ConflictError(
+          `Room ${roomId} already has ${room.maxResidents} tenant(s) (maxResidents limit). ` +
+          'Remove a tenant before adding a new one.'
+        );
+      }
+
+      // Check if tenant is already assigned to this room
+      const existingAssignment = await tx.roomTenant.findFirst({
+        where: {
+          tenantId: input.tenantId,
+          roomNo: roomId,
+          moveOutDate: null,
+        },
+      });
+
+      if (existingAssignment) {
+        throw new ConflictError('Tenant is already assigned to this room');
+      }
+
       // If assigning PRIMARY tenant to a VACANT room, transition room to OCCUPIED
-      if (input.role === 'PRIMARY' && room.roomStatus === 'VACANT') {
+      if (input.role === 'PRIMARY' && room.roomStatus === ROOM_STATUS.VACANT) {
         await tx.room.update({
           where: { roomNo: roomId },
-          data: { roomStatus: 'OCCUPIED' },
+          data: { roomStatus: ROOM_STATUS.OCCUPIED },
         });
       }
 

@@ -4,6 +4,10 @@ import { requireAuthSession } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, NotFoundError, BadRequestError } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit/audit.service';
 import { z } from 'zod';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+const TENANT_WINDOW_MS = 60 * 1000;
+const TENANT_MAX_ATTEMPTS = 10;
 
 type Params = { params: { id: string } };
 
@@ -20,7 +24,16 @@ const updateRegistrationSchema = z.object({
 // or updates phone / claimedRoom after the tenant re-submits.
 
 export const PATCH = asyncHandler(async (req: NextRequest, context?: Params): Promise<NextResponse> => {
-  const session = requireAuthSession(req);
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`tenant-registration-patch:${ip}`, TENANT_MAX_ATTEMPTS, TENANT_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  requireAuthSession(req);
   const id = context?.params.id;
   if (!id) throw new NotFoundError('TenantRegistration');
 
@@ -48,8 +61,7 @@ export const PATCH = asyncHandler(async (req: NextRequest, context?: Params): Pr
   });
 
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
+    req,
     action: body.requestCorrection ? 'TENANT_REGISTRATION_CORRECTION_REQUESTED' : 'TENANT_REGISTRATION_UPDATED',
     entityType: 'TenantRegistration',
     entityId: id,

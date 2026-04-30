@@ -6,12 +6,16 @@ import { getStorage } from '@/infrastructure/storage';
 import { logAudit } from '@/modules/audit';
 import { prisma } from '@/lib/db/client';
 import { logger } from '@/lib/utils/logger';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+const DELETE_WINDOW_MS = 60 * 1000;
+const DELETE_MAX_ATTEMPTS = 5;
 
 export const GET = asyncHandler(async (
   req: NextRequest,
   { params }: { params: { id: string } },
 ): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const service = getDocumentGenerationService();
   const result = await service.getDocumentById(params.id);
 
@@ -25,7 +29,16 @@ export const DELETE = asyncHandler(async (
   req: NextRequest,
   { params }: { params: { id: string } },
 ): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN']);
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`document-delete:${ip}`, DELETE_MAX_ATTEMPTS, DELETE_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  requireRole(req, ['ADMIN', 'OWNER']);
 
   const document = await prisma.generatedDocument.findUnique({
     where: { id: params.id },
@@ -51,8 +64,7 @@ export const DELETE = asyncHandler(async (
   await prisma.generatedDocument.delete({ where: { id: params.id } });
 
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
+    req,
     action: 'GENERATED_DOCUMENT_DELETED',
     entityType: 'GeneratedDocument',
     entityId: params.id,

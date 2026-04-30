@@ -128,7 +128,7 @@ function billingCycleLink(inv: InvoiceRow): string {
 
 function KpiCard({ label, value, icon, iconBg }: { label: string; value: number; icon: React.ReactNode; iconBg: string }) {
   return (
-    <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5 hover:bg-[hsl(var(--color-surface))]/[0.05] hover:border-[hsl(var(--color-border))] transition-all duration-200 active:scale-[0.99]">
+    <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-all duration-200 active:scale-[0.99]">
       <div className="flex items-start gap-4">
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${iconBg}`}>
           {icon}
@@ -326,7 +326,7 @@ export default function AdminInvoicesPage() {
               ],
             )}
             disabled={loading || filtered.length === 0}
-            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-40"
           >
             <Download className="h-4 w-4" />
             ส่งออก CSV
@@ -334,7 +334,7 @@ export default function AdminInvoicesPage() {
           <button
             onClick={() => void load(page, statusFilter, searchDebounced)}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98]"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -365,14 +365,14 @@ export default function AdminInvoicesPage() {
 
       {/* Status tabs + Search */}
       <section className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex items-center gap-1 rounded-xl bg-[hsl(var(--color-surface))]/[0.05] backdrop-blur border border-[hsl(var(--color-border))] p-1">
+        <div className="inline-flex items-center gap-1 rounded-xl bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] p-1">
           {STATUS_TABS.map((tab) => (
             <button
               key={tab.value}
               onClick={() => { setStatusFilter(tab.value); setSearch(''); }}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all active:scale-[0.98] ${
                 statusFilter === tab.value
-                  ? 'bg-[hsl(var(--primary))]/20 text-[hsl(var(--color-primary-light))] shadow-glow-primary'
+                  ? 'bg-[hsl(var(--primary))]/20 text-[hsl(var(--color-primary-light))] shadow-[0_0_20px_rgba(99,102,241,0.15)]'
                   : 'text-[hsl(var(--on-surface-variant))] hover:bg-[hsl(var(--color-surface))]/[0.05] hover:text-[hsl(var(--on-surface))]/70'
               }`}
             >
@@ -388,7 +388,7 @@ export default function AdminInvoicesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="ค้นหาห้อง, ผู้เช่า, เลขใบแจ้งหนี้..."
-            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur py-2 pl-9 pr-4 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] py-2 pl-9 pr-4 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
           />
         </div>
 
@@ -421,7 +421,7 @@ export default function AdminInvoicesPage() {
       />
 
       {/* Invoice table */}
-      <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+      <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
         <div className="flex items-center justify-between border-b border-[hsl(var(--color-border))] px-4 py-3">
           <span className="text-sm font-semibold text-[hsl(var(--on-surface))]">รายการใบแจ้งหนี้</span>
           {statusFilter !== 'ALL' && (
@@ -443,7 +443,7 @@ export default function AdminInvoicesPage() {
                 ? `ไม่มีใบแจ้งหนี้สถานะ ${statusFilter.toLowerCase()} ลองเปลี่ยนตัวกรอง`
                 : 'ยังไม่มีการสร้างใบแจ้งหนี้ ไปที่รอบบิลเพื่อเริ่มต้น'}
             </p>
-            <Link href="/admin/billing" className="mt-1 inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-glow-primary transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover active:scale-[0.98]">
+            <Link href="/admin/billing" className="mt-1 inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98]">
               ไปที่รอบบิล
             </Link>
           </div>
@@ -497,7 +497,7 @@ export default function AdminInvoicesPage() {
                             href={`/api/invoices/${inv.id}/pdf`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-2.5 py-1 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98]"
+                            className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-2.5 py-1 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98]"
                           >
                             <FileText className="h-3.5 w-3.5" />
                             PDF
@@ -507,7 +507,7 @@ export default function AdminInvoicesPage() {
                           <button
                             onClick={() => void sendInvoice(inv.id)}
                             disabled={isSending || sending !== null}
-                            className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-2.5 py-1 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98] disabled:opacity-40"
+                            className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-2.5 py-1 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98] disabled:opacity-40"
                           >
                             <Send className="h-3.5 w-3.5" />
                             {isSending ? 'กำลังส่ง…' : 'ส่ง'}
@@ -644,7 +644,7 @@ export default function AdminInvoicesPage() {
                               href={`/api/invoices/${inv.id}/pdf`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98]"
+                              className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98]"
                             >
                               <FileText className="h-3.5 w-3.5" />
                               PDF
@@ -654,7 +654,7 @@ export default function AdminInvoicesPage() {
                               <button
                                 onClick={() => void sendInvoice(inv.id)}
                                 disabled={isSending || sending !== null}
-                                className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98] disabled:opacity-40"
+                                className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98] disabled:opacity-40"
                               >
                                 <Send className="h-3.5 w-3.5" />
                                 {isSending ? 'กำลังส่ง…' : 'ส่ง'}
@@ -663,7 +663,7 @@ export default function AdminInvoicesPage() {
 
                             <Link
                               href={billingCycleLink(inv)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98]"
+                              className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-2.5 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] active:scale-[0.98]"
                             >
                               <ExternalLink className="h-3.5 w-3.5" />
                               รอบบิล
@@ -689,14 +689,14 @@ export default function AdminInvoicesPage() {
               <button
                 onClick={() => void load(page - 1, statusFilter, searchDebounced)}
                 disabled={page <= 1 || loading}
-                className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-40"
+                className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-40"
               >
                 ← ก่อนหน้า
               </button>
               <button
                 onClick={() => void load(page + 1, statusFilter, searchDebounced)}
                 disabled={page >= totalPages || loading}
-                className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-40"
+                className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/[0.08] hover:border-[hsl(var(--color-border))] active:scale-[0.98] disabled:opacity-40"
               >
                 ถัดไป →
               </button>

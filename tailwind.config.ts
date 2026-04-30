@@ -104,6 +104,8 @@ const config: Config = {
         "on-success-container":    "hsl(var(--on-success-container))",
         "warning-container":       "hsl(var(--warning-container))",
         "on-warning-container":    "hsl(var(--on-warning-container))",
+        "info-container":          "hsl(var(--info-container))",
+        "on-info-container":       "hsl(var(--on-info-container))",
         // Navy + amber palette (replaces sage)
         navy: {
           50:  "hsl(217 40% 92%)",

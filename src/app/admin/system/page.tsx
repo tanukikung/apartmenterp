@@ -49,7 +49,7 @@ function tone(status?: string): string {
   if (status === 'ok' || status === 'connected' || status === 'alive') return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
   if (status === 'degraded') return 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
   if (status === 'error' || status === 'down') return 'bg-red-500/20 text-red-400 border border-red-500/30';
-  return 'glass-card text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--glass-border))]';
+  return ' text-[hsl(var(--on-surface-variant))] border border-[hsl(var([hsl(var(--color-border))]))]';
 }
 
 function statusDot(status?: string): string {
@@ -85,7 +85,7 @@ export default function AdminSystemPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+      <div className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
         </div>
@@ -97,7 +97,7 @@ export default function AdminSystemPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.refresh()}
-              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
+              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
             >
               <RefreshCw className="h-4 w-4" />
               รีเฟรช
@@ -109,7 +109,7 @@ export default function AdminSystemPage() {
 
       {/* KPI Row */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all hover:scale-[1.01] active:scale-[0.99]">
+        <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all hover:scale-[1.01] active:scale-[0.99]">
           <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สถานะระบบ</div>
           <div className="mt-3">
             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${tone(healthData?.status)}`}>
@@ -119,7 +119,7 @@ export default function AdminSystemPage() {
           </div>
           <div className="mt-3 text-sm text-[hsl(var(--on-surface-variant))]">สภาพแวดล้อม: {healthData?.services?.env || '-'} · DB: {healthData?.services?.database || '-'}</div>
         </div>
-        <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all hover:scale-[1.01] active:scale-[0.99]">
+        <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all hover:scale-[1.01] active:scale-[0.99]">
           <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">เวิร์คเกอร์</div>
           <div className="mt-3">
             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${tone(deepData?.services?.worker?.alive ? 'alive' : 'down')}`}>
@@ -129,12 +129,12 @@ export default function AdminSystemPage() {
           </div>
           <div className="mt-3 text-sm text-[hsl(var(--on-surface-variant))]">เช็คสถานะ: {deepData?.services?.worker?.lastHeartbeatMsAgo ?? '-'} มิลลิวินาทีที่แล้ว</div>
         </div>
-        <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all hover:scale-[1.01] active:scale-[0.99]">
+        <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all hover:scale-[1.01] active:scale-[0.99]">
           <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">คิวออกบอกซ์</div>
           <div className="mt-3 text-2xl font-extrabold text-[hsl(var(--primary))]">{metricsData?.outbox?.queueLength ?? 0}</div>
           <div className="mt-2 text-sm text-[hsl(var(--on-surface-variant))]">อีเวนต์ที่ล้มเหลว: {metricsData?.outbox?.failedCount ?? 0}</div>
         </div>
-        <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all hover:scale-[1.01] active:scale-[0.99]">
+        <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all hover:scale-[1.01] active:scale-[0.99]">
           <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">อัตราจับคู่การชำระ</div>
           <div className="mt-3 text-2xl font-extrabold text-[hsl(var(--primary))]">{Math.round((metricsData?.payments?.matchRate ?? 0) * 100)}%</div>
           <div className="mt-2 text-sm text-[hsl(var(--on-surface-variant))]">ตรวจสอบด้วยตนเอง: {metricsData?.payments?.manualReviewCount ?? 0}</div>
@@ -143,8 +143,8 @@ export default function AdminSystemPage() {
 
       {/* Detail Cards */}
       <section className="grid gap-6 xl:grid-cols-3">
-        <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-[hsl(var(--glass-border))]">
+        <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
+          <div className="px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))]">
             <div className="text-sm font-semibold text-[hsl(var(--primary))]">สถานะแอปพลิเคชัน</div>
           </div>
           <div className="space-y-2 p-4 text-sm text-[hsl(var(--card-foreground))]">
@@ -158,8 +158,8 @@ export default function AdminSystemPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-[hsl(var(--glass-border))]">
+        <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
+          <div className="px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))]">
             <div className="text-sm font-semibold text-[hsl(var(--primary))]">เวิร์คเกอร์และคิว</div>
           </div>
           <div className="space-y-2 p-4 text-sm text-[hsl(var(--card-foreground))]">
@@ -173,8 +173,8 @@ export default function AdminSystemPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-[hsl(var(--glass-border))]">
+        <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
+          <div className="px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))]">
             <div className="text-sm font-semibold text-[hsl(var(--primary))]">สถานะการสำรองข้อมูล</div>
           </div>
           <div className="space-y-2 p-4 text-sm text-[hsl(var(--card-foreground))]">

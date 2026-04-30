@@ -15,7 +15,7 @@ import { fmtDate, fmtMoney } from '@/components/moveouts/utils';
 function GlassCard({ children, className = '', hover = false }: { children: React.ReactNode; className?: string; hover?: boolean }) {
   return (
     <div className={[
-      'rounded-2xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))] backdrop-blur',
+      'rounded-2xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]',
       'shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.04)]',
       hover ? 'hover:bg-[hsl(var(--color-surface))]/80 hover:shadow-[0_12px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(99,102,241,0.15)] hover:scale-[1.01] transition-all duration-200 cursor-pointer' : '',
       className,
@@ -131,7 +131,21 @@ export default function AdminMoveOutsPage() {
     },
   });
 
-  const moveOuts: MoveOutRecord[] = moveOutsData?.data ?? [];
+  const filteredMoveOuts = useMemo(() => {
+    let list: MoveOutRecord[] = moveOutsData?.data ?? [];
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(
+        (m) =>
+          m.contract?.roomNo.toLowerCase().includes(q) ||
+          m.contract?.primaryTenant?.fullName.toLowerCase().includes(q),
+      );
+    }
+
+    return list;
+  }, [moveOutsData, search]);
+
   const total = moveOutsData?.total ?? 0;
 
   // ── Contracts query (for new move-out form) ────────────────────────────────
@@ -165,35 +179,20 @@ export default function AdminMoveOutsPage() {
 
   // ── Derived / computed ──────────────────────────────────────────────────────
 
-  const filteredMoveOuts = useMemo(() => {
-    let list = moveOuts;
-
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter(
-        (m) =>
-          m.contract?.roomNo.toLowerCase().includes(q) ||
-          m.contract?.primaryTenant?.fullName.toLowerCase().includes(q),
-      );
-    }
-
-    return list;
-  }, [moveOuts, search]);
-
   const kpis = useMemo(() => {
-    const all = moveOuts;
+    const all: MoveOutRecord[] = moveOutsData?.data ?? [];
     const pending = all.filter((m) => m.status === 'PENDING');
     const confirmed = all.filter((m) => m.status === 'CONFIRMED');
     const refunded = all.filter((m) => m.status === 'REFUNDED');
     const totalRefund = all.reduce((sum, m) => sum + m.finalRefund, 0);
     return {
-      total: total,
+      total: all.length,
       pending: pending.length,
       confirmed: confirmed.length,
       refunded: refunded.length,
       totalRefund,
     };
-  }, [moveOuts]);
+  }, [moveOutsData]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -530,7 +529,7 @@ export default function AdminMoveOutsPage() {
         }`}
       >
         {/* Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))]/50 px-6 py-5 shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_0_1px_rgba(99,102,241,0.2)]">
+        <div className="relative overflow-hidden rounded-2xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))]/50 px-6 py-5 shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_0_1px_rgba(99,102,241,0.2)]">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.1),_transparent_60%)]" />
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -633,14 +632,14 @@ export default function AdminMoveOutsPage() {
               className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--color-text))]/30"
             />
             <input
-              className="w-full rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 py-2.5 pl-8 pr-3 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))]/30 focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 backdrop-blur-sm"
+              className="w-full rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 py-2.5 pl-8 pr-3 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))]/30 focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               placeholder="ค้นหาหมายเลขห้องหรือชื่อผู้เช่า..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <select
-            className="w-full rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-2.5 text-sm text-[hsl(var(--color-text))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 backdrop-blur-sm"
+            className="w-full rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-2.5 text-sm text-[hsl(var(--color-text))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             value={filterStatus}
             onChange={(e) => {
               setFilterStatus(e.target.value);
@@ -766,7 +765,7 @@ export default function AdminMoveOutsPage() {
                         <span
                           className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${
                             {
-                              PENDING: 'bg-white/5 text-[hsl(var(--color-text))]/50 border-white/10',
+                              PENDING: 'bg-white/5 text-[hsl(var(--on-surface-variant))] border-white/10',
                               INSPECTION_DONE: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
                               DEPOSIT_CALCULATED: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
                               CONFIRMED: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
@@ -836,7 +835,7 @@ export default function AdminMoveOutsPage() {
 
       {/* ── Side Panel ───────────────────────────────────────────── */}
       {panelMode !== 'none' && (
-        <aside className="fixed right-0 top-0 z-30 flex h-full w-full flex-col border-l border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/90 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur xl:w-[420px]">
+        <aside className="fixed right-0 top-0 z-30 flex h-full w-full flex-col border-l border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/90 shadow-[0_8px_32px_rgba(0,0,0,0.5)] xl:w-[420px]">
           {/* Panel header */}
           <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
             <div className="flex items-center gap-2">
@@ -902,7 +901,7 @@ export default function AdminMoveOutsPage() {
       {/* Backdrop for panel on mobile */}
       {panelMode !== 'none' && (
         <div
-          className="fixed inset-0 z-20 bg-black/40 xl:hidden backdrop-blur-sm"
+          className="fixed inset-0 z-20 bg-black/40 xl:hidden"
           onClick={closePanel}
         />
       )}

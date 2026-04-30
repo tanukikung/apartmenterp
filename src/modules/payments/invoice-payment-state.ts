@@ -33,9 +33,9 @@ export async function syncInvoicePaymentState(
   // This ensures only one payment can transition the invoice to PAID at a time.
   // Using raw query because Prisma.TransactionClient type doesn't expose `for: 'update'`.
   // $queryRaw returns an array — destructure to get the single row.
-  type InvoiceRow = { id: string; status: string; totalAmount: Prisma.Decimal; paidAt: Date | null };
+  type InvoiceRow = { id: string; status: string; totalAmount: Prisma.Decimal; paidAt: Date | null; lateFeeAmount: Prisma.Decimal | null };
   const [invoice] = await (tx as unknown as { $queryRaw: (strings: TemplateStringsArray, ...args: unknown[]) => Promise<InvoiceRow[]> }).$queryRaw`
-    SELECT id, status, "totalAmount", "paidAt"
+    SELECT id, status, "totalAmount", "paidAt", "lateFeeAmount"
     FROM invoices
     WHERE id = ${input.invoiceId}
     FOR UPDATE
@@ -56,9 +56,11 @@ export async function syncInvoicePaymentState(
 
   const totalPaid = Number(totals._sum.amount ?? 0);
   const invoiceTotal = Number(invoice.totalAmount);
-  // Use epsilon comparison scaled to invoiceTotal to handle floating-point rounding
-  const EPSILON = Math.max(0.01, invoiceTotal * 0.0001); // 0.01 minimum, or 0.01% of total
-  const settled = Math.abs(totalPaid - invoiceTotal) <= EPSILON;
+  const lateFeeAmount = Number(invoice.lateFeeAmount ?? 0);
+  const totalOwed = invoiceTotal + lateFeeAmount;
+  // Use epsilon comparison scaled to totalOwed to handle floating-point rounding
+  const EPSILON = Math.max(0.01, totalOwed * 0.0001); // 0.01 minimum, or 0.01% of total
+  const settled = Math.abs(totalPaid - totalOwed) <= EPSILON;
   const transitionedToPaid = settled && invoice.status !== 'PAID';
 
   let updatedInvoice: InvoicePaymentSnapshot = invoice;

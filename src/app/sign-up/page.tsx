@@ -23,13 +23,16 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Fetch bootstrap status — failures here are non-critical (user may not be logged in yet)
   useEffect(() => {
     fetch('/api/auth/bootstrap-status')
       .then((res) => res.json())
       .then((res) => {
         if (res.success) setStatus(res.data);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('Bootstrap status fetch failed:', err);
+      });
   }, []);
 
   async function submit(e: React.FormEvent) {

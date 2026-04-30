@@ -4,6 +4,9 @@ import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { redisPing, getWorkerHeartbeat, isRedisConfigured } from '@/infrastructure/redis';
 import { requireRole } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
+import { isLineConfigured } from '@/lib/line/client';
+import { getOutboxProcessor } from '@/lib/outbox';
+import { getAuditSnapshot } from '@/server/ws-audit';
 
 // Backup status is tracked by the backup scheduler process, fall back to safe defaults if not available
 function getBackupStatus(): { lastAttempt: string | null; lastSuccess: string | null; lastError: string | null; consecutiveFailures: number } {
@@ -12,7 +15,7 @@ function getBackupStatus(): { lastAttempt: string | null; lastSuccess: string | 
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   // Operator-only: deep health exposes sensitive internal state
-  requireRole(req, ['ADMIN']);
+  requireRole(req, ['ADMIN', 'OWNER']);
   let database: 'connected' | 'error' = 'connected';
   let dbLatencyMs: number | null = null;
   try {
@@ -80,11 +83,41 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
         ? 'error'
         : 'ok';
 
+  // LINE SDK status based on whether LINE credentials are configured
+  const lineSdkStatus: 'ok' | 'not_configured' =
+    isLineConfigured() ? 'ok' : 'not_configured';
+
+  // Outbox processor last run timestamp
+  let outboxLastRunAt: string | null = null;
+  try {
+    const processor = getOutboxProcessor();
+    const pendingCount = await processor.getPendingCount();
+    // If there are no pending events, the processor has run recently
+    // We don't have a direct "last run" timestamp, so we use the timestamp
+    // of the most recent processed event as a proxy
+    const lastProcessed = await prisma.outboxEvent.findFirst({
+      where: { processedAt: { not: null } },
+      orderBy: { processedAt: 'desc' },
+      select: { processedAt: true },
+    });
+    outboxLastRunAt = lastProcessed?.processedAt?.toISOString() ?? null;
+    void pendingCount; // suppress unused warning
+  } catch {
+    // Ignore — keep lastRunAt as null
+  }
+
+  const wsSnapshot = getAuditSnapshot();
+
   const value = {
     status: overallStatus,
     services: {
       database,
       redis: redisStatus === 'ok' ? 'connected' : redisStatus,
+      websocket: {
+        connections: wsSnapshot.connections,
+        messagesDelivered: wsSnapshot.messagesDelivered,
+        avgLatencyMs: wsSnapshot.avgLatencyMs,
+      },
       outbox: {
         queueLength: outboxPending,
         failedCount: outboxStuck,
@@ -103,7 +136,18 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     servicesDetailed: {
       database: { status: database === 'connected' ? 'ok' : 'error', latencyMs: dbLatencyMs },
       redis: { status: redisStatus, latencyMs: redisConfigured ? redisLatencyMs : null },
-      outbox: { status: outboxStuck > 0 ? 'degraded' : 'ok', queueLength: outboxPending, failedCount: outboxStuck },
+      websocket: {
+        status: 'ok' as const,
+        connections: wsSnapshot.connections,
+        messagesDelivered: wsSnapshot.messagesDelivered,
+        messagesFailed: wsSnapshot.messagesFailed,
+        reconnections: wsSnapshot.reconnections,
+        avgLatencyMs: wsSnapshot.avgLatencyMs,
+        minLatencyMs: wsSnapshot.minLatencyMs,
+        maxLatencyMs: wsSnapshot.maxLatencyMs,
+        uptime: wsSnapshot.uptime,
+      },
+      outbox: { status: outboxStuck > 0 ? 'degraded' : 'ok', queueLength: outboxPending, failedCount: outboxStuck, lastRunAt: outboxLastRunAt },
       worker: { status: alive ? 'ok' : 'degraded', lastHeartbeatAt, heartbeatSource: actualHeartbeatSource },
       backup: {
         status: backupOverallStatus,
@@ -112,6 +156,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
         lastError: backupStatus.lastError,
         consecutiveFailures: backupStatus.consecutiveFailures,
       },
+      lineSdk: { status: lineSdkStatus },
     },
     timestamp: new Date().toISOString(),
   };

@@ -7,7 +7,7 @@ export const GET = asyncHandler(async (
   req: NextRequest,
   { params }: { params: { id: string } },
 ): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const service = getDocumentTemplateService();
 
   // Return trash (pending archive) images for this template
@@ -19,7 +19,7 @@ export const DELETE = asyncHandler(async (
   req: NextRequest,
   { params }: { params: { id: string; imageId: string } },
 ): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const service = getDocumentTemplateService();
 
   // Force delete immediately from storage + DB (bypass trash)

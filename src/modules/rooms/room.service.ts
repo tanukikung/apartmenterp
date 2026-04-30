@@ -42,6 +42,32 @@ export class RoomService {
   ): Promise<RoomResponse> {
     logger.info({ type: 'room_create', input });
 
+    // Validate defaultAccountId exists
+    if (input.defaultAccountId) {
+      const account = await prisma.bankAccount.findFirst({
+        where: { id: input.defaultAccountId },
+      });
+      if (!account) {
+        throw new BadRequestError(
+          'บัญชีธนาคารที่เลือกไม่ถูกต้อง กรุณาเลือกจากรายการบัญชีที่มีอยู่',
+          { field: 'defaultAccountId' }
+        );
+      }
+    }
+
+    // Validate defaultRuleCode exists
+    if (input.defaultRuleCode) {
+      const rule = await prisma.billingRule.findFirst({
+        where: { code: input.defaultRuleCode },
+      });
+      if (!rule) {
+        throw new BadRequestError(
+          'รหัสการตั้งค่าค่าเช่าที่เลือกไม่ถูกต้อง กรุณาเลือกจากรายการที่มีอยู่',
+          { field: 'defaultRuleCode' }
+        );
+      }
+    }
+
     // Check if room number already exists
     const existingRoom = await prisma.room.findUnique({
       where: { roomNo: input.roomNo },
@@ -261,6 +287,32 @@ export class RoomService {
       throw new NotFoundError('Room', roomNo);
     }
 
+    // Validate defaultAccountId exists (on create or update with new value)
+    if (input.defaultAccountId && input.defaultAccountId !== existingRoom.defaultAccountId) {
+      const account = await prisma.bankAccount.findFirst({
+        where: { id: input.defaultAccountId },
+      });
+      if (!account) {
+        throw new BadRequestError(
+          'บัญชีธนาคารไม่พบในระบบ กรุณาเลือกบัญชีจากรายการ',
+          { field: 'defaultAccountId' }
+        );
+      }
+    }
+
+    // Validate defaultRuleCode exists (on create or update with new value)
+    if (input.defaultRuleCode && input.defaultRuleCode !== existingRoom.defaultRuleCode) {
+      const rule = await prisma.billingRule.findFirst({
+        where: { code: input.defaultRuleCode },
+      });
+      if (!rule) {
+        throw new BadRequestError(
+          'รหัสการตั้งค่าค่าเช่าไม่พบในระบบ กรุณาเลือกจากรายการ',
+          { field: 'defaultRuleCode' }
+        );
+      }
+    }
+
     // Track changes for audit
     const changes: Record<string, { old: unknown; new: unknown }> = {};
 
@@ -476,9 +528,12 @@ export class RoomService {
   }
 
   /**
-   * Delete a room (prevent if occupied/has active tenants)
+   * Delete a room and all related records atomically.
+   * Related invoices, billing records, and maintenance tickets are permanently
+   * removed — this is an irreversible hard delete (not a soft status change).
    */
   async deleteRoom(roomNo: string): Promise<void> {
+    // Check if room exists
     const room = await prisma.room.findUnique({
       where: { roomNo },
       include: {
@@ -494,14 +549,14 @@ export class RoomService {
       throw new NotFoundError('Room', roomNo);
     }
 
-    // Check if room has active tenants
+    // Guard: room must have no active tenants
     if (room.tenants.length > 0) {
       throw new ConflictError(
         `Cannot delete room with ${room.tenants.length} active tenant(s)`
       );
     }
 
-    // Check if room has active contracts
+    // Guard: room must have no active contracts
     const activeContract = await prisma.contract.findFirst({
       where: {
         roomNo,
@@ -513,8 +568,16 @@ export class RoomService {
       throw new ConflictError('Cannot delete room with active contract');
     }
 
-    await prisma.room.delete({
-      where: { roomNo },
+    // Atomic delete: remove all related records in the correct dependency order
+    await prisma.$transaction(async (tx) => {
+      // 1. Maintenance tickets (no cascade from Room, must delete explicitly)
+      await tx.maintenanceTicket.deleteMany({ where: { roomNo } });
+
+      // 2. Room billings cascade to invoices (invoice has onDelete: Cascade on roomBillingId)
+      await tx.roomBilling.deleteMany({ where: { roomNo } });
+
+      // 3. Delete the room itself
+      await tx.room.delete({ where: { roomNo } });
     });
 
     logger.info({ type: 'room_deleted', roomNo });

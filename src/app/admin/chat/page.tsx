@@ -34,15 +34,6 @@ type ActionNotice = { tone: 'success' | 'error' | 'info'; message: string };
 
 type ApiActionResult<T = unknown> = { ok: boolean; data: T | null; message: string };
 
-type SettingsResponse = {
-  success: boolean;
-  data?: {
-    lineChannelIdConfigured?: boolean;
-    lineChannelSecretConfigured?: boolean;
-    lineAccessTokenConfigured?: boolean;
-  };
-};
-
 function extractApiMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === 'object') {
     const record = payload as { message?: string; error?: string | { message?: string } };
@@ -109,7 +100,7 @@ export default function ChatInboxPage() {
     async function loadLineCapability() {
       try {
         const response = await fetch('/api/admin/settings', { cache: 'no-store' });
-        const json = (await response.json().catch(() => null)) as SettingsResponse | null;
+        const json = await response.json().catch(() => { throw new Error('json-parse-failed'); });
         if (!response.ok || !json?.success || !json.data) { setLineConfigured(null); return; }
         setLineConfigured(Boolean(json.data.lineChannelIdConfigured && json.data.lineChannelSecretConfigured && json.data.lineAccessTokenConfigured));
       } catch { setLineConfigured(null); }
@@ -144,7 +135,7 @@ export default function ChatInboxPage() {
 
   useEffect(() => {
     if (!selectedId) return;
-    fetch(`/api/conversations?conversationId=${selectedId}`, { method: 'PATCH' }).catch(() => undefined);
+    fetch(`/api/conversations?conversationId=${selectedId}`, { method: 'PATCH' }).catch((e) => { console.error('[Chat] conversation update failed:', e); });
     setConversations((prev) =>
       prev.map((c) => c.id === selectedId ? { ...c, unreadCount: 0 } : c)
     );
@@ -234,7 +225,7 @@ export default function ChatInboxPage() {
   const callActionApi = useCallback(async <T,>(url: string, init: RequestInit, fallbackError: string): Promise<ApiActionResult<T>> => {
     try {
       const response = await fetch(url, init);
-      const json = (await response.json().catch(() => null)) as { success?: boolean; data?: T; message?: string; error?: string | { message?: string } } | null;
+      const json = await response.json().catch(() => { throw new Error('json-parse-failed'); });
       if (!response.ok || !json?.success) return { ok: false, data: null, message: extractApiMessage(json, fallbackError) };
       return { ok: true, data: (json.data ?? null) as T | null, message: extractApiMessage(json, '') };
     } catch { return { ok: false, data: null, message: fallbackError }; }
@@ -265,7 +256,7 @@ export default function ChatInboxPage() {
     setMessages((items) => [...items, temp]);
     try {
       const response = await fetch(`/api/conversations/${selectedId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
-      const res = await response.json().catch(() => null);
+      const res = await response.json().catch(() => { throw new Error('json-parse-failed'); });
       if (response.ok && res?.success) { setMessages((items) => items.map((item) => (item.id === temp.id ? res.data : item))); return true; }
       setMessages((items) => items.map((item) => item.id === temp.id ? { ...item, localStatus: 'failed', metadata: { status: 'FAILED' } } : item));
       setErrorNotice(extractApiMessage(res, 'ไม่สามารถส่งข้อความได้'));
@@ -420,24 +411,23 @@ export default function ChatInboxPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))] backdrop-blur-[var(--glass-blur)] px-6 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
-        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.08)] to-transparent pointer-events-none" />
-        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[hsl(var(--primary)/0.06)] blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[hsl(var(--primary))]/6 blur-3xl pointer-events-none" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--primary)/0.1)] shadow-[var(--glow-primary)]">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--primary))]/10">
               <MessageSquare className="h-5 w-5 text-[hsl(var(--primary))]" strokeWidth={1.75} />
             </div>
             <div>
-              <h1 className="font-display text-xl font-semibold tracking-tight text-[hsl(var(--color-text))]">แชท</h1>
-              <p className="text-xs text-[hsl(var(--color-text))]/50 mt-0.5">กล่องข้อความสำหรับสื่อสารกับผู้เช่า</p>
+              <h1 className="font-display text-xl font-semibold tracking-tight text-[hsl(var(--on-surface))]">แชท</h1>
+              <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">กล่องข้อความสำหรับสื่อสารกับผู้เช่า</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center rounded-full border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-1 text-xs font-semibold text-[hsl(var(--color-text))]/70 backdrop-blur-sm">
+            <span className="inline-flex items-center rounded-full border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1 text-xs font-semibold text-[hsl(var(--on-surface))]/70">
               การสนทนา {conversations.length} รายการ
             </span>
-            <span className="inline-flex items-center rounded-full border border-[hsl(var(--color-border))]/50 bg-[hsl(0,72%,55%,0.15)] px-3 py-1 text-xs font-semibold text-[hsl(0,72%,90%)] backdrop-blur-sm">
+            <span className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-400">
               ยังไม่อ่าน {conversations.filter((item) => item.unreadCount > 0).length} รายการ
             </span>
           </div>
@@ -446,26 +436,26 @@ export default function ChatInboxPage() {
 
       {/* Action notices */}
       {actionNotice ? (
-        <div className={`rounded-xl border px-4 py-3 text-sm font-medium backdrop-blur-sm ${
+        <div className={`rounded-xl border px-4 py-3 text-sm font-medium ${
           actionNotice.tone === 'success'
-            ? 'border-[hsl(142,70%,45%,0.3)] bg-[hsl(142,70%,45%,0.1)] text-[hsl(142,70%,80%)]'
+            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
             : actionNotice.tone === 'info'
-            ? 'border-[hsl(217,100%,67%,0.3)] bg-[hsl(217,100%,67%,0.1)] text-[hsl(217,100%,90%)]'
-            : 'border-[hsl(0,72%,55%,0.3)] bg-[hsl(0,72%,55%,0.1)] text-[hsl(0,72%,90%)]'
+            ? 'border-blue-500/30 bg-blue-500/10 text-blue-400'
+            : 'border-red-500/30 bg-red-500/10 text-red-400'
         }`}>
           {actionNotice.message}
         </div>
       ) : null}
 
       {pollingError ? (
-        <div className="flex items-center gap-3 rounded-xl border border-[hsl(38,92%,55%,0.3)] bg-[hsl(38,92%,55%,0.1)] px-4 py-3 text-sm text-[hsl(38,92%,80%)] backdrop-blur-sm">
+        <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {pollingError}
         </div>
       ) : null}
 
       {current?.lineUserId && lineConfigured === false ? (
-        <div className="rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-4 py-3 text-sm text-[hsl(var(--color-text))]/60 backdrop-blur-sm">
+        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-3 text-sm text-[hsl(var(--on-surface))]/60">
           การส่งข้อความ LINE ไม่พร้อมใช้งานเนื่องจากยังไม่ได้ตั้งค่าข้อมูลรับรอง
         </div>
       ) : null}
@@ -473,13 +463,13 @@ export default function ChatInboxPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 anim-fade-in">
         {/* Chat list sidebar */}
         <section className="lg:col-span-3">
-          <div className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden transition-all hover:border-[hsl(var(--color-border))]">
-            <div className="border-b border-white/5 px-4 py-3">
-              <span className="text-sm font-semibold text-[hsl(var(--color-text))]/80">การสนทนา</span>
+          <div className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] overflow-hidden transition-all hover:border-[hsl(var(--color-border))]">
+            <div className="border-b border-[hsl(var(--color-border))] px-4 py-3">
+              <span className="text-sm font-semibold text-[hsl(var(--on-surface))]/80">การสนทนา</span>
             </div>
             {conversationsLoading ? (
               <div className="flex items-center justify-center p-8">
-                <svg className="h-6 w-6 animate-spin text-[hsl(var(--color-text))]/30" fill="none" viewBox="0 0 24 24">
+                <svg className="h-6 w-6 animate-spin text-[hsl(var(--on-surface))]/30" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.878 3 8.291l2-2z" />
                 </svg>
@@ -491,17 +481,17 @@ export default function ChatInboxPage() {
         </section>
 
         {/* Chat timeline */}
-        <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] lg:col-span-6 overflow-hidden transition-all hover:border-[hsl(var(--color-border))]">
-          <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
+        <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] lg:col-span-6 overflow-hidden transition-all hover:border-[hsl(var(--color-border))]">
+          <div className="flex items-center justify-between border-b border-[hsl(var(--color-border))] px-4 py-3">
             <div>
-              <div className="text-sm font-semibold text-[hsl(var(--color-text))]/80">ไทม์ไลน์การสนทนา</div>
-              <div className="mt-0.5 text-xs text-[hsl(var(--color-text))]/40">
+              <div className="text-sm font-semibold text-[hsl(var(--on-surface))]/80">ไทม์ไลน์การสนทนา</div>
+              <div className="mt-0.5 text-xs text-[hsl(var(--on-surface))]/40">
                 {current ? `ห้อง ${current.room?.roomNumber ?? current.room?.roomNo ?? '-'} • ${current.tenant?.fullName || 'ผู้เช่าที่ยังไม่ได้เชื่อมต่อ'}` : 'เลือกการสนทนา'}
               </div>
             </div>
             {hasMore && (
               <button onClick={loadOlder} disabled={loadingMore}
-                className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))]/60 backdrop-blur-sm transition-all hover:border-[hsl(var(--color-border))]/50 hover:text-[hsl(var(--color-text))]/80 hover:bg-[hsl(var(--color-surface))]/80 active:scale-[0.98]">
+                className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/60 transition-all hover:bg-[hsl(var(--color-surface-hover))] active:scale-[0.98]">
                 {loadingMore ? 'กำลังโหลด...' : 'โหลดข้อความเก่ากว่า'}
               </button>
             )}

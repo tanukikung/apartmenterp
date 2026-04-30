@@ -3,5 +3,4 @@ export {
   connectPrisma,
   disconnectPrisma,
   withTransaction,
-  rawQuery,
 } from './client';

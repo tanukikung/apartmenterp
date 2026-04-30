@@ -9,6 +9,12 @@ import { asyncHandler, ApiResponse, NotFoundError, ConflictError } from '@/lib/u
 import { logAudit } from '@/modules/audit';
 import { prisma } from '@/lib/db/client';
 import { v4 as uuidv4 } from 'uuid';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 20;
+const DELETE_WINDOW_MS = 60 * 1000;
+const DELETE_MAX_ATTEMPTS = 5;
 
 const createSchema = z.object({
   periodDays: z.number().int().min(-60).max(60),
@@ -29,7 +35,7 @@ const listSchema = z.object({
 
 // GET /api/reminders/config
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const { searchParams } = new URL(req.url);
   const raw = Object.fromEntries(searchParams.entries());
@@ -63,7 +69,16 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
 // POST /api/reminders/config
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN']);
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`reminder-config:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  const session = requireRole(req, ['ADMIN', 'OWNER']);
   const actorId = session.sub;
 
   const input = createSchema.parse(await req.json());
@@ -103,7 +118,16 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
 // PUT /api/reminders/config
 export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN']);
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`reminder-config-put:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  const session = requireRole(req, ['ADMIN', 'OWNER']);
   const actorId = session.sub;
 
   const body = await req.json();
@@ -134,7 +158,16 @@ export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
 // DELETE /api/reminders/config
 export const DELETE = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN']);
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`reminder-config-delete:${ip}`, DELETE_MAX_ATTEMPTS, DELETE_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  const session = requireRole(req, ['ADMIN', 'OWNER']);
   const actorId = session.sub;
 
   const { id } = z.object({ id: z.string().uuid() }).parse(await req.json());

@@ -6,6 +6,62 @@ import { isCsrfExemptApiRoute } from '@/lib/auth/api-policy';
 import { logger } from '@/lib/utils/logger';
 // Edge runtime: avoid Node-only imports here (no node-cron or fs/net)
 
+// ============================================================================
+// Rate Limiting — In-memory store for Edge runtime (single-instance, no Redis)
+// ============================================================================
+
+interface RateLimitEntry {
+  count: number;
+  resetAt: number; // epoch ms
+}
+
+// Auth route: 20 req/min per IP
+const AUTH_RATE_LIMIT = 20;
+const AUTH_RATE_WINDOW_MS = 60_000;
+
+// Read route (GET): 100 req/min per user
+const READ_RATE_LIMIT = 100;
+
+// Write route (POST/PATCH/PUT/DELETE): 30 req/min per user
+const WRITE_RATE_LIMIT = 30;
+
+// Health check paths excluded from rate limiting
+const HEALTH_CHECK_PATHS = ['/api/health', '/api/health/deep'];
+
+const rateLimitStore = new Map<string, RateLimitEntry>();
+
+function rateLimit(key: string, limit: number, windowMs: number): { allowed: boolean; remaining: number; resetAt: Date } {
+  const now = Date.now();
+  // Cleanup expired entries on every call
+  for (const [k, v] of rateLimitStore) {
+    if (now >= v.resetAt) rateLimitStore.delete(k);
+  }
+  const entry = rateLimitStore.get(key);
+  if (!entry || now >= entry.resetAt) {
+    const resetAt = now + windowMs;
+    rateLimitStore.set(key, { count: 1, resetAt });
+    return { allowed: true, remaining: limit - 1, resetAt: new Date(resetAt) };
+  }
+  if (entry.count >= limit) {
+    return { allowed: false, remaining: 0, resetAt: new Date(entry.resetAt) };
+  }
+  entry.count++;
+  return { allowed: true, remaining: Math.max(0, limit - entry.count), resetAt: new Date(entry.resetAt) };
+}
+
+function getPathTier(pathname: string): 'auth' | 'read' | 'write' | 'excluded' {
+  if (HEALTH_CHECK_PATHS.some(p => pathname.startsWith(p))) return 'excluded';
+  if (pathname.startsWith('/api/auth/')) return 'auth';
+  return 'write';
+}
+
+function getRateLimitKey(req: NextRequest, tier: 'auth' | 'read' | 'write', ip: string, userId?: string): string {
+  if (tier === 'auth') return `auth:${ip}`;
+  // For read/write: use userId if available, else IP
+  const id = userId ?? ip;
+  return `${tier}:${id}`;
+}
+
 
 function getIp(req: NextRequest): string {
   // Only trust x-forwarded-for when the direct connection is from a known proxy.
@@ -67,6 +123,29 @@ export async function middleware(req: NextRequest) {
   const existingId = req.headers.get('x-request-id') || '';
   const requestId = existingId || (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 
+  // ── Rate limiting for /api/* routes ─────────────────────────────────────────
+  if (url.pathname.startsWith('/api/')) {
+    const tier = getPathTier(url.pathname);
+    if (tier !== 'excluded') {
+      const method = req.method;
+      const pathTier = method === 'GET' || method === 'HEAD' ? 'read' : tier === 'auth' ? 'auth' : 'write';
+      const userId = (req as unknown as { sub?: string }).sub;
+      const key = getRateLimitKey(req, pathTier, ip, userId);
+      const limit = pathTier === 'auth' ? AUTH_RATE_LIMIT : pathTier === 'read' ? READ_RATE_LIMIT : WRITE_RATE_LIMIT;
+      const windowMs = AUTH_RATE_WINDOW_MS;
+      const { allowed, remaining, resetAt } = rateLimit(key, limit, windowMs);
+      if (!allowed) {
+        const retryAfter = Math.ceil((resetAt.getTime() - Date.now()) / 1000);
+        return NextResponse.json(
+          { success: false, error: { message: 'Too many requests. Please retry later.', code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+          { status: 429, headers: { 'Retry-After': String(retryAfter), 'X-RateLimit-Remaining': '0', 'x-request-id': requestId } }
+        );
+      }
+      // Attach rate limit headers to response via response headers (checked later)
+      (req as unknown as { rateLimitRemaining?: number }).rateLimitRemaining = remaining;
+    }
+  }
+
   // Rate limiting handled in asyncHandler at API layer (Node runtime)
 
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
@@ -125,7 +204,7 @@ export async function middleware(req: NextRequest) {
           return res;
         }
       }
-      const isAdmin = session?.role === 'ADMIN' || session?.role === 'STAFF';
+      const isOperator = session?.role === 'OWNER' || session?.role === 'ADMIN' || session?.role === 'STAFF';
       const mustChangePassword = Boolean(session?.forcePasswordChange);
 
       if (
@@ -133,7 +212,7 @@ export async function middleware(req: NextRequest) {
           url.pathname === '/sign-up' ||
           url.pathname === '/forgot-password' ||
           url.pathname === '/reset-password') &&
-        isAdmin
+        isOperator
       ) {
         const destination = mustChangePassword ? '/change-password' : '/admin/dashboard';
         const redirect = NextResponse.redirect(new URL(destination, req.url));
@@ -141,26 +220,26 @@ export async function middleware(req: NextRequest) {
         return redirect;
       }
 
-      if (url.pathname === '/change-password' && !isAdmin) {
+      if (url.pathname === '/change-password' && !isOperator) {
         const redirect = NextResponse.redirect(new URL('/login', req.url));
         redirect.headers.set('x-request-id', requestId);
         return redirect;
       }
 
-      if (url.pathname !== '/change-password' && url.pathname.startsWith('/admin') && isAdmin && mustChangePassword) {
+      if (url.pathname !== '/change-password' && url.pathname.startsWith('/admin') && isOperator && mustChangePassword) {
         const redirect = NextResponse.redirect(new URL('/change-password', req.url));
         redirect.headers.set('x-request-id', requestId);
         return redirect;
       }
 
-      if (url.pathname === '/change-password' && isAdmin && !mustChangePassword) {
+      if (url.pathname === '/change-password' && isOperator && !mustChangePassword) {
         const redirect = NextResponse.redirect(new URL('/admin/dashboard', req.url));
         redirect.headers.set('x-request-id', requestId);
         return redirect;
       }
 
       if (url.pathname.startsWith('/tenant')) {
-        const redirect = NextResponse.redirect(new URL(isAdmin ? '/admin/dashboard' : '/login', req.url));
+        const redirect = NextResponse.redirect(new URL(isOperator ? '/admin/dashboard' : '/login', req.url));
         redirect.headers.set('x-request-id', requestId);
         return redirect;
       }
@@ -169,7 +248,7 @@ export async function middleware(req: NextRequest) {
         // Allow /admin/setup without authentication (setup wizard)
         if (url.pathname === '/admin/setup') {
           // Let them through - setup page handles initialization check
-        } else if (!isAdmin) {
+        } else if (!isOperator) {
           const redirect = NextResponse.redirect(new URL('/login', req.url));
           redirect.headers.set('x-request-id', requestId);
           return redirect;
@@ -188,6 +267,11 @@ export async function middleware(req: NextRequest) {
   res.headers.set('x-request-id', requestId);
   res.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   res.headers.set('X-Content-Type-Options', 'nosniff');
+  // Add rate limit headers if rate limiting was applied
+  const rateLimitRemaining = (req as unknown as { rateLimitRemaining?: number }).rateLimitRemaining;
+  if (rateLimitRemaining !== undefined) {
+    res.headers.set('X-RateLimit-Remaining', String(rateLimitRemaining));
+  }
   // CORS: restrict allowed origins based on environment.
   // Development: permissive (localhost allowed). Production: use ALLOWED_ORIGINS env var.
   const origin = req.headers.get('origin');

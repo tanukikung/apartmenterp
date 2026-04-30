@@ -96,7 +96,7 @@ const EXPLICIT_POLICIES: ApiRoutePolicy[] = [
     pattern: '/api/health/deep',
     methods: ['GET'],
     accessClass: 'operator',
-    guardApplied: 'requireRole(ADMIN)',
+    guardApplied: 'requireOwner',
   },
   {
     pattern: '/api/admin/setup/complete',
@@ -114,25 +114,25 @@ const EXPLICIT_POLICIES: ApiRoutePolicy[] = [
     pattern: '/api/admin/setup/reset',
     methods: ['POST'],
     accessClass: 'operator',
-    guardApplied: 'requireRole(ADMIN)',
+    guardApplied: 'requireOwner',
   },
   {
     pattern: '/api/admin/outbox/dead-letter',
     methods: ['GET', 'POST', 'DELETE'],
     accessClass: 'operator',
-    guardApplied: 'requireRole(ADMIN)',
+    guardApplied: 'requireOwner',
   },
   {
     pattern: '/api/metrics',
     methods: ['GET'],
     accessClass: 'operator',
-    guardApplied: 'requireRole(ADMIN)',
+    guardApplied: 'requireOwner',
   },
   {
     pattern: '/api/system/backup-status',
     methods: ['GET'],
     accessClass: 'operator',
-    guardApplied: 'requireRole(ADMIN)',
+    guardApplied: 'requireOwner',
   },
   {
     pattern: '/api/line/webhook',

@@ -10,12 +10,13 @@ export async function bootstrapMessagingRuntime(options?: { allowInTest?: boolea
   }
 
   bootstrapPromise = (async () => {
-    const [{ registerFileSendWorker }] = await Promise.all([
+    const [{ registerFileSendWorker }, _invoiceNotifier, _paymentNotifier, _reminderNotifier, _welcomeNotifier, _sequenceNotifier] = await Promise.all([
       import('./file-send.worker'),
       import('./invoice-notifier'),
       import('./payment-notifier'),
       import('./reminder-notifier'),
       import('./welcome-notifier'),
+      import('./sequence-notifier'),
     ]);
 
     registerFileSendWorker(options);

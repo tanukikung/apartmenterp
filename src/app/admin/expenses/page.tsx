@@ -268,7 +268,7 @@ export default function AdminExpensesPage() {
       className="space-y-6"
     >
       {/* Header */}
-      <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] glass-card px-6 py-5">
+      <div className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  px-6 py-5">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
         </div>
@@ -280,7 +280,7 @@ export default function AdminExpensesPage() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => { setShowForm(true); }}
-              className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:scale-105 active:scale-95 hover:shadow-glow-primary-hover"
+              className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:scale-105 active:scale-95 hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)]"
             >
               <Plus className="h-4 w-4" />
               เพิ่มรายจ่าย
@@ -290,7 +290,7 @@ export default function AdminExpensesPage() {
               disabled={isLoading}
               aria-label="รีเฟรช"
               title="รีเฟรช"
-              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]"
+              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]"
             >
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
@@ -323,14 +323,14 @@ export default function AdminExpensesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="ค้นหาค่าใช้จ่าย..."
-            className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card py-2 pl-9 pr-4 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+            className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  py-2 pl-9 pr-4 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
           />
         </div>
         <div className="relative">
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value as ExpenseCategory | 'ALL')}
-            className="appearance-none rounded-lg border border-[hsl(var(--glass-border))] glass-card py-2 pl-3 pr-8 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+            className="appearance-none rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  py-2 pl-3 pr-8 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
           >
             {CATEGORY_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -342,7 +342,7 @@ export default function AdminExpensesPage() {
           <select
             value={monthFilter}
             onChange={(e) => setMonthFilter(e.target.value)}
-            className="appearance-none rounded-lg border border-[hsl(var(--glass-border))] glass-card py-2 pl-3 pr-8 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+            className="appearance-none rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  py-2 pl-3 pr-8 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
           >
             {monthOptions.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -353,7 +353,7 @@ export default function AdminExpensesPage() {
         {(categoryFilter !== 'ALL' || monthFilter !== 'ALL' || search) && (
           <button
             onClick={() => { setCategoryFilter('ALL'); setMonthFilter('ALL'); setSearch(''); }}
-            className="rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--on-surface-variant))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]"
+            className="rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-2 text-sm text-[hsl(var(--on-surface-variant))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]"
           >
             ล้างตัวกรอง
           </button>
@@ -384,7 +384,7 @@ export default function AdminExpensesPage() {
       />
 
       {/* Table */}
-      <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
+      <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
         {isLoading ? (
           <SkeletonTable rows={6} />
         ) : filteredExpenses.length === 0 ? (
@@ -398,12 +398,12 @@ export default function AdminExpensesPage() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--card))' }}>
+                <tr className="border-b border-[hsl(var([hsl(var(--color-border))]))]" style={{ background: 'hsl(var(--card))' }}>
                   <th className="w-10 px-4 py-3 text-left">
                     <input
                       type="checkbox"
                       aria-label="เลือกทั้งหมด"
-                      className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]"
+                      className="h-4 w-4 rounded border-[hsl(var([hsl(var(--color-border))]))] accent-[hsl(var(--primary))]"
                       checked={filteredExpenses.length > 0 && filteredExpenses.every((e) => selectedIds.has(e.id))}
                       onChange={(e) => {
                         if (e.target.checked) {
@@ -429,7 +429,7 @@ export default function AdminExpensesPage() {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[hsl(var(--glass-border))]">
+              <tbody className="divide-y divide-[hsl(var([hsl(var(--color-border))]))]">
                 {filteredExpenses.map((expense) => {
                   const d = new Date(expense.date);
                   return (
@@ -438,7 +438,7 @@ export default function AdminExpensesPage() {
                         <input
                           type="checkbox"
                           aria-label={`เลือก ${expense.description}`}
-                          className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]"
+                          className="h-4 w-4 rounded border-[hsl(var([hsl(var(--color-border))]))] accent-[hsl(var(--primary))]"
                           checked={selectedIds.has(expense.id)}
                           onChange={() => toggleSelectExpense(expense.id)}
                         />
@@ -492,7 +492,7 @@ export default function AdminExpensesPage() {
           <button
             onClick={() => setPage(page - 1)}
             disabled={page <= 1}
-            className="rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05] disabled:opacity-40"
+            className="rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-2 text-sm text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05] disabled:opacity-40"
           >
             ก่อนหน้า
           </button>
@@ -502,7 +502,7 @@ export default function AdminExpensesPage() {
           <button
             onClick={() => setPage(page + 1)}
             disabled={page >= (expensesData?.totalPages ?? 1)}
-            className="rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05] disabled:opacity-40"
+            className="rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-2 text-sm text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05] disabled:opacity-40"
           >
             ถัดไป
           </button>
@@ -511,8 +511,8 @@ export default function AdminExpensesPage() {
 
       {/* Delete Confirm Dialog */}
       {deleteConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--glass-border))] glass-card p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-md rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))]  p-6 shadow-xl">
             <h3 className="text-lg font-semibold text-[hsl(var(--card-foreground))]">ยืนยันการลบ?</h3>
             <p className="mt-2 text-sm text-[hsl(var(--on-surface-variant))]">
               การลบรายการนี้ไม่สามารถย้อนกลับได้
@@ -520,7 +520,7 @@ export default function AdminExpensesPage() {
             <div className="mt-6 flex justify-end gap-3">
               <button
                 onClick={() => { setDeleteConfirmOpen(false); setDeleteTargetId(null); }}
-                className="rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]"
+                className="rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]"
               >
                 ยกเลิก
               </button>
@@ -621,8 +621,8 @@ function ExpenseFormModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-2xl border border-[hsl(var(--glass-border))] glass-card p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="w-full max-w-lg rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))]  p-6 shadow-xl">
         <h3 className="text-lg font-semibold text-[hsl(var(--card-foreground))]">เพิ่มรายจ่าย</h3>
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           {error && (
@@ -636,7 +636,7 @@ function ExpenseFormModal({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
-                className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card py-2 px-3 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none"
+                className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  py-2 px-3 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none"
               >
                 {CATEGORY_OPTIONS.filter(o => o.value !== 'ALL').map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -650,7 +650,7 @@ function ExpenseFormModal({
                 onChange={setAmount}
                 required
                 ariaLabel="จำนวนเงิน"
-                className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card py-2 px-3 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none"
+                className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  py-2 px-3 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none"
               />
             </div>
           </div>
@@ -661,7 +661,7 @@ function ExpenseFormModal({
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
-              className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card py-2 px-3 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none"
+              className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  py-2 px-3 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none"
             />
           </div>
           <div>
@@ -671,7 +671,7 @@ function ExpenseFormModal({
               onChange={(e) => setDescription(e.target.value)}
               required
               rows={3}
-              className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card py-2 px-3 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none"
+              className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  py-2 px-3 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -681,7 +681,7 @@ function ExpenseFormModal({
                 type="text"
                 value={paidTo}
                 onChange={(e) => setPaidTo(e.target.value)}
-                className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card py-2 px-3 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none"
+                className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  py-2 px-3 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none"
               />
             </div>
             <div>
@@ -690,7 +690,7 @@ function ExpenseFormModal({
                 type="text"
                 value={receiptNo}
                 onChange={(e) => setReceiptNo(e.target.value)}
-                className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card py-2 px-3 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none"
+                className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  py-2 px-3 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none"
               />
             </div>
           </div>
@@ -698,14 +698,14 @@ function ExpenseFormModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]"
+              className="rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]"
             >
               ยกเลิก
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:scale-105 active:scale-95 hover:shadow-glow-primary-hover disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:scale-105 active:scale-95 hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] disabled:opacity-60"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               บันทึก

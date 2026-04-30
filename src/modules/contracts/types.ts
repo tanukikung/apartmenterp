@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const stripHtml = (v: string) => v.replace(/<[^>]*>/g, '').trim();
+
 // ============================================================================
 // Contract Types
 // ============================================================================
@@ -73,6 +75,7 @@ export const terminateContractSchema = z.object({
   terminationDate: z.string().date('Invalid termination date'),
   terminationReason: z.string()
     .max(500, 'Reason too long')
+    .transform(stripHtml)
     .optional(),
 });
 

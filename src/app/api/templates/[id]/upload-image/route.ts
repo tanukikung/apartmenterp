@@ -7,7 +7,7 @@ export const POST = asyncHandler(async (
   req: NextRequest,
   { params }: { params: { id: string } },
 ): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const formData = await req.formData();
   const file = formData.get('file');
   if (!file || typeof file === 'string') {

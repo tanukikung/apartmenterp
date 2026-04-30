@@ -90,7 +90,7 @@ function SecretInput({
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           autoComplete="off"
-          className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 pr-10 text-sm font-mono text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 pr-10 text-sm font-mono text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40 disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="button"
@@ -116,7 +116,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       onClick={() => void handleCopy()}
-      className="flex items-center gap-1.5 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
+      className="flex items-center gap-1.5 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
     >
       {copied ? <Check className="h-3.5 w-3.5" style={{ color: '#16a34a' }} /> : <Copy className="h-3.5 w-3.5" />}
       {copied ? 'คัดลอกแล้ว' : 'คัดลอก'}
@@ -251,7 +251,7 @@ export default function IntegrationsPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <section className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+      <section className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
         </div>
@@ -259,7 +259,7 @@ export default function IntegrationsPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/admin/settings"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] glass-card shadow-sm transition-all hover:scale-105 active:scale-95"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  shadow-sm transition-all hover:scale-105 active:scale-95"
             >
               <ArrowLeft className="h-4 w-4 text-[hsl(var(--primary))]" />
             </Link>
@@ -281,7 +281,7 @@ export default function IntegrationsPage() {
           <button
             onClick={() => void load()}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
+            className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             รีเฟรช
@@ -306,7 +306,7 @@ export default function IntegrationsPage() {
       {isLoading ? (
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-28 animate-pulse rounded-xl glass-card" />
+            <div key={i} className="h-28 animate-pulse rounded-xl " />
           ))}
         </div>
       ) : (
@@ -351,7 +351,7 @@ export default function IntegrationsPage() {
           )}
 
           {/* Credentials form card */}
-          <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
+          <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
             <div
               className="flex items-center gap-3 px-6 py-4"
               style={{ background: `linear-gradient(135deg, ${LINE_GREEN}15 0%, ${LINE_GREEN}05 100%)` }}
@@ -385,7 +385,7 @@ export default function IntegrationsPage() {
                   placeholder="เช่น 1234567890"
                   onChange={(e) => setChannelId(e.target.value)}
                   disabled={data?.envOverrideActive}
-                  className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] font-mono focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] font-mono focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
 
@@ -417,7 +417,7 @@ export default function IntegrationsPage() {
                     type="text"
                     value={data?.webhookUrl ?? ''}
                     readOnly
-                    className="flex-1 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-xs text-[hsl(var(--card-foreground))] cursor-default select-all font-mono focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                    className="flex-1 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-xs text-[hsl(var(--card-foreground))] cursor-default select-all font-mono focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
                   />
                   {data?.webhookUrl && <CopyButton text={data.webhookUrl} />}
                 </div>
@@ -427,7 +427,7 @@ export default function IntegrationsPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between rounded-b-xl border-t border-[hsl(var(--glass-border))] px-6 py-4 glass-card">
+            <div className="flex items-center justify-between rounded-b-xl border-t border-[hsl(var([hsl(var(--color-border))]))] px-6 py-4 ">
               <p className="text-xs text-[hsl(var(--on-surface-variant))]">
                 {data?.envOverrideActive
                   ? 'ไม่สามารถแก้ไขได้ขณะที่ตัวแปรสภาพแวดล้อมทำงานอยู่'
@@ -450,7 +450,7 @@ export default function IntegrationsPage() {
           </div>
 
           {/* Rich Menu card */}
-          <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
+          <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
             <div
               className="flex items-center gap-3 px-6 py-4"
               style={{ background: `linear-gradient(135deg, ${LINE_GREEN}15 0%, ${LINE_GREEN}05 100%)` }}
@@ -472,7 +472,7 @@ export default function IntegrationsPage() {
                 เมนูนี้มี 4 ปุ่ม: ดูยอดค้าง, ยืนยันชำระเงิน, ดูใบแจ้งหนี้ และส่งใบเสร็จ
               </p>
 
-              <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-4 text-center">
+              <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-4 text-center">
                 <p className="text-xs text-[hsl(var(--on-surface-variant))] mb-2">ตัวอย่าง Rich Menu</p>
                 <div
                   className="inline-grid h-20 w-[260px] divide-x divide-white text-white text-[10px] font-medium rounded-xl overflow-hidden"
@@ -498,7 +498,7 @@ export default function IntegrationsPage() {
                 <button
                   onClick={() => void deleteRichMenu()}
                   disabled={deletingMenu || !data?.connected}
-                  className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {deletingMenu ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                   {deletingMenu ? 'กำลังลบ...' : 'ลบ Rich Menu'}

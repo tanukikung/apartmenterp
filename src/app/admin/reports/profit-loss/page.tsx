@@ -93,7 +93,7 @@ function thaiMonthYear(year: number, month: number): string {
 function GlassCard({ children, className = '', hover = false }: { children: React.ReactNode; className?: string; hover?: boolean }) {
   return (
     <div className={[
-      'rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--color-surface))] backdrop-blur-sm',
+      'rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--color-surface))]',
       'shadow-[0_4px_16px_rgba(0,0,0,0.08)]',
       hover ? 'hover:bg-[hsl(var(--color-surface))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] hover:scale-[1.01] transition-all duration-200 cursor-pointer' : '',
       className,
@@ -180,7 +180,7 @@ export default function AdminProfitLossPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[hsl(var(--primary))]/20 to-[hsl(var(--primary))]/10 px-6 py-5 shadow-[var(--glass-shadow))] backdrop-blur-sm border border-[hsl(var(--glass-border))]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[hsl(var(--primary))]/20 to-[hsl(var(--primary))]/10 px-6 py-5 shadow-[var([hsl(var(--color-border))]))] border border-[hsl(var([hsl(var(--color-border))]))]">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.1),_transparent_60%)]" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
@@ -197,7 +197,7 @@ export default function AdminProfitLossPage() {
               <select
                 value={monthFilter}
                 onChange={(e) => setMonthFilter(e.target.value)}
-                className="appearance-none rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--color-surface))] py-2 pl-3 pr-8 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur-sm"
+                className="appearance-none rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--color-surface))] py-2 pl-3 pr-8 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               >
                 {monthOptions.map((o) => (
                   <option key={o.value} value={o.value} className="bg-[hsl(var(--color-surface))]">{o.label}</option>
@@ -208,14 +208,14 @@ export default function AdminProfitLossPage() {
             <button
               onClick={() => void loadReport()}
               disabled={loading || !monthFilter}
-              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:bg-[hsl(var(--primary))]/10 active:scale-95 disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:bg-[hsl(var(--primary))]/10 active:scale-95 disabled:opacity-40"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button
               onClick={() => exportCSV()}
               disabled={loading || !report}
-              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:bg-[hsl(var(--primary))]/10 active:scale-95 disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:bg-[hsl(var(--primary))]/10 active:scale-95 disabled:opacity-40"
             >
               <Download className="h-4 w-4" />
               ส่งออก CSV
@@ -268,7 +268,7 @@ export default function AdminProfitLossPage() {
           {/* Net Profit */}
           <GlassCard className={`p-5 ${report.netProfit >= 0 ? 'hover' : ''}`} hover>
             <div className="flex items-start gap-4">
-              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${report.netProfit >= 0 ? 'border-indigo-500/30 bg-indigo-500/10 shadow-glow-primary' : 'border-red-500/30 bg-red-500/10 shadow-[0_4px_16px_rgba(239,68,68,0.15)]'}`}>
+              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${report.netProfit >= 0 ? 'border-indigo-500/30 bg-indigo-500/10 shadow-[0_0_20px_rgba(99,102,241,0.15)]' : 'border-red-500/30 bg-red-500/10 shadow-[0_4px_16px_rgba(239,68,68,0.15)]'}`}>
                 <BarChart2 className={`h-5 w-5 ${report.netProfit >= 0 ? 'text-indigo-600' : 'text-red-600'}`} />
               </div>
               <div className="min-w-0">
@@ -284,7 +284,7 @@ export default function AdminProfitLossPage() {
           {/* Expense Count */}
           <GlassCard className="p-5" hover>
             <div className="flex items-start gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--color-surface))]">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--color-surface))]">
                 <DollarSign className="h-5 w-5 text-[hsl(var(--on-surface-variant))]" />
               </div>
               <div className="min-w-0">
@@ -339,11 +339,11 @@ export default function AdminProfitLossPage() {
           <GlassCard className="p-5">
             <h3 className="text-lg font-semibold text-[hsl(var(--card-foreground))] mb-4">สรุป {thaiMonthYear(report.year, report.month)}</h3>
             <div className="space-y-4">
-              <div className="flex justify-between items-center py-3 border-b border-[hsl(var(--glass-border))]">
+              <div className="flex justify-between items-center py-3 border-b border-[hsl(var([hsl(var(--color-border))]))]">
                 <span className="text-[hsl(var(--on-surface-variant))]">รายได้ค่าเช่า</span>
                 <span className="font-semibold text-[hsl(var(--card-foreground))]">฿{formatBaht(report.totalIncome)}</span>
               </div>
-              <div className="flex justify-between items-center py-3 border-b border-[hsl(var(--glass-border))]">
+              <div className="flex justify-between items-center py-3 border-b border-[hsl(var([hsl(var(--color-border))]))]">
                 <span className="text-[hsl(var(--on-surface-variant))]">รายจ่ายรวม</span>
                 <span className="font-semibold text-red-600">−฿{formatBaht(report.totalExpenses)}</span>
               </div>
@@ -361,7 +361,7 @@ export default function AdminProfitLossPage() {
       {/* No report yet */}
       {!loading && !report && !error && (
         <GlassCard className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--color-surface))] mb-4 shadow-[0_0_20px_rgba(99,102,241,0.15)]">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--color-surface))] mb-4 shadow-[0_0_20px_rgba(99,102,241,0.15)]">
             <BarChart2 className="h-7 w-7 text-indigo-600" />
           </div>
           <p className="font-semibold text-[hsl(var(--card-foreground))]">เลือกเดือนเพื่อดูรายงาน</p>

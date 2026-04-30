@@ -108,7 +108,7 @@ export default function StaffRequestsPage() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.15),_transparent_60%)]" />
         <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-primary/5 blur-3xl" />
         <div className="relative flex items-center gap-3">
-          <Link href="/admin/settings" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 backdrop-blur-md transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
+          <Link href="/admin/settings" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
             <ArrowLeft className="h-4 w-4 text-white/70" />
           </Link>
           <div>
@@ -120,7 +120,7 @@ export default function StaffRequestsPage() {
 
       {/* Error alert */}
       {error && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur-sm px-5 py-4 text-sm text-red-400">
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-400">
           {error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล'}
         </div>
       )}
@@ -257,7 +257,7 @@ export default function StaffRequestsPage() {
 
       {/* Action error */}
       {actionError && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur-sm px-5 py-4 text-sm text-red-400">
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-400">
           {actionError}
         </div>
       )}

@@ -25,6 +25,7 @@ export function broadcastLineMessage(msg: {
   createdAt: string;
   tenantId: string | null;
   lineMessageId: string | null;
+  webhookReceivedAt?: number;
 }): void {
   if (clients.size === 0) return;
 

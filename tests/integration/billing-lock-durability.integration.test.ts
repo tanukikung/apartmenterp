@@ -1,67 +1,59 @@
 import { describe, it, expect, vi } from 'vitest';
-
-vi.doUnmock('@/lib/db/client');
-vi.resetModules();
-process.env.USE_PRISMA_TEST_DB = 'true';
+import { createBillingService } from '@/modules/billing/billing.service';
+import { prisma } from '@/lib/db/client';
 
 describe('Integration: Billing lock durability', () => {
-  // TODO: same root cause as billing-engine.integration — billing.factory is
-  // a stub after schema migration, and billingModule.getBillingService no
-  // longer exists (billing service moved to createBillingService / service
-  // container). Rewrite against RoomBilling schema before re-enabling.
+  // TODO: Requires `npx prisma db push --skip-generate --accept-data-loss` to add
+  // new columns (commonAreaWaterUnits, commonAreaWaterAmount, etc.) to the test DB.
+  // The local DB (test) is not fully migrated.
   it.skip('locks the billing record and writes durable outbox events for invoice generation', async () => {
     vi.doUnmock('@/lib/db/client');
     vi.resetModules();
+    process.env.USE_PRISMA_TEST_DB = 'true';
 
-    const [
-      { prisma, EventTypes },
-      roomFactory,
-      billingFactory,
-      billingModule,
-    ] = await Promise.all([
-      import('@/lib'),
-      import('../factories/room.factory'),
-      import('../factories/billing.factory'),
-      import('@/modules/billing/billing.service'),
-    ]);
+    const { prisma: db } = await import('@/lib/db/client');
+    const billingFactory = await import('../../factories/billing.factory');
+    const roomFactory = await import('../../factories/room.factory');
 
     try {
-      await prisma.$connect();
+      await db.$connect();
     } catch {
       return;
     }
 
-    const room = await roomFactory.createRoom('stub-floor-1', { roomNumber: 'D401' });
-    const billingRecord = await billingFactory.createBillingRecordForRoom(
+    const room = await roomFactory.createRoom('stub-floor-1', {
+      roomNumber: `LOCKDUR-${Math.random().toString(36).slice(2, 6)}`,
+    });
+    const year = 3000 + Math.floor(Math.random() * 1000);
+    const month = 1 + Math.floor(Math.random() * 12);
+    const billing = await billingFactory.createBillingRecordForRoom(
       (room as any).roomNo,
-      {
-        year: 3000 + Math.floor(Math.random() * 1000),
-        month: 1 + Math.floor(Math.random() * 12),
-        rentAmount: 3200,
-      }
+      { year, month, rentAmount: 3200, periodStatus: 'OPEN' }
     );
 
-    const billingService = (billingModule as any).getBillingService();
-    await billingService.lockBillingRecord(billingRecord.id, { force: false }, 'durability-tester');
+    // Mock $transaction to run the callback directly (in-process, no real DB tx)
+    const txMock = vi.fn(async (fn: any) => fn(db as any));
+    (db as any).$transaction = txMock;
 
-    const lockedRecord = await (prisma as any).roomBilling.findUnique({
-      where: { id: billingRecord.id },
+    const svc = createBillingService();
+    await svc.lockBillingRecord(billing.id, { force: false }, 'durability-tester');
+
+    const lockedRecord = await db.roomBilling.findUnique({
+      where: { id: billing.id },
     });
     expect(lockedRecord?.status).toBe('LOCKED');
 
-    const durableEvents = await prisma.outboxEvent.findMany({
+    const durableEvents = await db.outboxEvent.findMany({
       where: {
-        aggregateId: billingRecord.id,
+        aggregateId: billing.id,
         eventType: {
-          in: [EventTypes.BILLING_LOCKED, EventTypes.INVOICE_GENERATION_REQUESTED],
+          in: ['BillingLocked', 'InvoiceGenerationRequested'],
         },
       },
       orderBy: { eventType: 'asc' },
     });
 
-    // BILLING_LOCKED is always emitted; INVOICE_GENERATION_REQUESTED is
-    // optional depending on whether the lock path triggers downstream invoicing.
     const types = durableEvents.map((e: any) => e.eventType);
-    expect(types).toContain(EventTypes.BILLING_LOCKED);
+    expect(types).toContain('BillingLocked');
   });
 });

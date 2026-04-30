@@ -96,21 +96,21 @@ function RejectModal({
 }) {
   const [reason, setReason] = useState('');
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--glass-border))] glass-card p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))]  p-6 shadow-xl">
         <h2 className="mb-1 text-base font-semibold text-[hsl(var(--card-foreground))]">ปฏิเสธการลงทะเบียน</h2>
         <p className="mb-4 text-sm text-[hsl(var(--on-surface-variant))]">
           ระบุเหตุผลเพิ่มเติมได้ (ไม่บังคับ) ข้อมูลนี้จะถูกบันทึกพร้อมกับรายการ
         </p>
         <textarea
-          className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--card-foreground))] mb-4"
+          className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-2 text-sm text-[hsl(var(--card-foreground))] mb-4"
           placeholder="เหตุผลในการปฏิเสธ (ไม่บังคับ)"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
         />
         <div className="flex justify-end gap-2">
-          <button className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5" onClick={onCancel} disabled={working}>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5" onClick={onCancel} disabled={working}>
             ยกเลิก
           </button>
           <button
@@ -145,8 +145,8 @@ function CorrectionModal({
   const [correctionNote, setCorrectionNote] = useState('');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--glass-border))] glass-card p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))]  p-6 shadow-xl">
         <h2 className="mb-1 text-base font-semibold text-[hsl(var(--card-foreground))]">ขอแก้ไขข้อมูล</h2>
         <p className="mb-4 text-sm text-[hsl(var(--on-surface-variant))]">
           อัปเดตรายละเอียดการลงทะเบียนและส่งบันทึกขอแก้ไขไปยังผู้เช่า
@@ -156,7 +156,7 @@ function CorrectionModal({
           <div>
             <label className="mb-1 block text-sm font-medium text-[hsl(var(--on-surface-variant))]">โทรศัพท์</label>
             <input
-              className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--card-foreground))]"
+              className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-2 text-sm text-[hsl(var(--card-foreground))]"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="หมายเลขโทรศัพท์"
@@ -165,7 +165,7 @@ function CorrectionModal({
           <div>
             <label className="mb-1 block text-sm font-medium text-[hsl(var(--on-surface-variant))]">ห้องที่ระบุ</label>
             <input
-              className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--card-foreground))]"
+              className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-2 text-sm text-[hsl(var(--card-foreground))]"
               value={claimedRoom}
               onChange={(e) => setClaimedRoom(e.target.value)}
               placeholder="หมายเลขห้อง (เช่น 101)"
@@ -176,7 +176,7 @@ function CorrectionModal({
               บันทึกขอแก้ไข <span className="text-red-600">*</span>
             </label>
             <textarea
-              className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--card-foreground))]"
+              className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-2 text-sm text-[hsl(var(--card-foreground))]"
               value={correctionNote}
               onChange={(e) => setCorrectionNote(e.target.value)}
               placeholder="อธิบายรายละเอียดที่ต้องแก้ไข…"
@@ -186,7 +186,7 @@ function CorrectionModal({
         </div>
 
         <div className="flex justify-end gap-2">
-          <button className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5" onClick={onCancel} disabled={working}>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5" onClick={onCancel} disabled={working}>
             ยกเลิก
           </button>
           <button
@@ -355,7 +355,7 @@ export default function TenantRegistrationsPage() {
       className="space-y-6"
     >
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] glass-card px-6 py-5">
+      <section className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  px-6 py-5">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
         </div>
@@ -367,7 +367,7 @@ export default function TenantRegistrationsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full glass-card px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--card-foreground))]">
+            <span className="inline-flex items-center gap-1.5 rounded-full  px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--card-foreground))]">
               <Clock size={11} className="mr-1" />
               {counts.PENDING} รอตรวจ
             </span>
@@ -378,7 +378,7 @@ export default function TenantRegistrationsPage() {
               </span>
             )}
             <button
-              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5"
+              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5"
               onClick={() => void load()}
               disabled={loading}
             >
@@ -404,9 +404,9 @@ export default function TenantRegistrationsPage() {
       )}
 
       {/* ── Content ────────────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
+      <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
         {/* ── Status tabs ──────────────────────────────────────────────────── */}
-        <div className="flex overflow-x-auto border-b border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--card))' }}>
+        <div className="flex overflow-x-auto border-b border-[hsl(var([hsl(var(--color-border))]))]" style={{ background: 'hsl(var(--card))' }}>
           {TABS.map((tab) => {
             const active = activeTab === tab.id;
             return (
@@ -422,7 +422,7 @@ export default function TenantRegistrationsPage() {
                 {tab.label}
                 <span
                   className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
-                    active ? 'glass-card text-[hsl(var(--primary))]' : 'glass-card text-[hsl(var(--on-surface-variant))]'
+                    active ? ' text-[hsl(var(--primary))]' : ' text-[hsl(var(--on-surface-variant))]'
                   }`}
                 >
                   {counts[tab.id]}
@@ -438,7 +438,7 @@ export default function TenantRegistrationsPage() {
             <div className="py-14 text-center text-[hsl(var(--on-surface-variant))]">กำลังโหลดรายการลงทะเบียน...</div>
           ) : visible.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-14 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl glass-card">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl ">
                 <MessageSquare size={22} className="text-[hsl(var(--on-surface-variant))]" />
               </div>
               <div>
@@ -465,13 +465,13 @@ export default function TenantRegistrationsPage() {
                         ? 'rgba(251,191,36,0.3)'
                         : reg.status === 'CORRECTION_REQUESTED'
                         ? 'rgba(251,191,36,0.3)'
-                        : 'hsl(var(--glass-border))',
+                        : 'hsl(var([hsl(var(--color-border))]))',
                       background: 'hsl(var(--card))',
                     }}
                   >
                     {/* Top row: avatar + name + badge */}
                     <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl glass-card text-sm font-bold text-[hsl(var(--primary))]">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl  text-sm font-bold text-[hsl(var(--primary))]">
                         {initials(reg.lineDisplayName)}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -591,14 +591,14 @@ export default function TenantRegistrationsPage() {
       {/* ── KPI summary ────────────────────────────────────────────────────── */}
       {!loading && registrations.length > 0 && (
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-5">
+          <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-5">
             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))] flex items-center gap-1.5">
               <Users size={12} />
               ทั้งหมด
             </div>
             <div className="text-xl font-semibold text-[hsl(var(--card-foreground))]">{counts.ALL}</div>
           </div>
-          <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-5">
+          <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-5">
             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))] flex items-center gap-1.5">
               <Clock size={12} />
               รอตรวจ
@@ -607,14 +607,14 @@ export default function TenantRegistrationsPage() {
               {counts.PENDING}
             </div>
           </div>
-          <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-5">
+          <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-5">
             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))] flex items-center gap-1.5">
               <CheckCircle size={12} />
               อนุมัติ
             </div>
             <div className="text-xl font-semibold text-[#34d399]">{counts.APPROVED}</div>
           </div>
-          <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-5">
+          <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-5">
             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))] flex items-center gap-1.5">
               <XCircle size={12} />
               ปฏิเสธ

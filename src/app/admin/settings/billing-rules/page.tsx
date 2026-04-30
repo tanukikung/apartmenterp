@@ -80,7 +80,7 @@ function RuleForm({
   return (
     <div className="space-y-4">
       {error && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur-sm px-4 py-3 text-sm text-red-400">
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           {error}
         </div>
       )}
@@ -92,7 +92,7 @@ function RuleForm({
           </label>
           <input
             type="text"
-            className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-2 text-sm text-white placeholder:text-white/20 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/20 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             value={form.code}
             onChange={(e) => set('code', e.target.value)}
             placeholder="เช่น STANDARD, PREMIUM"
@@ -106,7 +106,7 @@ function RuleForm({
           </label>
           <input
             type="text"
-            className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-2 text-sm text-white placeholder:text-white/20 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/20 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             value={form.descriptionTh}
             onChange={(e) => set('descriptionTh', e.target.value)}
             placeholder="เช่น มาตรฐาน"
@@ -116,7 +116,7 @@ function RuleForm({
       </div>
 
       {/* Water */}
-      <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-4 space-y-3">
+      <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-white">น้ำ</span>
           <label className="flex items-center gap-2 cursor-pointer">
@@ -133,15 +133,15 @@ function RuleForm({
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-white/40">ค่าบริการ/หน่วย</label>
-              <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.waterUnitPrice} onChange={(e) => set('waterUnitPrice', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
+              <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.waterUnitPrice} onChange={(e) => set('waterUnitPrice', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-white/40">ขั้นต่ำ (บาท)</label>
-              <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.waterMinCharge} onChange={(e) => set('waterMinCharge', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
+              <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.waterMinCharge} onChange={(e) => set('waterMinCharge', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-white/40">ค่าบริการ</label>
-              <select className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.waterServiceFeeMode} onChange={(e) => set('waterServiceFeeMode', e.target.value)}>
+              <select className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.waterServiceFeeMode} onChange={(e) => set('waterServiceFeeMode', e.target.value)}>
                 <option value="NONE" className="bg-[hsl(225,25%,8%)]">ไม่คิด</option>
                 <option value="FLAT_ROOM" className="bg-[hsl(225,25%,8%)]">คงที่/ห้อง</option>
                 <option value="PER_UNIT" className="bg-[hsl(225,25%,8%)]">ต่อหน่วย</option>
@@ -150,14 +150,14 @@ function RuleForm({
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-white/40">จำนวนค่าบริการ</label>
-              <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.waterServiceFeeAmount} onChange={(e) => set('waterServiceFeeAmount', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
+              <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.waterServiceFeeAmount} onChange={(e) => set('waterServiceFeeAmount', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
             </div>
           </div>
         )}
       </div>
 
       {/* Electric */}
-      <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-4 space-y-3">
+      <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-white">ไฟฟ้า</span>
           <label className="flex items-center gap-2 cursor-pointer">
@@ -174,15 +174,15 @@ function RuleForm({
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-white/40">ค่าบริการ/หน่วย</label>
-              <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.electricUnitPrice} onChange={(e) => set('electricUnitPrice', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
+              <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.electricUnitPrice} onChange={(e) => set('electricUnitPrice', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-white/40">ขั้นต่ำ (บาท)</label>
-              <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.electricMinCharge} onChange={(e) => set('electricMinCharge', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
+              <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.electricMinCharge} onChange={(e) => set('electricMinCharge', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-white/40">ค่าบริการ</label>
-              <select className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.electricServiceFeeMode} onChange={(e) => set('electricServiceFeeMode', e.target.value)}>
+              <select className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.electricServiceFeeMode} onChange={(e) => set('electricServiceFeeMode', e.target.value)}>
                 <option value="NONE" className="bg-[hsl(225,25%,8%)]">ไม่คิด</option>
                 <option value="FLAT_ROOM" className="bg-[hsl(225,25%,8%)]">คงที่/ห้อง</option>
                 <option value="PER_UNIT" className="bg-[hsl(225,25%,8%)]">ต่อหน่วย</option>
@@ -191,27 +191,27 @@ function RuleForm({
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-white/40">จำนวนค่าบริการ</label>
-              <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.electricServiceFeeAmount} onChange={(e) => set('electricServiceFeeAmount', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
+              <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.electricServiceFeeAmount} onChange={(e) => set('electricServiceFeeAmount', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
             </div>
           </div>
         )}
       </div>
 
       {/* Penalty */}
-      <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-4 space-y-3">
+      <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
         <span className="text-sm font-semibold text-white">ค่าปรับ</span>
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-white/40">ค่าปรับ/วัน (บาท)</label>
-            <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.penaltyPerDay} onChange={(e) => set('penaltyPerDay', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
+            <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.penaltyPerDay} onChange={(e) => set('penaltyPerDay', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-white/40">ปรับสูงสุด (บาท)</label>
-            <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.maxPenalty} onChange={(e) => set('maxPenalty', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
+            <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.maxPenalty} onChange={(e) => set('maxPenalty', parseFloat(e.target.value) || 0)} min={0} step="0.01" />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-white/40">วันผ่อนผัน</label>
-            <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.gracePeriodDays} onChange={(e) => set('gracePeriodDays', parseInt(e.target.value) || 0)} min={0} />
+            <input type="number" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" value={form.gracePeriodDays} onChange={(e) => set('gracePeriodDays', parseInt(e.target.value) || 0)} min={0} />
           </div>
         </div>
       </div>
@@ -228,7 +228,7 @@ function RuleForm({
         <button
           onClick={onCancel}
           disabled={saving}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-4 py-2 text-sm font-medium text-white/70 hover:bg-white/10 hover:scale-105 active:scale-[0.98] disabled:opacity-50 transition-all"
+          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/70 hover:bg-white/10 hover:scale-105 active:scale-[0.98] disabled:opacity-50 transition-all"
         >
           ยกเลิก
         </button>
@@ -369,7 +369,7 @@ export default function BillingRulesPage() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.15),_transparent_60%)]" />
         <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-primary/5 blur-3xl" />
         <div className="relative flex items-center gap-3">
-          <Link href="/admin/settings" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 backdrop-blur-md transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
+          <Link href="/admin/settings" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
             <ArrowLeft className="h-4 w-4 text-white/70" />
           </Link>
           <div>
@@ -377,13 +377,13 @@ export default function BillingRulesPage() {
             <p className="text-sm text-white/50">กำหนดอัตราค่าน้ำค่าไฟ ค่าบริการ และค่าปรับสำหรับการเรียกเก็บเงิน</p>
           </div>
         </div>
-        <button onClick={() => load()} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98] mt-4" disabled={isLoading}>
+        <button onClick={() => load()} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98] mt-4" disabled={isLoading}>
           {isLoading ? 'กำลังโหลด...' : 'รีเฟรช'}
         </button>
       </div>
 
       {message && (
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 backdrop-blur-sm px-5 py-4 text-sm text-emerald-400 flex items-center gap-2">
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-400 flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           {message}
         </div>

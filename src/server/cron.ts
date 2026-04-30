@@ -167,6 +167,58 @@ export function startCronIfEnabled(): void {
       });
     }
   });
+  // ── Message retention policy ────────────────────────────────────────────────
+  // IMAGE messages: keep MESSAGE_RETENTION_MONTHS (default 1 month)
+  // TEXT/STICKER/SYSTEM: keep MESSAGE_RETENTION_YEARS (default 1 year)
+  cron.schedule('0 3 * * *', async () => {
+    try {
+      const now = new Date();
+
+      const retentionMonths = Number(process.env.MESSAGE_RETENTION_MONTHS ?? 1);
+      const retentionYears = Number(process.env.MESSAGE_RETENTION_YEARS ?? 1);
+
+      if (retentionMonths > 0) {
+        const oneMonthAgo = new Date(now);
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - retentionMonths);
+        const imageResult = await prisma.message.deleteMany({
+          where: {
+            type: 'IMAGE',
+            sentAt: { lt: oneMonthAgo },
+          },
+        });
+
+        logger.info({
+          type: 'cron_message_retention_images',
+          retentionMonths,
+          cutoff: oneMonthAgo.toISOString(),
+          deleted: imageResult.count,
+        });
+      }
+
+      if (retentionYears > 0) {
+        const oneYearAgo = new Date(now);
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - retentionYears);
+        const textResult = await prisma.message.deleteMany({
+          where: {
+            type: { in: ['TEXT', 'STICKER', 'SYSTEM'] },
+            sentAt: { lt: oneYearAgo },
+          },
+        });
+
+        logger.info({
+          type: 'cron_message_retention_texts',
+          retentionYears,
+          cutoff: oneYearAgo.toISOString(),
+          deleted: textResult.count,
+        });
+      }
+    } catch (e) {
+      logger.error({
+        type: 'cron_message_retention_error',
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  });
 }
 
 export function isCronInitialized(): boolean {

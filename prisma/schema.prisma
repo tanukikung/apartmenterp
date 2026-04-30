@@ -172,10 +172,13 @@ model RoomBilling {
   billingPeriod            BillingPeriod     @relation(fields: [billingPeriodId], references: [id])
   room                     Room              @relation(fields: [roomNo], references: [roomNo])
   effectiveRule            BillingRule       @relation("RoomBillingRule", fields: [ruleCode], references: [code])
+  billingAuditLogs         BillingAuditLog[]
 
   @@unique([billingPeriodId, roomNo])
   @@index([billingPeriodId])
   @@index([roomNo])
+  // HIGH-68: composite index for billing period status queries (e.g., all LOCKED in a period)
+  @@index([billingPeriodId, status])
   @@index([status])
   @@index([ruleCode])
   @@index([calculatedAt])
@@ -215,6 +218,8 @@ model Invoice {
   @@index([roomNo, year, month])
   @@index([status])
   @@index([dueDate])
+  // HIGH-68: composite index for overdue invoice queries (status + dueDate filter)
+  @@index([status, dueDate])
   @@map("invoices")
 }
 
@@ -261,6 +266,7 @@ model ImportBatch {
 
 model Payment {
   id               String         @id @default(uuid())
+  transactionId    String?        @unique
   amount           Decimal        @db.Decimal(12, 2)
   paidAt           DateTime @db.Timestamptz(6)
   description      String?
@@ -279,6 +285,7 @@ model Payment {
   updatedAt        DateTime @updatedAt @db.Timestamptz(6)
   matches          PaymentMatch[]
   invoices         Invoice[]      @relation("InvoiceToPayment")
+  paymentHistory   PaymentHistory[]
 
   @@index([status])
   @@index([paidAt])
@@ -405,11 +412,15 @@ model Contract {
   generatedDocuments        GeneratedDocument[]
   moveOut                   MoveOut?
 
-  @@unique([roomNo, status])
   @@index([status])
   @@index([primaryTenantId])
   @@index([startDate])
   @@index([endDate])
+  // HIGH-68: composite index for expiring contracts query (status + endDate filter)
+  @@index([status, endDate])
+  // Partial unique index for active contracts only — replaces @@unique([roomNo, status])
+  // to allow multiple PENDING/EXPIRED contracts per room while enforcing one ACTIVE per room.
+  // Created via migration 20260430000002_add_contract_active_partial_unique_idx.
   @@map("contracts")
 }
 
@@ -450,7 +461,7 @@ model Conversation {
   status        ConversationStatus @default(ACTIVE)
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @db.Timestamptz(6)
-  lineUser      LineUser           @relation(fields: [lineUserId], references: [lineUserId])
+  lineUser      LineUser           @relation(fields: [lineUserId], references: [lineUserId], onDelete: Cascade)
   room          Room?              @relation(fields: [roomNo], references: [roomNo])
   tenant        Tenant?            @relation(fields: [tenantId], references: [id])
   messages      Message[]
@@ -591,15 +602,17 @@ model MaintenanceAttachment {
 }
 
 model AuditLog {
-  id         String   @id @default(uuid())
-  action     String
-  entityType String
-  entityId   String
-  userId     String
-  userName   String
-  details    Json?
-  ipAddress  String?
-  createdAt  DateTime @default(now())
+  id               String   @id @default(uuid())
+  action           String
+  entityType       String
+  entityId         String
+  userId           String
+  userName         String
+  details          Json?
+  ipAddress        String?
+  createdAt        DateTime @default(now())
+  entityVersion    Int      @default(0)
+  previousSignature String?
 
   @@index([action])
   @@index([entityType, entityId])
@@ -1186,6 +1199,7 @@ enum MaintenanceStatus {
 }
 
 enum AdminRole {
+  OWNER
   ADMIN
   STAFF
 }
@@ -1446,4 +1460,90 @@ model MoveOutItem {
 
   @@index([moveOutId])
   @@map("move_out_items")
+}
+
+// ============================================================================
+// P3-02: Payment Reconciliation Audit Trail
+// ============================================================================
+
+enum PaymentHistoryAction {
+  CONFIRMED
+  REJECTED
+  UNMATCHED
+  RECONFIRMED
+  REVERSED
+  @@map("payment_history_action")
+}
+
+model PaymentHistory {
+  id        String               @id @default(uuid())
+  paymentId String?              // null for REJECTED actions where no Payment was created
+  action    PaymentHistoryAction
+  actorId   String
+  actorRole String
+  metadata  Json?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  payment   Payment?             @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("payment_history")
+}
+
+// ============================================================================
+// P3-05: Audit Log for Billing Period Status Transitions
+// ============================================================================
+
+enum BillingAuditAction {
+  LOCK_REQUESTED
+  LOCKED
+  UNLOCKED
+  INVOICE_REQUESTED
+  INVOICE_CREATED
+  INVOICE_CANCELLED
+  @@map("billing_audit_action")
+}
+
+model BillingAuditLog {
+  id              String             @id @default(uuid())
+  billingRecordId String
+  action          BillingAuditAction
+  actorId         String
+  actorRole       String
+  metadata        Json?
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  roomBilling     RoomBilling        @relation(fields: [billingRecordId], references: [id], onDelete: Cascade)
+
+  @@index([billingRecordId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("billing_audit_logs")
+}
+
+model IdempotencyRecord {
+  id           String    @id @default(uuid())
+  key          String    @unique
+  resourceType String
+  resourceId   String?
+  result       Json?
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([resourceType])
+  @@index([createdAt])
+  @@map("idempotency_records")
+}
+
+model FailedMessage {
+  id            String    @id @default(uuid())
+  channel       String
+  payload       Json
+  failureReason String
+  attemptCount  Int       @default(0)
+  lastAttemptAt DateTime  @default(now()) @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([channel])
+  @@index([createdAt])
+  @@map("failed_messages")
 }

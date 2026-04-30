@@ -98,10 +98,10 @@ function Card<T extends object>({ item, meta, onCardClick, hoverable = true, ind
       whileHover={hoverable ? { y: -4 } : undefined}
       onClick={onCardClick ? () => onCardClick(item) : undefined}
       className={
-        `group relative bg-[hsl(var(--color-surface))] rounded-xl border border-[hsl(var(--color-border))]/10 overflow-hidden` +
+        `group relative bg-[hsl(var(--color-surface))] rounded-xl border border-[hsl(var(--color-border))]/10 shadow-[0_2px_8px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.04)] overflow-hidden` +
         ` transition-[box-shadow,border-color] duration-200` +
         (hoverable
-          ? ' hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30 cursor-pointer'
+          ? ' hover:shadow-[0_8px_24px_rgba(0,0,0,0.4),0_0_0_1px_rgba(99,102,241,0.2)] hover:border-[hsl(var(--color-primary))]/30 cursor-pointer'
           : '')
       }
     >

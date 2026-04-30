@@ -142,7 +142,7 @@ function invoiceStatusBadge(status: string): { label: string; cls: string } {
   const map: Record<string, { label: string; cls: string }> = {
     DRAFT:     { label: 'ร่าง',        cls: 'bg-[hsl(var(--color-surface))] text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))]' },
     GENERATED: { label: 'สร้างแล้ว',   cls: 'bg-blue-500/15 text-blue-600 border border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.2)]' },
-    SENT:      { label: 'ส่งแล้ว',     cls: 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 shadow-glow-primary' },
+    SENT:      { label: 'ส่งแล้ว',     cls: 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 shadow-[0_0_20px_rgba(99,102,241,0.15)]' },
     VIEWED:    { label: 'เปิดดูแล้ว', cls: 'bg-violet-500/15 text-violet-600 border border-violet-500/20 shadow-[0_0_10px_rgba(139,92,246,0.2)]' },
     PAID:      { label: 'ชำระแล้ว',   cls: 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/20 shadow-[0_0_10px_rgba(34,197,94,0.25)]' },
     OVERDUE:   { label: 'เกินกำหนด', cls: 'bg-red-500/15 text-red-600 border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.25)]' },
@@ -211,7 +211,7 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ElementTyp
 
 function GlassInfoRow({ icon, label, value }: { icon?: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur-[12px] px-4 py-3.5 hover:bg-[hsl(var(--color-surface))]/[0.05] transition-all duration-200">
+    <div className="flex items-start gap-3 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 hover:bg-[hsl(var(--color-surface-hover))] transition-all duration-200">
       {icon && <span className="mt-0.5 shrink-0 text-[hsl(var(--on-surface-variant))]">{icon}</span>}
       <div className="min-w-0">
         <div className="text-[10px] font-semibold uppercase tracking-[0.07em] text-[hsl(var(--on-surface-variant))]">{label}</div>
@@ -243,8 +243,8 @@ function OverviewTab({ room, editingRoom, setEditingRoom, editForm, setEditForm,
   if (editingRoom) {
     return (
       <form onSubmit={saveEditRoom} className="space-y-5">
-        <section className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur overflow-hidden shadow-[var(--glass-shadow)]">
-          <div className="border-b border-[hsl(var(--color-border))] bg-white/[0.04] backdrop-blur px-4 py-3 flex items-center justify-between">
+        <section className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+          <div className="border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/4 px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--on-surface))]">
               <Pencil className="h-4 w-4 text-[hsl(var(--primary))]" />
               แก้ไขข้อมูลห้อง
@@ -256,17 +256,17 @@ function OverviewTab({ room, editingRoom, setEditingRoom, editForm, setEditForm,
           <div className="grid gap-4 p-4 sm:grid-cols-2">
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-1.5">ค่าเช่า (บาท)</label>
-              <input type="number" min={0} className="w-full px-4 py-2.5 bg-white/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" value={editForm.defaultRentAmount} onChange={e => setEditForm({ ...editForm, defaultRentAmount: e.target.value })} required />
+              <input type="number" min={0} className="w-full px-4 py-2.5 bg-white/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200" value={editForm.defaultRentAmount} onChange={e => setEditForm({ ...editForm, defaultRentAmount: e.target.value })} required />
             </div>
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-1.5">บัญชีเริ่มต้น</label>
-              <select className="w-full px-4 py-2.5 bg-white/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200 cursor-pointer" value={editForm.defaultAccountId} onChange={e => setEditForm({ ...editForm, defaultAccountId: e.target.value })}>
+              <select className="w-full px-4 py-2.5 bg-white/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200 cursor-pointer" value={editForm.defaultAccountId} onChange={e => setEditForm({ ...editForm, defaultAccountId: e.target.value })}>
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-1.5">กฎเรียกเก็บ</label>
-              <select className="w-full px-4 py-2.5 bg-white/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200 cursor-pointer" value={editForm.defaultRuleCode} onChange={e => setEditForm({ ...editForm, defaultRuleCode: e.target.value })}>
+              <select className="w-full px-4 py-2.5 bg-white/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200 cursor-pointer" value={editForm.defaultRuleCode} onChange={e => setEditForm({ ...editForm, defaultRuleCode: e.target.value })}>
                 {rules.map(r => <option key={r.code} value={r.code}>{r.descriptionTh}</option>)}
               </select>
             </div>
@@ -274,7 +274,7 @@ function OverviewTab({ room, editingRoom, setEditingRoom, editForm, setEditForm,
               <input type="checkbox" id="hasFurniture" className="w-4 h-4 rounded border-white/20 text-[hsl(var(--primary))] focus:ring-[hsl(var(--primary))]/40 cursor-pointer" checked={editForm.hasFurniture} onChange={e => setEditForm({ ...editForm, hasFurniture: e.target.checked })} />
               <label htmlFor="hasFurniture" className="text-sm font-medium text-[hsl(var(--on-surface))] cursor-pointer">มีเฟอร์นิเจอร์</label>
               {editForm.hasFurniture && (
-                <input type="number" min={0} className="flex-1 px-4 py-2 bg-white/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200" placeholder="ค่าเฟอร์นิเจอร์" value={editForm.defaultFurnitureAmount} onChange={e => setEditForm({ ...editForm, defaultFurnitureAmount: e.target.value })} />
+                <input type="number" min={0} className="flex-1 px-4 py-2 bg-white/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200" placeholder="ค่าเฟอร์นิเจอร์" value={editForm.defaultFurnitureAmount} onChange={e => setEditForm({ ...editForm, defaultFurnitureAmount: e.target.value })} />
               )}
             </div>
           </div>
@@ -285,7 +285,7 @@ function OverviewTab({ room, editingRoom, setEditingRoom, editForm, setEditForm,
             <button type="button" onClick={() => setEditingRoom(false)} className="px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))] border border-[hsl(var(--color-border))] rounded-lg hover:bg-[hsl(var(--color-surface))] transition-colors active:scale-[0.98]">
               ยกเลิก
             </button>
-            <button type="submit" disabled={editSaving} className="inline-flex items-center gap-2 px-4 py-2 bg-[hsl(var(--primary))] text-white text-sm font-semibold rounded-lg hover:shadow-glow-primary hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50">
+            <button type="submit" disabled={editSaving} className="inline-flex items-center gap-2 px-4 py-2 bg-[hsl(var(--primary))] text-white text-sm font-semibold rounded-lg hover:shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50">
               <Save size={14} />
               {editSaving ? 'กำลังบันทึก...' : 'บันทึก'}
             </button>
@@ -298,15 +298,15 @@ function OverviewTab({ room, editingRoom, setEditingRoom, editForm, setEditForm,
   return (
     <div className="space-y-5">
       {/* Room Info Grid */}
-      <section className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur overflow-hidden shadow-[var(--glass-shadow)]">
-        <div className="border-b border-[hsl(var(--color-border))] bg-white/[0.04] backdrop-blur px-4 py-3 flex items-center justify-between">
+      <section className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+        <div className="border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/4 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--on-surface))]">
             <Info className="h-4 w-4 text-[hsl(var(--primary))]" />
             ข้อมูลห้อง
           </div>
           <button
             onClick={() => setEditingRoom(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))]/15 px-3 py-1.5 text-[11px] font-semibold text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/25 shadow-glow-primary hover:bg-[hsl(var(--primary))]/25 active:scale-[0.98] transition-all duration-200"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))]/15 px-3 py-1.5 text-[11px] font-semibold text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/25 shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:bg-[hsl(var(--primary))]/25 active:scale-[0.98] transition-all duration-200"
           >
             <Pencil size={12} /> แก้ไขข้อมูลห้อง
           </button>
@@ -388,7 +388,7 @@ function TenantTab({ roomNo, room, assigningTenant, setAssigningTenant, selected
           <div className="flex gap-2">
             <button
               onClick={() => void router.push('/admin/contracts?new=true')}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-4 py-2 text-[11px] font-semibold text-[hsl(var(--on-surface))] shadow-[var(--glass-shadow)] hover:bg-white/[0.08] active:scale-[0.98] transition-all duration-200 backdrop-blur"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-4 py-2 text-[11px] font-semibold text-[hsl(var(--on-surface))] shadow-[0_1px_3px_rgba(0,0,0,0.5)] hover:bg-white/[0.08] active:scale-[0.98] transition-all duration-200"
             >
               <FileText size={12} />
               สร้างสัญญาเช่า
@@ -396,7 +396,7 @@ function TenantTab({ roomNo, room, assigningTenant, setAssigningTenant, selected
             {room && room.roomStatus !== 'VACANT' && (
               <button
                 onClick={() => setAssigningTenant(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-[11px] font-semibold text-white shadow-glow-primary shadow-glow-primary-hover active:scale-[0.98] transition-all duration-200"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-[11px] font-semibold text-white shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98] transition-all duration-200"
               >
                 <UserPlus size={12} />
                 จัดสรรผู้เช่า
@@ -407,10 +407,10 @@ function TenantTab({ roomNo, room, assigningTenant, setAssigningTenant, selected
 
         {/* Assign tenant form */}
         {assigningTenant && (
-          <form onSubmit={handleAssignTenant} className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur p-5 space-y-4 shadow-[var(--glass-shadow)]">
+          <form onSubmit={handleAssignTenant} className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 p-5 space-y-4 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
             <div className="text-sm font-semibold text-[hsl(var(--on-surface))]">จัดสรรผู้เช่าให้ห้อง {roomNo}</div>
             <select
-              className="w-full px-4 py-2.5 bg-white/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-white/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200 cursor-pointer"
               value={selectedTenantId}
               onChange={e => setSelectedTenantId(e.target.value)}
               required
@@ -423,10 +423,10 @@ function TenantTab({ roomNo, room, assigningTenant, setAssigningTenant, selected
             {assignError && <div className="text-xs text-red-600">{assignError}</div>}
             {assignSuccess && <div className="text-xs text-emerald-600 font-medium">จัดสรรสำเร็จแล้ว</div>}
             <div className="flex gap-2">
-              <button type="button" onClick={() => setAssigningTenant(false)} className="flex-1 py-2 border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] text-sm font-medium text-[hsl(var(--on-surface))] rounded-lg hover:bg-white/[0.06] active:scale-[0.98] transition-all duration-200 backdrop-blur">
+              <button type="button" onClick={() => setAssigningTenant(false)} className="flex-1 py-2 border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 text-sm font-medium text-[hsl(var(--on-surface))] rounded-lg hover:bg-white/[0.06] active:scale-[0.98] transition-all duration-200">
                 ยกเลิก
               </button>
-              <button type="submit" disabled={assignLoading || !selectedTenantId} className="flex-1 py-2 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg hover:shadow-glow-primary hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] disabled:opacity-50 transition-all duration-200">
+              <button type="submit" disabled={assignLoading || !selectedTenantId} className="flex-1 py-2 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg hover:shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] disabled:opacity-50 transition-all duration-200">
                 {assignLoading ? 'กำลังจัดสรร...' : 'จัดสรร'}
               </button>
             </div>
@@ -442,8 +442,8 @@ function TenantTab({ roomNo, room, assigningTenant, setAssigningTenant, selected
     <div className="space-y-5">
       {/* Tenant Info */}
       {t && (
-        <section className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur overflow-hidden shadow-[var(--glass-shadow)]">
-          <div className="border-b border-[hsl(var(--color-border))] bg-white/[0.04] backdrop-blur px-4 py-3">
+        <section className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+          <div className="border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/4 px-4 py-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--on-surface))]">
               <FileText className="h-4 w-4 text-[hsl(var(--primary))]" />
               ผู้เช่าปัจจุบัน
@@ -470,8 +470,8 @@ function TenantTab({ roomNo, room, assigningTenant, setAssigningTenant, selected
       )}
 
       {/* Contract Info */}
-      <section className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur overflow-hidden shadow-[var(--glass-shadow)]">
-        <div className="border-b border-[hsl(var(--color-border))] bg-white/[0.04] backdrop-blur px-4 py-3">
+      <section className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+        <div className="border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/4 px-4 py-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--on-surface))]">
             <FileText className="h-4 w-4 text-[hsl(var(--primary))]" />
             สัญญาเช่าที่ใช้งาน
@@ -522,8 +522,8 @@ function InvoicesTab({ roomNo }: { roomNo: string }) {
   if (invoices.length === 0) return <EmptyState icon={FileText} title="ไม่มีใบแจ้งหนี้" description="ยังไม่มีการออกใบแจ้งหนี้สำหรับห้องนี้" />;
 
   return (
-    <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur overflow-hidden shadow-[var(--glass-shadow)]">
-      <div className="border-b border-[hsl(var(--color-border))] bg-white/[0.04] backdrop-blur px-4 py-3 flex items-center justify-between">
+    <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+      <div className="border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/4 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--on-surface))]">
           <FileText className="h-4 w-4 text-[hsl(var(--primary))]" />
           ใบแจ้งหนี้
@@ -589,8 +589,8 @@ function MaintenanceTab({ roomNo }: { roomNo: string }) {
   if (tickets.length === 0) return <EmptyState icon={Wrench} title="ไม่มีรายการแจ้งซ่อม" description="ไม่มีรายการแจ้งซ่อมสำหรับห้องนี้" />;
 
   return (
-    <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur overflow-hidden shadow-[var(--glass-shadow)]">
-      <div className="border-b border-[hsl(var(--color-border))] bg-white/[0.04] backdrop-blur px-4 py-3 flex items-center justify-between">
+    <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+      <div className="border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/4 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--on-surface))]">
           <Wrench className="h-4 w-4 text-[hsl(var(--primary))]" />
           รายการแจ้งซ่อม
@@ -651,8 +651,8 @@ function HistoryTab({ roomNo }: { roomNo: string }) {
   if (logs.length === 0) return <EmptyState icon={History} title="ไม่มีประวัติ" description="ไม่พบรายการประวัติสำหรับห้องนี้" />;
 
   return (
-    <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur overflow-hidden shadow-[var(--glass-shadow)]">
-      <div className="border-b border-[hsl(var(--color-border))] bg-white/[0.04] backdrop-blur px-4 py-3 flex items-center justify-between">
+    <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+      <div className="border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/4 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--on-surface))]">
           <History className="h-4 w-4 text-[hsl(var(--primary))]" />
           ประวัติการดำเนินการ
@@ -663,7 +663,7 @@ function HistoryTab({ roomNo }: { roomNo: string }) {
         {logs.map((log, i) => (
           <div key={log.id} className="flex gap-4 px-4 py-4 hover:bg-white/[0.02] transition-colors duration-150">
             <div className="flex flex-col items-center">
-              <div className="w-2 h-2 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary))] mt-1.5 shrink-0 shadow-glow-primary" />
+              <div className="w-2 h-2 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary))] mt-1.5 shrink-0 shadow-[0_0_20px_rgba(99,102,241,0.15)]" />
               {i < logs.length - 1 && <div className="w-px flex-1 bg-white/10 mt-1" />}
             </div>
             <div className="flex-1 min-w-0">
@@ -675,7 +675,7 @@ function HistoryTab({ roomNo }: { roomNo: string }) {
                 <span className="text-xs text-[hsl(var(--on-surface-variant))] shrink-0">{fmtDateTime(log.createdAt)}</span>
               </div>
               {log.details && Object.keys(log.details).length > 0 && (
-                <pre className="mt-1.5 rounded-lg bg-[hsl(var(--color-surface))]/[0.03] px-3 py-2 text-xs text-[hsl(var(--on-surface-variant))] overflow-x-auto whitespace-pre-wrap break-words border border-white/5 backdrop-blur-[12px]">
+                <pre className="mt-1.5 rounded-lg bg-[hsl(var(--color-surface))]/3 px-3 py-2 text-xs text-[hsl(var(--on-surface-variant))] overflow-x-auto whitespace-pre-wrap break-words border border-white/5">
                   {JSON.stringify(log.details, null, 2)}
                 </pre>
               )}
@@ -863,9 +863,9 @@ export default function RoomDetailPage() {
   if (loading) {
     return (
       <main className="space-y-6">
-        <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-gradient-to-br from-[hsl(var(--primary))]/20 to-[hsl(var(--primary))]/5 backdrop-blur px-6 py-5 shadow-[var(--glass-shadow)]">
+        <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-gradient-to-br from-[hsl(var(--primary))]/20 to-[hsl(var(--primary))]/5 px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
           <div className="flex items-center gap-3">
-            <Link href="/admin/rooms" className="flex h-9 w-9 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-white/[0.05] shadow-[var(--glass-shadow)] hover:bg-white/[0.1] active:scale-[0.95] transition-all duration-200">
+            <Link href="/admin/rooms" className="flex h-9 w-9 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.5)] hover:bg-white/[0.1] active:scale-[0.95] transition-all duration-200">
               <ArrowLeft className="h-4 w-4 text-[hsl(var(--primary))]" />
             </Link>
             <div>
@@ -883,9 +883,9 @@ export default function RoomDetailPage() {
   if (error || !room) {
     return (
       <main className="space-y-6">
-        <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-gradient-to-br from-[hsl(var(--primary))]/20 to-[hsl(var(--primary))]/5 backdrop-blur px-6 py-5 shadow-[var(--glass-shadow)]">
+        <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-gradient-to-br from-[hsl(var(--primary))]/20 to-[hsl(var(--primary))]/5 px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
           <div className="flex items-center gap-3">
-            <Link href="/admin/rooms" className="flex h-9 w-9 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-white/[0.05] shadow-[var(--glass-shadow)]">
+            <Link href="/admin/rooms" className="flex h-9 w-9 items-center justify-center rounded-xl border border-[hsl(var(--color-border))] bg-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
               <ArrowLeft className="h-4 w-4 text-[hsl(var(--primary))]" />
             </Link>
             <div>
@@ -893,12 +893,12 @@ export default function RoomDetailPage() {
             </div>
           </div>
         </section>
-        <div className="rounded-xl border border-red-500/15 bg-red-500/5 px-5 py-4 text-sm text-red-600 backdrop-blur shadow-[0_0_12px_rgba(239,68,68,0.15)]">
+        <div className="rounded-xl border border-red-500/15 bg-red-500/5 px-5 py-4 text-sm text-red-600 shadow-[0_0_12px_rgba(239,68,68,0.15)]">
           {error ?? 'ไม่พบห้องพัก'}
         </div>
         <button
           onClick={() => void loadRoom()}
-          className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))] shadow-[var(--glass-shadow)] hover:bg-white/[0.1] active:scale-[0.98] transition-all duration-200 backdrop-blur"
+          className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))] shadow-[0_1px_3px_rgba(0,0,0,0.5)] hover:bg-white/[0.1] active:scale-[0.98] transition-all duration-200"
         >
           <RefreshCw className="h-4 w-4" /> ลองใหม่
         </button>
@@ -918,12 +918,12 @@ export default function RoomDetailPage() {
       </nav>
 
       {/* ── Page header — Dark Glass Hero ─────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-xl bg-[hsl(var(--color-surface))]/60 backdrop-blur border border-[hsl(var(--color-border))] shadow-[var(--glass-shadow)] px-6 py-5">
+      <section className="relative overflow-hidden rounded-xl bg-[hsl(var(--color-surface))]/60 border border-[hsl(var(--color-border))] shadow-[0_1px_3px_rgba(0,0,0,0.5)] px-6 py-5">
         <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))]/10 via-transparent to-transparent" />
         <div className="absolute top-0 right-0 w-64 h-64 bg-[hsl(var(--primary))]/5 rounded-full blur-[80px]" />
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/20 shadow-glow-primary">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/20 shadow-[0_0_20px_rgba(99,102,241,0.15)]">
               <BedDouble className="h-7 w-7" />
             </div>
             <div>
@@ -939,13 +939,13 @@ export default function RoomDetailPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/admin/rooms"
-              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))] shadow-[var(--glass-shadow)] hover:bg-white/[0.1] active:scale-[0.98] transition-all duration-200 backdrop-blur"
+              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))] shadow-[0_1px_3px_rgba(0,0,0,0.5)] hover:bg-white/[0.1] active:scale-[0.98] transition-all duration-200"
             >
               <ArrowLeft className="h-4 w-4" /> กลับ
             </Link>
             <button
               onClick={() => setEditingRoom(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white shadow-glow-primary shadow-glow-primary-hover hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200"
+              className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200"
             >
               <Pencil className="h-4 w-4" /> แก้ไข
             </button>
@@ -954,7 +954,7 @@ export default function RoomDetailPage() {
       </section>
 
       {/* ── Tab Navigation — Dark Glass ─────────────────────────────────── */}
-      <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur overflow-hidden shadow-[var(--glass-shadow)]">
+      <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
         <div className="border-b border-[hsl(var(--color-border))] overflow-x-auto">
           <nav className="flex min-w-max">
             {TABS.map(tab => {

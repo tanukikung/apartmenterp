@@ -26,12 +26,137 @@ export interface LineUserProfile {
 }
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+const LINE_TOKEN_REFRESH_MAX_RETRIES = 3;
+const LINE_TOKEN_REFRESH_BASE_DELAY_MS = 1000;
+
+// ============================================================================
 // LINE Client Wrapper
 // ============================================================================
 
 class LineClientWrapper {
   private client: Client | null = null;
   private config: LineConfig | null = null;
+  private tokenExpiresAt: number = 0;
+  /** Set to true when refresh fails after all retries so the next request forces a fresh attempt. */
+  private refreshFailed = false;
+
+  /**
+   * Ensure the access token is still valid — refresh if expired or about to expire.
+   * LINE channel access tokens are valid for 30 days (2592000 seconds). We refresh
+   * proactively when < 5 days remain, to avoid edge-case failures near expiry.
+   * Called lazily on each outbound operation via withRetry wrapper.
+   *
+   * On refresh failure: retries up to 3 times with exponential backoff (1s, 2s, 4s).
+   * After retries exhausted, sets an internal flag so the next request tries again
+   * rather than reusing a stale token. Does not throw — degraded functionality is
+   * preferred over total failure.
+   */
+  async ensureTokenFresh(): Promise<void> {
+    const now = Date.now();
+    // Refresh if token expires within 5 days (avoids expiry during long-running operations)
+    // Also refresh if a previous refresh attempt failed (refreshFailed flag)
+    if (
+      this.tokenExpiresAt === 0 ||
+      now >= this.tokenExpiresAt - 5 * 24 * 60 * 60 * 1000 ||
+      this.refreshFailed
+    ) {
+      await this.refreshAccessTokenWithRetry();
+    }
+  }
+
+  /**
+   * Refresh the LINE access token with retry and exponential backoff.
+   * Retries up to LINE_TOKEN_REFRESH_MAX_RETRIES times on failure.
+   * After all retries are exhausted, sets refreshFailed so the next request
+   * will try again (rather than silently using a stale token).
+   */
+  private async refreshAccessTokenWithRetry(): Promise<void> {
+    for (
+      let attempt = 1;
+      attempt <= LINE_TOKEN_REFRESH_MAX_RETRIES;
+      attempt++
+    ) {
+      try {
+        await this.doRefreshAccessToken();
+        // Success — reset failure flag and retry counter
+        this.refreshFailed = false;
+        return;
+      } catch (err) {
+        const delay = LINE_TOKEN_REFRESH_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        logger.warn({
+          type: 'line_token_refresh_retry',
+          attempt,
+          maxRetries: LINE_TOKEN_REFRESH_MAX_RETRIES,
+          delayMs: delay,
+          error: err instanceof Error ? err.message : String(err),
+        });
+
+        if (attempt < LINE_TOKEN_REFRESH_MAX_RETRIES) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    // All retries exhausted — mark refresh as failed so next request tries again
+    this.refreshFailed = true;
+    logger.error({
+      type: 'line_token_refresh_exhausted',
+      message: 'LINE token refresh failed after 3 retries; will retry on next request',
+    });
+  }
+
+  /**
+   * Perform a single token refresh attempt against the LINE API.
+   * Throws on network failure or non-2xx response so the caller can retry.
+   */
+  private async doRefreshAccessToken(): Promise<void> {
+    const channelId = process.env.LINE_CHANNEL_ID;
+    const channelSecret = process.env.LINE_CHANNEL_SECRET;
+    if (!channelId || !channelSecret) {
+      throw new Error('LINE credentials not configured');
+    }
+
+    const url = 'https://api.line.me/oauth2/v2.1/token';
+    const grantType = 'client_credentials';
+
+    let newToken: string | null = null;
+    let newExpiresIn = 0;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: grantType,
+        client_id: channelId,
+        client_secret: channelSecret,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`LINE token refresh failed: ${res.status} ${res.statusText}`);
+    }
+
+    const data = await res.json() as { access_token?: string; expires_in?: number };
+    newToken = data.access_token ?? null;
+    newExpiresIn = data.expires_in ?? 0;
+
+    if (!newToken || newExpiresIn <= 0) {
+      throw new Error('LINE token refresh returned empty token or invalid expires_in');
+    }
+
+    this.config = {
+      ...this.config!,
+      accessToken: newToken,
+    };
+    this.tokenExpiresAt = Date.now() + newExpiresIn * 1000;
+    this.client = new Client({ channelAccessToken: newToken, channelSecret: this.config.channelSecret });
+    logger.info({ type: 'line_token_refreshed', expiresInSeconds: newExpiresIn });
+  }
 
   /**
    * Initialize or get the LINE client
@@ -54,6 +179,8 @@ class LineClientWrapper {
   reset(): void {
     this.client = null;
     this.config = null;
+    this.tokenExpiresAt = 0;
+    this.refreshFailed = false;
   }
 
   /**
@@ -135,13 +262,50 @@ class LineClientWrapper {
 // Singleton instance
 const lineClientWrapper = new LineClientWrapper();
 
+// Failed message channel constant
+const LINE_CHANNEL = 'LINE';
+
+// ============================================================================
+// FailedMessage DLQ
+// ============================================================================
+
+/**
+ * Record a message send failure to the FailedMessage table after all retries
+ * are exhausted. The record is stored with channel='LINE' so the admin UI can
+ * list, review, and manually retry failed LINE messages.
+ */
+async function recordFailedMessage(payload: Record<string, unknown>, failureReason: string): Promise<void> {
+  // Import prisma lazily to avoid circular dependency issues at module load time.
+  const { prisma: db } = await import('@/lib/db/client');
+  try {
+    await db.failedMessage.create({
+      data: {
+        channel: LINE_CHANNEL,
+        payload: payload as never,
+        failureReason,
+        attemptCount: 0,
+        lastAttemptAt: new Date(),
+      },
+    });
+  } catch (err) {
+    // If recording itself fails, log and continue — we don't want DLQ failure
+    // to crash the caller. The message is already lost, but at least we log.
+    logger.error({
+      type: 'failed_message_record_error',
+      error: err instanceof Error ? err.message : String(err),
+      payload,
+    });
+  }
+}
+
 // ============================================================================
 // Retry Logic
 // ============================================================================
 
 async function withRetry<T>(
   fn: () => Promise<T>,
-  options: LineMessageOptions = {}
+  options: LineMessageOptions = {},
+  capturePayload?: () => Record<string, unknown>
 ): Promise<T> {
   const maxRetries = options.retryCount ?? 3;
   const baseDelay = options.retryDelay ?? 1000;
@@ -149,6 +313,9 @@ async function withRetry<T>(
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      // Ensure token is fresh before each attempt (handles proactive refresh)
+      await lineClientWrapper.ensureTokenFresh();
+
       const timeoutMs = 10000;
       const result = await Promise.race([
         fn(),
@@ -159,7 +326,7 @@ async function withRetry<T>(
       return result as T;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Unknown error');
-      
+
       // Don't retry on certain errors
       if (lastError.message.includes('Invalid token') ||
           lastError.message.includes('Signature validation failed') ||
@@ -169,7 +336,7 @@ async function withRetry<T>(
 
       // Calculate delay with exponential backoff
       const delay = baseDelay * Math.pow(2, attempt - 1);
-      
+
       logger.warn({
         type: 'line_retry',
         attempt,
@@ -182,6 +349,14 @@ async function withRetry<T>(
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
+  }
+
+  // All retries exhausted — record to FailedMessage DLQ if payload capture is available
+  if (capturePayload) {
+    await recordFailedMessage(
+      capturePayload(),
+      lastError?.message ?? 'Unknown error after retries'
+    );
   }
 
   throw lastError;
@@ -231,6 +406,7 @@ export async function sendFlexMessage(
   options: LineMessageOptions = {},
   quickReplyItems?: QuickReplyItem[]
 ): Promise<MessageAPIResponseBase> {
+  const payload = { userId, altText, contents, options, quickReplyItems };
   return withRetry(
     async () => {
       const client = getLineClient();
@@ -263,7 +439,8 @@ export async function sendFlexMessage(
 
       return result;
     },
-    options
+    options,
+    () => payload
   );
 }
 
@@ -286,6 +463,7 @@ export async function sendLineMessage(
   text: string,
   options: LineMessageOptions = {}
 ): Promise<MessageAPIResponseBase> {
+  const payload = { userId, text, options };
   return withRetry(
     async () => {
       const client = getLineClient();
@@ -302,7 +480,8 @@ export async function sendLineMessage(
 
       return result;
     },
-    options
+    options,
+    () => payload
   );
 }
 
@@ -317,6 +496,7 @@ export async function sendTextWithQuickReply(
   quickReplyItems: QuickReplyItem[],
   options: LineMessageOptions = {}
 ): Promise<MessageAPIResponseBase> {
+  const payload = { userId, text, quickReplyItems, options };
   return withRetry(
     async () => {
       const client = getLineClient();
@@ -345,7 +525,8 @@ export async function sendTextWithQuickReply(
 
       return result;
     },
-    options
+    options,
+    () => payload
   );
 }
 
@@ -455,6 +636,7 @@ export async function sendTemplateMessage(
   template: object,
   options: LineMessageOptions = {}
 ): Promise<MessageAPIResponseBase> {
+  const payload = { userId, altText, template, options };
   return withRetry(
     async () => {
       const client = getLineClient();
@@ -471,7 +653,8 @@ export async function sendTemplateMessage(
 
       return result;
     },
-    options
+    options,
+    () => payload
   );
 }
 
@@ -579,6 +762,7 @@ export async function sendLineFileMessage(
   fileName: string,
   options: LineMessageOptions = {}
 ): Promise<MessageAPIResponseBase> {
+  const payload = { userId, fileUrl, fileName, options };
   return withRetry(
     async () => {
       const client = getLineClient();
@@ -597,7 +781,8 @@ export async function sendLineFileMessage(
 
       return result;
     },
-    options
+    options,
+    () => payload
   );
 }
 
@@ -610,6 +795,7 @@ export async function sendLineImageMessage(
   imageUrl: string,
   options: LineMessageOptions = {}
 ): Promise<MessageAPIResponseBase> {
+  const payload = { userId, imageUrl, options };
   return withRetry(
     async () => {
       // Download the image buffer first
@@ -640,7 +826,8 @@ export async function sendLineImageMessage(
 
       return result;
     },
-    options
+    options,
+    () => payload
   );
 }
 

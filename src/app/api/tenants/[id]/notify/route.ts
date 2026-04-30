@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getVerifiedActor, requireRole } from '@/lib/auth/guards';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, ConflictError, NotFoundError } from '@/lib/utils/errors';
 import { getOutboxProcessor } from '@/lib/outbox';
 import { logAudit } from '@/modules/audit';
 import { logger, prisma } from '@/lib';
 import { applyPlainTextTemplateVariables } from '@/lib/templates/document-template';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
+const CHAT_WINDOW_MS = 60 * 1000;
+const CHAT_MAX_ATTEMPTS = 20;
 
 const schema = z.object({
   type: z.literal('overdue_reminder').default('overdue_reminder'),
@@ -17,9 +20,17 @@ export const POST = asyncHandler(
     req: NextRequest,
     { params }: { params: { id: string } },
   ): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN', 'STAFF']);
+    const limiter = getLoginRateLimiter();
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+    const { allowed, remaining, resetAt } = await limiter.check(`tenant-notify:${ip}`, CHAT_MAX_ATTEMPTS, CHAT_WINDOW_MS);
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+      );
+    }
+    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const input = schema.parse(await req.json());
-    const actor = getVerifiedActor(req);
 
     const tenant = await prisma.tenant.findUnique({
       where: { id: params.id },
@@ -111,8 +122,7 @@ export const POST = asyncHandler(
     );
 
     await logAudit({
-      actorId: actor.actorId,
-      actorRole: actor.actorRole,
+      req,
       action: 'REMINDER_SEND_REQUESTED',
       entityType: 'CONVERSATION',
       entityId: conversation.id,

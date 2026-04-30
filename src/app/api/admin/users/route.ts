@@ -3,9 +3,15 @@ import { AdminRole } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/client';
 import { hashPassword } from '@/lib/auth/password';
-import { getRequestIp, requireRole } from '@/lib/auth/guards';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, ConflictError, ForbiddenError } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit/audit.service';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+export const dynamic = 'force-dynamic';
+
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 20;
 
 const createUserSchema = z.object({
   username: z.string().min(3).max(32).regex(/^[a-zA-Z0-9._-]+$/),
@@ -16,7 +22,7 @@ const createUserSchema = z.object({
 });
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const [users, resetTokens, pendingRequests] = await Promise.all([
     prisma.adminUser.findMany({
@@ -111,7 +117,17 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 });
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN']);
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`admin-users:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  // Only OWNER may create users — prevents ADMIN from escalating to OWNER
+  requireRole(req, ['OWNER']);
   const body = createUserSchema.parse(await req.json());
   const username = body.username.trim().toLowerCase();
   const email = body.email?.trim().toLowerCase() || null;
@@ -166,8 +182,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   });
 
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
+    req,
     action: 'ADMIN_USER_CREATED',
     entityType: 'AdminUser',
     entityId: user.id,
@@ -177,7 +192,6 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       email: user.email,
       forcePasswordChange: true,
     },
-    ipAddress: getRequestIp(req),
   });
 
   return NextResponse.json({

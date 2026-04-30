@@ -7,7 +7,7 @@ import { requireRole } from '@/lib/auth/guards';
 export const dynamic = 'force-dynamic';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN']);
+  requireRole(req, ['ADMIN', 'OWNER']);
   const url = new URL(req.url);
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || '20')));
   const unreadOnly = url.searchParams.get('unreadOnly') === 'true';

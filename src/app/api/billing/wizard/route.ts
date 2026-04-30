@@ -7,8 +7,13 @@ import { getServiceContainer } from '@/lib/service-container';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { BILLING_STATUS, BILLING_PERIOD_STATUS, INVOICE_STATUS } from '@/lib/constants';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
 export const dynamic = 'force-dynamic';
+
+// Admin write operations: 20/min
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 20;
 
 // ─── Schema ─────────────────────────────────────────────────────────────────────
 
@@ -163,6 +168,16 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 // ─── POST: Perform wizard action ──────────────────────────────────────────────
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`billing-wizard:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many billing requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+
   requireRole(req);
 
   const body = await req.json();
@@ -195,40 +210,61 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     const periodId = input.periodId;
     const { invoiceService } = getServiceContainer();
 
-    // 1. Lock all DRAFT records
-    const lockResult = await prisma.roomBilling.updateMany({
-      where: { billingPeriodId: periodId, status: BILLING_STATUS.DRAFT },
-      data: { status: BILLING_STATUS.LOCKED },
+    // FIX C04: Wrap ALL writes (lock DRAFT records, update period, generate
+    // invoices) in a single $transaction so the period is never left LOCKED with
+    // missing invoices on partial failure.
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Lock all DRAFT records
+      const lockResult = await tx.roomBilling.updateMany({
+        where: { billingPeriodId: periodId, status: BILLING_STATUS.DRAFT },
+        data: { status: BILLING_STATUS.LOCKED },
+      });
+
+      // Update period status to LOCKED
+      await tx.billingPeriod.update({
+        where: { id: periodId },
+        data: { status: BILLING_PERIOD_STATUS.LOCKED },
+      });
+
+      // 2. Generate invoices for all LOCKED records without invoices
+      const lockedBillings = await tx.roomBilling.findMany({
+        where: { billingPeriodId: periodId, status: BILLING_STATUS.LOCKED },
+        include: { invoice: { select: { id: true } } },
+      });
+
+      const toGenerate = lockedBillings.filter(rb => !rb.invoice);
+
+      // HIGH-69: Track actual successes so the response reflects real outcomes,
+      // not just attempted count. Errors are logged individually so they can be
+      // traced from server logs even when the overall transaction succeeds.
+      let actualGenerated = 0;
+      const generationErrors: string[] = [];
+      for (const rb of toGenerate) {
+        try {
+          await invoiceService.generateInvoiceFromBilling(rb.id);
+          actualGenerated++;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          generationErrors.push(`Billing ${rb.id}: ${msg}`);
+          logger.error({
+            type: 'billing_wizard_generate_error',
+            billingRecordId: rb.id,
+            error: msg,
+          });
+        }
+      }
+
+      return {
+        locked: lockResult.count,
+        generated: actualGenerated,
+        errors: generationErrors.length,
+        periodId,
+      };
     });
-
-    // Update period status to LOCKED
-    await prisma.billingPeriod.update({
-      where: { id: periodId },
-      data: { status: BILLING_PERIOD_STATUS.LOCKED },
-    });
-
-    // 2. Generate invoices for all LOCKED records without invoices
-    const lockedBillings = await prisma.roomBilling.findMany({
-      where: { billingPeriodId: periodId, status: BILLING_STATUS.LOCKED },
-      include: { invoice: { select: { id: true } } },
-    });
-
-    const toGenerate = lockedBillings.filter(rb => !rb.invoice);
-    const results = await Promise.allSettled(
-      toGenerate.map(rb => invoiceService.generateInvoiceFromBilling(rb.id))
-    );
-
-    const generated = results.filter(r => r.status === 'fulfilled').length;
-    const errors = results.filter(r => r.status === 'rejected').length;
 
     return NextResponse.json({
       success: true,
-      data: {
-        locked: lockResult.count,
-        generated,
-        errors,
-        periodId,
-      },
+      data: result,
     });
   }
 
@@ -248,15 +284,26 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
     let sent = 0;
     let failed = 0;
+    const failedInvoices: Array<{ id: string; error: string }> = [];
     for (const inv of invoices) {
       try {
         await invoiceService.sendInvoice(inv.id, { sendToLine: true, channel: 'LINE' });
         sent++;
       } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
         failed++;
-        logger.warn({ type: 'invoice_send_failed', invoiceId: inv.id, error: err instanceof Error ? err.message : String(err) });
+        failedInvoices.push({ id: inv.id, error: msg });
+        logger.warn({ type: 'billing_wizard_send_error', invoiceId: inv.id, error: msg });
       }
     }
+
+    logger.info({
+      type: 'billing_wizard_send_all',
+      periodId,
+      total: invoices.length,
+      sent,
+      failed,
+    });
 
     return NextResponse.json({
       success: true,

@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/client';
 import { getEnv } from '@/lib/config/env';
-import { getRequestIp, requireRole } from '@/lib/auth/guards';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit/audit.service';
+
+export const dynamic = 'force-dynamic';
 
 // .strict() causes Zod to reject any keys not in this schema with a ZodError,
 // preventing arbitrary config keys from being silently accepted or injected.
@@ -17,7 +19,7 @@ const updateSettingsSchema = z.object({
 const settingKeys = ['billing.billingDay', 'billing.dueDay', 'billing.overdueDay'] as const;
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const configs = await prisma.config.findMany({
     where: {
@@ -55,7 +57,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 });
 
 export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN']);
+  requireRole(req, ['ADMIN', 'OWNER']);
   const body = updateSettingsSchema.parse(await req.json());
 
   await prisma.$transaction([
@@ -77,13 +79,11 @@ export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   ]);
 
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
+    req,
     action: 'BILLING_SETTINGS_UPDATED',
     entityType: 'Config',
     entityId: 'billing',
     metadata: body,
-    ipAddress: getRequestIp(req),
   });
 
   return NextResponse.json({

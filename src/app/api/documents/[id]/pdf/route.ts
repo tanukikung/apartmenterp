@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, NotFoundError } from '@/lib/utils/errors';
 import { getDocumentGenerationService } from '@/modules/documents/generation.service';
 import { logAudit } from '@/modules/audit';
@@ -8,7 +7,6 @@ export const GET = asyncHandler(async (
   req: NextRequest,
   { params }: { params: { id: string } },
 ): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN', 'STAFF']);
   const service = getDocumentGenerationService();
   const document = await service.getDocumentById(params.id);
   const pdf = document.files.find((file) => file.role === 'PDF');
@@ -17,8 +15,7 @@ export const GET = asyncHandler(async (
   }
 
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
+    req,
     action: 'GENERATED_DOCUMENT_PDF_EXPORTED',
     entityType: 'GENERATED_DOCUMENT',
     entityId: params.id,

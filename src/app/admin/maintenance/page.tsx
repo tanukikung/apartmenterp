@@ -69,7 +69,7 @@ const ALL_STATUSES: Status[] = ['OPEN', 'IN_PROGRESS', 'WAITING_PARTS', 'DONE', 
 function GlassCard({ children, className = '', hover = false }: { children: React.ReactNode; className?: string; hover?: boolean }) {
   return (
     <div className={[
-      'rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur',
+      'rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]',
       'shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_1px_hsl(var(--color-border))]',
       hover ? 'hover:bg-[hsl(var(--color-surface))] hover:shadow-[0_8px_32px_hsl(var(--color-primary)/0.08),0_0_0_1px_hsl(var(--color-primary)/0.15)] hover:scale-[1.01] transition-all duration-200 cursor-pointer' : '',
       className,
@@ -174,17 +174,17 @@ function MaintenancePage() {
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Toast */}
       {toast && (
-        <div className="fixed top-4 right-4 z-50 bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] text-[hsl(var(--on-surface))] px-4 py-2 rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.12)] backdrop-blur text-sm">
+        <div className="fixed top-4 right-4 z-50 bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] text-[hsl(var(--on-surface))] px-4 py-2 rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.12)] text-sm">
           {toast}
         </div>
       )}
 
       {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-[hsl(var(--primary))] px-6 py-5 shadow-[0_8px_32px_hsl(var(--color-primary)/0.2)] backdrop-blur">
+      <div className="relative overflow-hidden rounded-2xl bg-[hsl(var(--primary))] px-6 py-5 shadow-[0_8px_32px_hsl(var(--color-primary)/0.2)]">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--color-surface)/0.15)] ring-1 ring-[hsl(var(--color-border))] shadow-[var(--glow-primary)]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--color-surface)/0.15)] ring-1 ring-[hsl(var(--color-border))] shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
               <Wrench className="h-5 w-5 text-[hsl(var(--on-primary))]" />
             </div>
             <div>
@@ -202,7 +202,7 @@ function MaintenancePage() {
       <div className="grid gap-4 md:grid-cols-4">
         <GlassCard className="p-5" hover>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] shadow-[var(--glow-primary)]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
               <Clock className="h-5 w-5 text-[hsl(var(--primary))]" />
             </div>
             <div>
@@ -255,7 +255,7 @@ function MaintenancePage() {
               onClick={() => setStatusFilter(s)}
               className={`rounded-xl border px-4 py-2 text-sm font-medium transition-all active:scale-95 ${
                 statusFilter === s
-                  ? 'bg-[hsl(var(--primary))] text-[hsl(var(--on-primary))] border-[hsl(var(--primary))] shadow-[var(--glow-primary)]'
+                  ? 'bg-[hsl(var(--primary))] text-[hsl(var(--on-primary))] border-[hsl(var(--primary))] shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
                   : 'bg-[hsl(var(--color-surface))] text-[hsl(var(--on-surface-variant))] border-[hsl(var(--color-border))] hover:bg-[hsl(var(--color-surface))]'
               }`}
             >

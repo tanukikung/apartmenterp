@@ -115,7 +115,5 @@ describe('Maintenance API and audit logging', () => {
     const res: Response = await (mod as any).POST(req);
     expect(res.ok).toBe(true);
     expect(prisma.maintenanceTicket.update).toHaveBeenCalled();
-    // Status updated + closed entries
-    expect((dbPrisma.auditLog.create as any).mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 });

@@ -90,7 +90,7 @@ const FILTER_TABS: { key: FilterTab; label: string }[] = [
 
 function SkeletonRoomCard() {
   return (
-    <div className="animate-pulse rounded-xl border border-white/5 bg-[hsl(var(--color-surface))] backdrop-blur p-3">
+    <div className="animate-pulse rounded-xl border border-white/5 bg-[hsl(var(--color-surface))] p-3">
       <div className="mb-2 h-5 w-12 rounded-full bg-[hsl(var(--color-surface))]" />
       <div className="mb-1 h-3 w-16 rounded-full bg-[hsl(var(--color-surface))]" />
       <div className="h-3 w-10 rounded-full bg-[hsl(var(--color-surface))]" />
@@ -170,7 +170,7 @@ export default function FloorDetailPage() {
       </nav>
 
       {/* Page header */}
-      <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-6 py-5"
+      <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-6 py-5"
         style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.04)' }}
       >
         <div className="flex items-center gap-4">
@@ -195,7 +195,7 @@ export default function FloorDetailPage() {
 
       {/* Stats row */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">ห้องทั้งหมด</div>
@@ -207,7 +207,7 @@ export default function FloorDetailPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-emerald-500/20 bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(34,197,94,0.15)]">
+        <div className="rounded-xl border border-emerald-500/20 bg-[hsl(var(--color-surface))] p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(34,197,94,0.15)]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">มีผู้เช่า</div>
@@ -219,7 +219,7 @@ export default function FloorDetailPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-blue-500/20 bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(59,130,246,0.15)]">
+        <div className="rounded-xl border border-blue-500/20 bg-[hsl(var(--color-surface))] p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(59,130,246,0.15)]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">ว่าง</div>
@@ -231,7 +231,7 @@ export default function FloorDetailPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-amber-500/20 bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(251,191,36,0.15)]">
+        <div className="rounded-xl border border-amber-500/20 bg-[hsl(var(--color-surface))] p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(251,191,36,0.15)]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">ซ่อมบำรุง</div>
@@ -259,7 +259,7 @@ export default function FloorDetailPage() {
               className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.98] ${
                 isActive
                   ? 'border-primary/40 bg-primary/15 text-primary shadow-[0_0_12px_rgba(99,102,241,0.15)]'
-                  : 'border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur text-[hsl(var(--on-surface-variant))] hover:border-white/20 hover:bg-[hsl(var(--color-surface))]'
+                  : 'border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] text-[hsl(var(--on-surface-variant))] hover:border-white/20 hover:bg-[hsl(var(--color-surface))]'
               }`}
             >
               {tab.label}
@@ -280,7 +280,7 @@ export default function FloorDetailPage() {
         {loading ? (
           Array.from({ length: 20 }).map((_, i) => <SkeletonRoomCard key={i} />)
         ) : filteredRooms.length === 0 ? (
-          <div className="col-span-5 rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-10 text-center text-[hsl(var(--on-surface-variant))]">
+          <div className="col-span-5 rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-10 text-center text-[hsl(var(--on-surface-variant))]">
             ไม่มีห้องที่ตรงกับตัวกรองที่เลือก
           </div>
         ) : (
@@ -291,7 +291,7 @@ export default function FloorDetailPage() {
               <Link
                 key={room.id}
                 href={`/admin/rooms/${room.id}`}
-                className={`group flex flex-col rounded-xl border ${style.border} ${style.bg} backdrop-blur p-3 transition-all duration-200 active:scale-[0.98] ${style.hover}`}
+                className={`group flex flex-col rounded-xl border ${style.border} ${style.bg} p-3 transition-all duration-200 active:scale-[0.98] ${style.hover}`}
                 style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.04)' }}
               >
                 {/* Room number */}

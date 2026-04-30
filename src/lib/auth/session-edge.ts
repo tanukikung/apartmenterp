@@ -2,7 +2,7 @@ export interface EdgeSessionPayload {
   sub: string;
   username: string;
   displayName: string;
-  role: 'ADMIN' | 'STAFF';
+  role: 'OWNER' | 'ADMIN' | 'STAFF';
   forcePasswordChange: boolean;
   buildingId: string | null; // Reserved for multi-building isolation (not yet enforced at API layer)
   exp: number;

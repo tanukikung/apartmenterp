@@ -19,6 +19,10 @@ import { parseFullWorkbook } from './import-parser';
 import { createBillingService, DEFAULT_DUE_DAY } from './billing.service';
 import { getStorage } from '@/infrastructure/storage';
 
+// sql and join are runtime utilities in Prisma 5.x not in all TS declarations.
+const sql = (prisma as unknown as Record<string, unknown>).sql as (s: TemplateStringsArray, ...v: unknown[]) => unknown;
+const join = (prisma as unknown as Record<string, unknown>).join as (a: unknown[]) => unknown;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -298,7 +302,9 @@ export async function executeBillingImportBatch(
 
     if (hasStoredRows) {
       // Use stored accounts/rules from errorLog if available, otherwise parse from buffer
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const accounts = (errorLogObj['accounts'] as any as Array<Record<string, unknown>>) ?? [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rules = (errorLogObj['rules'] as any as Array<Record<string, unknown>>) ?? [];
 
       // Get billingPeriod from stored rows (use first row's metadata) or parse from config
@@ -369,67 +375,94 @@ export async function executeBillingImportBatch(
 
       let imported = 0;
       let skipped = 0;
-      let errors = 0;
+      const errors = 0;
 
-      for (const row of rows) {
+      // HIGH-01 fix: replaced sequential per-row upserts with two batch operations.
+      // Prefetch was already done above (roomsMap, billingsMap); now partition and batch.
+      const validRows = rows.filter(row => {
         const roomNo = row['roomNo'] as string;
-        try {
-          const dbRoom = roomsMap.get(roomNo);
-          if (!dbRoom) { skipped++; continue; }
-          const existingBilling = billingsMap.get(roomNo);
-          if (existingBilling && existingBilling.status !== 'DRAFT') { skipped++; continue; }
+        const dbRoom = roomsMap.get(roomNo);
+        if (!dbRoom) { skipped++; return false; }
+        const existingBilling = billingsMap.get(roomNo);
+        if (existingBilling && existingBilling.status !== 'DRAFT') { skipped++; return false; }
+        return true;
+      });
 
-          const ruleCode = (row['ruleCode'] as string) ?? 'DEFAULT';
-
-          // Inline upsert — create new RoomBilling or update existing DRAFT
-          const billingData = {
-            recvAccountOverrideId: row['recvAccountOverrideId'] as string | undefined,
-            recvAccountId: row['recvAccountId'] as string | undefined,
-            ruleOverrideCode: row['ruleOverrideCode'] as string | undefined,
-            ruleCode,
-            rentAmount: Number(row['rentAmount']) || 0,
-            waterMode: (row['waterMode'] as MeterMode | null) ?? ('NORMAL' as MeterMode),
-            waterPrev: row['waterPrev'] as number | undefined,
-            waterCurr: row['waterCurr'] as number | undefined,
-            waterUnitsManual: row['waterUnitsManual'] as number | null | undefined,
-            waterUnits: Number(row['waterUnits']) || 0,
-            waterUsageCharge: Number(row['waterUsageCharge']) || 0,
-            waterServiceFeeManual: row['waterServiceFeeManual'] as number | null | undefined,
-            waterServiceFee: Number(row['waterServiceFee']) || 0,
-            waterTotal: Number(row['waterTotal']) || 0,
-            electricMode: (row['electricMode'] as MeterMode | null) ?? ('NORMAL' as MeterMode),
-            electricPrev: row['electricPrev'] as number | undefined,
-            electricCurr: row['electricCurr'] as number | undefined,
-            electricUnitsManual: row['electricUnitsManual'] as number | null | undefined,
-            electricUnits: Number(row['electricUnits']) || 0,
-            electricUsageCharge: Number(row['electricUsageCharge']) || 0,
-            electricServiceFeeManual: row['electricServiceFeeManual'] as number | null | undefined,
-            electricServiceFee: Number(row['electricServiceFee']) || 0,
-            electricTotal: Number(row['electricTotal']) || 0,
-            furnitureFee: Number(row['furnitureFee']) || 0,
-            otherFee: Number(row['otherFee']) || 0,
-            totalDue: Number(row['totalDue']) || 0,
-            note: row['note'] as string | undefined,
-            checkNotes: row['checkNotes'] as string | undefined,
-          };
-
-          if (existingBilling) {
-            await prisma.roomBilling.update({
-              where: { id: existingBilling.id },
-              data: billingData as Parameters<typeof prisma.roomBilling.update>[0]['data'],
-            });
-          } else {
-            const createData = {
-              id: uuidv4(),
-              billingPeriodId,
-              roomNo,
-              status: 'DRAFT' as const,
-              ...billingData,
-            };
-            await prisma.roomBilling.create({ data: createData as Parameters<typeof prisma.roomBilling.create>[0]['data'] });
-          }
-          imported++;
-        } catch { errors++; }
+      if (validRows.length > 0) {
+        // Batch upsert via raw SQL — single DB round-trip for all rows.
+        await prisma.$executeRaw`
+          INSERT INTO "room_billings" (
+            "id", "billingPeriodId", "roomNo", "status",
+            "recvAccountOverrideId", "recvAccountId", "ruleOverrideCode", "ruleCode",
+            "rentAmount",
+            "waterMode", "waterPrev", "waterCurr", "waterUnitsManual",
+            "waterUnits", "waterUsageCharge", "waterServiceFeeManual", "waterServiceFee", "waterTotal",
+            "electricMode", "electricPrev", "electricCurr", "electricUnitsManual",
+            "electricUnits", "electricUsageCharge", "electricServiceFeeManual", "electricServiceFee", "electricTotal",
+            "furnitureFee", "otherFee", "totalDue",
+            "note", "checkNotes"
+          ) VALUES ${join(validRows.map(row => {
+            const ruleCode = (row['ruleCode'] as string) ?? 'DEFAULT';
+            return sql`
+              (
+                ${uuidv4()}, ${billingPeriodId}, ${row['roomNo'] as string}, ${'DRAFT'},
+                ${(row['recvAccountOverrideId'] as string) ?? sql`NULL`},
+                ${(row['recvAccountId'] as string) ?? sql`NULL`},
+                ${(row['ruleOverrideCode'] as string) ?? sql`NULL`},
+                ${ruleCode},
+                ${Number(row['rentAmount']) || 0}::decimal,
+                ${((row['waterMode'] as MeterMode | null) ?? 'NORMAL')}, ${row['waterPrev'] as number ?? sql`NULL`},
+                ${row['waterCurr'] as number ?? sql`NULL`},
+                ${row['waterUnitsManual'] as number ?? sql`NULL`},
+                ${Number(row['waterUnits']) || 0}::decimal, ${Number(row['waterUsageCharge']) || 0}::decimal,
+                ${row['waterServiceFeeManual'] as number ?? sql`NULL`},
+                ${Number(row['waterServiceFee']) || 0}::decimal, ${Number(row['waterTotal']) || 0}::decimal,
+                ${((row['electricMode'] as MeterMode | null) ?? 'NORMAL')}, ${row['electricPrev'] as number ?? sql`NULL`},
+                ${row['electricCurr'] as number ?? sql`NULL`},
+                ${row['electricUnitsManual'] as number ?? sql`NULL`},
+                ${Number(row['electricUnits']) || 0}::decimal, ${Number(row['electricUsageCharge']) || 0}::decimal,
+                ${row['electricServiceFeeManual'] as number ?? sql`NULL`},
+                ${Number(row['electricServiceFee']) || 0}::decimal, ${Number(row['electricTotal']) || 0}::decimal,
+                ${Number(row['furnitureFee']) || 0}::decimal, ${Number(row['otherFee']) || 0}::decimal,
+                ${Number(row['totalDue']) || 0}::decimal,
+                ${(row['note'] as string) ?? sql`NULL`},
+                ${(row['checkNotes'] as string) ?? sql`NULL`}
+              )
+            `;
+          }))}
+          ON CONFLICT ("billingPeriodId", "roomNo")
+          DO UPDATE SET
+            "recvAccountOverrideId" = EXCLUDED."recvAccountOverrideId",
+            "recvAccountId" = EXCLUDED."recvAccountId",
+            "ruleOverrideCode" = EXCLUDED."ruleOverrideCode",
+            "ruleCode" = EXCLUDED."ruleCode",
+            "rentAmount" = EXCLUDED."rentAmount",
+            "waterMode" = EXCLUDED."waterMode",
+            "waterPrev" = EXCLUDED."waterPrev",
+            "waterCurr" = EXCLUDED."waterCurr",
+            "waterUnitsManual" = EXCLUDED."waterUnitsManual",
+            "waterUnits" = EXCLUDED."waterUnits",
+            "waterUsageCharge" = EXCLUDED."waterUsageCharge",
+            "waterServiceFeeManual" = EXCLUDED."waterServiceFeeManual",
+            "waterServiceFee" = EXCLUDED."waterServiceFee",
+            "waterTotal" = EXCLUDED."waterTotal",
+            "electricMode" = EXCLUDED."electricMode",
+            "electricPrev" = EXCLUDED."electricPrev",
+            "electricCurr" = EXCLUDED."electricCurr",
+            "electricUnitsManual" = EXCLUDED."electricUnitsManual",
+            "electricUnits" = EXCLUDED."electricUnits",
+            "electricUsageCharge" = EXCLUDED."electricUsageCharge",
+            "electricServiceFeeManual" = EXCLUDED."electricServiceFeeManual",
+            "electricServiceFee" = EXCLUDED."electricServiceFee",
+            "electricTotal" = EXCLUDED."electricTotal",
+            "furnitureFee" = EXCLUDED."furnitureFee",
+            "otherFee" = EXCLUDED."otherFee",
+            "totalDue" = EXCLUDED."totalDue",
+            "note" = EXCLUDED."note",
+            "checkNotes" = EXCLUDED."checkNotes",
+            "updatedAt" = NOW()
+        `;
+        imported += validRows.length;
       }
 
       result = {

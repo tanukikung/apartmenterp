@@ -285,7 +285,7 @@ export default function DeliveriesPage() {
       className="space-y-6"
     >
       {/* Header */}
-      <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] glass-card px-6 py-5">
+      <div className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  px-6 py-5">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
         </div>
@@ -295,10 +295,10 @@ export default function DeliveriesPage() {
             <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">ติดตามสถานะการส่งเอกสารผ่าน LINE</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/admin/documents" className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]">
+            <Link href="/admin/documents" className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]">
               เอกสาร
             </Link>
-            <button onClick={() => void refetch()} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]">
+            <button onClick={() => void refetch()} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]">
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               รีเฟรช
             </button>
@@ -337,8 +337,8 @@ export default function DeliveriesPage() {
         ]}
       />
 
-      <section className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
-        <div className="flex flex-col gap-3 px-4 py-3 border-b border-[hsl(var(--glass-border))] md:flex-row md:items-center md:justify-between" style={{ background: 'hsl(var(--card))' }}>
+      <section className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
+        <div className="flex flex-col gap-3 px-4 py-3 border-b border-[hsl(var([hsl(var(--color-border))]))] md:flex-row md:items-center md:justify-between" style={{ background: 'hsl(var(--card))' }}>
           <div className="text-sm font-semibold text-[hsl(var(--card-foreground))]">รายการ Delivery Orders ({total})</div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[200px]">
@@ -349,7 +349,7 @@ export default function DeliveriesPage() {
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 placeholder="ค้นหา..."
                 aria-label="ค้นหา"
-                className="w-full rounded-lg border border-[hsl(var(--glass-border))] glass-card py-2 pl-9 pr-3 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  py-2 pl-9 pr-3 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -358,7 +358,7 @@ export default function DeliveriesPage() {
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
                 aria-label="กรองตามสถานะ"
-                className="rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--card-foreground))]"
+                className="rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-2 text-sm text-[hsl(var(--card-foreground))]"
               >
                 <option value="">ทุกสถานะ</option>
                 <option value="DRAFT">ฉบับร่าง</option>
@@ -383,7 +383,7 @@ export default function DeliveriesPage() {
             action={(searchDebounced || statusFilter) ? { label: 'ล้างตัวกรอง', onClick: () => { setSearch(''); setStatusFilter(''); setPage(1); } } : undefined}
           />
         ) : (
-          <div className="divide-y divide-[hsl(var(--glass-border))]">
+          <div className="divide-y divide-[hsl(var([hsl(var(--color-border))]))]">
             {orders.some((o) => o.status === 'DRAFT') && (
               <div className="flex items-center gap-3 px-4 py-2" style={{ background: 'rgba(255,255,255,0.03)' }}>
                 <input
@@ -394,7 +394,7 @@ export default function DeliveriesPage() {
                     return drafts.length > 0 && drafts.every((o) => selectedOrders.has(o.id));
                   })()}
                   onChange={toggleAllDrafts}
-                  className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]"
+                  className="h-4 w-4 rounded border-[hsl(var([hsl(var(--color-border))]))] accent-[hsl(var(--primary))]"
                 />
                 <span className="text-xs text-[hsl(var(--on-surface-variant))]">เลือกฉบับร่างทั้งหมดเพื่อส่งเป็นกลุ่ม</span>
               </div>
@@ -409,7 +409,7 @@ export default function DeliveriesPage() {
                       checked={selectedOrders.has(order.id)}
                       onChange={() => toggleOrder(order.id)}
                       onClick={(e) => e.stopPropagation()}
-                      className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]"
+                      className="h-4 w-4 rounded border-[hsl(var([hsl(var(--color-border))]))] accent-[hsl(var(--primary))]"
                     />
                   </div>
                 ) : (
@@ -443,7 +443,7 @@ export default function DeliveriesPage() {
                         onClick={(e) => { e.stopPropagation(); if (!isLineConfigured()) { toastError('LINE ไม่ได้รับการตั้งค่า ไม่สามารถส่งได้'); return; } void handleSend(order.id); }}
                         disabled={sending === order.id}
                         aria-label="ส่งรายการ"
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))] px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-all hover:scale-105 active:scale-95 hover:shadow-glow-primary-hover disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))] px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-all hover:scale-105 active:scale-95 hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] disabled:opacity-50"
                       >
                         {sending === order.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                         ส่ง
@@ -453,7 +453,7 @@ export default function DeliveriesPage() {
                 </button>
 
                 {expandedId === order.id && (
-                  <div className="border-t border-[hsl(var(--glass-border))] px-4 py-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                  <div className="border-t border-[hsl(var([hsl(var(--color-border))]))] px-4 py-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
                     {itemsLoading === order.id ? (
                       <div className="flex items-center justify-center py-4">
                         <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--on-surface-variant))]" />
@@ -473,7 +473,7 @@ export default function DeliveriesPage() {
                               <th className="pb-2"></th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-[hsl(var(--glass-border))]">
+                          <tbody className="divide-y divide-[hsl(var([hsl(var(--color-border))]))]">
                             {(itemsMap[order.id] ?? []).map((item) => (
                               <tr key={item.id}>
                                 <td className="py-1.5 pr-2">
@@ -499,7 +499,7 @@ export default function DeliveriesPage() {
                                     <button
                                       onClick={() => { if (!isLineConfigured()) { toastError('LINE ไม่ได้รับการตั้งค่า ไม่สามารถส่งซ้ำได้'); return; } void handleResendItem(order.id, item.id); }}
                                       aria-label="ส่งซ้ำ"
-                                      className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-2 py-1 text-xs font-medium text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]"
+                                      className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-2 py-1 text-xs font-medium text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05]"
                                     >
                                       <RefreshCw className="h-3 w-3" />
                                       Retry
@@ -521,15 +521,15 @@ export default function DeliveriesPage() {
         )}
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-[hsl(var(--glass-border))] px-4 py-3">
+          <div className="flex items-center justify-between border-t border-[hsl(var([hsl(var(--color-border))]))] px-4 py-3">
             <span className="text-sm text-[hsl(var(--on-surface-variant))]">หน้า {page} จาก {totalPages} ({total} รายการ)</span>
             <div className="flex gap-2">
               <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}
-                className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05] disabled:opacity-50">
+                className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05] disabled:opacity-50">
                 ก่อนหน้า
               </button>
               <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-                className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05] disabled:opacity-50">
+                className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-[hsl(var(--color-surface))]/[0.05] disabled:opacity-50">
                 ถัดไป
               </button>
             </div>

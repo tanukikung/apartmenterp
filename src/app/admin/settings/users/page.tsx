@@ -101,7 +101,7 @@ function ResetPasswordButton({ userId, userDisplayName: _userDisplayName }: { us
         </button>
         <button
           onClick={() => setConfirmUserId(null)}
-          className="inline-flex items-center rounded-lg border border-[hsl(var(--glass-border))] glass-card px-2.5 py-1 text-xs font-medium text-[hsl(var(--card-foreground))] hover:bg-white/5 transition-all hover:scale-105 active:scale-95"
+          className="inline-flex items-center rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-2.5 py-1 text-xs font-medium text-[hsl(var(--card-foreground))] hover:bg-white/5 transition-all hover:scale-105 active:scale-95"
         >
           ยกเลิก
         </button>
@@ -304,7 +304,7 @@ export default function AdminUsersSettingsPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <section className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+      <section className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
         </div>
@@ -312,7 +312,7 @@ export default function AdminUsersSettingsPage() {
           <div className="flex items-center gap-4">
             <Link
               href="/admin/settings"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] glass-card shadow-sm transition-all hover:scale-105 active:scale-95"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  shadow-sm transition-all hover:scale-105 active:scale-95"
             >
               <ArrowLeft className="h-4 w-4 text-[hsl(var(--primary))]" />
             </Link>
@@ -321,7 +321,7 @@ export default function AdminUsersSettingsPage() {
               <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">สร้างและจัดการบัญชีแอดมินและพนักงาน</p>
             </div>
           </div>
-          <button onClick={() => load()} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95" disabled={isLoading}>
+          <button onClick={() => load()} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95" disabled={isLoading}>
             {isLoading ? 'กำลังโหลด...' : 'รีเฟรช'}
           </button>
         </div>
@@ -354,14 +354,14 @@ export default function AdminUsersSettingsPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Users table */}
-        <section className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden lg:col-span-2">
-          <div className="border-b border-[hsl(var(--glass-border))] px-5 py-4">
+        <section className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden lg:col-span-2">
+          <div className="border-b border-[hsl(var([hsl(var(--color-border))]))] px-5 py-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-[hsl(var(--primary))]" />
                 <div className="text-sm font-semibold text-[hsl(var(--card-foreground))]">ผู้ใช้แอดมินทั้งหมด</div>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full glass-card px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--card-foreground))]">
+              <span className="inline-flex items-center gap-1.5 rounded-full  px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--card-foreground))]">
                 {users.length} ผู้ใช้
               </span>
             </div>
@@ -370,7 +370,7 @@ export default function AdminUsersSettingsPage() {
           <div className="overflow-auto">
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="border-b border-[hsl(var(--glass-border))]">
+                <tr className="border-b border-[hsl(var([hsl(var(--color-border))]))]">
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ชื่อผู้ใช้</th>
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ชื่อที่แสดง</th>
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">บทบาท</th>
@@ -385,13 +385,13 @@ export default function AdminUsersSettingsPage() {
                 {isLoading ? (
                   Array.from({ length: 4 }).map((_, i) => (
                     <tr key={i}>
-                      <td className="px-4 py-3"><div className="h-4 w-28 animate-pulse rounded glass-card" /></td>
-                      <td className="px-4 py-3"><div className="h-4 w-20 animate-pulse rounded glass-card" /></td>
-                      <td className="px-4 py-3"><div className="h-4 w-14 animate-pulse rounded glass-card" /></td>
-                      <td className="px-4 py-3"><div className="h-4 w-24 animate-pulse rounded glass-card" /></td>
-                      <td className="px-4 py-3"><div className="h-4 w-24 animate-pulse rounded glass-card" /></td>
-                      <td className="px-4 py-3"><div className="h-4 w-24 animate-pulse rounded glass-card" /></td>
-                      <td className="px-4 py-3"><div className="h-4 w-24 animate-pulse rounded glass-card" /></td>
+                      <td className="px-4 py-3"><div className="h-4 w-28 animate-pulse rounded " /></td>
+                      <td className="px-4 py-3"><div className="h-4 w-20 animate-pulse rounded " /></td>
+                      <td className="px-4 py-3"><div className="h-4 w-14 animate-pulse rounded " /></td>
+                      <td className="px-4 py-3"><div className="h-4 w-24 animate-pulse rounded " /></td>
+                      <td className="px-4 py-3"><div className="h-4 w-24 animate-pulse rounded " /></td>
+                      <td className="px-4 py-3"><div className="h-4 w-24 animate-pulse rounded " /></td>
+                      <td className="px-4 py-3"><div className="h-4 w-24 animate-pulse rounded " /></td>
                     </tr>
                   ))
                 ) : users.length === 0 ? (
@@ -402,7 +402,7 @@ export default function AdminUsersSettingsPage() {
                   </tr>
                 ) : (
                   users.map((user) => (
-                    <tr key={user.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-white/5 transition-colors">
+                    <tr key={user.id} className="border-b border-[hsl(var([hsl(var(--color-border))]))] hover:bg-white/5 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold" style={{ background: 'hsl(var(--primary))', color: 'white' }}>
@@ -425,7 +425,7 @@ export default function AdminUsersSettingsPage() {
                         {user.isActive ? (
                           <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold text-emerald-600" style={{ background: 'rgba(34,197,94,0.15)' }}>ใช้งาน</span>
                         ) : (
-                          <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--on-surface-variant))] glass-card">ไม่ใช้งาน</span>
+                          <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--on-surface-variant))] ">ไม่ใช้งาน</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
@@ -473,8 +473,8 @@ export default function AdminUsersSettingsPage() {
         </section>
 
         {/* Create user form */}
-        <section className="rounded-xl border border-[hsl(var(--glass-border))] glass-card h-fit">
-          <div className="border-b border-[hsl(var(--glass-border))] px-5 py-4">
+        <section className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  h-fit">
+          <div className="border-b border-[hsl(var([hsl(var(--color-border))]))] px-5 py-4">
             <div className="flex items-center gap-2">
               <UserPlus className="h-4 w-4 text-[hsl(var(--primary))]" />
               <div className="text-sm font-semibold text-[hsl(var(--card-foreground))]">สร้างผู้ใช้</div>
@@ -488,36 +488,36 @@ export default function AdminUsersSettingsPage() {
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-[hsl(var(--card-foreground))]">ชื่อผู้ใช้ <span className="text-red-500">*</span></label>
-              <input type="text" className="w-full rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40" placeholder="เช่น manager01" value={form.username} onChange={(e) => field('username', e.target.value)} autoComplete="off" required />
+              <input type="text" className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40" placeholder="เช่น manager01" value={form.username} onChange={(e) => field('username', e.target.value)} autoComplete="off" required />
             </div>
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-[hsl(var(--card-foreground))]">ชื่อที่แสดง <span className="text-red-500">*</span></label>
-              <input type="text" className="w-full rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40" placeholder="เช่น ผู้จัดการอาคาร" value={form.displayName} onChange={(e) => field('displayName', e.target.value)} autoComplete="name" required />
+              <input type="text" className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40" placeholder="เช่น ผู้จัดการอาคาร" value={form.displayName} onChange={(e) => field('displayName', e.target.value)} autoComplete="name" required />
             </div>
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-[hsl(var(--card-foreground))]">อีเมล <span className="text-[hsl(var(--on-surface-variant))] font-normal">(ไม่บังคับ)</span></label>
-              <input type="email" className="w-full rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40" placeholder="เช่น manager@example.com" value={form.email} onChange={(e) => field('email', e.target.value)} autoComplete="email" />
+              <input type="email" className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40" placeholder="เช่น manager@example.com" value={form.email} onChange={(e) => field('email', e.target.value)} autoComplete="email" />
             </div>
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-[hsl(var(--card-foreground))]">รหัสผ่าน <span className="text-red-500">*</span></label>
               <div className="relative">
                 <Key className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--on-surface-variant))]" />
-                <input type="password" className="w-full rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 pl-9 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40" placeholder="อย่างน้อย 8 ตัวอักษร" value={form.password} onChange={(e) => field('password', e.target.value)} autoComplete="new-password" required minLength={8} />
+                <input type="password" className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 pl-9 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40" placeholder="อย่างน้อย 8 ตัวอักษร" value={form.password} onChange={(e) => field('password', e.target.value)} autoComplete="new-password" required minLength={8} />
               </div>
             </div>
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-[hsl(var(--card-foreground))]">บทบาท <span className="text-red-500">*</span></label>
-              <select className="w-full rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20" value={form.role} onChange={(e) => field('role', e.target.value)}>
+              <select className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20" value={form.role} onChange={(e) => field('role', e.target.value)}>
                 <option value="ADMIN">ADMIN</option>
                 <option value="STAFF">STAFF</option>
               </select>
             </div>
 
-            <button type="submit" className="mt-1 inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] text-white px-4 py-2 text-sm font-semibold shadow-sm transition-all hover:scale-105 active:scale-95 hover:shadow-glow-primary-hover disabled:opacity-50" disabled={saving || apiUnavailable}>
+            <button type="submit" className="mt-1 inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] text-white px-4 py-2 text-sm font-semibold shadow-sm transition-all hover:scale-105 active:scale-95 hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] disabled:opacity-50" disabled={saving || apiUnavailable}>
               <UserPlus className="h-4 w-4" />
               {saving ? 'กำลังสร้าง...' : 'สร้างผู้ใช้'}
             </button>
@@ -528,8 +528,8 @@ export default function AdminUsersSettingsPage() {
 
         {/* Edit user modal */}
         {editingUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--glass-border))] glass-card p-6 shadow-xl">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="w-full max-w-md rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))]  p-6 shadow-xl">
               <h3 className="mb-4 text-base font-semibold text-[hsl(var(--card-foreground))]">แก้ไขผู้ใช้: {editingUser.username}</h3>
               {editError && (
                 <div className="mb-4 rounded-lg border border-red-500/30 px-4 py-3 text-sm font-medium" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>{editError}</div>
@@ -537,17 +537,17 @@ export default function AdminUsersSettingsPage() {
               <div className="flex flex-col gap-4">
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-[hsl(var(--card-foreground))]">ชื่อที่แสดง</label>
-                  <input type="text" value={editForm.displayName} onChange={(e) => setEditForm((p) => ({ ...p, displayName: e.target.value }))} className="w-full rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20" required />
+                  <input type="text" value={editForm.displayName} onChange={(e) => setEditForm((p) => ({ ...p, displayName: e.target.value }))} className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20" required />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-[hsl(var(--card-foreground))]">บทบาท</label>
-                  <select value={editForm.role} onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))} className="w-full rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20">
+                  <select value={editForm.role} onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))} className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20">
                     <option value="ADMIN">ADMIN</option>
                     <option value="STAFF">STAFF</option>
                   </select>
                 </div>
                 <div className="flex items-center gap-2">
-                  <input type="checkbox" id="edit-isActive" checked={editForm.isActive} onChange={(e) => setEditForm((p) => ({ ...p, isActive: e.target.checked }))} className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]" />
+                  <input type="checkbox" id="edit-isActive" checked={editForm.isActive} onChange={(e) => setEditForm((p) => ({ ...p, isActive: e.target.checked }))} className="h-4 w-4 rounded border-[hsl(var([hsl(var(--color-border))]))] accent-[hsl(var(--primary))]" />
                   <label htmlFor="edit-isActive" className="text-sm text-[hsl(var(--card-foreground))]">เปิดใช้งาน</label>
                 </div>
               </div>
@@ -556,7 +556,7 @@ export default function AdminUsersSettingsPage() {
                   {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {editSaving ? 'กำลังบันทึก...' : 'บันทึก'}
                 </button>
-                <button onClick={closeEditForm} className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95">
+                <button onClick={closeEditForm} className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95">
                   ยกเลิก
                 </button>
               </div>

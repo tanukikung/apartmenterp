@@ -175,7 +175,7 @@ export const billingImportRowSchema = z.object({
   typeCode: billingItemTypeSchema,
   quantity: z.number().positive(),
   unitPrice: z.number().min(0),
-  description: z.string().max(500).optional(),
+  description: z.string().max(500).transform(v => v.replace(/<[^>]*>/g, '').trim()).optional(),
 });
 
 export type BillingImportRow = z.infer<typeof billingImportRowSchema>;

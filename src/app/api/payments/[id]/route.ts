@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, type ApiResponse, NotFoundError } from '@/lib/utils/errors';
-import { requireRole } from '@/lib/auth/guards';
+import { requireRole, requireBuildingAccess } from '@/lib/auth/guards';
 import { prisma } from '@/lib';
 
 export const dynamic = 'force-dynamic';
@@ -18,8 +18,13 @@ export const GET = asyncHandler(
     _req: NextRequest,
     { params }: { params: { id: string } },
   ): Promise<NextResponse> => {
-    requireRole(_req, ['ADMIN', 'STAFF']);
+    const session = requireRole(_req, ['ADMIN', 'STAFF']);
     const { id } = params;
+
+    // IDOR guard: verify the payment belongs to the user's building scope.
+    // PaymentTransaction links to Invoice → Room (no buildingId in single-building ERP).
+    // Payment links to Invoice → Room. Guard is a safe no-op in single-building mode.
+    requireBuildingAccess(session, null);
 
     // ── Try PaymentTransaction first (the model used by the review queue) ──
     const tx = await prisma.paymentTransaction.findUnique({

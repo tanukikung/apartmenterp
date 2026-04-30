@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -132,7 +132,7 @@ function getPageTitle(pathname: string | null): string {
 }
 
 // ── Nav structure ─────────────────────────────────────────────────────────
-const nav: NavItem[] = [
+const NAV_CONFIG: NavItem[] = [
   { type: 'link', href: '/admin/dashboard', label: 'แดชบอร์ด', icon: LayoutDashboard },
 
   {
@@ -257,7 +257,7 @@ function Tooltip({ label, side = 'right' }: { label: string; side?: 'right' | 'b
 }
 
 // ── Glass Sidebar Nav Item ───────────────────────────────────────────────
-function SidebarNavItem({
+const SidebarNavItem = React.memo(function SidebarNavItem({
   item,
   pathname,
 }: {
@@ -284,7 +284,7 @@ function SidebarNavItem({
           {active && (
             <motion.span
               layoutId="sidebar-active-pill"
-              className="absolute inset-0 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--primary)/70)] shadow-[var(--glow-primary)]"
+              className="absolute inset-0 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--primary)/70)] shadow-[0_1px_3px_rgba(0,0,0,0.5)]"
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
             />
           )}
@@ -296,7 +296,7 @@ function SidebarNavItem({
       <Tooltip label={item.label} />
     </div>
   );
-}
+});
 
 // ── Glass Sidebar Collapsible Group ───────────────────────────────────────
 function SidebarNavGroup({
@@ -377,7 +377,7 @@ function SidebarNavGroup({
                 onClick={() => { setDropdownPos(null); setManualOpen(false); }}
                 className={`flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium transition-all duration-150 border-l-2
                   ${active
-                    ? 'bg-[hsl(var(--primary))]/20 text-white border-l-white'
+                    ? 'bg-[hsl(var(--primary))]/20 text-white border-l-2 border-l-[hsl(var(--primary))]'
                     : 'text-[hsl(var(--sidebar-text))] hover:bg-white/8 hover:text-white border-l-transparent'
                   }`}
               >
@@ -411,7 +411,7 @@ function SidebarNavGroup({
         {hasActiveChild && (
           <motion.span
             layoutId="sidebar-active-pill"
-            className="absolute inset-0 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--primary)/70%)] shadow-[var(--glow-primary)]"
+            className="absolute inset-0 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--primary)/70%)] shadow-[0_1px_3px_rgba(0,0,0,0.5)]"
             transition={{ type: 'spring', stiffness: 380, damping: 30 }}
           />
         )}
@@ -463,7 +463,7 @@ function MobileNavGroup({
                 onClick={onClose}
                 className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-150
                   ${active
-                    ? 'bg-[hsl(var(--primary))] text-white shadow-[var(--glow-primary)]'
+                    ? 'bg-[hsl(var(--primary))] text-white shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
                     : 'text-[hsl(var(--color-text-3))] hover:bg-[hsl(var(--color-surface))/5 hover:text-[hsl(var(--color-text-2))]'
                   }`}
               >
@@ -479,7 +479,7 @@ function MobileNavGroup({
 }
 
 // ── Glass Sidebar ────────────────────────────────────────────────────────
-function GlassSidebar({ pathname }: { pathname: string | null }) {
+function GlassSidebar({ nav, pathname }: { nav: NavItem[]; pathname: string | null }) {
   return (
     <div
       className="w-16 flex flex-col h-full shrink-0"
@@ -514,7 +514,7 @@ function CommandPalette({
   }, []);
 
   // Flatten all nav items for search
-  const allLinks = nav.flatMap((item) =>
+  const allLinks = NAV_CONFIG.flatMap((item) =>
     item.type === 'group' ? item.items : [item as NavLink]
   );
 
@@ -634,7 +634,7 @@ function TopBar({
           setSessionUser(data.data.user);
         }
       })
-      .catch(() => {});
+      .catch((e) => { console.warn('[AdminLayout] session refresh failed:', e); });
   }, []);
 
   // Close dropdowns on outside click
@@ -757,7 +757,7 @@ function TopBar({
       <div className="flex-1 max-w-sm md:max-w-md mx-auto">
         <button
           onClick={onCommandPalette}
-          className="w-full flex items-center gap-3 h-9 px-4 rounded-xl border transition-all duration-150 text-sm text-[hsl(var(--color-text-3))] hover:border-[hsl(var(--primary))] hover:shadow-[var(--glow-primary)] group"
+          className="w-full flex items-center gap-3 h-9 px-4 rounded-xl border transition-all duration-150 text-sm text-[hsl(var(--color-text-3))] hover:border-[hsl(var(--primary))] hover:shadow-[0_1px_3px_rgba(0,0,0,0.5)] group"
           style={{
             background: 'hsl(var(--color-bg))',
             borderColor: 'hsl(var(--color-border))',
@@ -947,6 +947,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const openCommandPalette = useCallback(() => setCmdPaletteOpen(true), []);
   const closeCommandPalette = useCallback(() => setCmdPaletteOpen(false), []);
 
+  const nav = useMemo(() => NAV_CONFIG, []);
+
   useEffect(() => {
     const title = getPageTitle(pathname);
     if (typeof document !== 'undefined') {
@@ -959,7 +961,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="min-h-screen flex" style={{ background: 'hsl(var(--color-bg))' }}>
         {/* ── Desktop Glass Sidebar ── */}
         <aside className="hidden md:flex shrink-0">
-          <GlassSidebar pathname={pathname} />
+          <GlassSidebar nav={nav} pathname={pathname} />
         </aside>
 
         {/* ── Mobile Sidebar Drawer ── */}
@@ -1019,7 +1021,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             onClick={() => setMobileOpen(false)}
                             className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150
                               ${active
-                                ? 'text-white shadow-[var(--glow-primary)]'
+                                ? 'text-white shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
                                 : 'text-[hsl(var(--color-text-3))] hover:bg-white/5 hover:text-[hsl(var(--color-text-2))]'
                               }`}
                             style={active ? { background: 'hsl(var(--primary))' } : undefined}

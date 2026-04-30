@@ -11,7 +11,7 @@ const searchSchema = z.object({
 });
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN']);
+  requireRole(req, ['ADMIN', 'OWNER']);
 
   const { searchParams } = new URL(req.url);
   const rawQ = searchParams.get('q') ?? '';

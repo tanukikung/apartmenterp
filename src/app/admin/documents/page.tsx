@@ -171,7 +171,7 @@ export default function DocumentsPage() {
   return (
     <main className="space-y-6">
       {/* Hero Header */}
-      <section className="relative overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] glass-card shadow-[0_4px_16px_rgba(0,0,0,0.08)] px-6 py-5">
+      <section className="relative overflow-hidden rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))]  shadow-[0_4px_16px_rgba(0,0,0,0.08)] px-6 py-5">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-violet-500/10 pointer-events-none" />
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="relative flex items-center justify-between gap-4">
@@ -195,7 +195,7 @@ export default function DocumentsPage() {
             </Link>
             <Link
               href="/admin/templates"
-              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] glass-card text-[hsl(var(--card-foreground))] px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  text-[hsl(var(--card-foreground))] px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98]"
             >
               เทมเพลต
             </Link>
@@ -207,7 +207,7 @@ export default function DocumentsPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="ค้นหาเอกสาร, ห้อง, หรือผู้เช่า..."
                 aria-label="ค้นหาเอกสาร"
-                className="w-full rounded-xl border border-[hsl(var(--glass-border))] glass-card py-2.5 pl-9 pr-4 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  py-2.5 pl-9 pr-4 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
               />
             </div>
           </div>
@@ -215,7 +215,7 @@ export default function DocumentsPage() {
       </section>
 
       {fetchError ? (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600 backdrop-blur-sm">
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600">
           {fetchError instanceof Error ? fetchError.message : String(fetchError)}
         </div>
       ) : null}
@@ -263,14 +263,14 @@ export default function DocumentsPage() {
       />
 
       {/* Main Table Card */}
-      <section className="rounded-2xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
-        <div className="px-5 py-4 border-b border-[hsl(var(--glass-border))]">
+      <section className="rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
+        <div className="px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))]">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--card-foreground))]">
               <Layers3 className="h-4 w-4 text-blue-600" />
               ทะเบียนเอกสาร
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold glass-card text-[hsl(var(--on-surface-variant))]">
+            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold  text-[hsl(var(--on-surface-variant))]">
               {documents.length} เอกสาร
             </span>
           </div>
@@ -290,14 +290,14 @@ export default function DocumentsPage() {
           <div className="overflow-auto">
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="border-b border-[hsl(var(--glass-border))]">
+                <tr className="border-b border-[hsl(var([hsl(var(--color-border))]))]">
                   <th className="px-4 py-3 w-10">
                     <input
                       type="checkbox"
                       aria-label="เลือกทั้งหมด"
                       checked={documents.length > 0 && selected.size === documents.length}
                       onChange={toggleAll}
-                      className="rounded border-[hsl(var(--glass-border))] accent-blue-500"
+                      className="rounded border-[hsl(var([hsl(var(--color-border))]))] accent-blue-500"
                     />
                   </th>
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ชื่อเรื่อง</th>
@@ -312,14 +312,14 @@ export default function DocumentsPage() {
               </thead>
               <tbody>
                 {documents.map((document) => (
-                  <tr key={document.id} className="border-t border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--card))]/50 transition-colors duration-150 group">
+                  <tr key={document.id} className="border-t border-[hsl(var([hsl(var(--color-border))]))] hover:bg-[hsl(var(--card))]/50 transition-colors duration-150 group">
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
                         aria-label={`เลือก ${document.title}`}
                         checked={selected.has(document.id)}
                         onChange={() => toggleOne(document.id)}
-                        className="rounded border-[hsl(var(--glass-border))] accent-blue-500"
+                        className="rounded border-[hsl(var([hsl(var(--color-border))]))] accent-blue-500"
                       />
                     </td>
                     <td>
@@ -329,7 +329,7 @@ export default function DocumentsPage() {
                       </div>
                     </td>
                     <td className="hidden md:table-cell">
-                      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--glass-border))]">
+                      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] border border-[hsl(var([hsl(var(--color-border))]))]">
                         {document.documentType.replace(/_/g, ' ')}
                       </span>
                     </td>
@@ -376,7 +376,7 @@ export default function DocumentsPage() {
                         <Link
                           href={`/admin/documents/${document.id}`}
                           aria-label="รายละเอียดเอกสาร"
-                          className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:bg-white/5 hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] active:scale-[0.98]"
+                          className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:bg-white/5 hover:border-[hsl(var([hsl(var(--color-border))]))] hover:text-[hsl(var(--card-foreground))] active:scale-[0.98]"
                         >
                           <FolderOpen className="h-3.5 w-3.5" />
                           รายละเอียด
@@ -386,7 +386,7 @@ export default function DocumentsPage() {
                           aria-label="เปิด PDF"
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:bg-white/5 hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] active:scale-[0.98]"
+                          className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:bg-white/5 hover:border-[hsl(var([hsl(var(--color-border))]))] hover:text-[hsl(var(--card-foreground))] active:scale-[0.98]"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                           PDF
@@ -394,7 +394,7 @@ export default function DocumentsPage() {
                         <a
                           href={`/api/documents/${document.id}/download?format=docx`}
                           aria-label="ดาวน์โหลด DOCX"
-                          className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:bg-white/5 hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] active:scale-[0.98]"
+                          className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:bg-white/5 hover:border-[hsl(var([hsl(var(--color-border))]))] hover:text-[hsl(var(--card-foreground))] active:scale-[0.98]"
                         >
                           <FileOutput className="h-3.5 w-3.5" />
                           DOCX

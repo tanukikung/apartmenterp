@@ -19,6 +19,10 @@ import { htmlToScreenshot } from '@/lib/puppeteer';
 import { getDocumentTemplateService } from '@/modules/documents/template.service';
 import { templatePreviewRequestSchema } from '@/modules/documents/types';
 import { z } from 'zod';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+const UPLOAD_WINDOW_MS = 60 * 1000;
+const UPLOAD_MAX_ATTEMPTS = 5;
 
 const previewSchema = z.object({
   html: z.string().optional(),
@@ -32,7 +36,16 @@ const previewSchema = z.object({
 });
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`template-preview-screenshot:${ip}`, UPLOAD_MAX_ATTEMPTS, UPLOAD_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const input = previewSchema.parse(await req.json());
   const {

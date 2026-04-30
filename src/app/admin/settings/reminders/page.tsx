@@ -48,7 +48,7 @@ function priorityColor(p: string): string {
   switch (p) {
     case 'URGENT': return 'bg-red-500/20 text-red-400 border border-red-500/30';
     case 'HIGH': return 'bg-orange-500/20 text-orange-400 border border-orange-500/30';
-    case 'LOW': return 'glass-card text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--glass-border))]';
+    case 'LOW': return ' text-[hsl(var(--on-surface-variant))] border border-[hsl(var([hsl(var(--color-border))]))]';
     default: return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
   }
 }
@@ -193,7 +193,7 @@ export default function ReminderConfigPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <section className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+      <section className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
         </div>
@@ -201,7 +201,7 @@ export default function ReminderConfigPage() {
           <div className="flex items-center gap-4">
             <Link
               href="/admin/settings"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] glass-card shadow-sm transition-all hover:scale-105 active:scale-95"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  shadow-sm transition-all hover:scale-105 active:scale-95"
             >
               <ArrowLeft className="h-4 w-4 text-[hsl(var(--primary))]" />
             </Link>
@@ -212,7 +212,7 @@ export default function ReminderConfigPage() {
           </div>
           <button
             onClick={() => void refetch()}
-            className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
+            className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             รีเฟรช
@@ -263,7 +263,7 @@ export default function ReminderConfigPage() {
           เพิ่มการตั้งค่า
         </button>
       ) : (
-        <div className="rounded-2xl border border-[hsl(var(--glass-border))] glass-card p-6 space-y-4">
+        <div className="rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))]  p-6 space-y-4">
           <h3 className="font-semibold text-[hsl(var(--card-foreground))]">{editingId ? 'แก้ไขการตั้งค่า Reminder' : 'เพิ่มการตั้งค่า Reminder ใหม่'}</h3>
 
           <div>
@@ -274,7 +274,7 @@ export default function ReminderConfigPage() {
                   key={p.periodDays}
                   type="button"
                   onClick={() => applyPreset(i)}
-                  className="rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] hover:border-[hsl(var(--primary))]/40 transition-all hover:scale-105 active:scale-95"
+                  className="rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] hover:border-[hsl(var(--primary))]/40 transition-all hover:scale-105 active:scale-95"
                 >
                   {periodLabel(p.periodDays)}
                 </button>
@@ -291,7 +291,7 @@ export default function ReminderConfigPage() {
                 onChange={(e) => setFormDays(Number(e.target.value))}
                 min={-60}
                 max={60}
-                className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
+                className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
               />
               <p className="mt-1 text-xs text-[hsl(var(--on-surface-variant))]">{periodLabel(formDays)}</p>
             </div>
@@ -300,7 +300,7 @@ export default function ReminderConfigPage() {
               <select
                 value={formPriority}
                 onChange={(e) => setFormPriority(e.target.value as typeof formPriority)}
-                className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               >
                 <option value="LOW">LOW</option>
                 <option value="NORMAL">NORMAL</option>
@@ -313,7 +313,7 @@ export default function ReminderConfigPage() {
               <select
                 value={formAppliesTo}
                 onChange={(e) => setFormAppliesTo(e.target.value as typeof formAppliesTo)}
-                className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               >
                 <option value="ALL">ทั้งหมด</option>
                 <option value="OVERDUE">ค้างชำระ</option>
@@ -329,7 +329,7 @@ export default function ReminderConfigPage() {
               onChange={(e) => setFormMessage(e.target.value)}
               rows={3}
               placeholder="เรียนผู้เช่าห้อง {{roomNo}} ค่ะ..."
-              className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
+              className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
             />
           </div>
 
@@ -339,7 +339,7 @@ export default function ReminderConfigPage() {
                 type="checkbox"
                 checked={formActive}
                 onChange={(e) => setFormActive(e.target.checked)}
-                className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]"
+                className="h-4 w-4 rounded border-[hsl(var([hsl(var(--color-border))]))] accent-[hsl(var(--primary))]"
               />
               เปิดใช้งานทันที
             </label>
@@ -356,7 +356,7 @@ export default function ReminderConfigPage() {
             </button>
             <button
               onClick={closeForm}
-              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
             >
               ยกเลิก
             </button>
@@ -370,7 +370,7 @@ export default function ReminderConfigPage() {
           <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--on-surface-variant))]" />
         </div>
       ) : configs.length === 0 ? (
-        <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-10 text-center text-[hsl(var(--on-surface-variant))]">
+        <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-10 text-center text-[hsl(var(--on-surface-variant))]">
           ไม่มีการตั้งค่า reminder — คลิก &quot;เพิ่มการตั้งค่า&quot; เพื่อสร้าง
         </div>
       ) : (
@@ -378,7 +378,7 @@ export default function ReminderConfigPage() {
           {configs.map((config) => (
             <div
               key={config.id}
-              className={`rounded-2xl border p-5 glass-card transition-all ${config.isActive ? 'border-[hsl(var(--primary))]/20' : 'border-[hsl(var(--glass-border))] opacity-60'}`}
+              className={`rounded-2xl border p-5  transition-all ${config.isActive ? 'border-[hsl(var(--primary))]/20' : 'border-[hsl(var([hsl(var(--color-border))]))] opacity-60'}`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -389,11 +389,11 @@ export default function ReminderConfigPage() {
                     <span className="text-sm font-semibold text-[hsl(var(--card-foreground))]">
                       {periodLabel(config.periodDays)}
                     </span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${config.appliesTo === 'ALL' ? 'glass-card text-[hsl(var(--on-surface-variant))]' : config.appliesTo === 'OVERDUE' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${config.appliesTo === 'ALL' ? ' text-[hsl(var(--on-surface-variant))]' : config.appliesTo === 'OVERDUE' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
                       {config.appliesTo === 'ALL' ? 'ทั้งหมด' : config.appliesTo === 'OVERDUE' ? 'ค้างชำระ' : 'ใกล้ครบกำหนด'}
                     </span>
                     {!config.isActive && (
-                      <span className="rounded-full px-2 py-0.5 text-xs text-[hsl(var(--on-surface-variant))] glass-card">ปิดใช้งาน</span>
+                      <span className="rounded-full px-2 py-0.5 text-xs text-[hsl(var(--on-surface-variant))] ">ปิดใช้งาน</span>
                     )}
                   </div>
                   <p className="mt-2 text-sm text-[hsl(var(--on-surface-variant))] line-clamp-2">{config.messageTh}</p>
@@ -418,7 +418,7 @@ export default function ReminderConfigPage() {
                     className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all hover:scale-105 active:scale-95 ${
                       config.isActive
                         ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                        : 'border-[hsl(var(--glass-border))] glass-card text-[hsl(var(--card-foreground))] hover:border-[hsl(var(--primary))]/40'
+                        : 'border-[hsl(var([hsl(var(--color-border))]))]  text-[hsl(var(--card-foreground))] hover:border-[hsl(var(--primary))]/40'
                     }`}
                   >
                     {config.isActive ? (

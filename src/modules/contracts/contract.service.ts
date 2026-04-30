@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { prisma, EventBus, logger, EventTypes } from '@/lib';
+import { CONTRACT_STATUS, ROOM_STATUS } from '@/lib/constants';
 
 import {
   CreateContractInput,
@@ -41,75 +42,22 @@ export class ContractService {
   ): Promise<ContractResponse> {
     logger.info({ type: 'contract_create', roomNo: input.roomId, tenantId: input.primaryTenantId });
 
-    // Check if room exists
+    // Validate room exists
     const room = await prisma.room.findUnique({
       where: { roomNo: input.roomId },
-      // floor removed in new schema,
     });
 
     if (!room) {
-      throw new NotFoundError('Room', input.roomId);
+      throw new NotFoundError(`ไม่พบห้อง '${input.roomId}'`, input.roomId);
     }
 
-    // Check if tenant exists and is PRIMARY in the room
+    // Validate tenant exists
     const tenant = await prisma.tenant.findUnique({
       where: { id: input.primaryTenantId },
     });
 
     if (!tenant) {
-      throw new NotFoundError('Tenant', input.primaryTenantId);
-    }
-
-    // Check if tenant is PRIMARY in this room
-    const roomTenant = await prisma.roomTenant.findFirst({
-      where: {
-        tenantId: input.primaryTenantId,
-        roomNo: input.roomId,
-        role: 'PRIMARY',
-        moveOutDate: null,
-      },
-    });
-
-    if (!roomTenant) {
-      throw new BadRequestError('Tenant must be PRIMARY tenant in this room');
-    }
-
-    // Business rule: Only one ACTIVE contract per room
-    const activeContract = await prisma.contract.findFirst({
-      where: {
-        roomNo: input.roomId,
-        status: 'ACTIVE',
-      },
-    });
-
-    if (activeContract) {
-      throw new ConflictError('Room already has an active contract');
-    }
-
-    // Check for overlapping contracts
-    const overlapping = await prisma.contract.findFirst({
-      where: {
-        roomNo: input.roomId,
-        status: 'ACTIVE',
-        OR: [
-          {
-            AND: [
-              { startDate: { lte: new Date(input.startDate) } },
-              { endDate: { gte: new Date(input.startDate) } },
-            ],
-          },
-          {
-            AND: [
-              { startDate: { lte: new Date(input.endDate) } },
-              { endDate: { gte: new Date(input.endDate) } },
-            ],
-          },
-        ],
-      },
-    });
-
-    if (overlapping) {
-      throw new ConflictError('Contract dates overlap with existing contract');
+      throw new NotFoundError(`ไม่พบผู้เช่า`, input.primaryTenantId);
     }
 
     // Validate dates
@@ -118,6 +66,80 @@ export class ContractService {
     }
 
     const contract = await prisma.$transaction(async (tx) => {
+      // Lock the room row to serialise concurrent contract creates for the
+      // same room.  This ensures that only one CREATE transaction can proceed
+      // to the overlap check below.
+      await tx.$executeRaw`
+        SELECT id FROM rooms
+        WHERE "roomNo" = ${input.roomId}
+        FOR UPDATE
+      `;
+
+      // Business rule: Only one ACTIVE contract per room.
+      // Find any existing active contract and lock the row so that the second
+      // concurrent request blocks here until the first transaction commits.
+      const existingActive = await tx.contract.findFirst({
+        where: {
+          roomNo: input.roomId,
+          status: CONTRACT_STATUS.ACTIVE,
+        },
+      });
+
+      if (existingActive) {
+        // Lock the conflicting row to prevent a race where both transactions
+        // pass the initial check before either commits.
+        await tx.$executeRaw`
+          SELECT id FROM contracts
+          WHERE id = ${existingActive.id}
+          FOR UPDATE
+        `;
+        throw new ConflictError('Room already has an active contract');
+      }
+
+      // Check if tenant is PRIMARY in this room (must be checked inside
+      // transaction so that the roomTenant row can also be locked).
+      const roomTenant = await tx.roomTenant.findFirst({
+        where: {
+          tenantId: input.primaryTenantId,
+          roomNo: input.roomId,
+          role: 'PRIMARY',
+          moveOutDate: null,
+        },
+      });
+
+      if (!roomTenant) {
+        throw new BadRequestError('Tenant must be PRIMARY tenant in this room');
+      }
+
+      // Check for overlapping date ranges with any ACTIVE contract.
+      // This must also be inside the transaction so that a concurrent
+      // ACTIVE contract created between the first check above and this one
+      // cannot slip through.
+      const overlapping = await tx.contract.findFirst({
+        where: {
+          roomNo: input.roomId,
+          status: CONTRACT_STATUS.ACTIVE,
+          OR: [
+            {
+              AND: [
+                { startDate: { lte: new Date(input.startDate) } },
+                { endDate: { gte: new Date(input.startDate) } },
+              ],
+            },
+            {
+              AND: [
+                { startDate: { lte: new Date(input.endDate) } },
+                { endDate: { gte: new Date(input.endDate) } },
+              ],
+            },
+          ],
+        },
+      });
+
+      if (overlapping) {
+        throw new ConflictError('Contract dates overlap with existing contract');
+      }
+
       const created = await tx.contract.create({
         data: {
           id: uuidv4(),
@@ -127,7 +149,7 @@ export class ContractService {
           endDate: new Date(input.endDate),
           monthlyRent: input.rentAmount,
           deposit: input.depositAmount || 0,
-          status: 'ACTIVE',
+          status: CONTRACT_STATUS.ACTIVE,
         },
         include: {
           room: true,
@@ -136,7 +158,7 @@ export class ContractService {
       });
       await tx.room.update({
         where: { roomNo: input.roomId },
-        data: { roomStatus: 'OCCUPIED' },
+        data: { roomStatus: ROOM_STATUS.OCCUPIED },
       });
       await tx.outboxEvent.create({
         data: {

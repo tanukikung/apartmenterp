@@ -53,20 +53,20 @@ export default function UploadStatementPage() {
           <h1 className="text-2xl font-bold text-[hsl(var(--color-text))]">อัปโหลด Bank Statement</h1>
           <p className="mt-1 text-sm text-[hsl(var(--color-text))]/40">อัปโหลด Statement ธนาคาร (CSV หรือ Excel) เพื่อ parse รายการธุรกรรมและจับคู่กับใบแจ้งหนี้โดยอัตโนมัติ</p>
         </div>
-        <Link href="/admin/payments" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 shadow-sm transition-all hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 active:scale-[0.98]">
+        <Link href="/admin/payments" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 shadow-sm transition-all hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 active:scale-[0.98]">
           กลับไปการเงิน
         </Link>
       </div>
 
       {error && (
-        <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 backdrop-blur px-4 py-3 text-sm text-red-400">
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
         </div>
       )}
 
       {/* Upload card */}
-      <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+      <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
         <div className="flex items-center justify-between border-b border-[hsl(var(--color-border))] px-4 py-3">
           <h2 className="text-sm font-semibold text-[hsl(var(--color-text))]">1. อัปโหลด Bank Statement</h2>
         </div>
@@ -87,7 +87,7 @@ export default function UploadStatementPage() {
               className="hidden"
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             />
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[hsl(var(--color-surface))]/50 backdrop-blur shadow-sm">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[hsl(var(--color-surface))]/50 shadow-sm">
               {file ? (
                 <CheckCircle2 className="h-7 w-7 text-emerald-600" />
               ) : (
@@ -103,7 +103,7 @@ export default function UploadStatementPage() {
           </div>
 
           {/* Workflow sidebar */}
-          <div className="space-y-4 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-5">
+          <div className="space-y-4 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-5">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--color-text))]/40">ขั้นตอน</div>
               <div className="mt-3 space-y-3 text-sm text-[hsl(var(--color-text))]">
@@ -126,7 +126,7 @@ export default function UploadStatementPage() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-3 text-sm text-[hsl(var(--color-text))]/50">
+            <div className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-3 text-sm text-[hsl(var(--on-surface-variant))]">
               รายการที่ไม่ตรงจะถูกส่งเข้าแถวตรวจสอบเพื่อ assign ด้วยตนเอง
             </div>
 
@@ -135,12 +135,12 @@ export default function UploadStatementPage() {
                 type="button"
                 onClick={() => void handleUpload()}
                 disabled={loading || !file}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 text-sm font-semibold text-[hsl(var(--color-text))] shadow-glow-primary transition-all hover:shadow-glow-primary-hover active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 text-sm font-semibold text-[hsl(var(--color-text))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
                 {loading ? 'Processing...' : 'Upload & Process'}
               </button>
-              <button type="button" onClick={resetAll} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2.5 text-sm font-medium text-[hsl(var(--color-text))]/60 transition-all hover:bg-white/[0.08] hover:border-white/20 active:scale-[0.98]">
+              <button type="button" onClick={resetAll} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2.5 text-sm font-medium text-[hsl(var(--color-text))]/60 transition-all hover:bg-white/[0.08] hover:border-white/20 active:scale-[0.98]">
                 Reset
               </button>
             </div>
@@ -149,7 +149,7 @@ export default function UploadStatementPage() {
       </div>
 
       {/* Format guide */}
-      <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+      <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
         <div className="flex items-center justify-between border-b border-[hsl(var(--color-border))] px-4 py-3">
           <h2 className="text-sm font-semibold text-[hsl(var(--color-text))]">รูปแบบไฟล์ที่รองรับ</h2>
         </div>
@@ -178,13 +178,13 @@ export default function UploadStatementPage() {
               </tr>
               <tr className="border-b border-white/[0.05]">
                 <td className="px-4 py-3 font-semibold text-[hsl(var(--color-text))]">รายละเอียด</td>
-                <td className="px-4 py-3"><span className="inline-flex items-center rounded-full bg-white/5 px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--color-text))]/50 border border-[hsl(var(--color-border))]">ไม่บังคับ</span></td>
+                <td className="px-4 py-3"><span className="inline-flex items-center rounded-full bg-white/5 px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))]">ไม่บังคับ</span></td>
                 <td className="px-4 py-3 text-[hsl(var(--color-text))]/40">รายละเอียดธุรกรรม</td>
                 <td className="px-4 py-3 text-[hsl(var(--color-text))]/20">description, รายละเอียด, detail, narrative</td>
               </tr>
               <tr>
                 <td className="px-4 py-3 font-semibold text-[hsl(var(--color-text))]">อ้างอิง</td>
-                <td className="px-4 py-3"><span className="inline-flex items-center rounded-full bg-white/5 px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--color-text))]/50 border border-[hsl(var(--color-border))]">ไม่บังคับ</span></td>
+                <td className="px-4 py-3"><span className="inline-flex items-center rounded-full bg-white/5 px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))]">ไม่บังคับ</span></td>
                 <td className="px-4 py-3 text-[hsl(var(--color-text))]/40">หมายเลขอ้างอิง</td>
                 <td className="px-4 py-3 text-[hsl(var(--color-text))]/20">reference, เลขที่อ้างอิง, ref</td>
               </tr>
@@ -195,7 +195,7 @@ export default function UploadStatementPage() {
 
       {/* Result */}
       {result && (
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-emerald-500/30 rounded-xl overflow-hidden">
+        <div className="bg-[hsl(var(--color-surface))] border border-emerald-500/30 rounded-xl overflow-hidden">
           <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/20 shadow-sm border border-emerald-500/30">
@@ -209,29 +209,29 @@ export default function UploadStatementPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link href="/admin/payments" className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--color-text))] shadow-glow-primary transition-all hover:shadow-glow-primary-hover active:scale-[0.98]">
+              <Link href="/admin/payments" className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--color-text))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98]">
                 ไปที่ Payments
               </Link>
-              <Link href="/admin/payments/review" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 transition-all hover:bg-white/[0.08] hover:border-white/20 active:scale-[0.98]">
+              <Link href="/admin/payments/review" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 transition-all hover:bg-white/[0.08] hover:border-white/20 active:scale-[0.98]">
                 ตรวจสอบ ({result.unmatched})
               </Link>
             </div>
           </div>
 
           <div className="grid gap-4 p-6 pt-0 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-4">
+            <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--color-text))]/40">รายการทั้งหมด</p>
               <p className="mt-1 text-2xl font-extrabold text-[hsl(var(--color-text))]">{result.totalEntries}</p>
             </div>
-            <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-4">
+            <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--color-text))]/40">นำเข้าแล้ว</p>
               <p className="mt-1 text-2xl font-extrabold text-emerald-600">{result.imported}</p>
             </div>
-            <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-4">
+            <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--color-text))]/40">จับคู่อัตโนมัติ</p>
               <p className="mt-1 text-2xl font-extrabold text-[hsl(var(--primary))]">{result.matched}</p>
             </div>
-            <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-4">
+            <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--color-text))]/40">ต้องตรวจสอบ</p>
               <p className="mt-1 text-2xl font-extrabold text-amber-600">{result.unmatched}</p>
             </div>

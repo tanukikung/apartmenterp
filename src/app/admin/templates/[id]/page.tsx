@@ -114,14 +114,14 @@ export default function TemplateDetailPage() {
   return (
     <main className="space-y-6">
       {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] px-6 py-5">
+      <div className="relative overflow-hidden rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] shadow-[0_4px_16px_rgba(0,0,0,0.08)] px-6 py-5">
         <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.1)] via-transparent to-violet-500/10 pointer-events-none" />
         <div className="absolute top-0 right-0 w-64 h-64 bg-[hsl(var(--primary)/0.05)] rounded-full blur-3xl pointer-events-none" />
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link
               href="/admin/templates"
-              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary)/0.1)] hover:border-[hsl(var(--primary)/0.3)] px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary)/0.1)] hover:border-[hsl(var(--primary)/0.3)] px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98]"
             >
               <ArrowLeft className="h-4 w-4" />
               กลับ
@@ -136,7 +136,7 @@ export default function TemplateDetailPage() {
           <div className="flex items-center gap-3">
             <Link
               href={`/admin/templates/${params.id}/edit`}
-              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.2)] hover:border-[hsl(var(--primary)/0.5)] hover:shadow-[var(--glow-primary)] px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.2)] hover:border-[hsl(var(--primary)/0.5)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.5)] px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98]"
             >
               เปิดพื้นที่แก้ไข
             </Link>
@@ -145,7 +145,7 @@ export default function TemplateDetailPage() {
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600 backdrop-blur-sm">
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600">
           {error}
         </div>
       ) : null}
@@ -157,8 +157,8 @@ export default function TemplateDetailPage() {
           {/* Left Column */}
           <div className="space-y-6">
             {/* Template Info Card */}
-            <section className="rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
-              <div className="px-5 py-4 border-b border-[hsl(var(--glass-border))] bg-[hsl(var(--card))]">
+            <section className="rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
+              <div className="px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))]">
                 <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--card-foreground))]">
                   <Layers3 className="h-4 w-4 text-[hsl(var(--primary))]" />
                   ข้อมูลเทมเพลต
@@ -177,7 +177,7 @@ export default function TemplateDetailPage() {
                         ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/20'
                         : template.status === 'DRAFT'
                           ? 'bg-amber-500/15 text-amber-600 border border-amber-500/20'
-                          : 'bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--glass-border))]'
+                          : 'bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] border border-[hsl(var([hsl(var(--color-border))]))]'
                     }`}>
                       {template.status}
                     </span>
@@ -199,8 +199,8 @@ export default function TemplateDetailPage() {
             </section>
 
             {/* Versions Card */}
-            <section className="rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
-              <div className="px-5 py-4 border-b border-[hsl(var(--glass-border))] flex items-center justify-between bg-[hsl(var(--card))]">
+            <section className="rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
+              <div className="px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))] flex items-center justify-between bg-[hsl(var(--card))]">
                 <div className="text-sm font-semibold text-[hsl(var(--card-foreground))]">เวอร์ชัน</div>
                 <div className="flex items-center gap-2">
                   {(template.versions?.length ?? 0) >= 2 ? (
@@ -211,7 +211,7 @@ export default function TemplateDetailPage() {
                       เปรียบเทียบ
                     </Link>
                   ) : null}
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] px-2.5 py-0.5 text-xs font-semibold border border-[hsl(var(--glass-border))]">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] px-2.5 py-0.5 text-xs font-semibold border border-[hsl(var([hsl(var(--color-border))]))]">
                     {template.versions?.length ?? 0}
                   </span>
                 </div>
@@ -219,7 +219,7 @@ export default function TemplateDetailPage() {
               <div className="overflow-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-[hsl(var(--glass-border))] bg-[hsl(var(--card))]">
+                    <tr className="border-b border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))]">
                       <th className="px-4 py-3 text-left font-medium text-[hsl(var(--on-surface-variant))] text-[10px] uppercase tracking-wider">เวอร์ชัน</th>
                       <th className="px-4 py-3 text-left font-medium text-[hsl(var(--on-surface-variant))] text-[10px] uppercase tracking-wider">สถานะ</th>
                       <th className="px-4 py-3 text-left font-medium text-[hsl(var(--on-surface-variant))] text-[10px] uppercase tracking-wider">ไฟล์</th>
@@ -227,13 +227,13 @@ export default function TemplateDetailPage() {
                   </thead>
                   <tbody>
                     {(template.versions ?? []).map((version) => (
-                      <tr key={version.id} className="border-b border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--primary))]/5 transition-colors">
+                      <tr key={version.id} className="border-b border-[hsl(var([hsl(var(--color-border))]))] hover:bg-[hsl(var(--primary))]/5 transition-colors">
                         <td className="px-4 py-3 font-semibold text-[hsl(var(--card-foreground))]">v{version.version}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                             version.status === 'ACTIVE'
                               ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/20'
-                              : 'bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--glass-border))]'
+                              : 'bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] border border-[hsl(var([hsl(var(--color-border))]))]'
                           }`}>
                             {version.status}
                           </span>
@@ -250,8 +250,8 @@ export default function TemplateDetailPage() {
           {/* Right Column */}
           <div className="space-y-6">
             {/* Fields Card */}
-            <section className="rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
-              <div className="px-5 py-4 border-b border-[hsl(var(--glass-border))] bg-[hsl(var(--card))]">
+            <section className="rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
+              <div className="px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))]">
                 <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--card-foreground))]">
                   <FileCode2 className="h-4 w-4 text-[hsl(var(--primary))]" />
                   รายการฟิลด์
@@ -259,11 +259,11 @@ export default function TemplateDetailPage() {
               </div>
               <div className="grid gap-4 p-5 md:grid-cols-2">
                 {groupedFields.map(([group, fields]) => (
-                  <div key={group} className="rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] p-4">
+                  <div key={group} className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] p-4">
                     <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">{group}</div>
                     <div className="space-y-2">
                       {fields.map((field) => (
-                        <div key={field.key} className="rounded-lg bg-[hsl(var(--card))] border border-[hsl(var(--glass-border))] px-3 py-3 shadow-sm">
+                        <div key={field.key} className="rounded-lg bg-[hsl(var(--card))] border border-[hsl(var([hsl(var(--color-border))]))] px-3 py-3 shadow-sm">
                           <div className="flex items-center gap-2 flex-wrap">
                             <div className="font-medium text-[hsl(var(--card-foreground))] text-sm">{field.label}</div>
                             {field.isRequired ? (
@@ -290,8 +290,8 @@ export default function TemplateDetailPage() {
             </section>
 
             {/* Preview Card */}
-            <section className="rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
-              <div className="px-5 py-4 border-b border-[hsl(var(--glass-border))] flex items-center justify-between bg-[hsl(var(--card))]">
+            <section className="rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
+              <div className="px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))] flex items-center justify-between bg-[hsl(var(--card))]">
                 <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--card-foreground))]">
                   <Eye className="h-4 w-4 text-[hsl(var(--primary))]" />
                   ตัวอย่างการแสดงผล
@@ -310,7 +310,7 @@ export default function TemplateDetailPage() {
                 </div>
               ) : null}
               <div className="p-5">
-                <div className="overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] shadow-inner">
+                <div className="overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] shadow-inner">
                   {previewLoading ? (
                     <div className="px-6 py-16 text-center text-sm text-[hsl(var(--on-surface-variant))]">กำลังสร้างตัวอย่าง...</div>
                   ) : preview ? (
@@ -324,7 +324,7 @@ export default function TemplateDetailPage() {
                   )}
                 </div>
               </div>
-              <div className="border-t border-[hsl(var(--glass-border))] px-5 py-4 bg-[hsl(var(--card))]">
+              <div className="border-t border-[hsl(var([hsl(var(--color-border))]))] px-5 py-4 bg-[hsl(var(--card))]">
                 <div className="flex items-center gap-2 text-sm text-[hsl(var(--on-surface-variant))]">
                   <Sparkles className="h-4 w-4 text-[hsl(var(--primary))]" />
                   ตัวอย่างนี้สร้างจากข้อมูลจริงของระบบ ERP ไม่ใช่ข้อมูลจำลอง

@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+const stripHtml = (v: string) => v.replace(/<[^>]*>/g, '').trim();
+
+// ============================================================================
 // Expense Types
 // ============================================================================
 
@@ -40,9 +46,9 @@ export const createExpenseSchema = z.object({
   category: expenseCategorySchema,
   amount: z.number().positive('Amount must be positive'),
   date: z.string().or(z.date()).transform(val => new Date(val)),
-  description: z.string().min(1, 'Description is required').max(2000),
-  paidTo: z.string().max(500).optional(),
-  receiptNo: z.string().max(100).optional(),
+  description: z.string().min(1, 'Description is required').max(2000).transform(stripHtml),
+  paidTo: z.string().max(500).optional().transform(v => v ? stripHtml(v) : v),
+  receiptNo: z.string().max(100).optional().transform(v => v ? stripHtml(v) : v),
 });
 
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
@@ -55,9 +61,9 @@ export const updateExpenseSchema = z.object({
   category: expenseCategorySchema.optional(),
   amount: z.number().positive().optional(),
   date: z.string().or(z.date()).optional(),
-  description: z.string().min(1).max(2000).optional(),
-  paidTo: z.string().max(500).optional().nullable(),
-  receiptNo: z.string().max(100).optional().nullable(),
+  description: z.string().min(1).max(2000).optional().transform(v => v ? stripHtml(v) : v),
+  paidTo: z.string().max(500).optional().nullable().transform(v => v ? stripHtml(v) : v),
+  receiptNo: z.string().max(100).optional().nullable().transform(v => v ? stripHtml(v) : v),
 });
 
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;

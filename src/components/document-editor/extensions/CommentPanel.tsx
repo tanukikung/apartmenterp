@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Check, RefreshCw, Send, Trash2, X } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 
@@ -31,7 +31,7 @@ export function CommentPanel({ templateId, versionId, editor, onClose }: Props) 
   const [selectedAnchor, setSelectedAnchor] = useState('');
 
   // Refresh comments from API
-  async function loadComments() {
+  const loadComments = useCallback(async function loadComments() {
     setLoading(true);
     try {
       const res = await fetch(`/api/templates/${templateId}/comments`, { cache: 'no-store' });
@@ -40,11 +40,11 @@ export function CommentPanel({ templateId, versionId, editor, onClose }: Props) 
     } finally {
       setLoading(false);
     }
-  }
+  }, [templateId]);
 
   useEffect(() => {
     void loadComments();
-  }, [templateId]);
+  }, [loadComments]);
 
   // Get selected text from editor when panel opens
   useEffect(() => {

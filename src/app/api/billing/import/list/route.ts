@@ -6,7 +6,7 @@ import { requireRole } from '@/lib/auth/guards';
 export const dynamic = 'force-dynamic';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const { searchParams } = new URL(req.url);
   const roomId = searchParams.get('roomId');
   const year = searchParams.get('year');

@@ -124,7 +124,7 @@ function AutomationCard({
   const humanDesc = valid ? parseCron(value) : null;
 
   return (
-    <div className={`glass-card rounded-2xl p-5 transition-all duration-200 hover:shadow-glow ${c.ring}`}>
+    <div className={` rounded-2xl p-5 transition-all duration-200 hover:shadow-glow ${c.ring}`}>
       <div className="mb-4 flex items-start gap-3">
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${c.iconBg}`}>
           <Icon className={`h-5 w-5 ${c.iconText}`} />
@@ -147,7 +147,7 @@ function AutomationCard({
           disabled={disabled}
           placeholder="0 3 * * *"
           className={`w-full rounded-xl border bg-[hsl(var(--card))] px-3 py-2 font-mono text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/40 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all ${
-            value && !valid ? 'border-red-500/50' : 'border-[hsl(var(--glass-border))] focus:border-[hsl(var(--primary))]'
+            value && !valid ? 'border-red-500/50' : 'border-[hsl(var([hsl(var(--color-border))]))] focus:border-[hsl(var(--primary))]'
           }`}
         />
         {value && !valid && (
@@ -169,7 +169,7 @@ function AutomationCard({
         </div>
 
         {humanDesc && (
-          <div className="flex items-center gap-1.5 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2">
+          <div className="flex items-center gap-1.5 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2">
             <Clock className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--on-surface-variant))]" />
             <p className="text-xs text-[hsl(var(--on-surface-variant))]">
               <span className="font-medium">รอบถัดไป: </span>{humanDesc}
@@ -276,13 +276,13 @@ export default function AutomationRulesPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+      <div className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.15) 0%, transparent 60%)' }} />
         </div>
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--primary) / 0.2)' }}>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]" style={{ background: 'hsl(var(--primary) / 0.2)' }}>
               <Cpu className="h-5 w-5 text-[hsl(var(--primary))]" strokeWidth={1.75} />
             </div>
             <div>
@@ -293,7 +293,7 @@ export default function AutomationRulesPage() {
           <button
             onClick={() => void load()}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-semibold text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5"
+            className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-semibold text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             รีเฟรช
@@ -336,7 +336,7 @@ export default function AutomationRulesPage() {
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-56 animate-pulse rounded-2xl glass-card" />
+            <div key={i} className="h-56 animate-pulse rounded-2xl " />
           ))}
         </div>
       ) : (
@@ -349,14 +349,14 @@ export default function AutomationRulesPage() {
           </div>
 
           {/* Save bar */}
-          <div className="glass-card rounded-xl px-5 py-4 flex items-center justify-between">
+          <div className=" rounded-xl px-5 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-[hsl(var(--on-surface-variant))]">
               <Cpu className="h-4 w-4 text-[hsl(var(--on-surface-variant))]" />
               {isDirty ? 'คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก' : data ? 'ตารางอัตโนมัติเป็นปัจจุบันแล้ว' : 'กำลังโหลด…'}
             </div>
             <div className="flex items-center gap-3">
               {isDirty && (
-                <button onClick={handleReset} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5">
+                <button onClick={handleReset} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5">
                   รีเซ็ต
                 </button>
               )}
@@ -372,7 +372,7 @@ export default function AutomationRulesPage() {
           </div>
 
           {/* Cron reference */}
-          <div className="glass-card rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5">
+          <div className=" rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-6 py-5">
             <h3 className="mb-3 text-sm font-semibold text-[hsl(var(--card-foreground))]">คู่มือนิพจน์ Cron</h3>
             <div className="mb-3 rounded-lg px-4 py-3 font-mono text-xs text-blue-300" style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(51,65,85,0.5)' }}>
               ┌───── minute (0-59)<br />
@@ -392,7 +392,7 @@ export default function AutomationRulesPage() {
                 { expr: '*/30 * * * *', desc: 'ทุก 30 นาที' },
               ].map(({ expr, desc }) => (
                 <div key={expr} className="flex items-center gap-2">
-                  <code className="rounded px-2 py-0.5 font-mono border border-[hsl(var(--glass-border))] text-[hsl(var(--card-foreground))]" style={{ background: 'hsl(var(--card))' }}>{expr}</code>
+                  <code className="rounded px-2 py-0.5 font-mono border border-[hsl(var([hsl(var(--color-border))]))] text-[hsl(var(--card-foreground))]" style={{ background: 'hsl(var(--card))' }}>{expr}</code>
                   <span>{desc}</span>
                 </div>
               ))}
@@ -401,11 +401,11 @@ export default function AutomationRulesPage() {
 
           {/* Related links */}
           <div className="flex flex-wrap gap-3">
-            <Link href="/admin/system-jobs" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5">
+            <Link href="/admin/system-jobs" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-4 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5">
               <Cpu className="h-4 w-4" />
               งานระบบ
             </Link>
-            <Link href="/admin/settings/billing-policy" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5">
+            <Link href="/admin/settings/billing-policy" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-4 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5">
               <Calendar className="h-4 w-4" />
               ปฏิทินการเรียกเก็บ
             </Link>

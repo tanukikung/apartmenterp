@@ -145,7 +145,7 @@ export default function OutboxDeadLetterPage() {
         </div>
         <button
           onClick={() => void load()}
-          className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-semibold text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
+          className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-semibold text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           รีเฟรช
@@ -159,7 +159,7 @@ export default function OutboxDeadLetterPage() {
           <select
             value={eventType}
             onChange={(e) => setEventType(e.target.value)}
-            className="rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-1.5 text-sm text-[hsl(var(--card-foreground))]"
+            className="rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-1.5 text-sm text-[hsl(var(--card-foreground))]"
           >
             <option value="">ทั้งหมด</option>
             {eventTypes.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -189,7 +189,7 @@ export default function OutboxDeadLetterPage() {
           </button>
           <button
             onClick={() => setSelected(new Set())}
-            className="rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] hover:bg-white/5 transition-all"
+            className="rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] hover:bg-white/5 transition-all"
           >
             ยกเลิก
           </button>
@@ -197,12 +197,12 @@ export default function OutboxDeadLetterPage() {
       )}
 
       {/* Table */}
-      <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
+      <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--card))' }}>
+            <tr className="border-b border-[hsl(var([hsl(var(--color-border))]))]" style={{ background: 'hsl(var(--card))' }}>
               <th className="w-10 px-4 py-3 text-left">
-                <input type="checkbox" checked={items.length > 0 && selected.size === items.length} onChange={toggleSelectAll} aria-label="เลือกทั้งหมด" className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]" />
+                <input type="checkbox" checked={items.length > 0 && selected.size === items.length} onChange={toggleSelectAll} aria-label="เลือกทั้งหมด" className="h-4 w-4 rounded border-[hsl(var([hsl(var(--color-border))]))] accent-[hsl(var(--primary))]" />
               </th>
               <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-xs text-[hsl(var(--on-surface-variant))]">Event</th>
               <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-xs text-[hsl(var(--on-surface-variant))]">Aggregate</th>
@@ -212,7 +212,7 @@ export default function OutboxDeadLetterPage() {
               <th className="w-32 px-4 py-3 text-right font-semibold uppercase tracking-wider text-xs text-[hsl(var(--on-surface-variant))]">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[hsl(var(--glass-border))]">
+          <tbody className="divide-y divide-[hsl(var([hsl(var(--color-border))]))]">
             {loading && items.length === 0 ? (
               <tr><td colSpan={7} className="p-8 text-center text-[hsl(var(--on-surface-variant))]">กำลังโหลด...</td></tr>
             ) : items.length === 0 ? (
@@ -227,7 +227,7 @@ export default function OutboxDeadLetterPage() {
               <React.Fragment key={ev.id}>
                 <tr className="hover:bg-white/5 transition-colors">
                   <td className="px-4 py-3">
-                    <input type="checkbox" checked={selected.has(ev.id)} onChange={() => toggleSelect(ev.id)} className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]" />
+                    <input type="checkbox" checked={selected.has(ev.id)} onChange={() => toggleSelect(ev.id)} className="h-4 w-4 rounded border-[hsl(var([hsl(var(--color-border))]))] accent-[hsl(var(--primary))]" />
                   </td>
                   <td className="px-4 py-3 font-mono text-xs">
                     <button onClick={() => setExpandedId(expandedId === ev.id ? null : ev.id)} className="text-[hsl(var(--primary))] hover:underline">
@@ -247,7 +247,7 @@ export default function OutboxDeadLetterPage() {
                       <button
                         onClick={async () => { await fetch('/api/admin/outbox/dead-letter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventIds: [ev.id] }) }); load(); }}
                         title="Retry เดี่ยว"
-                        className="rounded-lg border border-[hsl(var(--glass-border))] glass-card p-1.5 text-[hsl(var(--on-surface-variant))] hover:border-[hsl(var(--primary))]/40 hover:text-[hsl(var(--primary))] transition-all hover:scale-105 active:scale-95"
+                        className="rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  p-1.5 text-[hsl(var(--on-surface-variant))] hover:border-[hsl(var(--primary))]/40 hover:text-[hsl(var(--primary))] transition-all hover:scale-105 active:scale-95"
                       >
                         <RotateCcw size={14} />
                       </button>
@@ -264,7 +264,7 @@ export default function OutboxDeadLetterPage() {
                 {expandedId === ev.id && (
                   <tr>
                     <td colSpan={7} className="p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                      <pre className="text-xs font-mono overflow-x-auto max-h-64 rounded-lg border border-[hsl(var(--glass-border))] glass-card p-3 whitespace-pre-wrap break-words">{JSON.stringify(ev.payload, null, 2)}</pre>
+                      <pre className="text-xs font-mono overflow-x-auto max-h-64 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  p-3 whitespace-pre-wrap break-words">{JSON.stringify(ev.payload, null, 2)}</pre>
                     </td>
                   </tr>
                 )}

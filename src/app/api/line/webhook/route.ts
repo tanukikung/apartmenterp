@@ -3,6 +3,8 @@ import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { verifyLineSignature, sendReplyMessage, sendFlexMessage, getLineUserProfile } from '@/lib/line/client';
 import { prisma, logger, UnauthorizedError } from '@/lib';
 import { broadcastLineMessage } from '@/lib/sse/broadcaster';
+import { publishChatMessage } from '@/server/websocket';
+import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import type { WebhookEvent } from '@line/bot-sdk';
 import type { Prisma } from '@prisma/client';
@@ -41,9 +43,12 @@ function extractIncomingMessage(event: WebhookEvent): IncomingMessage | null {
 
   if (evt.type === 'postback') {
     const replyToken = evt.replyToken;
+    // Use hash of postback data as idempotency key — stable across LINE retries
+    // even when replyToken changes. replyToken can change on LINE retry (old one consumed),
+    // so using it directly causes duplicate processing of confirm_payment.
     const data = evt.postback?.data || '';
-    // Use a hash of replyToken as lineMessageId for deduplication
-    const lineMessageId = `postback-${replyToken || uuidv4()}`;
+    const dataHash = createHash('sha256').update(data).digest('hex').slice(0, 16);
+    const lineMessageId = `postback-${dataHash}`;
     return {
       lineMessageId,
       type: 'POSTBACK',
@@ -357,6 +362,13 @@ async function handleBalanceInquiry(
 }
 
 // ─── Main Webhook Handler ─────────────────────────────────────────────────────
+//
+// Performance architecture (LINE 15-second timeout):
+// - Phase 1 (synchronous): Validate signature, persist all events to DB, return 200 OK.
+//   All Phase 1 ops are local DB writes — no network calls.
+// - Phase 2 (fire-and-forget): LINE API calls (profile refresh, replies) are deferred
+//   to after the response is returned. These are slow network calls and must NEVER
+//   block the 200 OK response.
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const bodyText = await req.text();
   const signature = req.headers.get('x-line-signature') || '';
@@ -364,9 +376,20 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     throw new UnauthorizedError('Invalid signature');
   }
 
-  const payload = JSON.parse(bodyText) as RawWebhookPayload;
+  // Capture timestamp immediately after signature verification — used for WebSocket latency tracking
+  const webhookReceivedAt = Date.now();
+
+  let payload: RawWebhookPayload;
+  try {
+    payload = JSON.parse(bodyText) as RawWebhookPayload;
+  } catch {
+    return NextResponse.json({ success: false, error: { message: 'Invalid JSON body', statusCode: 400 } }, { status: 400 });
+  }
   const events = Array.isArray(payload.events) ? payload.events : [];
 
+  // ── Phase 1: Persist all events to DB as fast as possible ───────────────────
+  // All Phase 1 operations are local DB writes — no network calls.
+  // Must complete before returning 200 OK so LINE does not retry.
   for (const event of events) {
     try {
       const userId = extractUserId(event);
@@ -374,7 +397,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
 
       const eventType = (event as { type?: string }).type || 'message';
 
-      // ── Handle line@read (read receipt) ────────────────────────────────────
+      // ── line@read (read receipt) — fast DB write, no LINE API call ─────────
       if (eventType === 'line@read' || eventType === 'read') {
         const readEvent = event as { replyToken?: string; read?: { readAt?: number } };
         if (!readEvent.replyToken) continue;
@@ -389,7 +412,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         continue;
       }
 
-      // ── Handle unfollow ────────────────────────────────────────────────────
+      // ── unfollow — fast DB write, no LINE API call ──────────────────────────
       if (eventType === 'unfollow') {
         const conversation = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
         if (conversation) {
@@ -401,56 +424,9 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         continue;
       }
 
-      // ── Handle follow ──────────────────────────────────────────────────────
+      // ── follow — profile fetch deferred to Phase 2 via queue ─────────────
       if (eventType === 'follow') {
-        // Idempotent: skip if conversation already exists and is not ARCHIVED
-        const existingConv = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
-        if (existingConv && existingConv.status !== 'ARCHIVED') {
-          // Already have an active conversation — acknowledge without reprocessing
-          continue;
-        }
-
-        // Fetch real LINE profile and upsert LineUser with real data
-        let displayName = 'LINE User';
-        let pictureUrl: string | null = null;
-        let statusMessage: string | null = null;
-        try {
-          const profile = await getLineUserProfile(userId);
-          displayName = profile.displayName;
-          pictureUrl = profile.pictureUrl;
-          statusMessage = profile.statusMessage;
-        } catch (err) {
-          logger.warn({ type: 'line_profile_fetch_failed', userId, error: (err as Error).message });
-        }
-
-        // Ensure LineUser record exists before creating Conversation (required FK).
-        // Use upsert so this is idempotent — safe to call even if the record already exists.
-        await prisma.lineUser.upsert({
-          where: { lineUserId: userId },
-          create: { lineUserId: userId, displayName, pictureUrl, statusMessage },
-          update: { displayName, pictureUrl, statusMessage, lastFetchedAt: new Date() },
-        });
-
-        const conversation = existingConv
-          ? await prisma.conversation.update({
-              where: { id: existingConv.id },
-              data: { status: 'ACTIVE', lastMessageAt: new Date() },
-            })
-          : await prisma.conversation.create({
-              data: { id: uuidv4(), lineUserId: userId, lastMessageAt: new Date() },
-            });
-        await prisma.message.create({
-          data: {
-            id: uuidv4(),
-            conversation: { connect: { id: conversation.id } },
-            lineMessageId: uuidv4(),
-            direction: 'INCOMING',
-            type: 'SYSTEM',
-            content: '[Follow event]',
-            sentAt: new Date(),
-            metadata: { eventType: 'follow' } as Prisma.InputJsonValue,
-          },
-        });
+        phase2Queue.push(() => persistFollowEvent(userId));
         continue;
       }
 
@@ -461,24 +437,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         continue;
       }
 
-      // Ensure LineUser record exists and has current profile data.
-      let displayName = 'LINE User';
-      let pictureUrl: string | null = null;
-      let statusMessage: string | null = null;
-      try {
-        const profile = await getLineUserProfile(userId);
-        displayName = profile.displayName;
-        pictureUrl = profile.pictureUrl;
-        statusMessage = profile.statusMessage;
-      } catch (err) {
-        logger.warn({ type: 'line_profile_fetch_failed', userId, error: (err as Error).message });
-      }
-      await prisma.lineUser.upsert({
-        where: { lineUserId: userId },
-        create: { lineUserId: userId, displayName, pictureUrl, statusMessage },
-        update: { displayName, pictureUrl, statusMessage, lastFetchedAt: new Date() },
-      });
-
+      // Get or create conversation (fast DB ops — no network calls)
       let conversation = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
       if (!conversation) {
         conversation = await prisma.conversation.create({
@@ -486,58 +445,44 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         });
       }
 
-      // Handle postback: process action but don't store as visible message
+      // Handle postback: LINE API reply deferred to Phase 2
       if (incoming.type === 'POSTBACK' && incoming.replyToken) {
-        await handlePostback(incoming.content, incoming.replyToken, conversation.id);
+        phase2Queue.push(() => handlePostbackAsync(incoming, conversation.id));
         continue;
       }
 
-      // ── Balance / invoice inquiry via text ───────────────────────────────────
+      // Balance / invoice inquiry via text — LINE API reply deferred to Phase 2
       if (incoming.type === 'TEXT' && incoming.replyToken) {
         const text = (incoming.content || '').trim();
         if (INQUIRY_TRIGGERS.some((t) => text === t || text.includes(t))) {
-          await handleBalanceInquiry(userId, incoming.replyToken, conversation.id);
+          phase2Queue.push(() => handleBalanceInquiryAsync(incoming, conversation.id));
           continue;
         }
       }
 
-      // ── LINE Maintenance Request handling ──────────────────────────────────
-      // Check if user has an in-progress maintenance request
+      // LINE Maintenance Request handling — LINE API replies deferred to Phase 2
       const hasMaintenanceRequest = await getMaintenanceRequestState(userId) !== undefined;
 
       if (incoming.type === 'TEXT' && incoming.replyToken) {
         const text = (incoming.content || '').trim();
-
-        // Start maintenance request when user says "แจ้งซ่อม"
         if (text === 'แจ้งซ่อม') {
-          const { replyText } = await startMaintenanceRequest(userId);
-          await sendReplyMessage(incoming.replyToken, replyText);
+          phase2Queue.push(() => handleMaintenanceStartAsync(incoming, userId));
           continue;
         }
-
-        // Handle in-progress maintenance conversation
         if (hasMaintenanceRequest) {
-          const result = await handleMaintenanceRequestMessage(userId, text);
-          if (result) {
-            await sendReplyMessage(incoming.replyToken, result.replyText);
-            continue;
-          }
+          phase2Queue.push(() => handleMaintenanceMessageAsync(incoming, userId));
+          continue;
         }
       }
 
-      // Handle image messages during a maintenance request flow
       if (incoming.type === 'IMAGE' && incoming.replyToken) {
         if (hasMaintenanceRequest) {
-          const imageMessageId = incoming.lineMessageId;
-          const result = await handleMaintenanceRequestImage(userId, imageMessageId);
-          if (result) {
-            await sendReplyMessage(incoming.replyToken, result.replyText);
-            continue;
-          }
+          phase2Queue.push(() => handleMaintenanceImageAsync(incoming, userId));
+          continue;
         }
       }
 
-      // Deduplicate by lineMessageId
+      // Deduplicate by lineMessageId (fast DB lookup)
       const existingMessage = await prisma.message.findUnique({
         where: { lineMessageId: incoming.lineMessageId },
       });
@@ -546,6 +491,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       const sentAt = new Date((event as { timestamp?: number }).timestamp || Date.now());
       const messageId = uuidv4();
 
+      // Persist message to DB (fast — no network calls in Phase 1)
       await prisma.message.create({
         data: {
           id: messageId,
@@ -568,7 +514,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         },
       });
 
-      // Broadcast to SSE clients so chat UI updates in real-time
+      // Broadcast to SSE clients so chat UI updates in real-time (fast — in-memory)
       broadcastLineMessage({
         id: messageId,
         type: incoming.type,
@@ -578,6 +524,23 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         tenantId: conversation.tenantId,
         lineMessageId: incoming.lineMessageId,
       });
+
+      // Publish to WebSocket room for cross-instance real-time chat updates
+      publishChatMessage({
+        type: 'new_message',
+        conversationId: conversation.id,
+        messageId,
+        senderId: userId,
+        timestamp: sentAt.toISOString(),
+        content: incoming.content,
+        direction: 'INCOMING',
+        messageType: incoming.type,
+        roomNo: conversation.roomNo,
+        webhookReceivedAt,
+      });
+
+      // Phase 2: Profile refresh after DB persist (fire-and-forget)
+      phase2Queue.push(() => refreshLineUserProfile(userId));
     } catch (err) {
       logger.error({
         type: 'line_webhook_event_error',
@@ -587,6 +550,118 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     }
   }
 
+  // ── Return 200 OK immediately after Phase 1 DB writes complete ───────────
+  // LINE requires this within 15 seconds. Slow operations deferred to Phase 2.
   logger.info({ type: 'line_webhook_processed', count: events.length });
-  return NextResponse.json({ success: true, data: { processed: events.length } } as ApiResponse<{ processed: number }>);
+  return NextResponse.json(
+    { success: true, data: { processed: events.length } } as ApiResponse<{ processed: number }>,
+    { headers: { 'X-LINE-Status': 'OK' } }
+  );
+
+  // ── Phase 2: Fire-and-forget (runs after response is sent) ───────────────────
+  // All LINE API calls happen here — these do NOT block the HTTP response.
+  void Promise.all(phase2Queue.map((fn) => fn())).catch((err) =>
+    logger.error({ type: 'line_webhook_phase2_error', error: err instanceof Error ? err.message : String(err) })
+  );
 });
+
+// ─── Phase 2 queue (LINE API calls, deferred after response) ──────────────────
+// These functions are queued during Phase 1 and executed after 200 OK is returned.
+// They contain slow network operations that must NEVER block the webhook response.
+const phase2Queue: Array<() => Promise<void>> = [];
+
+async function persistFollowEvent(userId: string): Promise<void> {
+  const existingConv = await prisma.conversation.findUnique({ where: { lineUserId: userId } });
+  if (existingConv && existingConv.status !== 'ARCHIVED') return;
+
+  let displayName = 'LINE User';
+  let pictureUrl: string | null = null;
+  let statusMessage: string | null = null;
+  try {
+    const profile = await getLineUserProfile(userId);
+    displayName = profile.displayName;
+    pictureUrl = profile.pictureUrl;
+    statusMessage = profile.statusMessage;
+  } catch (err) {
+    logger.warn({ type: 'line_profile_fetch_failed', userId, error: (err as Error).message });
+  }
+
+  await prisma.lineUser.upsert({
+    where: { lineUserId: userId },
+    create: { lineUserId: userId, displayName, pictureUrl, statusMessage },
+    update: { displayName, pictureUrl, statusMessage, lastFetchedAt: new Date() },
+  });
+
+  const conversation = existingConv
+    ? await prisma.conversation.update({
+        where: { id: existingConv.id },
+        data: { status: 'ACTIVE', lastMessageAt: new Date() },
+      })
+    : await prisma.conversation.create({
+        data: { id: uuidv4(), lineUserId: userId, lastMessageAt: new Date() },
+      });
+  await prisma.message.create({
+    data: {
+      id: uuidv4(),
+      conversation: { connect: { id: conversation.id } },
+      lineMessageId: uuidv4(),
+      direction: 'INCOMING',
+      type: 'SYSTEM',
+      content: '[Follow event]',
+      sentAt: new Date(),
+      metadata: { eventType: 'follow' } as Prisma.InputJsonValue,
+    },
+  });
+}
+
+async function handlePostbackAsync(incoming: IncomingMessage, conversationId: string): Promise<void> {
+  if (incoming.replyToken) {
+    await handlePostback(incoming.content, incoming.replyToken, conversationId);
+  }
+}
+
+async function handleBalanceInquiryAsync(incoming: IncomingMessage, conversationId: string): Promise<void> {
+  if (incoming.replyToken) {
+    const userId = (await prisma.conversation.findUnique({ where: { id: conversationId } }))?.lineUserId ?? '';
+    await handleBalanceInquiry(userId, incoming.replyToken, conversationId);
+  }
+}
+
+async function handleMaintenanceStartAsync(incoming: IncomingMessage, userId: string): Promise<void> {
+  if (incoming.replyToken) {
+    const { replyText } = await startMaintenanceRequest(userId);
+    await sendReplyMessage(incoming.replyToken, replyText);
+  }
+}
+
+async function handleMaintenanceMessageAsync(incoming: IncomingMessage, userId: string): Promise<void> {
+  if (incoming.replyToken) {
+    const text = (incoming.content || '').trim();
+    const result = await handleMaintenanceRequestMessage(userId, text);
+    if (result) {
+      await sendReplyMessage(incoming.replyToken, result.replyText);
+    }
+  }
+}
+
+async function handleMaintenanceImageAsync(incoming: IncomingMessage, userId: string): Promise<void> {
+  if (incoming.replyToken) {
+    const result = await handleMaintenanceRequestImage(userId, incoming.lineMessageId);
+    if (result) {
+      await sendReplyMessage(incoming.replyToken, result.replyText);
+    }
+  }
+}
+
+async function refreshLineUserProfile(userId: string): Promise<void> {
+  try {
+    const profile = await getLineUserProfile(userId);
+    await prisma.lineUser.upsert({
+      where: { lineUserId: userId },
+      create: { lineUserId: userId, displayName: profile.displayName, pictureUrl: profile.pictureUrl, statusMessage: profile.statusMessage },
+      update: { displayName: profile.displayName, pictureUrl: profile.pictureUrl, statusMessage: profile.statusMessage, lastFetchedAt: new Date() },
+    });
+  } catch {
+    // Non-critical — profile refresh failure must not affect message handling
+  }
+}

@@ -12,6 +12,8 @@ import {
 
 export type { GeneratedDocumentStatus } from '@prisma/client';
 
+const stripHtml = (v: string) => v.replace(/<[^>]*>/g, '').trim();
+
 export const documentTemplateTypeSchema = z.nativeEnum(DocumentTemplateType);
 export const documentTemplateStatusSchema = z.nativeEnum(DocumentTemplateStatus);
 export const documentTemplateVersionStatusSchema = z.nativeEnum(DocumentTemplateVersionStatus);
@@ -22,18 +24,18 @@ export const documentFieldValueTypeSchema = z.nativeEnum(DocumentFieldValueType)
 export const generatedDocumentFileRoleSchema = z.nativeEnum(GeneratedDocumentFileRole);
 
 export const createTemplateSchema = z.object({
-  name: z.string().trim().min(1).max(255),
-  description: z.string().trim().max(1000).optional().nullable(),
+  name: z.string().trim().min(1).max(255).transform(stripHtml),
+  description: z.string().trim().max(1000).optional().nullable().transform(v => v ? stripHtml(v) : v),
   type: documentTemplateTypeSchema.default(DocumentTemplateType.INVOICE),
-  subject: z.string().trim().max(500).optional().nullable(),
+  subject: z.string().trim().max(500).optional().nullable().transform(v => v ? stripHtml(v) : v),
   body: z.string().min(1).max(200_000).default('<p></p>'),
 });
 
 export const updateTemplateSchema = z.object({
-  name: z.string().trim().min(1).max(255).optional(),
-  description: z.string().trim().max(1000).optional().nullable(),
+  name: z.string().trim().min(1).max(255).optional().transform(v => v ? stripHtml(v) : v),
+  description: z.string().trim().max(1000).optional().nullable().transform(v => v ? stripHtml(v) : v),
   type: documentTemplateTypeSchema.optional(),
-  subject: z.string().trim().max(500).optional().nullable(),
+  subject: z.string().trim().max(500).optional().nullable().transform(v => v ? stripHtml(v) : v),
   status: documentTemplateStatusSchema.optional(),
   archive: z.boolean().optional(),
 });

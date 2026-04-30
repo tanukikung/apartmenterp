@@ -10,7 +10,7 @@ export const GET = asyncHandler(
     req: NextRequest,
     { params }: { params: { id: string } },
   ): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN', 'STAFF']);
+    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
     const result = await getBillingImportBatchDetail(params.id);
 

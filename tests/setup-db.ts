@@ -1,7 +1,8 @@
 import { beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 
-const USE_TEST_DB = process.env.USE_PRISMA_TEST_DB === 'true';
+// NOTE: USE_PRISMA_TEST_DB is now checked inside beforeAll callbacks (not at module
+// load time) so that test files can set the env var before the check runs.
 
 // Lazy-instantiated real PrismaClient for DB setup, bypassing the mock applied
 // to '@/lib/db/client' by tests/setup-mocks.ts. Integration tests that need
@@ -14,7 +15,7 @@ function getRealPrisma(): PrismaClient {
 }
 
 beforeAll(async () => {
-  if (!USE_TEST_DB) return;
+  if (process.env.USE_PRISMA_TEST_DB !== 'true') return;
   // Seed once per fork process (not once per test file). Vitest workers reuse
   // the same process across files in the same pool, so checking globalThis
   // avoids re-upserting on every file boot.
@@ -62,7 +63,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (!USE_TEST_DB || !realPrisma) return;
+  if (process.env.USE_PRISMA_TEST_DB !== 'true' || !realPrisma) return;
   try {
     await realPrisma.$disconnect();
   } catch {}
@@ -121,7 +122,7 @@ const DELETABLE_MODELS = [
 // isolate themselves via randomized IDs (roomNo, year/month, reference strings).
 // If you want a clean DB, export WIPE_TEST_DB=true before running vitest.
 beforeAll(async () => {
-  if (!USE_TEST_DB) return;
+  if (process.env.USE_PRISMA_TEST_DB !== 'true') return;
   if (process.env.WIPE_TEST_DB !== 'true') return;
   const g = globalThis as any;
   if (g.__APT_ERP_CLEANED__) return;

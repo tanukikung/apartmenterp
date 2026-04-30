@@ -42,15 +42,23 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  // ── 1. Check current billing period status ──────────────────────────────────
-  const currentPeriod = await prisma.billingPeriod.findFirst({
-    where: { year: currentYear, month: currentMonth },
-  });
-
-  const totalActiveRooms = await prisma.room.count({
-    where: { roomStatus: { in: ['VACANT', 'OCCUPIED'] } },
-  });
+  // ── Parallel queries ───────────────────────────────────────────────────────
+  const [currentPeriod, totalActiveRooms, expiringContracts, unsentInvoices, overdueInvoices, unmatchedPayments] =
+    await Promise.all([
+      prisma.billingPeriod.findFirst({ where: { year: currentYear, month: currentMonth } }),
+      prisma.room.count({ where: { roomStatus: { in: ['VACANT', 'OCCUPIED'] } } }),
+      prisma.contract.findMany({
+        where: { status: 'ACTIVE', endDate: { gte: now, lte: sevenDaysFromNow } },
+        include: { primaryTenant: true },
+        orderBy: { endDate: 'asc' },
+        take: 5,
+      }),
+      prisma.invoice.count({ where: { status: 'GENERATED' } }),
+      prisma.invoice.count({ where: { status: 'OVERDUE' } }),
+      prisma.paymentTransaction.count({ where: { status: 'NEED_REVIEW' } }),
+    ]);
 
   let missingRooms = totalActiveRooms;
   if (currentPeriod) {
@@ -59,40 +67,6 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     });
     missingRooms = totalActiveRooms - recordCount;
   }
-
-  // ── 2. Contracts expiring within 7 days ─────────────────────────────────────
-  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const expiringContracts = await prisma.contract.findMany({
-    where: {
-      status: 'ACTIVE',
-      endDate: {
-        gte: now,
-        lte: sevenDaysFromNow,
-      },
-    },
-    include: {
-      primaryTenant: true,
-    },
-    orderBy: { endDate: 'asc' },
-    take: 5,
-  });
-
-  // ── 3. Count unsent invoices ────────────────────────────────────────────────
-  const unsentInvoices = await prisma.invoice.count({
-    where: { status: 'GENERATED' },
-  });
-
-  // ── 4. Count unmatched payments ────────────────────────────────────────────
-  // Mirror the /admin/payments review tab exactly: only NEED_REVIEW transactions
-  // are shown to the user there, so the dashboard alert count must agree.
-  const unmatchedPayments = await prisma.paymentTransaction.count({
-    where: { status: 'NEED_REVIEW' },
-  });
-
-  // ── 5. Overdue invoices ─────────────────────────────────────────────────────
-  const overdueInvoices = await prisma.invoice.count({
-    where: { status: 'OVERDUE' },
-  });
 
   // ── Build alerts ───────────────────────────────────────────────────────────
   const alerts: DashboardAlert[] = [];

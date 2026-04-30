@@ -213,7 +213,7 @@ const TABS: { id: Tab; label: string }[] = [
 function GlassCard({ children, className = '', hover = false }: { children: React.ReactNode; className?: string; hover?: boolean }) {
   return (
     <div className={[
-      'rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur',
+      'rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]',
       'shadow-[0_8px_32px_hsl(240_6%_10%/_0.06),0_0_0_1px_hsl(var(--color-border))]',
       hover ? 'hover:bg-[hsl(var(--color-surface))] hover:shadow-[0_12px_40px_hsl(var(--color-primary)/_0.08),0_0_0_1px_hsl(var(--color-primary)/_0.15)] hover:scale-[1.01] transition-all duration-200 cursor-pointer' : '',
       className,
@@ -305,7 +305,7 @@ function OverviewTab() {
           {[
             { title: 'รายงานรายได้', desc: 'รายได้ ใบแจ้งหนี้ และค้างชำระรายเดือน', icon: <BarChart2 className="h-6 w-6" />, glow: 'shadow-[0_0_20px_rgba(59,130,246,0.2)]', color: 'border-blue-500/20 bg-blue-500/5', href: '/admin/reports?tab=revenue' },
             { title: 'รายงานความครอบคลุม', desc: 'อัตราการเข้าพักและสถานะห้อง', icon: <Building2 className="h-6 w-6" />, glow: 'shadow-[0_0_20px_rgba(34,197,94,0.2)]', color: 'border-emerald-500/20 bg-emerald-500/5', href: '/admin/reports?tab=occupancy' },
-            { title: 'รายงานการเก็บเงิน', desc: 'อัตราการเก็บและวิเคราะห์หนี้ค้าง', icon: <CreditCard className="h-6 w-6" />, glow: 'shadow-glow-primary', color: 'border-indigo-500/20 bg-indigo-500/5', href: '/admin/reports?tab=collections' },
+            { title: 'รายงานการเก็บเงิน', desc: 'อัตราการเก็บและวิเคราะห์หนี้ค้าง', icon: <CreditCard className="h-6 w-6" />, glow: 'shadow-[0_0_20px_rgba(99,102,241,0.15)]', color: 'border-indigo-500/20 bg-indigo-500/5', href: '/admin/reports?tab=collections' },
             { title: 'ประวัติกิจกรรม', desc: 'บันทึกการเปลี่ยนแปลงระบบทั้งหมด', icon: <ClipboardList className="h-6 w-6" />, glow: 'shadow-[0_0_20px_rgba(139,92,246,0.2)]', color: 'border-violet-500/20 bg-violet-500/5', href: '/admin/audit-logs' },
             { title: 'สถานะระบบ', desc: 'สุขภาพและล็อกการทำงาน', icon: <Server className="h-6 w-6" />, glow: 'shadow-[0_0_20px_rgba(139,92,246,0.2)]', color: 'border-violet-500/20 bg-violet-500/5', href: '/admin/system' },
           ].map((card) => (
@@ -346,7 +346,7 @@ function OverviewTab() {
             {auditRows.map((row, i) => (
               <li key={row.id} className="flex items-start gap-4 px-6 py-3">
                 <div className="relative flex flex-col items-center">
-                  <div className="mt-1 h-2.5 w-2.5 rounded-full bg-[hsl(var(--primary))] ring-2 ring-[hsl(var(--primary))]/20 shadow-[var(--glow-primary)]" />
+                  <div className="mt-1 h-2.5 w-2.5 rounded-full bg-[hsl(var(--primary))] ring-2 ring-[hsl(var(--primary))]/20 shadow-[0_1px_3px_rgba(0,0,0,0.5)]" />
                   {i < auditRows.length - 1 && <div className="absolute top-4 h-full w-px bg-white/10" />}
                 </div>
                 <div className="min-w-0 flex-1 pb-1">
@@ -428,7 +428,7 @@ function RevenueTab() {
 
   return (
     <div className="space-y-4">
-      {error && <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 backdrop-blur"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
+      {error && <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
 
       {/* Date filter */}
       <GlassCard className="p-4">
@@ -437,22 +437,22 @@ function RevenueTab() {
           <div className="flex items-center gap-2">
             <span className="text-sm text-[hsl(var(--on-surface-variant))]">จาก</span>
             <select value={fromMonth} onChange={(e) => setFromMonth(Number(e.target.value))}
-              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 backdrop-blur-sm">
+              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
               {MONTHS.map((m) => <option key={m} value={m}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1]}</option>)}
             </select>
             <select value={fromYear} onChange={(e) => setFromYear(Number(e.target.value))}
-              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 backdrop-blur-sm">
+              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-[hsl(var(--on-surface-variant))]">ถึง</span>
             <select value={toMonth} onChange={(e) => setToMonth(Number(e.target.value))}
-              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 backdrop-blur-sm">
+              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
               {MONTHS.map((m) => <option key={m} value={m}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1]}</option>)}
             </select>
             <select value={toYear} onChange={(e) => setToYear(Number(e.target.value))}
-              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 backdrop-blur-sm">
+              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
@@ -479,7 +479,7 @@ function RevenueTab() {
               <p className="mt-1 text-2xl font-bold text-[hsl(var(--on-surface))]">{loading ? '...' : money(summary.avg)}</p>
               <p className="mt-1 text-xs text-[hsl(var(--on-surface))]/30">ต่อเดือน</p>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-indigo-500/20 bg-indigo-500/10 shadow-glow-primary"><BarChart2 className="h-5 w-5 text-indigo-400" /></div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-indigo-500/20 bg-indigo-500/10 shadow-[0_0_20px_rgba(99,102,241,0.15)]"><BarChart2 className="h-5 w-5 text-indigo-400" /></div>
           </div>
         </GlassCard>
         <GlassCard className="p-5" hover>
@@ -503,11 +503,11 @@ function RevenueTab() {
               const pct = maxCollected > 0 ? (row.collected / maxCollected) * 100 : 0;
               return (
                 <div key={`${row.year}-${row.month}`} className="group relative flex min-w-[32px] flex-1 flex-col items-center justify-end">
-                  <div className="pointer-events-none absolute bottom-full mb-2 hidden rounded-lg border border-[hsl(var(--color-border))] bg-black/80 px-2 py-1 text-center text-xs shadow-lg backdrop-blur group-hover:block">
+                  <div className="pointer-events-none absolute bottom-full mb-2 hidden rounded-lg border border-[hsl(var(--color-border))] bg-black/80 px-2 py-1 text-center text-xs shadow-lg group-hover:block">
                     <div className="font-semibold text-[hsl(var(--on-surface))]">{monthLabel(row.year, row.month)}</div>
                     <div className="text-emerald-400">{money(row.collected)}</div>
                   </div>
-                  <div className="w-full rounded-t-md bg-[hsl(var(--primary))]/80 transition-all duration-300 hover:bg-[hsl(var(--primary))] hover:shadow-[var(--glow-primary-hover)]" style={{ height: `${Math.max(pct, 2)}%` }} />
+                  <div className="w-full rounded-t-md bg-[hsl(var(--primary))]/80 transition-all duration-300 hover:bg-[hsl(var(--primary))] hover:shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_0_1px_rgba(99,102,241,0.15)]" style={{ height: `${Math.max(pct, 2)}%` }} />
                   <div className="mt-1 w-full truncate text-center text-[10px] text-[hsl(var(--on-surface))]/30">{padMonth(row.month)}/{String(row.year).slice(2)}</div>
                 </div>
               );
@@ -585,30 +585,20 @@ function OccupancyTab() {
     setLoading(true); setError(null);
     try {
       const occPromise = fetch('/api/analytics/occupancy', { cache: 'no-store' }).then((r) => r.json());
-      type ApiRoom = { roomNo?: string; roomNumber?: string; roomStatus?: string; floorNo?: number };
-      const PAGE_SIZE = 300;
-      const allRooms: Room[] = [];
-      let rp = 1;
-      while (true) {
-        const res = await fetch(`/api/rooms?page=${rp}&pageSize=${PAGE_SIZE}`, { cache: 'no-store' }).then((r) => r.json());
-        if (!res.success) break;
-        const chunk: ApiRoom[] = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
-        allRooms.push(
-          ...chunk.map((r): Room => ({
-            id: r.roomNo ?? r.roomNumber ?? '',
-            roomNumber: r.roomNumber ?? r.roomNo ?? '',
-            status: (r.roomStatus as RoomStatus) ?? 'VACANT',
-            floor: r.floorNo != null ? { id: String(r.floorNo), floorNumber: r.floorNo } : null,
-          })),
-        );
-        const total: number = (res.data?.total as number | undefined) ?? chunk.length;
-        if (allRooms.length >= total || chunk.length === 0) break;
-        rp += 1;
-        if (rp > 50) break;
-      }
       const occRes = await occPromise;
       if (occRes.success) setOccupancy(occRes.data);
-      setRooms(allRooms);
+      const roomsRes = await fetch('/api/rooms?page=1&pageSize=50', { cache: 'no-store' }).then((r) => r.json());
+      if (roomsRes.success) {
+        type ApiRoom = { roomNo?: string; roomNumber?: string; roomStatus?: string; floorNo?: number };
+        const chunk: ApiRoom[] = Array.isArray(roomsRes.data) ? roomsRes.data : (roomsRes.data?.data ?? []);
+        setRooms(chunk.map((r): Room => ({
+          id: r.roomNo ?? r.roomNumber ?? '',
+          roomNumber: r.roomNumber ?? r.roomNo ?? '',
+          status: (r.roomStatus as RoomStatus) ?? 'VACANT',
+          floor: r.floorNo != null ? { id: String(r.floorNo), floorNumber: r.floorNo } : null,
+        })));
+      }
+
     } catch (err) { setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูล'); }
     finally { setLoading(false); }
   }, []);
@@ -636,7 +626,7 @@ function OccupancyTab() {
 
   return (
     <div className="space-y-4">
-      {error && <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 backdrop-blur"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
+      {error && <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -775,20 +765,12 @@ function CollectionsTab() {
       if (!revRes.success) throw new Error(revRes.error?.message || 'ไม่สามารถโหลดข้อมูลรายได้');
       setRevenueData(revRes.data ?? []);
 
-      const PAGE_SIZE = 100;
-      const allOverdue: Invoice[] = [];
-      let page = 1;
-      while (true) {
-        const res = await fetch(`/api/invoices?status=OVERDUE&page=${page}&pageSize=${PAGE_SIZE}`, { cache: 'no-store' }).then((r) => r.json());
-        if (!res.success) break;
-        const chunk: Invoice[] = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
-        allOverdue.push(...chunk);
-        const total: number = (res.data?.total as number | undefined) ?? chunk.length;
-        if (allOverdue.length >= total || chunk.length === 0) break;
-        page += 1;
-        if (page > 100) break;
+      const overdueRes = await fetch('/api/invoices?status=OVERDUE&page=1&pageSize=50', { cache: 'no-store' }).then((r) => r.json());
+      if (overdueRes.success) {
+        const chunk: Invoice[] = Array.isArray(overdueRes.data) ? overdueRes.data : (overdueRes.data?.data ?? []);
+        setOverdueInvoices(chunk);
       }
-      setOverdueInvoices(allOverdue);
+
     } catch (err) { setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูล'); }
     finally { setLoading(false); }
   }, []);
@@ -819,7 +801,7 @@ function CollectionsTab() {
 
   return (
     <div className="space-y-4">
-      {error && <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 backdrop-blur"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
+      {error && <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
 
       {/* Date filter */}
       <GlassCard className="p-4">
@@ -828,22 +810,22 @@ function CollectionsTab() {
           <div className="flex items-center gap-2">
             <span className="text-sm text-[hsl(var(--on-surface-variant))]">จาก</span>
             <select value={fromMonth} onChange={(e) => setFromMonth(Number(e.target.value))}
-              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 backdrop-blur-sm">
+              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
               {MONTHS.map((m) => <option key={m} value={m}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1]}</option>)}
             </select>
             <select value={fromYear} onChange={(e) => setFromYear(Number(e.target.value))}
-              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 backdrop-blur-sm">
+              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-[hsl(var(--on-surface-variant))]">ถึง</span>
             <select value={toMonth} onChange={(e) => setToMonth(Number(e.target.value))}
-              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 backdrop-blur-sm">
+              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
               {MONTHS.map((m) => <option key={m} value={m}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1]}</option>)}
             </select>
             <select value={toYear} onChange={(e) => setToYear(Number(e.target.value))}
-              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 backdrop-blur-sm">
+              className="rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-sm text-[hsl(var(--on-surface))] focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
@@ -982,7 +964,7 @@ export default function AdminReportsPage() {
   return (
     <main className="space-y-6">
       {/* Page header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600/80 to-blue-700/60 px-6 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_1px_rgba(99,102,241,0.1)] backdrop-blur">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600/80 to-blue-700/60 px-6 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_1px_rgba(99,102,241,0.1)]">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.1),_transparent_60%)]" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -1001,7 +983,7 @@ export default function AdminReportsPage() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="inline-flex items-center gap-1 rounded-xl border border-[hsl(var(--color-border))] bg-white/[0.03] p-1 backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.3)]">
+      <div className="inline-flex items-center gap-1 rounded-xl border border-[hsl(var(--color-border))] bg-white/[0.03] p-1 shadow-[0_4px_16px_rgba(0,0,0,0.3)]">
         {TABS.map((tab) => (
           <button key={tab.id} onClick={() => handleTabChange(tab.id)}
             className={['px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95',

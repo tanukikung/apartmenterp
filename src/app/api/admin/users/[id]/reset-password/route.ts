@@ -2,12 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
 import { createResetToken } from '@/lib/auth/session';
 import { getEnv } from '@/lib/config/env';
-import { getRequestIp, requireRole } from '@/lib/auth/guards';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, NotFoundError } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit/audit.service';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 20;
+const DELETE_WINDOW_MS = 60 * 1000;
+const DELETE_MAX_ATTEMPTS = 5;
 
 export const POST = asyncHandler(async (req: NextRequest, context?: { params: { id: string } }): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN']);
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`admin-reset-password:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  requireRole(req, ['ADMIN', 'OWNER']);
   const userId = context?.params.id;
   if (!userId) {
     throw new NotFoundError('AdminUser');
@@ -50,8 +65,7 @@ export const POST = asyncHandler(async (req: NextRequest, context?: { params: { 
   const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
 
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
+    req,
     action: 'ADMIN_RESET_LINK_ISSUED',
     entityType: 'AdminUser',
     entityId: user.id,
@@ -59,7 +73,6 @@ export const POST = asyncHandler(async (req: NextRequest, context?: { params: { 
       username: user.username,
       expiresAt,
     },
-    ipAddress: getRequestIp(req),
   });
 
   return NextResponse.json({
@@ -73,7 +86,16 @@ export const POST = asyncHandler(async (req: NextRequest, context?: { params: { 
 });
 
 export const DELETE = asyncHandler(async (req: NextRequest, context?: { params: { id: string } }): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN']);
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`admin-reset-password-delete:${ip}`, DELETE_MAX_ATTEMPTS, DELETE_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  requireRole(req, ['ADMIN', 'OWNER']);
   const userId = context?.params.id;
   if (!userId) {
     throw new NotFoundError('AdminUser');
@@ -96,15 +118,13 @@ export const DELETE = asyncHandler(async (req: NextRequest, context?: { params: 
   });
 
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
+    req,
     action: 'ADMIN_RESET_LINK_REVOKED',
     entityType: 'AdminUser',
     entityId: user.id,
     metadata: {
       username: user.username,
     },
-    ipAddress: getRequestIp(req),
   });
 
   return NextResponse.json({

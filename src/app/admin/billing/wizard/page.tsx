@@ -85,7 +85,7 @@ function StepIndicator({ current }: { current: WizardStep }): JSX.Element {
           <div key={step.id} className="flex items-center">
             <div className={`flex items-center gap-2 px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-full text-xs font-semibold transition-all ${
               done ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-              active ? 'bg-[hsl(var(--primary))] text-white shadow-glow-primary' :
+              active ? 'bg-[hsl(var(--primary))] text-white shadow-[0_0_20px_rgba(99,102,241,0.15)]' :
               'bg-white/[0.05] text-white/60 border border-white/10'
             }`}>
               {done
@@ -182,19 +182,19 @@ export default function BillingWizardPage(): JSX.Element {
       </div>
 
       {/* Step indicator */}
-      <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-4">
+      <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-4">
         <StepIndicator current={step} />
       </div>
 
       {/* Alerts */}
       {error && (
-        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 font-medium backdrop-blur">
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 font-medium">
           <AlertTriangle size={16} />
           {error}
         </div>
       )}
       {successMsg && (
-        <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400 font-medium backdrop-blur">
+        <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400 font-medium">
           <CheckCircle size={16} />
           {successMsg}
         </div>
@@ -202,7 +202,7 @@ export default function BillingWizardPage(): JSX.Element {
 
       {/* ── Step: Import ──────────────────────────────────────────────────── */}
       {step === 'import' && (
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30 flex items-center justify-center">
               <FileSpreadsheet size={20} className="text-[hsl(var(--color-primary-light))]" />
@@ -230,7 +230,7 @@ export default function BillingWizardPage(): JSX.Element {
           <div className="flex items-center gap-3">
             <Link
               href="/admin/billing/import"
-              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-glow-primary hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover transition-all active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-all active:scale-[0.98]"
             >
               <FileSpreadsheet size={16} />
               ไปหน้านำเข้า Excel
@@ -239,7 +239,7 @@ export default function BillingWizardPage(): JSX.Element {
               <button
                 onClick={() => queryClient.setQueryData<WizardData>(['billing-wizard'], (old) => old ? { ...old, currentStep: 'review' } : old)}
                 disabled={actionLoading}
-                className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-5 py-2.5 text-sm font-medium text-[hsl(var(--color-text))/70] hover:bg-[hsl(var(--color-surface))/80] hover:border-[hsl(var(--color-border))/20] transition-all active:scale-[0.98]"
+                className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--on-surface))]/70 hover:bg-[hsl(var(--color-surface-hover))] transition-all active:scale-[0.98]"
               >
                 ข้าม → ตรวจสอบ
               </button>
@@ -266,7 +266,7 @@ export default function BillingWizardPage(): JSX.Element {
 
       {/* ── Step: Review ───────────────────────────────────────────────────── */}
       {step === 'review' && period && (
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
               <FileSpreadsheet size={20} className="text-blue-400" />
@@ -313,7 +313,7 @@ export default function BillingWizardPage(): JSX.Element {
             <button
               onClick={() => doAction('lock-and-generate', { periodId: period.id })}
               disabled={actionLoading || period.totalRecords === 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-glow-primary hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover transition-all active:scale-[0.98] disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-all active:scale-[0.98] disabled:opacity-40"
             >
               {actionLoading
                 ? <Loader2 size={16} className="animate-spin" />
@@ -323,7 +323,7 @@ export default function BillingWizardPage(): JSX.Element {
             </button>
             <Link
               href="/admin/billing"
-              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-5 py-2.5 text-sm font-medium text-[hsl(var(--color-text))/70] hover:bg-[hsl(var(--color-surface))/80] hover:border-[hsl(var(--color-border))/20] transition-all active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--color-text))/70] hover:bg-[hsl(var(--color-surface))/80] hover:border-[hsl(var(--color-border))/20] transition-all active:scale-[0.98]"
             >
               แก้ไขข้อมูล
             </Link>
@@ -333,7 +333,7 @@ export default function BillingWizardPage(): JSX.Element {
 
       {/* ── Step: Generate ────────────────────────────────────────────────── */}
       {step === 'generate' && period && (
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
               <CheckCircle size={20} className="text-emerald-400" />
@@ -359,7 +359,7 @@ export default function BillingWizardPage(): JSX.Element {
             <button
               onClick={() => queryClient.setQueryData<WizardData>(['billing-wizard'], (old) => old ? { ...old, currentStep: 'send' } : old)}
               disabled={period.generatedInvoices === 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-glow-primary hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover transition-all active:scale-[0.98] disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-all active:scale-[0.98] disabled:opacity-40"
             >
               ส่งใบแจ้งหนี้ →
             </button>
@@ -369,7 +369,7 @@ export default function BillingWizardPage(): JSX.Element {
 
       {/* ── Step: Send ────────────────────────────────────────────────────── */}
       {step === 'send' && period && (
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
               <Send size={20} className="text-blue-400" />
@@ -399,7 +399,7 @@ export default function BillingWizardPage(): JSX.Element {
             <button
               onClick={() => doAction('send-all', { periodId: period.id })}
               disabled={actionLoading}
-              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-glow-primary hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover transition-all active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-all active:scale-[0.98]"
             >
               {actionLoading
                 ? <Loader2 size={16} className="animate-spin" />
@@ -412,7 +412,7 @@ export default function BillingWizardPage(): JSX.Element {
               <p className="text-sm text-emerald-400 font-medium">✓ ส่งใบแจ้งหนี้หมดแล้ว</p>
               <button
                 onClick={() => queryClient.setQueryData<WizardData>(['billing-wizard'], (old) => old ? { ...old, currentStep: 'complete' } : old)}
-                className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-glow-primary hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover transition-all active:scale-[0.98]"
+                className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-all active:scale-[0.98]"
               >
                 เสร็จสิ้น →
               </button>
@@ -428,7 +428,7 @@ export default function BillingWizardPage(): JSX.Element {
 
       {/* ── Step: Complete ─────────────────────────────────────────────────── */}
       {(step === 'complete' || (period && period.sentInvoices === period.generatedInvoices && period.generatedInvoices > 0)) && (
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-6 space-y-5">
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <div className="h-16 w-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
               <CheckCircle size={40} className="text-emerald-400" />
@@ -461,13 +461,13 @@ export default function BillingWizardPage(): JSX.Element {
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/admin/billing"
-              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-glow-primary hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover transition-all active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-all active:scale-[0.98]"
             >
               ดูรายละเอียดบิล
             </Link>
             <Link
               href="/admin/payments/review"
-              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-5 py-2.5 text-sm font-medium text-[hsl(var(--color-text))/70] hover:bg-[hsl(var(--color-surface))/80] hover:border-[hsl(var(--color-border))/20] transition-all active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--color-text))/70] hover:bg-[hsl(var(--color-surface))/80] hover:border-[hsl(var(--color-border))/20] transition-all active:scale-[0.98]"
             >
               ตรวจสอบการชำระเงิน
             </Link>

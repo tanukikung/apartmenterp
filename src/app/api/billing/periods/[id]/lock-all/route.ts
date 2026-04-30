@@ -4,6 +4,12 @@ import { requireRole } from '@/lib/auth/guards';
 import { prisma } from '@/lib/db/client';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
+import { ROOM_STATUS } from '@/lib/constants';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+// Admin write operations: 20/min
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 20;
 
 // ============================================================================
 // POST /api/billing/periods/[id]/lock-all
@@ -14,8 +20,18 @@ import { logger } from '@/lib/utils/logger';
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    const limiter = getLoginRateLimiter();
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+    const { allowed, remaining, resetAt } = await limiter.check(`billing-lock:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: { message: `Too many billing requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+      );
+    }
+
     const { id: periodId } = params;
-    requireRole(req, ['ADMIN']);
+    requireRole(req, ['ADMIN', 'OWNER']);
 
     // Verify period exists
     const period = await prisma.billingPeriod.findUnique({ where: { id: periodId } });
@@ -45,8 +61,7 @@ export const POST = asyncHandler(
         const bulkUnits = Number(periodWithWater.commonAreaWaterUnits);
         const bulkCost = Number(periodWithWater.commonAreaWaterAmount);
         const occupiedCount = draftBillings.filter(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (b) => (b.room as any)?.roomStatus !== 'MAINTENANCE' && (b.room as any)?.roomStatus !== 'OWNER_USE'
+          (b) => b.room.roomStatus !== ROOM_STATUS.MAINTENANCE && b.room.roomStatus !== ROOM_STATUS.OWNER_USE
         ).length;
 
         if (bulkUnits > 0 && occupiedCount > 0) {
@@ -56,7 +71,7 @@ export const POST = asyncHandler(
           // commonAreaWaterShare is Decimal? in Prisma schema — use Decimal.js via Prisma's driver
           await Promise.all(
             draftBillings
-              .filter((b) => b.room && b.room.roomStatus !== 'MAINTENANCE' && b.room.roomStatus !== 'OWNER_USE')
+              .filter((b) => b.room && b.room.roomStatus !== ROOM_STATUS.MAINTENANCE && b.room.roomStatus !== ROOM_STATUS.OWNER_USE)
               .map((b) =>
                 tx.roomBilling.update({
                   where: { id: b.id },

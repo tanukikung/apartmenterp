@@ -6,6 +6,10 @@ import { bankStatementParser } from '@/modules/payments/bank-statement-parser';
 import { logAudit } from '@/modules/audit/audit.service';
 import { logger } from '@/lib/utils/logger';
 import { getStorage } from '@/infrastructure/storage';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+const DOCUMENT_WINDOW_MS = 60 * 1000;
+const DOCUMENT_MAX_ATTEMPTS = 5;
 
 // ── POST /api/payments/statement-upload ───────────────────────────────────────
 // Canonical route for bank statement import.
@@ -13,7 +17,16 @@ import { getStorage } from '@/infrastructure/storage';
 // Parses, persists each transaction, runs auto-matching, and audits the actor.
 
 export const POST = asyncHandler(async (request: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(request, ['ADMIN', 'STAFF']);
+  const limiter = getLoginRateLimiter();
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`payments-statement-upload:${ip}`, DOCUMENT_MAX_ATTEMPTS, DOCUMENT_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many upload requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  const session = requireRole(request, ['ADMIN', 'STAFF', 'OWNER']);
 
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
@@ -117,8 +130,7 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
 
   // Audit log with real actor from session (not hardcoded 'system').
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
+    req: request,
     action: 'BANK_STATEMENT_UPLOADED',
     entityType: 'PAYMENT_TRANSACTION',
     entityId: file.name,

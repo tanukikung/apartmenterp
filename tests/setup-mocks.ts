@@ -23,21 +23,32 @@ vi.mock('@/lib/db/client', () => {
   return { prisma, connectPrisma, disconnectPrisma, withTransaction, rawQuery };
 });
 
-// When USE_PRISMA_TEST_DB=true, swap $transaction for the real Prisma client
-// so integration tests get real DB access. The setup file loads synchronously,
-// so we use a sync-over-async pattern: call the real prisma $transaction within
-// the mock's fn without awaiting the PrismaClient construction eagerly.
+// ─────────────────────────────────────────────────────────────────────────────
+// Integration test mode (USE_PRISMA_TEST_DB=true)
+//
+// When the flag is set, we inject a real Prisma client into the mock so that
+// $transaction(...) calls go to the real DB. This is intentionally synchronous
+// to avoid race conditions with vi.mock module factory hoisting.
+// ─────────────────────────────────────────────────────────────────────────────
 if (process.env.USE_PRISMA_TEST_DB === 'true') {
-  // eslint-disable-next-line @typescript-eslint/no-implicit-any-catch
-  (async () => {
-    try {
-      const { PrismaClient } = await import('@prisma/client');
-      const realPrisma = new PrismaClient();
-      (prisma as any).$transaction = async (fn: (tx: any) => Promise<any>) => {
-        return realPrisma.$transaction(fn);
-      };
-    } catch {}
-  })();
+  // Inject directly into the shared global so vi.mock module factory sees it.
+  // Defensive: only replace if the swap hasn't already happened.
+  const g = globalThis as any;
+  if (g.__PRISMA_MOCK__ && !g.__REAL_TXSWAP__) {
+    (async () => {
+      try {
+        const { PrismaClient } = await import('@prisma/client');
+        const realPrisma = new PrismaClient();
+        g.__PRISMA_MOCK__.$transaction = async (fn: (tx: any) => Promise<any>) => {
+          return realPrisma.$transaction(fn);
+        };
+        g.__REAL_TXSWAP__ = true;
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('[setup-mocks] real Prisma swap failed:', e);
+      }
+    })();
+  }
 }
 
 vi.mock('@/lib/line/client', () => {

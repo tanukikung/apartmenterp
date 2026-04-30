@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const stripHtml = (v: string) => v.replace(/<[^>]*>/g, '').trim();
+
 // ============================================================================
 // MoveOut Types
 // ============================================================================
@@ -24,7 +26,7 @@ export type MoveOutItemCondition = z.infer<typeof moveOutItemConditionSchema>;
 export const createMoveOutSchema = z.object({
   contractId: z.string().uuid('Invalid contract ID'),
   moveOutDate: z.string().datetime({ message: 'Invalid move-out date' }).or(z.string().date()),
-  notes: z.string().max(2000).optional(),
+  notes: z.string().max(2000).optional().transform(v => v ? stripHtml(v) : v),
   // Move-out meter readings — required when tenant moves out mid-month so the
   // system can compute a final settlement bill (prorated rent + utilities).
   // If not provided, the system will use the last billed readings as-is.
@@ -40,7 +42,7 @@ export type CreateMoveOutInput = z.infer<typeof createMoveOutSchema>;
 
 export const updateMoveOutSchema = z.object({
   moveOutDate: z.string().datetime().or(z.string().date()).optional(),
-  notes: z.string().max(2000).optional(),
+  notes: z.string().max(2000).optional().transform(v => v ? stripHtml(v) : v),
   status: moveOutStatusSchema.optional(),
 });
 
@@ -51,21 +53,21 @@ export type UpdateMoveOutInput = z.infer<typeof updateMoveOutSchema>;
 // ============================================================================
 
 export const createMoveOutItemSchema = z.object({
-  category: z.string().min(1, 'Category is required').max(100),
-  item: z.string().min(1, 'Item name is required').max(200),
+  category: z.string().min(1, 'Category is required').max(100).transform(stripHtml),
+  item: z.string().min(1, 'Item name is required').max(200).transform(stripHtml),
   condition: moveOutItemConditionSchema,
   cost: z.number().min(0).max(999999.99).default(0),
-  notes: z.string().max(500).optional(),
+  notes: z.string().max(500).optional().transform(v => v ? stripHtml(v) : v),
 });
 
 export type CreateMoveOutItemInput = z.infer<typeof createMoveOutItemSchema>;
 
 export const updateMoveOutItemSchema = z.object({
-  category: z.string().min(1).max(100).optional(),
-  item: z.string().min(1).max(200).optional(),
+  category: z.string().min(1).max(100).optional().transform(v => v ? stripHtml(v) : v),
+  item: z.string().min(1).max(200).optional().transform(v => v ? stripHtml(v) : v),
   condition: moveOutItemConditionSchema.optional(),
   cost: z.number().min(0).max(999999.99).optional(),
-  notes: z.string().max(500).optional(),
+  notes: z.string().max(500).optional().transform(v => v ? stripHtml(v) : v),
 });
 
 export type UpdateMoveOutItemInput = z.infer<typeof updateMoveOutItemSchema>;
@@ -87,7 +89,7 @@ export type CalculateDepositInput = z.infer<typeof calculateDepositSchema>;
 // ============================================================================
 
 export const confirmMoveOutSchema = z.object({
-  notes: z.string().max(2000).optional(),
+  notes: z.string().max(2000).optional().transform(v => v ? stripHtml(v) : v),
 });
 
 export type ConfirmMoveOutInput = z.infer<typeof confirmMoveOutSchema>;
@@ -97,7 +99,7 @@ export type ConfirmMoveOutInput = z.infer<typeof confirmMoveOutSchema>;
 // ============================================================================
 
 export const markRefundSchema = z.object({
-  notes: z.string().max(2000).optional(),
+  notes: z.string().max(2000).optional().transform(v => v ? stripHtml(v) : v),
 });
 
 export type MarkRefundInput = z.infer<typeof markRefundSchema>;
@@ -183,7 +185,7 @@ export interface MoveOutListResponse {
 // ============================================================================
 
 export const sendMoveOutNoticeSchema = z.object({
-  message: z.string().max(2000).optional(),
+  message: z.string().max(2000).optional().transform(v => v ? stripHtml(v) : v),
 });
 
 export type SendMoveOutNoticeInput = z.infer<typeof sendMoveOutNoticeSchema>;

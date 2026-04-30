@@ -86,12 +86,11 @@ export default function BillingBatchesPage() {
     },
   });
 
-  const batches: ImportBatch[] = batchesData?.data?.batches ?? [];
-
   const filtered = useMemo(() => {
+    const list: ImportBatch[] = batchesData?.data?.batches ?? [];
     const needle = search.trim().toLowerCase();
-    if (!needle) return batches;
-    return batches.filter((batch) => {
+    if (!needle) return list;
+    return list.filter((batch) => {
       const cycle = batch.billingCycle ? monthLabel(batch.billingCycle.month, batch.billingCycle.year) : '';
       return (
         batch.sourceFilename.toLowerCase().includes(needle) ||
@@ -100,37 +99,37 @@ export default function BillingBatchesPage() {
         (batch.billingCycle?.building?.name ?? '').toLowerCase().includes(needle)
       );
     });
-  }, [batches, search]);
+  }, [batchesData, search]);
 
   const stats = useMemo(() => {
+    const list: ImportBatch[] = batchesData?.data?.batches ?? [];
     return {
-      total: batches.length,
-      imported: batches.filter((batch) => batch.status === 'IMPORTED').length,
-      needsReview: batches.filter((batch) => batch.warningRows > 0 || batch.invalidRows > 0).length,
-      latestImportedAt: [...batches]
+      total: list.length,
+      imported: list.filter((batch) => batch.status === 'IMPORTED').length,
+      needsReview: list.filter((batch) => batch.warningRows > 0 || batch.invalidRows > 0).length,
+      latestImportedAt: [...list]
         .filter((batch) => batch.importedAt)
         .sort((a, b) => (new Date(b.importedAt || 0).getTime() - new Date(a.importedAt || 0).getTime()))[0]
         ?.importedAt ?? null,
     };
-  }, [batches]);
+  }, [batchesData]);
 
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[hsl(var(--primary))]/20 to-[hsl(var(--primary))]/5 backdrop-blur border border-[hsl(var(--color-border))] px-6 py-5 shadow-[var(--glow-primary)]">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.08),_transparent_60%)]" />
+      <div className="relative overflow-hidden rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
         <div className="relative flex items-center justify-between">
           <div>
-            <h1 className="text-base font-semibold text-[hsl(var(--color-text))]">แบทช์นำเข้าการเรียกเก็บ</h1>
-            <p className="text-xs text-[hsl(var(--color-text))/50] mt-0.5">
+            <h1 className="text-base font-semibold text-[hsl(var(--on-surface))]">แบทช์นำเข้าการเรียกเก็บ</h1>
+            <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">
               ทุกเวิร์กบุ๊กจะถูกจัดเตรียมที่นี่ก่อน ตรวจสอบทีละแถว แล้วจึงยืนยันเป็นบันทึกการเรียกเก็บจริง
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/admin/billing/import" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/50 backdrop-blur px-4 py-2 text-sm font-semibold text-[hsl(var(--color-text))/80] shadow-sm transition-all hover:bg-[hsl(var(--color-surface))/70] hover:border-[hsl(var(--color-border))/20] active:scale-[0.98]">
+            <Link href="/admin/billing/import" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-semibold text-[hsl(var(--on-surface-variant))] shadow-sm transition-all hover:brightness-125 active:scale-[0.98]">
               นำเข้าใหม่
             </Link>
-            <button onClick={() => void refetch()} className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/50 backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))/70] shadow-sm transition-all hover:bg-[hsl(var(--color-surface))/70] hover:border-[hsl(var(--color-border))/20] active:scale-[0.98]" disabled={loading}>
+            <button onClick={() => void refetch()} className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface-variant))] shadow-sm transition-all hover:brightness-125 active:scale-[0.98]" disabled={loading}>
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               รีเฟรช
             </button>
@@ -139,7 +138,7 @@ export default function BillingBatchesPage() {
       </div>
 
       {error ? (
-        <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 font-medium backdrop-blur">
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 font-medium">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error instanceof Error ? error.message : String(error)}
         </div>
@@ -147,26 +146,26 @@ export default function BillingBatchesPage() {
 
       {/* Stats grid */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))/40]">แบทช์ทั้งหมด</div>
-          <div className="text-2xl font-extrabold text-[hsl(var(--color-text))]">{stats.total}</div>
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">แบทช์ทั้งหมด</div>
+          <div className="text-2xl font-extrabold text-[hsl(var(--on-surface))]">{stats.total}</div>
         </div>
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))/40]">นำเข้าแล้ว</div>
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">นำเข้าแล้ว</div>
           <div className="text-2xl font-extrabold text-emerald-600">{stats.imported}</div>
         </div>
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))/40]">ต้องตรวจสอบ</div>
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ต้องตรวจสอบ</div>
           <div className="text-2xl font-extrabold text-amber-600">{stats.needsReview}</div>
         </div>
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))/40]">นำเข้าล่าสุด</div>
-          <div className="mt-2 text-sm font-medium text-[hsl(var(--color-text))/70]">{formatDate(stats.latestImportedAt)}</div>
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">นำเข้าล่าสุด</div>
+          <div className="mt-2 text-sm font-medium text-[hsl(var(--on-surface-variant))]">{formatDate(stats.latestImportedAt)}</div>
         </div>
       </section>
 
       {/* Table */}
-      <section className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+      <section className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-[hsl(var(--color-border))]">
           <div className="text-sm font-semibold text-[hsl(var(--color-primary-light))]">คลังแบทช์</div>
           <div className="flex items-center gap-2 mt-2">
@@ -176,13 +175,13 @@ export default function BillingBatchesPage() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="ค้นหาแบทช์ ชื่อไฟล์ รอบ..."
-                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur pl-9 pr-3 py-2.5 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] pl-9 pr-3 py-2.5 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface-variant))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 [&option]:bg-[hsl(var(--color-surface))] [&option]:text-[hsl(var(--on-surface))]"
               />
             </label>
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value as BatchStatus | 'ALL')}
-              className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-2.5 text-sm text-[hsl(var(--color-text))/80 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+              className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface-variant))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 [&option]:bg-[hsl(var(--color-surface))] [&option]:text-[hsl(var(--on-surface))]"
             >
               {STATUS_OPTIONS.map((option) => (
                 <option key={option} value={option}>
@@ -210,43 +209,43 @@ export default function BillingBatchesPage() {
           <div className="overflow-auto">
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="bg-[hsl(var(--color-surface))/50">
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))/40]">แบทช์</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))/40]">รอบ</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))/40]">สถานะ</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))/40]">แถว</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))/40]">เตือน / ข้อผิดพลาด</th>
-                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))/40]">นำเข้าเมื่อ</th>
+                <tr className="bg-[hsl(var(--color-surface))]">
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">แบทช์</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">รอบ</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สถานะ</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">แถว</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">เตือน / ข้อผิดพลาด</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">นำเข้าเมื่อ</th>
                   <th />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[hsl(var(--color-border))/5]">
+              <tbody className="divide-y divide-[hsl(var(--color-border))]/50">
                 {filtered.map((batch) => (
-                  <tr key={batch.id} className="hover:bg-[hsl(var(--color-surface))/30] transition-colors">
+                  <tr key={batch.id} className="hover:bg-[hsl(var(--color-surface))]/30 transition-colors">
                     <td>
-                      <div className="font-medium text-[hsl(var(--color-text))/90]">{batch.sourceFilename}</div>
-                      <div className="mt-1 font-mono text-[11px] text-[hsl(var(--color-text))/40]">{batch.id}</div>
+                      <div className="font-medium text-[hsl(var(--on-surface))]">{batch.sourceFilename}</div>
+                      <div className="mt-1 font-mono text-[11px] text-[hsl(var(--on-surface-variant))]">{batch.id}</div>
                     </td>
                     <td>
                       {batch.billingCycle ? (
                         <div>
-                          <div className="font-semibold text-[hsl(var(--color-text))/90]">
+                          <div className="font-semibold text-[hsl(var(--on-surface))]">
                             {monthLabel(batch.billingCycle.month, batch.billingCycle.year)}
                           </div>
-                          <div className="text-xs text-[hsl(var(--color-text))/40]">
+                          <div className="text-xs text-[hsl(var(--on-surface-variant))]">
                             {batch.billingCycle.building?.name ?? 'Main building'}
                           </div>
                         </div>
                       ) : (
-                        <span className="text-[hsl(var(--color-text))/30]">—</span>
+                        <span className="text-[hsl(var(--on-surface-variant))]">—</span>
                       )}
                     </td>
                     <td>
                       <span className={statusBadge(batch.status)}>{batch.status}</span>
                     </td>
                     <td>
-                      <div className="font-semibold text-[hsl(var(--color-text))/90]">{batch.totalRows}</div>
-                      <div className="text-xs text-[hsl(var(--color-text))/40]">{batch.validRows} ready rows</div>
+                      <div className="font-semibold text-[hsl(var(--on-surface))]">{batch.totalRows}</div>
+                      <div className="text-xs text-[hsl(var(--on-surface-variant))]">{batch.validRows} ready rows</div>
                     </td>
                     <td>
                       <div className="flex flex-wrap gap-2">
@@ -261,17 +260,17 @@ export default function BillingBatchesPage() {
                       </div>
                     </td>
                     <td>
-                      <div className="text-sm text-[hsl(var(--color-text))/70]">{formatDate(batch.importedAt)}</div>
-                      <div className="mt-1 text-xs text-[hsl(var(--color-text))/30]">สร้างเมื่อ {formatDate(batch.createdAt)}</div>
+                      <div className="text-sm text-[hsl(var(--on-surface-variant))]">{formatDate(batch.importedAt)}</div>
+                      <div className="mt-1 text-xs text-[hsl(var(--on-surface-variant))]/50">สร้างเมื่อ {formatDate(batch.createdAt)}</div>
                     </td>
                     <td>
                       <div className="flex items-center justify-end gap-2">
                         {batch.billingCycle ? (
-                          <Link href={`/admin/billing/${batch.billingCycle.id}`} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/50 backdrop-blur px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))/70] transition-all hover:bg-[hsl(var(--color-surface))/70] hover:border-[hsl(var(--color-border))/20] active:scale-[0.98]">
+                          <Link href={`/admin/billing/${batch.billingCycle.id}`} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/50 px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))/70] transition-all hover:bg-[hsl(var(--color-surface))/70] hover:border-[hsl(var(--color-border))/20] active:scale-[0.98]">
                             รอบ
                           </Link>
                         ) : null}
-                        <Link href={`/admin/billing/batches/${batch.id}`} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/50 backdrop-blur px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))/70] transition-all hover:bg-[hsl(var(--color-surface))/70] hover:border-[hsl(var(--color-border))/20] active:scale-[0.98]">
+                        <Link href={`/admin/billing/batches/${batch.id}`} className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/50 px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))/70] transition-all hover:bg-[hsl(var(--color-surface))/70] hover:border-[hsl(var(--color-border))/20] active:scale-[0.98]">
                           รายละเอียด
                         </Link>
                       </div>
@@ -286,7 +285,7 @@ export default function BillingBatchesPage() {
 
       {/* Info cards */}
       <section className="grid gap-4 lg:grid-cols-3">
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5">
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5">
           <div className="mb-3 flex items-center gap-2 text-[hsl(var(--color-text))]">
             <Clock3 className="h-4 w-4 text-[hsl(var(--color-primary-light))]" />
             <span className="font-semibold">จัดเตรียมก่อนยืนยัน</span>
@@ -295,7 +294,7 @@ export default function BillingBatchesPage() {
             เวิร์กบุ๊กที่อัปโหลดจะไปที่การจัดเตรียมก่อน พนักงานสามารถตรวจสอบยอดรวมและการจับคู่ห้องก่อนที่จะมีผลกับบันทึกการเรียกเก็บจริง
           </p>
         </div>
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5">
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5">
           <div className="mb-3 flex items-center gap-2 text-[hsl(var(--color-text))]">
             <TriangleAlert className="h-4 w-4 text-amber-600" />
             <span className="font-semibold">การเตือนยังคงแสดง</span>
@@ -304,7 +303,7 @@ export default function BillingBatchesPage() {
             ความไม่ตรงกันของ TotalAmount และปัญหาการตรวจสอบยังคงอยู่กับแบทช์ เพื่อให้ร่องรอยการตรวจสอบไม่หายไปหลังจากการนำเข้ารายเดือนเสร็จสิ้น
           </p>
         </div>
-        <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5">
+        <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5">
           <div className="mb-3 flex items-center gap-2 text-[hsl(var(--color-text))]">
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
             <span className="font-semibold">ลิงก์การนำเข้าสามารถตรวจสอบย้อนได้</span>

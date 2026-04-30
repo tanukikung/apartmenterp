@@ -11,9 +11,9 @@ export class DeliveryService {
   async createOrder(input: CreateDeliveryOrderInput, actorId?: string | null) {
     // 1. Build where clause for GeneratedDocument
     // Note: Zod schema uses 'GENERAL' but Prisma enum has 'GENERAL_NOTICE' — cast via unknown
-    const docWhere = {
-      documentType: input.documentType,
-    } as any as Prisma.GeneratedDocumentWhereInput;
+    const docWhere: Prisma.GeneratedDocumentWhereInput = {
+      documentType: input.documentType as unknown as Prisma.GeneratedDocumentWhereInput['documentType'],
+    };
     if (input.year) docWhere.year = input.year;
     if (input.month) docWhere.month = input.month;
 

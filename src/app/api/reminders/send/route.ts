@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getVerifiedActor, requireRole } from '@/lib/auth/guards';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, AppError, BadRequestError, NotFoundError } from '@/lib/utils/errors';
 import { getOutboxProcessor } from '@/lib/outbox';
 
@@ -9,6 +9,10 @@ import { logAudit } from '@/modules/audit';
 import { prisma } from '@/lib/db/client';
 import { isLineConfigured } from '@/lib/line';
 import { applyPlainTextTemplateVariables } from '@/lib/templates/document-template';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 20;
 
 // ── POST /api/reminders/send ───────────────────────────────────────────────
 // Enqueues a manual reminder outbox event for the given conversation.
@@ -24,10 +28,26 @@ const schema = z.object({
 });
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN']);
-  const body = await req.json().catch(() => ({}));
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`reminder-send:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  requireRole(req, ['ADMIN', 'OWNER']);
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { success: false, error: { message: 'Invalid JSON body', statusCode: 400, name: 'ParseError', code: 'INVALID_JSON' } },
+      { status: 400 }
+    );
+  }
   const input = schema.parse(body);
-  const actor = getVerifiedActor(req);
   if (!isLineConfigured()) {
     throw new AppError(
       'LINE messaging is unavailable because credentials are not configured.',
@@ -101,8 +121,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   );
 
   await logAudit({
-    actorId: actor.actorId,
-    actorRole: actor.actorRole,
+    req,
     action: 'REMINDER_SEND_REQUESTED',
     entityType: 'CONVERSATION',
     entityId: input.conversationId,

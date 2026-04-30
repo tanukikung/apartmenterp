@@ -152,7 +152,7 @@ function contractStatusClass(s: ContractStatus) {
 
 function GlassInfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur-[12px] px-4 py-3.5 hover:bg-white/[0.05] transition-all duration-200">
+    <div className="flex flex-col gap-0.5 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 px-4 py-3.5 hover:bg-[hsl(var(--color-surface-hover))] transition-all duration-200">
       <span className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">{label}</span>
       <span className="text-sm text-[hsl(var(--on-surface))] break-all">{value || '-'}</span>
     </div>
@@ -427,7 +427,7 @@ export default function TenantDetailPage() {
         <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
           <AlertCircle className="h-10 w-10 text-red-600" />
           <div className="text-[hsl(var(--on-surface-variant))]">{error ?? 'Tenant not found'}</div>
-          <Link href="/admin/tenants" className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))] shadow-[var(--glass-shadow)] hover:bg-white/[0.1] active:scale-[0.98] transition-all duration-200 backdrop-blur">
+          <Link href="/admin/tenants" className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))] shadow-[0_1px_3px_rgba(0,0,0,0.5)] hover:bg-white/[0.1] active:scale-[0.98] transition-all duration-200">
             Back to Tenants
           </Link>
         </div>
@@ -453,10 +453,10 @@ export default function TenantDetailPage() {
       </nav>
 
       {/* ── Hero card — Dark Glass ────────────────────────────────────────── */}
-      <section className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/60 backdrop-blur overflow-hidden shadow-[var(--glass-shadow)]">
+      <section className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
         <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:gap-6">
           {/* Avatar */}
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary))]/15 text-xl font-bold text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/20 shadow-glow-primary">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary))]/15 text-xl font-bold text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/20 shadow-[0_0_20px_rgba(99,102,241,0.15)]">
             {initials}
           </div>
           {/* Info */}
@@ -491,7 +491,7 @@ export default function TenantDetailPage() {
           {/* Edit button */}
           <button
             onClick={() => setEditDialogOpen(true)}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-3 py-2 text-[11px] font-medium text-[hsl(var(--on-surface))] hover:bg-white/[0.1] active:scale-[0.98] transition-all duration-200 backdrop-blur"
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-3 py-2 text-[11px] font-medium text-[hsl(var(--on-surface))] hover:bg-white/[0.1] active:scale-[0.98] transition-all duration-200"
           >
             <Pencil size={12} /> แก้ไขข้อมูล
           </button>
@@ -499,7 +499,7 @@ export default function TenantDetailPage() {
           {tenant.lineUserId && (
             <button
               onClick={() => setMessageDialogOpen(true)}
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))] px-3 py-2 text-[11px] font-semibold text-white shadow-glow-primary shadow-glow-primary-hover hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200"
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))] px-3 py-2 text-[11px] font-semibold text-white shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200"
             >
               <Send size={12} /> ส่งข้อความ
             </button>
@@ -509,22 +509,22 @@ export default function TenantDetailPage() {
 
       {/* ── Quick stats — Dark Glass ────────────────────────────────────── */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/60 backdrop-blur p-5 shadow-[var(--glass-shadow)] group hover:border-white/12 transition-all duration-300">
+        <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)] group hover:border-[hsl(var(--color-border))] transition-all duration-300">
           <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))]">ใบแจ้งหนี้</div>
           <div className="text-xl font-semibold text-[hsl(var(--on-surface))]">{stats.invoicesCount}</div>
         </div>
-        <div className="relative overflow-hidden rounded-xl border border-emerald-500/15 bg-[hsl(var(--color-surface))]/60 backdrop-blur p-5 shadow-[var(--glass-shadow)] group hover:border-emerald-500/25 transition-all duration-300">
+        <div className="relative overflow-hidden rounded-xl border border-emerald-500/15 bg-[hsl(var(--color-surface))] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)] group hover:border-emerald-500/25 transition-all duration-300">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))]">ชำระแล้ว</div>
           <div className="text-xl font-semibold text-emerald-600">{money(stats.totalPaid)}</div>
         </div>
-        <div className="relative overflow-hidden rounded-xl border border-amber-500/15 bg-[hsl(var(--color-surface))]/60 backdrop-blur p-5 shadow-[var(--glass-shadow)] group hover:border-amber-500/25 transition-all duration-300">
+        <div className="relative overflow-hidden rounded-xl border border-amber-500/15 bg-[hsl(var(--color-surface))] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)] group hover:border-amber-500/25 transition-all duration-300">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))]">ค้างชำระ</div>
           <div className={`text-xl font-semibold ${stats.outstanding > 0 ? 'text-amber-600' : 'text-[hsl(var(--on-surface))]'}`}>{money(stats.outstanding)}</div>
         </div>
-        <div className="relative overflow-hidden rounded-xl border border-red-500/15 bg-[hsl(var(--color-surface))]/60 backdrop-blur p-5 shadow-[var(--glass-shadow)] group hover:border-red-500/25 transition-all duration-300">
+        <div className="relative overflow-hidden rounded-xl border border-red-500/15 bg-[hsl(var(--color-surface))] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)] group hover:border-red-500/25 transition-all duration-300">
           <div className="absolute inset-0 bg-gradient-to-br from-red-500/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--on-surface-variant))]">งานเปิด</div>
           <div className={`text-xl font-semibold ${stats.openTickets > 0 ? 'text-red-600' : 'text-[hsl(var(--on-surface))]'}`}>{stats.openTickets}</div>
@@ -532,9 +532,9 @@ export default function TenantDetailPage() {
       </section>
 
       {/* ── Tabs — Dark Glass ──────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] backdrop-blur shadow-[var(--glass-shadow)] overflow-visible">
+      <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 shadow-[0_1px_3px_rgba(0,0,0,0.5)] overflow-visible">
         {/* Tab bar */}
-        <div className="flex overflow-x-auto border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/40 backdrop-blur">
+        <div className="flex overflow-x-auto border-b border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/40">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -588,7 +588,7 @@ export default function TenantDetailPage() {
                 <div className="space-y-2">
                   <h2 className="text-base font-semibold text-[hsl(var(--on-surface))]">ห้องที่ลงทะเบียน</h2>
                   {tenant.roomTenants.map((rt) => (
-                    <div key={rt.id} className="flex items-center justify-between rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 px-4 py-3 text-sm backdrop-blur-[12px]">
+                    <div key={rt.id} className="flex items-center justify-between rounded-lg border border-[hsl(var(--primary))]/15 bg-[hsl(var(--primary))]/5 px-4 py-3 text-sm">
                       <div>
                         <div className="font-medium text-[hsl(var(--on-surface))]">ห้อง {rt.room?.roomNo ?? rt.roomNo}</div>
                         <div className="text-[hsl(var(--on-surface-variant))]">
@@ -621,7 +621,7 @@ export default function TenantDetailPage() {
                   {contracts.map((contract) => {
                     const expanded = expandedContracts.has(contract.id);
                     return (
-                      <div key={contract.id} className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] shadow-[var(--glass-shadow)] overflow-hidden">
+                      <div key={contract.id} className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] shadow-[0_1px_3px_rgba(0,0,0,0.5)] overflow-hidden">
                         {/* Row header */}
                         <button
                           className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-[hsl(var(--color-surface))]/[0.03] transition-colors duration-150 active:scale-[0.99]"
@@ -659,7 +659,7 @@ export default function TenantDetailPage() {
 
                         {/* Expanded details */}
                         {expanded && (
-                          <div className="border-t border-[hsl(var(--color-border))] bg-white/[0.02] px-5 py-4 backdrop-blur-[12px]">
+                          <div className="border-t border-[hsl(var(--color-border))] bg-white/[0.02] px-5 py-4">
                             <div className="grid gap-3 sm:grid-cols-3">
                               <GlassInfoRow label="วันเริ่มต้น" value={fmtDate(contract.startDate)} />
                               <GlassInfoRow label="วันสิ้นสุด" value={contract.endDate ? fmtDate(contract.endDate) : 'ดำเนินอยู่'} />
@@ -687,7 +687,7 @@ export default function TenantDetailPage() {
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <h2 className="text-base font-semibold text-[hsl(var(--on-surface))]">ใบแจ้งหนี้</h2>
                 <select
-                  className="rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-3 py-2 text-sm text-[hsl(var(--on-surface))] cursor-pointer focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200 w-auto min-w-[160px]"
+                  className="rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-3 py-2 text-sm text-[hsl(var(--on-surface))] cursor-pointer focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200 w-auto min-w-[160px]"
                   value={invoiceFilter}
                   onChange={(e) => setInvoiceFilter(e.target.value)}
                 >
@@ -708,7 +708,7 @@ export default function TenantDetailPage() {
                   ไม่พบใบแจ้งหนี้{invoiceFilter ? ` สถานะ ${invoiceFilter}` : ''}
                 </div>
               ) : (
-                <div className="overflow-auto rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] shadow-[var(--glass-shadow)]">
+                <div className="overflow-auto rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-[hsl(var(--color-border))]">
@@ -755,7 +755,7 @@ export default function TenantDetailPage() {
                   ไม่พบรายการชำระสำหรับผู้เช่ารายนี้
                 </div>
               ) : (
-                <div className="overflow-auto rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] shadow-[var(--glass-shadow)]">
+                <div className="overflow-auto rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-[hsl(var(--color-border))]">
@@ -815,7 +815,7 @@ export default function TenantDetailPage() {
                           <div
                             className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
                               msg.direction === 'OUTGOING'
-                                ? 'bg-[hsl(var(--primary))]/80 text-white shadow-glow-primary'
+                                ? 'bg-[hsl(var(--primary))]/80 text-white shadow-[0_0_20px_rgba(99,102,241,0.15)]'
                                 : 'bg-white/[0.05] text-[hsl(var(--on-surface))] border border-[hsl(var(--color-border))]'
                             }`}
                           >
@@ -837,7 +837,7 @@ export default function TenantDetailPage() {
                     <div className="pt-2">
                       <Link
                         href={`/admin/chat?conversationId=${conversation.id}`}
-                        className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))] shadow-[var(--glass-shadow)] hover:bg-white/[0.1] active:scale-[0.98] transition-all duration-200 backdrop-blur"
+                        className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-white/[0.05] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))] shadow-[0_1px_3px_rgba(0,0,0,0.5)] hover:bg-white/[0.1] active:scale-[0.98] transition-all duration-200"
                       >
                         <ExternalLink size={14} />
                         เปิดแชทเต็ม
@@ -860,7 +860,7 @@ export default function TenantDetailPage() {
                   ไม่มีกิจกรรมสำหรับผู้เช่ารายนี้
                 </div>
               ) : (
-                <div className="overflow-auto rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] shadow-[var(--glass-shadow)]">
+                <div className="overflow-auto rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-[hsl(var(--color-border))]">
@@ -896,9 +896,9 @@ export default function TenantDetailPage() {
       {/* Send message dialog */}
       {messageDialogOpen && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={() => setMessageDialogOpen(false)} />
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setMessageDialogOpen(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-[hsl(var(--color-surface))]/80 backdrop-blur rounded-xl border border-[hsl(var(--color-border))] shadow-[var(--glass-shadow)] w-full max-w-md">
+            <div className="bg-[hsl(var(--color-surface))] rounded-xl border border-[hsl(var(--color-border))] shadow-[0_1px_3px_rgba(0,0,0,0.5)] w-full max-w-md">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[hsl(var(--color-border))]">
                 <h3 className="text-base font-semibold text-[hsl(var(--on-surface))]">ส่งข้อความ LINE</h3>
                 <button onClick={() => setMessageDialogOpen(false)} className="p-1.5 hover:bg-[hsl(var(--color-surface))] rounded-lg transition-colors active:scale-[0.95]">
@@ -935,7 +935,7 @@ export default function TenantDetailPage() {
                   ส่งข้อความไปยัง <span className="font-semibold text-[hsl(var(--on-surface))]">{tenant.fullName}</span>
                 </div>
                 <textarea
-                  className="w-full px-4 py-2.5 bg-white/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200 min-h-[120px] resize-y"
+                  className="w-full px-4 py-2.5 bg-white/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200 min-h-[120px] resize-y"
                   placeholder="พิมพ์ข้อความ..."
                   value={messageText}
                   onChange={e => setMessageText(e.target.value)}
@@ -952,10 +952,10 @@ export default function TenantDetailPage() {
                   </div>
                 )}
                 <div className="flex gap-3">
-                  <button type="button" onClick={() => setMessageDialogOpen(false)} className="flex-1 py-2.5 border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] text-sm font-medium text-[hsl(var(--on-surface))] rounded-lg hover:bg-white/[0.06] transition-colors active:scale-[0.98] backdrop-blur">
+                  <button type="button" onClick={() => setMessageDialogOpen(false)} className="flex-1 py-2.5 border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 text-sm font-medium text-[hsl(var(--on-surface))] rounded-lg hover:bg-white/[0.06] transition-colors active:scale-[0.98]">
                     ยกเลิก
                   </button>
-                  <button type="submit" disabled={messageSending || !messageText.trim()} className="flex-1 py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-glow-primary shadow-glow-primary-hover hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2">
+                  <button type="submit" disabled={messageSending || !messageText.trim()} className="flex-1 py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2">
                     {messageSending ? (
                       <>
                         <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -977,9 +977,9 @@ export default function TenantDetailPage() {
       {/* Edit tenant dialog */}
       {editDialogOpen && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={() => setEditDialogOpen(false)} />
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setEditDialogOpen(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-[hsl(var(--color-surface))]/80 backdrop-blur rounded-xl border border-[hsl(var(--color-border))] shadow-[var(--glass-shadow)] w-full max-w-md">
+            <div className="bg-[hsl(var(--color-surface))] rounded-xl border border-[hsl(var(--color-border))] shadow-[0_1px_3px_rgba(0,0,0,0.5)] w-full max-w-md">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[hsl(var(--color-border))]">
                 <h3 className="text-base font-semibold text-[hsl(var(--on-surface))]">แก้ไขข้อมูลผู้เช่า</h3>
                 <button onClick={() => setEditDialogOpen(false)} className="p-1.5 hover:bg-[hsl(var(--color-surface))] rounded-lg transition-colors active:scale-[0.95]">
@@ -1020,7 +1020,7 @@ export default function TenantDetailPage() {
                       type="text"
                       value={editForm.firstName}
                       onChange={e => setEditForm(f => ({ ...f, firstName: e.target.value }))}
-                      className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200"
+                      className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200"
                       required
                     />
                   </div>
@@ -1030,7 +1030,7 @@ export default function TenantDetailPage() {
                       type="text"
                       value={editForm.lastName}
                       onChange={e => setEditForm(f => ({ ...f, lastName: e.target.value }))}
-                      className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200"
+                      className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200"
                       required
                     />
                   </div>
@@ -1041,7 +1041,7 @@ export default function TenantDetailPage() {
                     type="text"
                     value={editForm.phone}
                     onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
-                    className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200"
+                    className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200"
                     required
                   />
                 </div>
@@ -1051,7 +1051,7 @@ export default function TenantDetailPage() {
                     type="email"
                     value={editForm.email}
                     onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
-                    className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200"
+                    className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200"
                   />
                 </div>
                 <div>
@@ -1060,7 +1060,7 @@ export default function TenantDetailPage() {
                     type="text"
                     value={editForm.emergencyContact}
                     onChange={e => setEditForm(f => ({ ...f, emergencyContact: e.target.value }))}
-                    className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200"
+                    className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200"
                   />
                 </div>
                 <div>
@@ -1069,7 +1069,7 @@ export default function TenantDetailPage() {
                     type="text"
                     value={editForm.emergencyPhone}
                     onChange={e => setEditForm(f => ({ ...f, emergencyPhone: e.target.value }))}
-                    className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 backdrop-blur transition-all duration-200"
+                    className="w-full px-3 py-2 border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] bg-white/[0.05] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200"
                   />
                 </div>
                 {editError && (
@@ -1078,10 +1078,10 @@ export default function TenantDetailPage() {
                   </div>
                 )}
                 <div className="flex gap-3">
-                  <button type="button" onClick={() => setEditDialogOpen(false)} className="flex-1 py-2.5 border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/[0.03] text-sm font-medium text-[hsl(var(--on-surface))] rounded-lg hover:bg-white/[0.06] transition-colors active:scale-[0.98] backdrop-blur">
+                  <button type="button" onClick={() => setEditDialogOpen(false)} className="flex-1 py-2.5 border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]/3 text-sm font-medium text-[hsl(var(--on-surface))] rounded-lg hover:bg-white/[0.06] transition-colors active:scale-[0.98]">
                     ยกเลิก
                   </button>
-                  <button type="submit" disabled={editSaving} className="flex-1 py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-glow-primary shadow-glow-primary-hover hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2">
+                  <button type="submit" disabled={editSaving} className="flex-1 py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2">
                     {editSaving ? (
                       <>
                         <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

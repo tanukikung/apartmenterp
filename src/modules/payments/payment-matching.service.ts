@@ -92,7 +92,12 @@ export class PaymentMatchingService {
                 reference: entry.reference,
                 sourceFile,
                 status: 'PENDING',
-                roomNo: entry.roomNo || null,
+                // HIGH-10 fix: use sentinel 'UNKNOWN' when roomNo is not identified.
+                // SQL NULL in a partial unique index makes the constraint ineffective
+                // (two NULLs are not equal in SQL), so two bank transactions without a
+                // linked room could be inserted twice. Using 'UNKNOWN' as sentinel
+                // ensures proper deduplication via the existing dedup constraint.
+                roomNo: entry.roomNo ?? 'UNKNOWN',
               },
             });
 
@@ -213,7 +218,9 @@ export class PaymentMatchingService {
           total: Number(inv.totalAmount),
           room: {
             roomNumber: inv.roomNo,
-            roomTenants: ((inv.room as any as { tenants?: Array<{ tenant?: { firstName?: string; lastName?: string } | null }> })?.tenants ?? []).map((rt) => ({
+            // inv.room shape: Room & { tenants: (RoomTenant & { tenant: Tenant })[] }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            roomTenants: (((inv.room as any) as { tenants?: Array<{ tenant?: { firstName?: string; lastName?: string } | null }> }).tenants ?? []).map((rt) => ({
               tenant: {
                 firstName: rt.tenant?.firstName ?? '',
                 lastName: rt.tenant?.lastName ?? '',
@@ -282,6 +289,10 @@ export class PaymentMatchingService {
   /**
    * Auto-confirm a HIGH confidence payment match without admin action.
    * Called during bank statement import when autoConfirmHighConfidence=true and confidence=HIGH.
+   *
+   * FIX C01: Idempotency — re-check transaction is not already CONFIRMED inside the
+   * transaction before any writes. Prevents duplicate Payment records from concurrent
+   * auto-confirm calls that both passed the initial status check in attemptMatch.
    */
   private async autoConfirmMatch(
     db: Prisma.TransactionClient,
@@ -292,7 +303,17 @@ export class PaymentMatchingService {
     matchedAmount: number,
     matchType: 'FULL' | 'PARTIAL' | 'OVERPAY',
   ): Promise<void> {
-    // Flag overpayment: excess amount over invoice total requires manual review
+    // ── Idempotency re-check INSIDE the transaction ─────────────────────────────
+    // Re-fetch the transaction with row lock to prevent concurrent confirmations.
+    // If already CONFIRMED, return early — no-op (idempotent).
+    const currentTx = await db.paymentTransaction.findUnique({
+      where: { id: transactionId },
+    });
+    if (!currentTx || currentTx.status === 'CONFIRMED') {
+      return; // Idempotent: already confirmed by a concurrent call
+    }
+
+    // ── Overpayment detection ─────────────────────────────────────────────────
     if (matchType === 'OVERPAY') {
       const excessAmount = txAmount - (invoiceTotal ?? 0);
       logger.warn({
@@ -335,32 +356,49 @@ export class PaymentMatchingService {
       },
     });
 
-    // Create Payment record
-    const transaction = await db.paymentTransaction.findUnique({ where: { id: transactionId } });
-    const payment = await db.payment.create({
-      data: {
-        id: uuidv4(),
-        amount: transaction!.amount,
-        paidAt: transaction!.transactionDate,
-        description: transaction!.description,
-        reference: transaction!.reference,
-        sourceFile: transaction!.sourceFile,
-        status: 'CONFIRMED',
-        matchedInvoiceId: invoiceId,
-        confirmedAt: new Date(),
-        confirmedBy: 'SYSTEM',
-        remark: matchType === 'OVERPAY'
-          ? `Overpayment credit: excess of ${(txAmount - (invoiceTotal ?? 0)).toFixed(2)} THB over invoice total. Requires admin review for refund/credit.`
-          : null,
-      },
-    });
+    // Create Payment record — transactionId unique constraint prevents duplicates
+    // if concurrent auto-confirm calls both passed the re-check above.
+    // Catch P2002 (unique constraint violation) to handle the rare case where
+    // the record was created between the re-check and the insert — treat as
+    // idempotent no-op.
+    let payment: { id: string } | undefined;
+    try {
+      payment = await db.payment.create({
+        data: {
+          id: uuidv4(),
+          transactionId: transactionId,
+          amount: currentTx.amount,
+          paidAt: currentTx.transactionDate,
+          description: currentTx.description,
+          reference: currentTx.reference,
+          sourceFile: currentTx.sourceFile,
+          status: 'CONFIRMED',
+          matchedInvoiceId: invoiceId,
+          confirmedAt: new Date(),
+          confirmedBy: 'SYSTEM',
+          remark: matchType === 'OVERPAY'
+            ? `Overpayment credit: excess of ${(txAmount - (invoiceTotal ?? 0)).toFixed(2)} THB over invoice total. Requires admin review for refund/credit.`
+            : null,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('P2002')) {
+        // Idempotent: Payment already created by a concurrent call — no-op
+        logger.info({
+          type: 'payment_auto_confirm_idempotent',
+          transactionId,
+        });
+        return;
+      }
+      throw error;
+    }
 
     // Sync invoice payment state
     await syncInvoicePaymentState(db, {
       invoiceId,
       paymentId: payment.id,
       paymentAmount: txAmount,
-      paidAt: transaction!.transactionDate,
+      paidAt: currentTx.transactionDate,
     });
 
     // Create PaymentMatch record
@@ -374,6 +412,24 @@ export class PaymentMatchingService {
         status: 'CONFIRMED',
         confirmedAt: new Date(),
         confirmedBy: 'SYSTEM',
+      },
+    });
+
+    // P3-02: Write PaymentHistory audit trail for auto-confirmed match
+    await db.paymentHistory.create({
+      data: {
+        id: uuidv4(),
+        paymentId: payment.id,
+        action: 'CONFIRMED',
+        actorId: 'SYSTEM',
+        actorRole: 'SYSTEM',
+        metadata: {
+          transactionId,
+          invoiceId,
+          matchedAmount,
+          matchType,
+          isAutoMatched: true,
+        } as Prisma.InputJsonValue,
       },
     });
 
@@ -686,6 +742,23 @@ export class PaymentMatchingService {
           confirmedBy,
         },
       });
+
+      // P3-02: Write PaymentHistory audit trail
+      await tx.paymentHistory.create({
+        data: {
+          id: uuidv4(),
+          paymentId: payment.id,
+          action: 'CONFIRMED',
+          actorId: confirmedBy,
+          actorRole: 'ADMIN',
+          metadata: {
+            transactionId,
+            invoiceId,
+            matchedAmount: confirmedMatchedAmount,
+            matchType: confirmedMatchType,
+          } as Prisma.InputJsonValue,
+        },
+      });
     });
 
     await logAudit({
@@ -750,6 +823,23 @@ export class PaymentMatchingService {
           rejectedAt: new Date(),
           rejectedBy,
           rejectReason,
+        },
+      });
+
+      // P3-02: Write PaymentHistory audit trail
+      // Note: Payment record is not created for rejected transactions, so paymentId is null.
+      // The rejection audit is linked via transactionId in metadata.
+      await tx.paymentHistory.create({
+        data: {
+          id: uuidv4(),
+          paymentId: null,
+          action: 'REJECTED',
+          actorId: rejectedBy,
+          actorRole: 'ADMIN',
+          metadata: {
+            transactionId,
+            rejectReason: rejectReason || null,
+          } as Prisma.InputJsonValue,
         },
       });
     });

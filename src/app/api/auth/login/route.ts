@@ -15,20 +15,37 @@ const loginSchema = z.object({
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const limiter = getLoginRateLimiter();
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-  // TEST_MODE: 5 attempts per 1 minute instead of 15 minutes
-  const windowMs = process.env.RATE_LIMIT_TEST === 'true' ? 60 * 1000 : 15 * 60 * 1000;
-  const { allowed, remaining, resetAt } = await limiter.check(`login:${ip}`, 5, windowMs);
-  if (!allowed) {
-    return NextResponse.json(
-      { success: false, error: { message: `Too many login attempts. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
-      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
-    );
-  }
 
+  // Parse body first so we can use username in rate limit key
   const contentType = req.headers.get('content-type') || '';
   const isForm = contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data');
   const rawBody = isForm ? Object.fromEntries((await req.formData()).entries()) : await req.json();
   const body = loginSchema.parse(rawBody);
+
+  // HIGH-06 fix: track by username+IP, not just IP.
+  // Also enforce account-level lockout after 10 failures across all IPs.
+  const windowMs = process.env.RATE_LIMIT_TEST === 'true' ? 60 * 1000 : 15 * 60 * 1000;
+  const usernameLower = body.username.toLowerCase();
+
+  // Per-username-per-IP rate limit: 5 attempts per 15 min
+  const { allowed: ipAllowed, remaining: ipRemaining, resetAt: ipResetAt } =
+    await limiter.check(`login:${ip}:${usernameLower}`, 5, windowMs);
+  if (!ipAllowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many login attempts. Try again after ${ipResetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((ipResetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(ipRemaining) } }
+    );
+  }
+
+  // Account-level lockout: block username for 15 min after 10 failures across all IPs
+  const { allowed: accountAllowed, remaining: accountRemaining, resetAt: accountResetAt } =
+    await limiter.check(`login:account:${usernameLower}`, 10, windowMs);
+  if (!accountAllowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Account locked due to repeated failed attempts. Try again after ${accountResetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((accountResetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(accountRemaining) } }
+    );
+  }
 
   const user = await prisma.adminUser.findFirst({
     where: {

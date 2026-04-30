@@ -80,7 +80,7 @@ function statusBadgeClass(status: PaymentStatus): string {
     case 'REJECTED':
       return 'inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--status-danger-bg))] px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--status-danger-text))] border border-[hsl(var(--status-danger-bg))]/60';
     default:
-      return 'inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--color-surface))] px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--color-text))]/50 border border-[hsl(var(--color-border))]';
+      return 'inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--color-surface))] px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))]';
   }
 }
 
@@ -94,7 +94,7 @@ function matchTypeBadgeClass(mt: MatchType | null): string {
     case 'OVERPAY':
       return 'inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--status-danger-bg))] px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--status-danger-text))] border border-[hsl(var(--status-danger-bg))]/60';
     default:
-      return 'inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--color-surface))] px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--color-text))]/50 border border-[hsl(var(--color-border))]';
+      return 'inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--color-surface))] px-2.5 py-0.5 text-xs font-semibold text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))]';
   }
 }
 
@@ -152,7 +152,7 @@ function InfoRow({
   value: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-3">
+    <div className="flex items-start gap-3 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-3">
       <span className="mt-0.5 shrink-0 text-[hsl(var(--color-text))]/40">{icon}</span>
       <div className="min-w-0">
         <div className="text-xs font-semibold uppercase tracking-[0.07em] text-[hsl(var(--color-text))]/40">{label}</div>
@@ -190,12 +190,12 @@ export default function PaymentDetailPage() {
   if (loading) {
     return (
       <main className="space-y-6">
-        <section className="relative overflow-hidden rounded-xl bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] px-6 py-5 shadow-[var(--glow-primary)]">
+        <section className="relative overflow-hidden rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.08),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div>
             <h1 className="text-base font-semibold text-[hsl(var(--color-text))]">รายละเอียดการชำระเงิน</h1>
-            <p className="text-xs text-[hsl(var(--color-text))]/50 mt-0.5">กำลังโหลดข้อมูลการชำระ...</p>
+            <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">กำลังโหลดข้อมูลการชำระ...</p>
           </div>
         </div>
       </section>
@@ -207,21 +207,21 @@ export default function PaymentDetailPage() {
   if (fetchError && !payment) {
     return (
       <main className="space-y-6">
-        <section className="relative overflow-hidden rounded-xl bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] px-6 py-5 shadow-[var(--glow-primary)]">
+        <section className="relative overflow-hidden rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.08),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div>
             <h1 className="text-base font-semibold text-[hsl(var(--color-text))]">รายละเอียดการชำระเงิน</h1>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => router.back()} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 shadow-sm transition-all hover:bg-white/[0.1] hover:border-white/20 active:scale-[0.98]">
+            <button onClick={() => router.back()} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all hover:bg-white/[0.1] hover:border-white/20 active:scale-[0.98]">
               <ArrowLeft className="h-4 w-4" />
               กลับ
             </button>
           </div>
         </div>
       </section>
-        <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur px-4 py-3 text-sm text-red-600 font-medium">
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600 font-medium">
           {fetchError instanceof Error ? fetchError.message : String(fetchError)}
         </div>
       </main>
@@ -247,21 +247,21 @@ export default function PaymentDetailPage() {
       </nav>
 
       {/* ── Page header ────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-xl bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] px-6 py-5 shadow-[var(--glow-primary)]">
+      <section className="relative overflow-hidden rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.08),_transparent_60%)]" />
         <div className="relative flex items-center justify-between gap-4">
           <div>
             <h1 className="text-base font-semibold text-[hsl(var(--color-text))]">การชำระ {payment.id}</h1>
-            <p className="text-xs text-[hsl(var(--color-text))]/50 mt-0.5">
+            <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">
               รับเมื่อ {fmtDay(payment.paymentDate)}
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => queryClient.invalidateQueries({ queryKey: ['payments', paymentId] })} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 shadow-sm transition-all hover:bg-white/[0.1] hover:border-white/20 active:scale-[0.98]" disabled={loading}>
+            <button onClick={() => queryClient.invalidateQueries({ queryKey: ['payments', paymentId] })} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all hover:bg-white/[0.1] hover:border-white/20 active:scale-[0.98]" disabled={loading}>
               <RefreshCw className="h-4 w-4" />
               รีเฟรช
             </button>
-            <button onClick={() => router.back()} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 shadow-sm transition-all hover:bg-white/[0.1] hover:border-white/20 active:scale-[0.98]">
+            <button onClick={() => router.back()} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all hover:bg-white/[0.1] hover:border-white/20 active:scale-[0.98]">
               <ArrowLeft className="h-4 w-4" />
               กลับ
             </button>
@@ -270,10 +270,10 @@ export default function PaymentDetailPage() {
       </section>
 
       {/* ── Alerts ─────────────────────────────────────────────────────── */}
-      {fetchError ? <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur px-4 py-3 text-sm text-red-400">{fetchError instanceof Error ? fetchError.message : String(fetchError)}</div> : null}
+      {fetchError ? <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">{fetchError instanceof Error ? fetchError.message : String(fetchError)}</div> : null}
 
       {/* ── Hero card ──────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-xl bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] px-6 py-5 shadow-[var(--glow-primary)]">
+      <section className="relative overflow-hidden rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary))]/20 text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/30">
@@ -284,7 +284,7 @@ export default function PaymentDetailPage() {
                 {money(payment.amount)}
               </div>
               {payment.referenceNumber ? (
-                <div className="mt-0.5 text-sm text-[hsl(var(--color-text))]/50">
+                <div className="mt-0.5 text-sm text-[hsl(var(--on-surface-variant))]">
                   Ref: <span className="font-medium text-[hsl(var(--color-text))]">{payment.referenceNumber}</span>
                 </div>
               ) : null}
@@ -303,8 +303,8 @@ export default function PaymentDetailPage() {
         {/* ── Left column ──────────────────────────────────────────────── */}
         <div className="flex flex-col gap-6">
           {/* Info grid */}
-          <section className="bg-white/[0.03] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
-            <div className="border-b border-white/[0.07] bg-white/[0.05] backdrop-blur px-4 py-3">
+          <section className="bg-white/[0.03] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+            <div className="border-b border-white/[0.07] bg-white/[0.05] px-4 py-3">
               <div className="text-sm font-semibold text-[hsl(var(--color-text))]">รายละเอียดการชำระ</div>
             </div>
             <div className="grid gap-3 p-4 sm:grid-cols-2">
@@ -365,12 +365,12 @@ export default function PaymentDetailPage() {
 
           {/* Matched invoice card */}
           {isMatched && payment.invoice ? (
-            <section className="bg-white/[0.03] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between border-b border-white/[0.07] bg-white/[0.05] backdrop-blur px-4 py-3">
+            <section className="bg-white/[0.03] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between border-b border-white/[0.07] bg-white/[0.05] px-4 py-3">
                 <div className="text-sm font-semibold text-[hsl(var(--color-text))]">ใบแจ้งหนี้ที่จับคู่</div>
                 <Link
                   href={getPaymentInvoiceHref(payment.invoice.id)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 shadow-sm transition-all hover:bg-white/[0.1] hover:border-white/20 active:scale-[0.98] text-xs"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all hover:bg-white/[0.1] hover:border-white/20 active:scale-[0.98] text-xs"
                 >
                   เปิดใบแจ้งหนี้
                 </Link>
@@ -404,8 +404,8 @@ export default function PaymentDetailPage() {
         {/* ── Right column ─────────────────────────────────────────────── */}
         <div className="flex flex-col gap-6">
           {/* Timeline */}
-          <section className="bg-white/[0.03] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
-            <div className="border-b border-white/[0.07] bg-white/[0.05] backdrop-blur px-4 py-3">
+          <section className="bg-white/[0.03] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+            <div className="border-b border-white/[0.07] bg-white/[0.05] px-4 py-3">
               <div className="text-sm font-semibold text-[hsl(var(--color-text))]">ไทม์ไลน์</div>
             </div>
             <ol className="relative ml-4 mt-2 mb-4 border-l border-white/[0.07]">
@@ -444,22 +444,22 @@ export default function PaymentDetailPage() {
           </section>
 
           {/* Actions */}
-          <section className="bg-white/[0.03] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
-            <div className="border-b border-white/[0.07] bg-white/[0.05] backdrop-blur px-4 py-3">
+          <section className="bg-white/[0.03] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+            <div className="border-b border-white/[0.07] bg-white/[0.05] px-4 py-3">
               <div className="text-sm font-semibold text-[hsl(var(--color-text))]">การดำเนินการ</div>
             </div>
             <div className="flex flex-col gap-3 p-4">
               {isMatched && payment.invoice ? (
                 <Link
                   href={getPaymentInvoiceHref(payment.invoice.id)}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 shadow-sm transition-all hover:bg-white/[0.1] hover:border-white/20 active:scale-[0.98]"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all hover:bg-white/[0.1] hover:border-white/20 active:scale-[0.98]"
                 >
                   <FileText className="h-4 w-4" />
                   เปิดใบแจ้งหนี้
                 </Link>
               ) : null}
               {!isMatched ? (
-                <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 backdrop-blur px-4 py-3 text-sm text-amber-600">
+                <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600">
                   การชำระเงินนี้ยังไม่ได้จับคู่กับใบแจ้งหนี้ใด ดำเนินการจับคู่ได้ที่หน้าตรวจสอบการชำระ
                 </p>
               ) : null}

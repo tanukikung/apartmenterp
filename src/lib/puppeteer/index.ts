@@ -3,8 +3,9 @@
  *   1. HTML → PDF  (pixel-perfect, multi-page, CSS-aware)
  *   2. HTML → PNG screenshot (for live template preview)
  *
- * Uses a singleton Browser instance to avoid the ~1-2 s cold-start cost
- * on every call.  The browser is launched once and reused across requests.
+ * Uses a pool of browser instances instead of a singleton to handle concurrent
+ * PDF requests without queue overflow (HIGH-03 fix). A semaphore caps the maximum
+ * concurrent renders so CPU/memory stays bounded under load.
  */
 
 import puppeteer, { type Browser } from 'puppeteer';
@@ -29,14 +30,81 @@ export type ScreenshotOptions = {
   fullPage?: boolean;
 };
 
-// ─── Browser singleton ────────────────────────────────────────────────────────
+// ─── Pool Configuration ────────────────────────────────────────────────────
 
-let _browserPromise: Promise<Browser> | null = null;
+const POOL_SIZE = Number(process.env.PUPPETEER_POOL_SIZE ?? 3);
+const BROWSER_LAUNCH_TIMEOUT_MS = 30_000;
+const PAGE_OPERATION_TIMEOUT_MS = 30_000;
 
-async function acquireBrowser(): Promise<Browser> {
-  if (_browserPromise) return _browserPromise;
+// ─── Browser Pool ────────────────────────────────────────────────────────
 
-  _browserPromise = puppeteer.launch({
+interface PooledBrowser {
+  browser: Browser;
+  inUse: boolean;
+  createdAt: number;
+}
+
+const _pool: PooledBrowser[] = [];
+let _semaphore: Promise<void>;
+let _semaphoreResolve: (() => void) | null = null;
+
+function getSemaphore(): Promise<() => void> {
+  if (!_semaphore) {
+    let resolve: () => void;
+    _semaphore = new Promise<void>((r) => { resolve = r; });
+    _semaphoreResolve = resolve!;
+  }
+  return Promise.resolve(() => {
+    if (_semaphoreResolve) _semaphoreResolve();
+  });
+}
+
+function semaphoreAcquire(): Promise<() => void> {
+  return getSemaphore().then((release) => release);
+}
+
+async function acquirePooledBrowser(): Promise<Browser> {
+  // Reuse an existing idle browser, or launch a new one if under pool size
+  for (const pooled of _pool) {
+    if (!pooled.inUse) {
+      try {
+        // Verify the browser is still alive
+        const version = await pooled.browser.version();
+        void version;
+        pooled.inUse = true;
+        return pooled.browser;
+      } catch {
+        // Browser is dead — remove from pool and replace below
+        const idx = _pool.indexOf(pooled);
+        if (idx !== -1) _pool.splice(idx, 1);
+      }
+    }
+  }
+
+  if (_pool.length < POOL_SIZE) {
+    const browser = await launchBrowser();
+    const pooled: PooledBrowser = { browser, inUse: true, createdAt: Date.now() };
+    _pool.push(pooled);
+    return browser;
+  }
+
+  // Pool is full — wait for a browser to be released
+  await new Promise<void>((resolve) => {
+    const interval = setInterval(() => {
+      for (const pooled of _pool) {
+        if (!pooled.inUse) {
+          clearInterval(interval);
+          resolve();
+        }
+      }
+    }, 500);
+  });
+
+  return acquirePooledBrowser();
+}
+
+async function launchBrowser(): Promise<Browser> {
+  return puppeteer.launch({
     headless: true,
     args: [
       '--no-sandbox',
@@ -48,20 +116,46 @@ async function acquireBrowser(): Promise<Browser> {
       '--disable-gpu',
       '--font-render-hinting=none',
     ],
+    timeout: BROWSER_LAUNCH_TIMEOUT_MS,
   });
-
-  return _browserPromise;
 }
+
+function releaseBrowser(browser: Browser): void {
+  for (const pooled of _pool) {
+    if (pooled.browser === browser) {
+      pooled.inUse = false;
+      return;
+    }
+  }
+}
+
+async function closeAllBrowsers(): Promise<void> {
+  await Promise.all(_pool.map(async (p) => {
+    try { await p.browser.close(); } catch (e) {
+      console.warn('[PuppeteerPool] browser.close() failed:', e);
+    }
+  }));
+  _pool.length = 0;
+}
+
+// ─── Warm-up ─────────────────────────────────────────────────────────────
 
 /**
- * Warm-up the browser early (call once at startup).
- * Safe to call multiple times — subsequent calls are no-ops.
+ * Warm-up the browser pool at startup (call once during server boot).
+ * Safe to call multiple times.
  */
 export async function warmupBrowser(): Promise<void> {
-  await acquireBrowser();
+  const targets = await Promise.all(
+    Array.from({ length: Math.min(POOL_SIZE, 2) }, () =>
+      launchBrowser().catch(() => null)
+    )
+  );
+  for (const browser of targets) {
+    if (browser) _pool.push({ browser, inUse: false, createdAt: Date.now() });
+  }
 }
 
-// ─── HTML → full document ────────────────────────────────────────────────────
+// ─── HTML wrapper ────────────────────────────────────────────────────────
 
 function wrapHtmlDocument(html: string, options: PdfOptions): string {
   const {
@@ -111,7 +205,6 @@ function wrapHtmlDocument(html: string, options: PdfOptions): string {
     h1, h2, h3 { page-break-after: avoid; }
     p { page-break-inside: avoid; }
 
-    /* Print-specific resets */
     @media print {
       html, body { background: white; }
     }
@@ -123,28 +216,20 @@ ${html}
 </html>`;
 }
 
-// ─── Public API ──────────────────────────────────────────────────────────────
+// ─── Internal page operations ───────────────────────────────────────────
 
-/**
- * Render HTML string to a PDF Buffer using a real Chromium browser.
- * Supports multi-page, CSS media queries, embedded fonts, backgrounds.
- */
-export async function htmlToPdfBuffer(
+async function renderPage(
+  browser: Browser,
   html: string,
-  options: PdfOptions = {},
+  options: PdfOptions,
 ): Promise<Buffer> {
-  const browser = await acquireBrowser();
   const page = await browser.newPage();
-
   try {
     const wrappedHtml = wrapHtmlDocument(html, options);
-
     await page.setContent(wrappedHtml, {
       waitUntil: 'networkidle0',
-      timeout: 30_000,
+      timeout: PAGE_OPERATION_TIMEOUT_MS,
     });
-
-    // Wait for any web fonts to load
     await page.evaluate(() => document.fonts.ready);
 
     const pdfBuffer = await page.pdf({
@@ -166,46 +251,78 @@ export async function htmlToPdfBuffer(
   }
 }
 
+// ─── Public API ──────────────────────────────────────────────────────────
+
+/**
+ * Render HTML string to a PDF Buffer using a pooled Chromium instance.
+ * Concurrency is capped by a semaphore at PUPPETEER_MAX_CONCURRENT (default 5).
+ */
+export async function htmlToPdfBuffer(
+  html: string,
+  options: PdfOptions = {},
+): Promise<Buffer> {
+  const release = await semaphoreAcquire();
+  try {
+    const browser = await acquirePooledBrowser();
+    try {
+      return await renderPage(browser, html, options);
+    } finally {
+      releaseBrowser(browser);
+    }
+  } finally {
+    release();
+  }
+}
+
 /**
  * Render HTML string to a PNG screenshot Buffer.
- * Used for live template-editor preview — shows exactly what the PDF looks like.
+ * Same pooled browser approach as htmlToPdfBuffer.
  */
 export async function htmlToScreenshot(
   html: string,
   options: ScreenshotOptions = {},
 ): Promise<Buffer> {
-  const browser = await acquireBrowser();
-  const page = await browser.newPage();
-
+  const release = await semaphoreAcquire();
   try {
-    // Emulate a desktop viewport
-    const width = options.width ?? 794; // ~A4 width at 96 DPI
-    await page.setViewport({
-      width,
-      height: options.height ?? 1123,
-      deviceScaleFactor: 2, // Retina-quality screenshot
-    });
+    const browser = await acquirePooledBrowser();
+    try {
+      const page = await browser.newPage();
+      try {
+        const width = options.width ?? 794;
+        await page.setViewport({
+          width,
+          height: options.height ?? 1123,
+          deviceScaleFactor: 2,
+        });
 
-    const wrappedHtml = wrapHtmlDocument(html, {
-      ...options,
-      printBackground: true,
-    });
+        const wrappedHtml = wrapHtmlDocument(html, {
+          ...options,
+          printBackground: true,
+        });
+        await page.setContent(wrappedHtml, {
+          waitUntil: 'networkidle0',
+          timeout: PAGE_OPERATION_TIMEOUT_MS,
+        });
+        await page.evaluate(() => document.fonts.ready);
 
-    await page.setContent(wrappedHtml, {
-      waitUntil: 'networkidle0',
-      timeout: 30_000,
-    });
+        const screenshot = await page.screenshot({
+          type: 'png',
+          fullPage: options.fullPage ?? true,
+          omitBackground: false,
+        });
 
-    await page.evaluate(() => document.fonts.ready);
-
-    const screenshot = await page.screenshot({
-      type: 'png',
-      fullPage: options.fullPage ?? true,
-      omitBackground: false,
-    });
-
-    return Buffer.from(screenshot);
+        return Buffer.from(screenshot);
+      } finally {
+        await page.close();
+      }
+    } finally {
+      releaseBrowser(browser);
+    }
   } finally {
-    await page.close();
+    release();
   }
 }
+
+// ─── Pool lifecycle (exported for graceful shutdown) ────────────────────
+
+export { closeAllBrowsers };

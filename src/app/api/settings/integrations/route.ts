@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/client';
 import { getEnv } from '@/lib/config/env';
-import { getRequestIp, requireRole } from '@/lib/auth/guards';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit/audit.service';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 20;
 
 const LINE_KEYS = [
   'line.channelId',
@@ -28,7 +32,7 @@ function maskSecret(value: string | undefined | null): string {
 }
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const configs = await prisma.config.findMany({
     where: { key: { in: [...LINE_KEYS] } },
@@ -93,7 +97,16 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 });
 
 export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN']);
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`settings-integrations-put:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+  requireRole(req, ['ADMIN', 'OWNER']);
   const body = updateLineSchema.parse(await req.json());
 
   await prisma.$transaction([
@@ -129,8 +142,7 @@ export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
   // Audit log — never include actual secret/token values
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
+    req,
     action: 'LINE_INTEGRATION_UPDATED',
     entityType: 'Config',
     entityId: 'line',
@@ -140,7 +152,6 @@ export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
       accessTokenUpdated: true,
       webhookUrl: body.webhookUrl,
     },
-    ipAddress: getRequestIp(req),
   });
 
   return NextResponse.json({

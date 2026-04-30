@@ -181,7 +181,7 @@ export default function TemplateDiffPage() {
         <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-primary/5 blur-3xl" />
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link href={`/admin/templates/${params.id}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 backdrop-blur-md transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
+            <Link href={`/admin/templates/${params.id}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
               <ArrowLeft className="h-4 w-4 text-white/70" />
             </Link>
             <div>
@@ -202,7 +202,7 @@ export default function TemplateDiffPage() {
         </div>
       </div>
 
-      {error ? <div className="rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur-sm px-5 py-4 text-sm text-red-400">{error}</div> : null}
+      {error ? <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-400">{error}</div> : null}
 
       {/* Version selectors */}
       <div className="rounded-2xl border border-white/10 bg-[hsl(225,25%,6%)] shadow-xl shadow-black/20 p-5">
@@ -214,7 +214,7 @@ export default function TemplateDiffPage() {
             <select
               value={leftVersionId}
               onChange={(e) => setLeftVersionId(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-2 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             >
               {sortedVersions.map((v) => (
                 <option key={v.id} value={v.id} className="bg-[hsl(225,25%,8%)]">
@@ -230,7 +230,7 @@ export default function TemplateDiffPage() {
             <select
               value={rightVersionId}
               onChange={(e) => setRightVersionId(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-3 py-2 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             >
               {sortedVersions.map((v) => (
                 <option key={v.id} value={v.id} className="bg-[hsl(225,25%,8%)]">

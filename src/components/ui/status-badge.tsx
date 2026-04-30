@@ -38,9 +38,9 @@ const VARIANT_STYLES: Record<BadgeVariant, { cls: string; dotCls: string; ringCl
     ringCls: 'bg-on-warning-container/40',
   },
   info: {
-    cls: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/30',
-    dotCls: 'bg-blue-500',
-    ringCls: 'bg-blue-500/40',
+    cls: 'bg-info-container text-on-info-container border-info-container/30',
+    dotCls: 'bg-on-info-container',
+    ringCls: 'bg-on-info-container/40',
   },
   neutral: {
     cls: 'bg-surface-container-low text-on-surface-variant border-outline-variant',

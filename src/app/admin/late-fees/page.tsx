@@ -212,19 +212,19 @@ export default function LateFeesPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[hsl(var(--primary))]/20 to-[hsl(var(--primary))]/5 backdrop-blur border border-[hsl(var(--color-border))] px-6 py-5 shadow-[var(--glow-primary)]">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.08),_transparent_60%)]" />
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[hsl(var(--primary))]/20 to-[hsl(var(--primary))]/5 border border-[hsl(var(--color-border))] px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.08),transparent_60%)]" />
         <div className="relative flex items-center justify-between">
           <div>
             <h1 className="text-base font-semibold text-[hsl(var(--color-text))]">ตรวจสอบค่าปรับล่าช้า</h1>
-            <p className="text-xs text-[hsl(var(--color-text))]/50 mt-0.5">
+            <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">
               ตรวจสอบและอนุมัติค่าปรับล่าช้าที่คำนวณจากระบบรายคืน
             </p>
           </div>
           <button
             onClick={() => void refetch()}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 shadow-sm transition-all hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 shadow-sm transition-all hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 active:scale-[0.98]"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             รีเฟรช
@@ -233,14 +233,14 @@ export default function LateFeesPage() {
       </div>
 
       {error ? (
-        <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur px-4 py-3 text-sm text-red-600 font-medium">
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600 font-medium">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error instanceof Error ? error.message : String(error)}
         </div>
       ) : null}
 
       {saveSuccess ? (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 backdrop-blur px-4 py-3 text-sm text-emerald-600 font-medium">
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600 font-medium">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           บันทึกค่าปรับล่าช้าเรียบร้อยแล้ว
         </div>
@@ -249,19 +249,19 @@ export default function LateFeesPage() {
       {/* Stats */}
       {stats ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5">
+          <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5">
             <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ใบแจ้งหนี้ค้างชำระ</div>
             <div className="mt-2 text-2xl font-extrabold text-[hsl(var(--color-text))]">{stats.overdue}</div>
           </div>
-          <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5">
+          <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5">
             <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ใบแจ้งหนี้ที่ชำระแล้ว</div>
             <div className="mt-2 text-2xl font-extrabold text-emerald-600">{stats.paid}</div>
           </div>
-          <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5">
+          <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5">
             <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">รวมค่าปรับล่าช้า</div>
             <div className="mt-2 text-2xl font-extrabold text-[hsl(var(--color-text))]">{money(stats.totalLateFees)}</div>
           </div>
-          <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl p-5">
+          <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5">
             <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">จำนวนห้องที่ได้รับผลกระทบ</div>
             <div className="mt-2 text-2xl font-extrabold text-[hsl(var(--color-text))]">{stats.totalRooms}</div>
           </div>
@@ -270,15 +270,15 @@ export default function LateFeesPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-1">
+        <div className="flex items-center gap-1 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-1">
           {(['OVERDUE', 'PAID', 'all'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all active:scale-[0.98] ${
                 filter === f
-                  ? 'bg-[hsl(var(--primary))] text-[hsl(var(--color-text))] shadow-glow-primary'
-                  : 'text-[hsl(var(--color-text))]/50 hover:bg-[hsl(var(--color-surface))]/50 hover:text-[hsl(var(--color-text))]'
+                  ? 'bg-[hsl(var(--primary))] text-[hsl(var(--color-text))] shadow-[0_0_20px_rgba(99,102,241,0.15)]'
+                  : 'text-[hsl(var(--on-surface-variant))] hover:bg-[hsl(var(--color-surface))]/50 hover:text-[hsl(var(--color-text))]'
               }`}
             >
               {f === 'all' ? 'ทั้งหมด' : f === 'OVERDUE' ? 'ค้างชำระ' : 'ชำระแล้ว'}
@@ -292,7 +292,7 @@ export default function LateFeesPage() {
             placeholder="ค้นหาห้อง..."
             value={roomSearch}
             onChange={(e) => setRoomSearch(e.target.value)}
-            className="h-9 w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur pl-9 pr-4 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+            className="h-9 w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] pl-9 pr-4 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
           />
         </div>
         {roomSearch && (
@@ -304,11 +304,11 @@ export default function LateFeesPage() {
         {/* Bulk actions */}
         {selectedIds.size > 0 && (
           <div className="ml-auto flex items-center gap-2">
-            <span className="text-sm text-[hsl(var(--color-text))]/50">เลือกแล้ว {selectedIds.size} รายการ</span>
+            <span className="text-sm text-[hsl(var(--on-surface-variant))]">เลือกแล้ว {selectedIds.size} รายการ</span>
             <button
               onClick={() => void handleBulkApprove()}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--color-text))] shadow-glow-primary transition-all shadow-glow-primary-hover active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--color-text))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98]"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsUp className="h-4 w-4" />}
               อนุมัติที่เลือก
@@ -322,7 +322,7 @@ export default function LateFeesPage() {
             <button
               onClick={() => void handleSaveAll()}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--color-text))] shadow-glow-primary transition-all shadow-glow-primary-hover active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--color-text))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98]"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               บันทึกทั้งหมด
@@ -332,7 +332,7 @@ export default function LateFeesPage() {
       </div>
 
       {/* Table */}
-      <section className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
+      <section className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--primary))]" />
@@ -340,7 +340,7 @@ export default function LateFeesPage() {
         ) : data && data.invoices.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <CheckCircle2 className="h-10 w-10 text-emerald-600" />
-            <p className="text-[hsl(var(--color-text))]/50">ไม่มีใบแจ้งหนี้ค้างชำระที่มีค่าปรับล่าช้า</p>
+            <p className="text-[hsl(var(--on-surface-variant))]">ไม่มีใบแจ้งหนี้ค้างชำระที่มีค่าปรับล่าช้า</p>
           </div>
         ) : (
           <div className="overflow-auto">
@@ -443,7 +443,7 @@ export default function LateFeesPage() {
                             value={editState[inv.id]?.lateFeeAmount ?? inv.lateFeeAmount}
                             onChange={(n) => handleAmountChange(inv.id, n ?? 0)}
                             ariaLabel="ค่าปรับล่าช้า"
-                            className={`w-24 rounded-xl border bg-[hsl(var(--color-surface))] backdrop-blur px-2 py-1 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))]/30 focus:outline-none focus:ring-2 ${
+                            className={`w-24 rounded-xl border bg-[hsl(var(--color-surface))] px-2 py-1 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))]/30 focus:outline-none focus:ring-2 ${
                               isEdited
                                 ? 'border-amber-500/30 focus:border-amber-500/50 focus:ring-amber-500/20'
                                 : 'border-[hsl(var(--color-border))] focus:border-[hsl(var(--primary))]/50 focus:ring-[hsl(var(--primary))]/20'

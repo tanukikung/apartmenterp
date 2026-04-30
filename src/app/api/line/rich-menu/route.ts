@@ -108,7 +108,7 @@ async function createOrUpdateRichMenu(
  */
 export const POST = asyncHandler(
   async (req: NextRequest): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN']);
+    requireRole(req, ['ADMIN', 'OWNER']);
 
     if (!isLineConfigured()) {
       return NextResponse.json(
@@ -147,7 +147,7 @@ export const POST = asyncHandler(
  */
 export const DELETE = asyncHandler(
   async (req: NextRequest): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN']);
+    requireRole(req, ['ADMIN', 'OWNER']);
 
     if (!isLineConfigured()) {
       return NextResponse.json(

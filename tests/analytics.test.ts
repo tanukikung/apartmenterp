@@ -91,6 +91,7 @@ describe('Analytics API', () => {
     (prisma.invoice.groupBy as any).mockReset();
     (prisma.invoice.findMany as any).mockReset();
     (prisma.room.count as any).mockReset();
+    (prisma.room.findMany as any).mockReset();
     (prisma.roomBilling.aggregate as any).mockReset();
     (prisma.roomBilling.count as any).mockReset();
     (prisma.billingPeriod.findUnique as any).mockReset();
@@ -137,12 +138,11 @@ describe('Analytics API', () => {
   });
 
   it('occupancy counts rooms by status', async () => {
-    (prisma.room.count as any)
-      .mockResolvedValueOnce(30) // total
-      .mockResolvedValueOnce(20) // occupied
-      .mockResolvedValueOnce(10) // vacant
-      .mockResolvedValueOnce(0)  // maintenance
-      .mockResolvedValueOnce(0); // ownerUse
+    (prisma.room.findMany as any)
+      .mockResolvedValueOnce(Array(30).fill(null).map((_, i) => ({
+        roomStatus: i < 20 ? 'OCCUPIED' : 'VACANT',
+        floorNo: 1,
+      })));
     const mod = await import('@/app/api/analytics/occupancy/route');
     const res: Response = await (mod as any).GET({} as any);
     expect(res.ok).toBe(true);

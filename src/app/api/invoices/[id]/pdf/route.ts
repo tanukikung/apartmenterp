@@ -46,6 +46,15 @@ export const GET = asyncHandler(
       }),
     ]);
 
+    // Guard: cancelled invoices cannot have their PDF regenerated — return 410 Gone
+    // to prevent tenant confusion and unnecessary Puppeteer resource usage.
+    if (preview.status === 'CANCELLED') {
+      return NextResponse.json(
+        { success: false, error: 'This invoice has been cancelled and cannot generate a PDF' },
+        { status: 410 }
+      );
+    }
+
     // Fetch the room's default bank account (sequential — needs preview.roomNo first)
     const roomAccount = await prisma.room.findUnique({
       where: { roomNo: preview.roomNo },

@@ -17,12 +17,16 @@ function model() {
     aggregate:   vi.fn(),
     groupBy:     vi.fn(),
     upsert:      vi.fn(),
+    findRaw:     vi.fn(),
+    aggregateRaw: vi.fn(),
+    $executeRaw:       vi.fn().mockResolvedValue(0),
+    $executeRawUnsafe: vi.fn().mockResolvedValue(0),
   };
 }
 
 export function mockPrismaClient() {
-  const prisma: Record<string, any> = {
-    // Core billing / invoices (new schema)
+  const prisma: Record<string, unknown> = {
+    // Core billing / invoices
     invoice:             model(),
     invoiceDelivery:     model(),
     billingPeriod:       model(),
@@ -30,6 +34,10 @@ export function mockPrismaClient() {
     importBatch:         model(),
     payment:             model(),
     outboxEvent:         model(),
+    billingAuditLog:     model(),
+    paymentHistory:      model(),
+    failedMessage:       model(),
+    idempotencyRecord:   model(),
 
     // Legacy model aliases (kept for backward compatibility in tests)
     billingRecord:       model(),
@@ -57,24 +65,45 @@ export function mockPrismaClient() {
     // Templates
     documentTemplate:    model(),
     documentTemplateVersion: model(),
+    documentTemplateComment: model(),
     documentTemplateFieldDefinition: model(),
     documentGenerationJob: model(),
     documentGenerationTarget: model(),
     generatedDocument: model(),
     generatedDocumentFile: model(),
+    templateVersionImage: model(),
     messageTemplate:     model(),
 
     // Comms
     conversation:        model(),
     message:             model(),
     lineUser:            model(),
+    lineMaintenanceState: model(),
     broadcast:           model(),
     notification:        model(),
     reminderConfig:      model(),
 
+    // Maintenance
+    maintenanceTicket:   model(),
+    maintenanceComment:  model(),
+    maintenanceAttachment: model(),
+
+    // Delivery
+    deliveryOrder:       model(),
+    deliveryOrderItem:   model(),
+
     // Misc
     uploadedFile:        model(),
     auditLog:            model(),
+    adminUser:           model(),
+    passwordResetToken:  model(),
+
+    // Raw SQL (used by outbox processor and raw queries)
+    $queryRaw:       vi.fn().mockResolvedValue([]),
+    $executeRaw:       vi.fn().mockResolvedValue(0),
+    $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+    findRaw:         vi.fn().mockResolvedValue([]),
+    aggregateRaw:   vi.fn().mockResolvedValue([]),
 
     // Prisma transaction helper
     $transaction: vi.fn(async (fn: (tx: Record<string, ReturnType<typeof model>>) => any) => {
@@ -87,6 +116,10 @@ export function mockPrismaClient() {
         payment:            prisma.payment,
         paymentTransaction:  prisma.paymentTransaction,
         outboxEvent:        prisma.outboxEvent,
+        billingAuditLog:    prisma.billingAuditLog,
+        paymentHistory:     prisma.paymentHistory,
+        failedMessage:      prisma.failedMessage,
+        idempotencyRecord:  prisma.idempotencyRecord,
         billingRecord:      prisma.billingRecord,
         billingItem:        prisma.billingItem,
         billingItemType:    prisma.billingItemType,
@@ -103,30 +136,42 @@ export function mockPrismaClient() {
         tenantRegistration:  prisma.tenantRegistration,
         staffRegistrationRequest: prisma.staffRegistrationRequest,
         admin:              prisma.admin,
+        adminUser:          prisma.adminUser,
+        passwordResetToken: prisma.passwordResetToken,
         expense:            prisma.expense,
         config:             prisma.config,
         auditLog:           prisma.auditLog,
         documentTemplate:   prisma.documentTemplate,
         documentTemplateVersion: prisma.documentTemplateVersion,
+        documentTemplateComment: prisma.documentTemplateComment,
         documentTemplateFieldDefinition: prisma.documentTemplateFieldDefinition,
         documentGenerationJob: prisma.documentGenerationJob,
         documentGenerationTarget: prisma.documentGenerationTarget,
         generatedDocument: prisma.generatedDocument,
         generatedDocumentFile: prisma.generatedDocumentFile,
+        templateVersionImage: prisma.templateVersionImage,
         messageTemplate:    prisma.messageTemplate,
         conversation:       prisma.conversation,
         message:            prisma.message,
         lineUser:           prisma.lineUser,
+        lineMaintenanceState: prisma.lineMaintenanceState,
         broadcast:          prisma.broadcast,
         notification:       prisma.notification,
         reminderConfig:      prisma.reminderConfig,
+        maintenanceTicket:  prisma.maintenanceTicket,
+        maintenanceComment: prisma.maintenanceComment,
+        maintenanceAttachment: prisma.maintenanceAttachment,
+        deliveryOrder:      prisma.deliveryOrder,
+        deliveryOrderItem:   prisma.deliveryOrderItem,
         uploadedFile:       prisma.uploadedFile,
       };
-      // $queryRaw is used by the outbox processor for SKIP LOCKED batches
-      (tx as any).$queryRaw = vi.fn().mockResolvedValue([]);
+      // Raw SQL methods for tx
+      (tx as Record<string, Fn>).$queryRaw = vi.fn().mockResolvedValue([]);
+      (tx as Record<string, Fn>).$executeRaw = vi.fn().mockResolvedValue(0);
+      (tx as Record<string, Fn>).$executeRawUnsafe = vi.fn().mockResolvedValue(0);
       return fn(tx);
     }),
-  } as any;
+  } as unknown as typeof prisma;
   return prisma;
 }
 

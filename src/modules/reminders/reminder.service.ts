@@ -5,6 +5,7 @@
 import { prisma } from '@/lib/db/client';
 import { EventTypes } from '@/lib/events';
 import { logger } from '@/lib/utils/logger';
+import type { Prisma } from '@prisma/client';
 
 import { v4 as uuidv4 } from 'uuid';
 
@@ -16,6 +17,9 @@ import { v4 as uuidv4 } from 'uuid';
 const DEFAULT_DUE_SOON_DAYS = parseInt(process.env.DEFAULT_DUE_SOON_DAYS ?? '3', 10);
 const DEFAULT_OVERDUE_DAYS = parseInt(process.env.DEFAULT_OVERDUE_DAYS ?? '3', 10);
 
+// Milliseconds per day — used in overdue-day calculations
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 function startOfDay(d: Date): Date {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
@@ -26,6 +30,10 @@ function endOfDay(d: Date): Date {
   const x = new Date(d);
   x.setHours(23, 59, 59, 999);
   return x;
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return a.toISOString().split('T')[0] === b.toISOString().split('T')[0];
 }
 
 /**
@@ -67,7 +75,6 @@ export class ReminderService {
     errors: string[];
   }> {
     const base = startOfDay(today);
-    const errors: string[] = [];
 
     // Fetch all active reminder configs
     const configs = await prisma.reminderConfig.findMany({
@@ -81,77 +88,114 @@ export class ReminderService {
     }
 
     const _now = new Date();
-    const openStatuses = ['GENERATED', 'SENT', 'VIEWED'] as const;
 
-    let scheduled = 0;
+    // Collect all unique date targets across configs so we can fetch invoices in one query
+    const preDueDates: Date[] = [];
+    const overdueDates: Date[] = [];
+    let dueTodayDate: Date | null = null;
 
     for (const config of configs) {
       const days = config.periodDays;
-      let invoices;
-
       if (days > 0) {
-        // Pre-due reminder: N days before dueDate
-        const targetDate = new Date(base);
-        targetDate.setDate(targetDate.getDate() + days);
-        const start = startOfDay(targetDate);
-        const end = endOfDay(targetDate);
-
-        invoices = await prisma.invoice.findMany({
-          where: {
-            status: { in: [...openStatuses] },
-            dueDate: { gte: start, lte: end },
-          },
-          select: { id: true, dueDate: true, roomNo: true },
-        });
+        const target = new Date(base);
+        target.setDate(target.getDate() + days);
+        preDueDates.push(startOfDay(target));
       } else if (days < 0) {
-        // Overdue reminder: N days after dueDate (negative days = overdue)
-        const targetDate = new Date(base);
-        targetDate.setDate(targetDate.getDate() + days); // days is negative
-        const start = startOfDay(targetDate);
-        const end = endOfDay(targetDate);
-
-        invoices = await prisma.invoice.findMany({
-          where: {
-            status: { in: ['SENT', 'VIEWED', 'OVERDUE'] },
-            dueDate: { gte: start, lte: end },
-          },
-          select: { id: true, dueDate: true, roomNo: true },
-        });
+        const target = new Date(base);
+        target.setDate(target.getDate() + days); // negative
+        overdueDates.push(startOfDay(target));
       } else {
-        // day 0 = due today
-        invoices = await prisma.invoice.findMany({
+        dueTodayDate = startOfDay(base);
+      }
+    }
+
+    // Single findMany: OR across all pre-due dates
+    const preDueInvoices =
+      preDueDates.length > 0
+        ? await prisma.invoice.findMany({
+            where: {
+              status: { in: ['GENERATED', 'SENT', 'VIEWED'] },
+              dueDate: { in: preDueDates },
+            },
+            select: { id: true, dueDate: true, roomNo: true },
+          })
+        : [];
+
+    // Single findMany: OR across all overdue dates
+    const overdueInvoices =
+      overdueDates.length > 0
+        ? await prisma.invoice.findMany({
+            where: {
+              status: { in: ['SENT', 'VIEWED', 'OVERDUE'] },
+              dueDate: { in: overdueDates },
+            },
+            select: { id: true, dueDate: true, roomNo: true },
+          })
+        : [];
+
+    // Due-today invoices
+    const dueTodayInvoices = dueTodayDate
+      ? await prisma.invoice.findMany({
           where: {
-            status: { in: [...openStatuses] },
-            dueDate: { gte: startOfDay(base), lte: endOfDay(base) },
+            status: { in: ['GENERATED', 'SENT', 'VIEWED'] },
+            dueDate: { gte: dueTodayDate, lte: endOfDay(dueTodayDate) },
           },
-          select: { id: true, dueDate: true, roomNo: true },
-        });
+          select: { id: true, dueDate: true, roomNo: true, status: true },
+        })
+      : [];
+
+    // Build flat event array
+    const eventsArray: Prisma.OutboxEventUncheckedCreateInput[] = [];
+    let scheduled = 0;
+    const errors: string[] = [];
+
+    for (const config of configs) {
+      const days = config.periodDays;
+
+      let matches: typeof preDueInvoices = [];
+      if (days > 0) {
+        const target = new Date(base);
+        target.setDate(target.getDate() + days);
+        matches = preDueInvoices.filter((inv) => isSameDay(inv.dueDate, target));
+      } else if (days < 0) {
+        const target = new Date(base);
+        target.setDate(target.getDate() + days);
+        matches = overdueInvoices.filter((inv) => isSameDay(inv.dueDate, target));
+      } else {
+        matches = dueTodayInvoices;
       }
 
-      for (const inv of invoices) {
-        try {
-          await prisma.outboxEvent.create({
-            data: {
-              id: uuidv4(),
-              aggregateType: 'Invoice',
-              aggregateId: inv.id,
-              eventType: 'ConfigurableReminder',
-              payload: {
-                invoiceId: inv.id,
-                configId: config.id,
-                periodDays: config.periodDays,
-                messageTh: config.messageTh,
-                messageEn: config.messageEn,
-                dueDate: inv.dueDate.toISOString().split('T')[0],
-              },
-              retryCount: 0,
-            },
-          });
-          scheduled++;
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          errors.push(`Invoice ${inv.id}: ${msg}`);
-        }
+      for (const inv of matches) {
+        eventsArray.push({
+          id: uuidv4(),
+          aggregateType: 'Invoice',
+          aggregateId: inv.id,
+          eventType: 'ConfigurableReminder',
+          payload: {
+            invoiceId: inv.id,
+            configId: config.id,
+            periodDays: config.periodDays,
+            messageTh: config.messageTh,
+            messageEn: config.messageEn,
+            dueDate: inv.dueDate.toISOString().split('T')[0],
+          },
+          retryCount: 0,
+        });
+      }
+    }
+
+    // Batch insert all outbox events at once
+    if (eventsArray.length > 0) {
+      try {
+        await prisma.outboxEvent.createMany({
+          data: eventsArray,
+          skipDuplicates: true,
+        });
+        scheduled = eventsArray.length;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(msg);
+        scheduled = 0;
       }
     }
 
@@ -279,6 +323,8 @@ export class ReminderService {
 
   /**
    * Apply late fees to all OVERDUE invoices based on their room's BillingRule.
+   * Idempotent: only invoices with lateFeeAppliedAt IS NULL are selected and
+   * updated atomically. A second call with the same parameters is a no-op.
    * Returns count of invoices updated and total fees applied.
    */
   async applyLateFees(): Promise<{ updated: number; totalFees: number; errors: string[] }> {
@@ -286,7 +332,7 @@ export class ReminderService {
     const errors: string[] = [];
 
     const overdueInvoices = await prisma.invoice.findMany({
-      where: { status: 'OVERDUE' },
+      where: { status: 'OVERDUE', lateFeeAppliedAt: null },
       include: {
         roomBilling: {
           include: { effectiveRule: true },
@@ -307,20 +353,26 @@ export class ReminderService {
       if (penaltyPerDay <= 0) continue;
 
       const dueDate = new Date(invoice.dueDate);
-      const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+      const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / MS_PER_DAY);
 
       if (daysOverdue <= 0) continue;
 
       const lateFee = calculateLateFee(daysOverdue, penaltyPerDay, maxPenalty);
 
       try {
-        await prisma.invoice.update({
-          where: { id: invoice.id },
-          data: {
-            lateFeeAmount: lateFee,
-            lateFeeAppliedAt: now,
-          },
-        });
+        // Atomic idempotency guard: only update if lateFeeAppliedAt is still NULL.
+        // If a concurrent run already set it, 0 rows are affected — skip silently.
+        const rowsAffected = await prisma.$executeRaw`
+          UPDATE "invoices"
+          SET "lateFeeAmount" = ${lateFee}::decimal,
+              "lateFeeAppliedAt" = ${now}::timestamptz
+          WHERE id = ${invoice.id}::uuid
+            AND "lateFeeAppliedAt" IS NULL
+        `;
+        if (rowsAffected === 0) {
+          // Already applied by a concurrent run
+          continue;
+        }
         updated++;
         totalFees += Number(lateFee);
       } catch (err) {

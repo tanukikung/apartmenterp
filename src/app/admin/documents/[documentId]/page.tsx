@@ -151,7 +151,7 @@ export default function DocumentDetailPage() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.15),_transparent_60%)]" />
         <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-primary/5 blur-3xl" />
         <div className="relative flex items-center gap-4">
-          <Link href="/admin/documents" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 backdrop-blur-md transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
+          <Link href="/admin/documents" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
             <ArrowLeft className="h-4 w-4 text-white/70" />
           </Link>
           <div>
@@ -161,14 +161,14 @@ export default function DocumentDetailPage() {
         </div>
         <div className="flex items-center gap-2 mt-4">
           {document?.files.some((f) => f.role === 'PDF') && document.status !== 'SENT' && (
-            <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]" onClick={() => void sendDocument()} disabled={working}>
+            <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]" onClick={() => void sendDocument()} disabled={working}>
               <Send className="h-4 w-4" />
               {working ? 'กำลังส่ง...' : 'ส่ง PDF'}
             </button>
           )}
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]"
             onClick={() => setConfirmOpen(true)}
             disabled={working || document?.status === 'SENT'}
             title={document?.status === 'SENT' ? 'ไม่สามารถสร้างเอกสารใหม่ได้ เอกสารถูกส่งแล้ว กรุณาสร้างเอกสารใหม่แทน' : undefined}
@@ -179,8 +179,8 @@ export default function DocumentDetailPage() {
         </div>
       </div>
 
-      {message ? <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 backdrop-blur-sm px-5 py-4 text-sm text-emerald-400">{message}</div> : null}
-      {error ? <div className="rounded-xl border border-red-500/20 bg-red-500/10 backdrop-blur-sm px-5 py-4 text-sm text-red-400">{error}</div> : null}
+      {message ? <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-400">{message}</div> : null}
+      {error ? <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-400">{error}</div> : null}
 
       {loading ? (
         <div className="py-16 text-center text-white/40">กำลังโหลดเอกสาร...</div>
@@ -240,7 +240,7 @@ export default function DocumentDetailPage() {
               </div>
               <div className="space-y-3 p-5">
                 {document.files.map((file) => (
-                  <div key={file.id} className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-4">
+                  <div key={file.id} className="rounded-xl border border-white/10 bg-white/5 px-4 py-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="font-medium text-white">{file.fileName}</div>
@@ -249,10 +249,10 @@ export default function DocumentDetailPage() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <a href={file.url} className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-xs font-medium text-white/70 shadow-sm transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
+                        <a href={file.url} className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 shadow-sm transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
                           <Download className="h-3.5 w-3.5" />
                         </a>
-                        <a href={file.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-xs font-medium text-white/70 shadow-sm transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
+                        <a href={file.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 shadow-sm transition-all hover:bg-white/10 hover:scale-105 active:scale-[0.98]">
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
                       </div>
@@ -281,7 +281,7 @@ export default function DocumentDetailPage() {
               <div className="space-y-3">
                 {(document.auditTrail ?? []).length ? (
                   document.auditTrail?.map((entry) => (
-                    <div key={entry.id} className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-4">
+                    <div key={entry.id} className="rounded-xl border border-white/10 bg-white/5 px-4 py-4">
                       <div className="flex items-center justify-between gap-3">
                         <div className="font-medium text-white">{entry.action}</div>
                         <div className="text-xs text-white/40"><ClientOnly fallback="-">{new Date(entry.createdAt).toLocaleString('th-TH')}</ClientOnly></div>

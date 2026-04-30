@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
+const stripHtml = (v: string) => v.replace(/<[^>]*>/g, '').trim();
+
 export const createDeliveryOrderSchema = z.object({
   documentType: z.enum(['INVOICE', 'RECEIPT', 'NOTICE', 'CONTRACT', 'GENERAL', 'REPORT']),
-  description: z.string().optional(),
+  description: z.string().optional().transform(v => v ? stripHtml(v) : v),
   year: z.number().int().min(2000).max(2100).optional(),
   month: z.number().int().min(1).max(12).optional(),
   floorNumber: z.number().int().optional(),

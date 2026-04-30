@@ -40,7 +40,7 @@ function SettingRow({
   onChange: (value: number) => void;
 }) {
   return (
-    <div className="glass-card rounded-xl p-5 flex items-center justify-between gap-4">
+    <div className=" rounded-xl p-5 flex items-center justify-between gap-4">
       <div>
         <div className="font-semibold text-[hsl(var(--card-foreground))]">{label}</div>
         <p className="mt-1 text-sm text-[hsl(var(--on-surface-variant))]">{description}</p>
@@ -51,7 +51,7 @@ function SettingRow({
         max={max}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="w-24 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] text-center tabular-nums focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
+        className="w-24 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] text-center tabular-nums focus:border-[hsl(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all hover:border-[hsl(var(--primary))]/40"
       />
     </div>
   );
@@ -127,14 +127,14 @@ export default function BillingPolicyPage() {
 
   return (
     <main className="space-y-6">
-      <section className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
+      <section className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-6 py-5" style={{ background: 'hsl(var(--card))' }}>
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
         </div>
         <div className="relative flex items-center gap-3">
           <Link
             href="/admin/settings"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] glass-card shadow-sm transition-all hover:scale-105 active:scale-95"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  shadow-sm transition-all hover:scale-105 active:scale-95"
           >
             <ArrowLeft className="h-4 w-4 text-[hsl(var(--primary))]" />
           </Link>
@@ -167,7 +167,7 @@ export default function BillingPolicyPage() {
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="h-24 animate-pulse rounded-xl glass-card" />
+            <div key={index} className="h-24 animate-pulse rounded-xl " />
           ))}
         </div>
       ) : (
@@ -199,7 +199,7 @@ export default function BillingPolicyPage() {
         </div>
       )}
 
-      <div className="glass-card rounded-xl px-5 py-4 flex items-center justify-between">
+      <div className=" rounded-xl px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-[hsl(var(--on-surface-variant))]">
           <CalendarDays className="h-4 w-4" />
           {isDirty ? 'คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก' : 'ปฏิทินการเรียกเก็บเป็นปัจจุบันแล้ว'}
@@ -212,7 +212,7 @@ export default function BillingPolicyPage() {
                 setMessage(null);
                 setError(null);
               }}
-              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5"
+              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5"
             >
               รีเซ็ต
             </button>

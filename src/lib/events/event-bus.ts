@@ -113,8 +113,7 @@ export class EventBus {
     eventType: string,
     aggregateType: string,
     aggregateId: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    payload: any,
+    payload: unknown,
     options: EventBusOptions = {}
   ): Promise<T> {
     const event = {
@@ -187,8 +186,7 @@ export class EventBus {
       eventType: string;
       aggregateType: string;
       aggregateId: string;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      payload: any;
+      payload: unknown;
     }>
   ): Promise<T[]> {
     const results: T[] = [];
@@ -330,8 +328,7 @@ export class EventBuilder {
     eventType: string,
     aggregateType: string,
     aggregateId: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    payload: any
+    payload: unknown
   ): Promise<T> {
     return this.eventBus.publish<T>(
       eventType,

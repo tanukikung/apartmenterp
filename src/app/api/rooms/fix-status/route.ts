@@ -3,6 +3,10 @@ import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { prisma } from '@/lib';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 20;
 
 // ============================================================================
 // POST /api/rooms/fix-status - Fix orphaned OCCUPIED rooms (no tenants)
@@ -17,41 +21,47 @@ interface FixResult {
 
 export const POST = asyncHandler(
   async (req: NextRequest): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN']);
+    const limiter = getLoginRateLimiter();
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+    const { allowed, remaining, resetAt } = await limiter.check(`rooms-fix-status:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+      );
+    }
+    requireRole(req, ['ADMIN', 'OWNER']);
 
-    // Find all rooms with status OCCUPIED
-    const occupiedRooms = await prisma.room.findMany({
-      where: { roomStatus: 'OCCUPIED' },
-      select: { roomNo: true },
-    });
+    // Single query: find OCCUPIED rooms with no active tenants
+    const orphanedRooms = await prisma.$queryRaw<{ roomNo: string }[]>`
+      SELECT r."roomNo"
+      FROM rooms r
+      WHERE r."roomStatus" = 'OCCUPIED'
+        AND NOT EXISTS (
+          SELECT 1 FROM "roomTenants" rt
+          WHERE rt."roomNo" = r."roomNo" AND rt."moveOutDate" IS NULL
+        )
+    `;
 
     const result: FixResult = {
-      totalChecked: occupiedRooms.length,
+      totalChecked: orphanedRooms.length,
       totalFixed: 0,
       fixedRooms: [],
       alreadyOk: 0,
     };
 
-    for (const room of occupiedRooms) {
-      // Check if this room has any active RoomTenant records
-      const roomTenantCount = await prisma.roomTenant.count({
-        where: {
-          roomNo: room.roomNo,
-          moveOutDate: null, // only active tenants
-        },
-      });
-
-      if (roomTenantCount === 0) {
-        // No tenants - set to VACANT
-        await prisma.room.update({
-          where: { roomNo: room.roomNo },
-          data: { roomStatus: 'VACANT' },
-        });
-        result.fixedRooms.push(room.roomNo);
-        result.totalFixed++;
-      } else {
-        result.alreadyOk++;
-      }
+    if (orphanedRooms.length > 0) {
+      // Batch update in a transaction
+      await prisma.$transaction(
+        orphanedRooms.map((room) =>
+          prisma.room.update({
+            where: { roomNo: room.roomNo },
+            data: { roomStatus: 'VACANT' },
+          })
+        )
+      );
+      result.fixedRooms = orphanedRooms.map((r) => r.roomNo);
+      result.totalFixed = orphanedRooms.length;
     }
 
     logger.info({
@@ -73,35 +83,25 @@ export const POST = asyncHandler(
 
 export const GET = asyncHandler(
   async (req: NextRequest): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN']);
+    requireRole(req, ['ADMIN', 'OWNER']);
 
-    // Find all rooms with status OCCUPIED
-    const occupiedRooms = await prisma.room.findMany({
-      where: { roomStatus: 'OCCUPIED' },
-      select: { roomNo: true },
-    });
-
-    const orphanedRooms: string[] = [];
-
-    for (const room of occupiedRooms) {
-      const roomTenantCount = await prisma.roomTenant.count({
-        where: {
-          roomNo: room.roomNo,
-          moveOutDate: null,
-        },
-      });
-
-      if (roomTenantCount === 0) {
-        orphanedRooms.push(room.roomNo);
-      }
-    }
+    // Single query: find OCCUPIED rooms with no active tenants (dry run)
+    const orphanedRooms = await prisma.$queryRaw<{ roomNo: string }[]>`
+      SELECT r."roomNo"
+      FROM rooms r
+      WHERE r."roomStatus" = 'OCCUPIED'
+        AND NOT EXISTS (
+          SELECT 1 FROM "roomTenants" rt
+          WHERE rt."roomNo" = r."roomNo" AND rt."moveOutDate" IS NULL
+        )
+    `;
 
     return NextResponse.json({
       success: true,
       data: {
-        totalOccupied: occupiedRooms.length,
+        totalOccupied: orphanedRooms.length,
         orphanedCount: orphanedRooms.length,
-        orphanedRooms,
+        orphanedRooms: orphanedRooms.map((r) => r.roomNo),
       },
     } as ApiResponse<{
       totalOccupied: number;

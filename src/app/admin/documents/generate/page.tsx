@@ -216,17 +216,16 @@ export default function GenerateDocumentsPage() {
   return (
     <main className="space-y-6">
       {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-white/5 backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] px-6 py-5">
-        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.1)] via-transparent to-violet-500/10 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[hsl(var(--primary)/0.05)] rounded-full blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[hsl(var(--primary))]/6 rounded-full blur-3xl pointer-events-none" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[hsl(var(--primary)/0.2)] border border-[hsl(var(--primary)/0.3)] shadow-[var(--glow-primary)]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[hsl(var(--primary))]/20 border border-[hsl(var(--primary))]/30">
               <Wand2 className="h-5 w-5 text-[hsl(var(--primary))]" />
             </div>
             <div>
-              <h1 className="text-base font-semibold text-white">สร้างเอกสาร</h1>
-              <p className="text-xs text-white/50 mt-0.5">
+              <h1 className="text-base font-semibold text-[hsl(var(--on-surface))]">สร้างเอกสาร</h1>
+              <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">
                 สร้างเอกสารแบบ mail-merge ที่สร้างเอกสารที่บันทึกหนึ่งฉบับต่อห้องจากข้อมูล ERP จริง
               </p>
             </div>
@@ -249,7 +248,7 @@ export default function GenerateDocumentsPage() {
       </div>
 
       {actionError ? (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 backdrop-blur-sm">
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           {actionError}
         </div>
       ) : null}
@@ -259,7 +258,7 @@ export default function GenerateDocumentsPage() {
       ) : (
         <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
           {/* Left Panel - Form */}
-          <section className="rounded-2xl border border-white/5 bg-white/5 backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.3)]">
+          <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]">
             <div className="px-5 py-4 border-b border-white/5 bg-white/[0.02]">
               <div className="flex items-center gap-2 text-sm font-semibold text-white">
                 <Wand2 className="h-4 w-4 text-blue-400" />
@@ -271,7 +270,7 @@ export default function GenerateDocumentsPage() {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-white/70">เทมเพลต</label>
                 <select
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                  className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                   value={selectedTemplateId}
                   onChange={(event) => setSelectedTemplateId(event.target.value)}
                 >
@@ -287,7 +286,7 @@ export default function GenerateDocumentsPage() {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-white/70">ขอบเขต</label>
                 <select
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                  className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                   value={scope}
                   onChange={(event) => setScope(event.target.value as (typeof SCOPES)[number]['value'])}
                 >
@@ -304,7 +303,7 @@ export default function GenerateDocumentsPage() {
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-white/70">ปี</label>
                   <input
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                    className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                     type="number"
                     value={year}
                     onChange={(event) => setYear(Number(event.target.value))}
@@ -313,7 +312,7 @@ export default function GenerateDocumentsPage() {
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-white/70">เดือน</label>
                   <input
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                    className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                     type="number"
                     min={1}
                     max={12}
@@ -328,7 +327,7 @@ export default function GenerateDocumentsPage() {
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-white/70">ห้อง</label>
                   <select
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                    className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                     value={selectedRoomId}
                     onChange={(event) => setSelectedRoomId(event.target.value)}
                   >
@@ -349,13 +348,13 @@ export default function GenerateDocumentsPage() {
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                     <input
-                      className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                       placeholder="ค้นหาหมายเลขห้อง..."
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
                     />
                   </div>
-                  <div className="max-h-[220px] space-y-2 overflow-auto rounded-xl border border-white/5 bg-white/[0.02] p-3 backdrop-blur-sm">
+                  <div className="max-h-[220px] space-y-2 overflow-auto rounded-xl border border-white/5 bg-white/[0.02] p-3">
                     {filteredRooms.map((room) => (
                       <label
                         key={room.roomNo}
@@ -385,7 +384,7 @@ export default function GenerateDocumentsPage() {
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-white/70">ชั้น</label>
                   <select
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 backdrop-blur-sm transition-all duration-200"
+                    className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2.5 text-sm text-[hsl(var(--on-surface))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                     value={floorNumber}
                     onChange={(event) => setFloorNumber(event.target.value ? Number(event.target.value) : '')}
                   >
@@ -438,7 +437,7 @@ export default function GenerateDocumentsPage() {
           {/* Right Panel - Results */}
           <div className="space-y-6">
             {/* Preview Results */}
-            <section className="rounded-2xl border border-white/5 bg-white/5 backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.3)]">
+            <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]">
               <div className="px-5 py-4 border-b border-white/5 bg-white/[0.02]">
                 <div className="flex items-center gap-2 text-sm font-semibold text-white">
                   <Layers3 className="h-4 w-4 text-blue-400" />
@@ -509,7 +508,7 @@ export default function GenerateDocumentsPage() {
             </section>
 
             {/* Generation Results */}
-            <section className="rounded-2xl border border-white/5 bg-white/5 backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.3)]">
+            <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]">
               <div className="px-5 py-4 border-b border-white/5 bg-white/[0.02]">
                 <div className="flex items-center gap-2 text-sm font-semibold text-white">
                   <FileOutput className="h-4 w-4 text-blue-400" />

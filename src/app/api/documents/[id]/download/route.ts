@@ -8,7 +8,7 @@ export const GET = asyncHandler(async (
   req: NextRequest,
   { params }: { params: { id: string } },
 ): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const service = getDocumentGenerationService();
   const document = await service.getDocumentById(params.id);
   const format = (new URL(req.url).searchParams.get('format') || 'pdf').toLowerCase();
@@ -21,8 +21,7 @@ export const GET = asyncHandler(async (
   }
 
   await logAudit({
-    actorId: session.sub,
-    actorRole: session.role,
+    req,
     action: 'GENERATED_DOCUMENT_FILE_EXPORTED',
     entityType: 'GENERATED_DOCUMENT',
     entityId: params.id,

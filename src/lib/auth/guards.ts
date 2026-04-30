@@ -34,17 +34,31 @@ export function requireAuthSession(req: NextRequest): AuthSessionPayload {
 
 export function requireRole(
   req: NextRequest,
-  roles: AdminRole[] = ['ADMIN', 'STAFF']
+  roles: AdminRole[] = ['ADMIN', 'STAFF'],
+  options?: { buildingId?: string | null }
 ): AuthSessionPayload {
   const session = requireAuthSession(req);
   if (!roles.includes(session.role)) {
     throw new ForbiddenError('Insufficient permissions');
   }
+  if (options?.buildingId !== undefined && options.buildingId !== null) {
+    if (session.buildingId !== null && session.buildingId !== options.buildingId) {
+      throw new ForbiddenError('Access denied: building mismatch');
+    }
+  }
   return session;
 }
 
 export function requireOperator(req: NextRequest): AuthSessionPayload {
-  return requireRole(req, ['ADMIN', 'STAFF']);
+  return requireRole(req, ['OWNER', 'ADMIN', 'STAFF']);
+}
+
+export function requireOwner(req: NextRequest): AuthSessionPayload {
+  return requireRole(req, ['OWNER']);
+}
+
+export function requireOwnerOrAdmin(req: NextRequest): AuthSessionPayload {
+  return requireRole(req, ['OWNER', 'ADMIN']);
 }
 
 /**

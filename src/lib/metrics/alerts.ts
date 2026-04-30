@@ -20,7 +20,8 @@ const MAX_ALERTS = 50;
 const alerts: Alert[] = [];
 
 function generateId(): string {
-  return `alert_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  // Use crypto.randomUUID for cryptographically secure alert IDs
+  return `alert_${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`}`;
 }
 
 /**

@@ -410,7 +410,12 @@ export class InvoicePDFService {
     try {
       if (invoiceId) {
         const cacheFile = path.join(this.cachePath, `${invoiceId}.pdf`);
-        await fsPromises.unlink(cacheFile).catch(() => {});
+        await fsPromises.unlink(cacheFile).catch((e) => {
+          // ENOENT means file already gone — non-critical for cache clear
+          if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+            logger.warn({ err: e, invoiceId }, 'invoice-pdf-clear: failed to delete cache file');
+          }
+        });
         logger.info({ type: 'invoice_pdf_cache_cleared', invoiceId });
       } else {
         const files = await fsPromises.readdir(this.cachePath);

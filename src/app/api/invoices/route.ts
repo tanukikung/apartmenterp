@@ -4,6 +4,7 @@ import { listInvoicesQuerySchema, generateInvoiceSchema } from '@/modules/invoic
 import { asyncHandler, ApiResponse, formatError, AppError } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { requireRole } from '@/lib/auth/guards';
+import { logAudit } from '@/modules/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,9 +45,9 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 // ============================================================================
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req);
+  const session = requireRole(req);
   const url = new URL(req.url);
-  
+
   // Check if this is a generate request
   if (url.pathname.endsWith('/generate')) {
     const body = await req.json();
@@ -56,6 +57,15 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     // Lock the billing record first, then generate the invoice
     await billingService.lockBillingRecord(input.billingRecordId, { force: false });
     const invoice = await invoiceService.generateInvoiceFromBilling(input.billingRecordId);
+
+    await logAudit({
+      actorId: session.sub,
+      actorRole: 'ADMIN',
+      action: 'INVOICE_GENERATED',
+      entityType: 'Invoice',
+      entityId: invoice.id,
+      metadata: { roomNo: invoice.roomNo, year: invoice.year, month: invoice.month },
+    });
 
     logger.info({
       type: 'invoice_generated_api',

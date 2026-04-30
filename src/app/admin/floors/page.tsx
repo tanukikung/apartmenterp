@@ -51,7 +51,7 @@ function occupancyGlow(rate: number): string {
 
 function SkeletonCard() {
   return (
-    <div className="animate-pulse rounded-2xl border border-white/5 bg-[hsl(var(--color-surface))] backdrop-blur p-5">
+    <div className="animate-pulse rounded-2xl border border-white/5 bg-[hsl(var(--color-surface))] p-5">
       <div className="mb-4 h-7 w-24 rounded-full bg-[hsl(var(--color-surface))]" />
       <div className="mb-3 grid grid-cols-2 gap-2">
         <div className="h-14 rounded-xl bg-[hsl(var(--color-surface))]" />
@@ -74,7 +74,7 @@ async function fetchFloors(): Promise<{ data: FloorOption[] }> {
 }
 
 async function fetchRooms(): Promise<{ data: Room[] }> {
-  const res = await fetch('/api/rooms?pageSize=1000', { cache: 'no-store' });
+  const res = await fetch('/api/rooms?pageSize=50', { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch rooms');
   const json = await res.json();
   if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
@@ -94,17 +94,16 @@ export default function AdminFloorsPage() {
   const isLoading = floorsLoading || roomsLoading;
   const error = floorsError || roomsError;
 
-  const floors: FloorOption[] = floorsData?.data ?? [];
-  const allRooms: Room[] = roomsData?.data ?? [];
-
   const floorStats = useMemo((): FloorStats[] => {
+    const floorList: FloorOption[] = floorsData?.data ?? [];
+    const roomList: Room[] = roomsData?.data ?? [];
     const roomsByFloor = new Map<number, Room[]>();
-    for (const room of allRooms) {
+    for (const room of roomList) {
       const list = roomsByFloor.get(room.floorNo) ?? [];
       list.push(room);
       roomsByFloor.set(room.floorNo, list);
     }
-    return floors.map((floor) => {
+    return floorList.map((floor) => {
       const rooms = roomsByFloor.get(floor.floorNo) ?? [];
       return {
         floor,
@@ -115,7 +114,7 @@ export default function AdminFloorsPage() {
         ownerUse: rooms.filter((r) => r.roomStatus === 'OWNER_USE').length,
       };
     });
-  }, [floors, allRooms]);
+  }, [floorsData, roomsData]);
 
   const totals = floorStats.reduce(
     (acc, fs) => ({
@@ -132,7 +131,7 @@ export default function AdminFloorsPage() {
   return (
     <main className="space-y-6">
       {/* Page header */}
-      <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-6 py-5"
+      <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-6 py-5"
         style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.04)' }}
       >
         <div className="flex items-center gap-4">
@@ -152,19 +151,19 @@ export default function AdminFloorsPage() {
 
       {/* Stats row */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-[hsl(var(--color-border))]">
+        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-[hsl(var(--color-border))]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">จำนวนชั้นทั้งหมด</div>
               <div className="text-xl font-semibold text-[hsl(var(--on-surface))] mt-0.5">{isLoading ? '...' : totals.floors}</div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 shadow-glow-primary">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 shadow-[0_0_20px_rgba(99,102,241,0.15)]">
               <Building2 className="h-5 w-5 text-primary" />
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-[hsl(var(--color-border))]">
+        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-[hsl(var(--color-border))]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">จำนวนห้องทั้งหมด</div>
@@ -176,7 +175,7 @@ export default function AdminFloorsPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-emerald-500/20 bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(34,197,94,0.15)]">
+        <div className="rounded-xl border border-emerald-500/20 bg-[hsl(var(--color-surface))] p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(34,197,94,0.15)]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">มีผู้เช่า</div>
@@ -188,7 +187,7 @@ export default function AdminFloorsPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-blue-500/20 bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(59,130,246,0.15)]">
+        <div className="rounded-xl border border-blue-500/20 bg-[hsl(var(--color-surface))] p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(59,130,246,0.15)]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">ว่าง</div>
@@ -200,7 +199,7 @@ export default function AdminFloorsPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-amber-500/20 bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(251,191,36,0.15)]">
+        <div className="rounded-xl border border-amber-500/20 bg-[hsl(var(--color-surface))] p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(251,191,36,0.15)]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">ซ่อมบำรุง</div>
@@ -212,7 +211,7 @@ export default function AdminFloorsPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-[hsl(var(--color-border))]">
+        <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-5 transition-all duration-300 hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-[hsl(var(--color-border))]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] opacity-70">ใช้เอง</div>
@@ -230,7 +229,7 @@ export default function AdminFloorsPage() {
         {isLoading ? (
           Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
         ) : floorStats.length === 0 ? (
-          <div className="col-span-3 rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-10 text-center text-[hsl(var(--on-surface-variant))] shadow-lg">
+          <div className="col-span-3 rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-10 text-center text-[hsl(var(--on-surface-variant))] shadow-lg">
             ไม่พบข้อมูลชั้น กรุณาตรวจสอบว่าข้อมูลถูกนำเข้าแล้ว
           </div>
         ) : (
@@ -239,7 +238,7 @@ export default function AdminFloorsPage() {
             return (
               <div
                 key={fs.floor.floorNo}
-                className={`rounded-2xl border bg-[hsl(var(--color-surface))] backdrop-blur ${occupancyColor(rate)} p-5 transition-all duration-300 active:scale-[0.98] ${occupancyGlow(rate)}`}
+                className={`rounded-2xl border bg-[hsl(var(--color-surface))] ${occupancyColor(rate)} p-5 transition-all duration-300 active:scale-[0.98] ${occupancyGlow(rate)}`}
                 style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.04)' }}
               >
                 {/* Floor header */}

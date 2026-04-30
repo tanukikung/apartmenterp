@@ -124,7 +124,7 @@ export default function AdminNotificationsPage() {
       className="space-y-6"
     >
       {/* ── Header ── */}
-      <section className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] glass-card px-6 py-5">
+      <section className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  px-6 py-5">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 opacity-20" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.2) 0%, transparent 60%)' }} />
         </div>
@@ -141,19 +141,19 @@ export default function AdminNotificationsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-sm text-[hsl(var(--card-foreground))]">
+            <label className="flex items-center gap-2 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-2 text-sm text-[hsl(var(--card-foreground))]">
               <input
                 type="checkbox"
                 checked={unreadOnly === 'true'}
                 onChange={(e) => setUnreadOnly(e.target.checked ? 'true' : 'false')}
-                className="h-4 w-4 rounded border-[hsl(var(--glass-border))] accent-[hsl(var(--primary))]"
+                className="h-4 w-4 rounded border-[hsl(var([hsl(var(--color-border))]))] accent-[hsl(var(--primary))]"
               />
               เฉพาะที่รอส่ง
             </label>
             <button
               onClick={() => void refetch()}
               disabled={isLoading}
-              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-4 py-2 text-sm font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all hover:scale-105 active:scale-95 hover:bg-white/5 disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               รีเฟรช
@@ -167,19 +167,19 @@ export default function AdminNotificationsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="ค้นหาข้อความ, ห้อง, หรือ ID..."
-            className="w-full rounded-xl border border-[hsl(var(--glass-border))] glass-card py-2.5 pl-9 pr-4 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+            className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  py-2.5 pl-9 pr-4 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
           />
         </div>
       </section>
 
       {/* ── Table ── */}
-      <section className="rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
-        <div className="px-5 py-4 border-b border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--card))' }}>
+      <section className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
+        <div className="px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))]" style={{ background: 'hsl(var(--card))' }}>
           <div className="text-sm font-semibold text-[hsl(var(--primary))] flex items-center gap-2">
             <Bell className="h-4 w-4" />
             รายการแจ้งเตือน
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold glass-card text-[hsl(var(--on-surface-variant))] mt-1">
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold  text-[hsl(var(--on-surface-variant))] mt-1">
             {filtered.length} รายการ
           </span>
         </div>
@@ -202,7 +202,7 @@ export default function AdminNotificationsPage() {
           <div className="overflow-auto">
             <table className="w-full text-sm text-left">
               <thead>
-                <tr className="border-b border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--card))' }}>
+                <tr className="border-b border-[hsl(var([hsl(var(--color-border))]))]" style={{ background: 'hsl(var(--card))' }}>
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สถานะ</th>
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ประเภท</th>
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ห้อง</th>
@@ -212,7 +212,7 @@ export default function AdminNotificationsPage() {
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">เวลาสร้าง</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[hsl(var(--glass-border))]">
+              <tbody className="divide-y divide-[hsl(var([hsl(var(--color-border))]))]">
                 {filtered.map((row) => {
                   const statusCfg = STATUS_CONFIG[row.status] ?? STATUS_CONFIG.PENDING;
                   const typeCfg = TYPE_CONFIG[row.type] ?? { label: row.type };

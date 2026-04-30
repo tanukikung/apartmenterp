@@ -90,7 +90,7 @@ const TYPE_BADGE: Record<TemplateType, { cls: string; label: string }> = {
   INVOICE_SEND: { cls: 'border border-[hsl(217,100%,67%,0.3)] bg-[hsl(217,100%,67%,0.1)] text-[hsl(217,100%,90%)]', label: 'INVOICE' },
   PAYMENT_REMINDER: { cls: 'border border-[hsl(38,92%,55%,0.3)] bg-[hsl(38,92%,55%,0.1)] text-[hsl(38,92%,80%)]', label: 'REMINDER' },
   OVERDUE_NOTICE: { cls: 'border border-[hsl(0,72%,55%,0.3)] bg-[hsl(0,72%,55%,0.1)] text-[hsl(0,72%,80%)]', label: 'OVERDUE' },
-  CUSTOM: { cls: 'border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))]', label: 'CUSTOM' },
+  CUSTOM: { cls: 'border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))]', label: 'CUSTOM' },
 };
 
 const EMPTY_FORM: TemplateFormData = { name: '', type: 'INVOICE_SEND', body: '' };
@@ -113,7 +113,7 @@ function _generateId() {
 // ---------------------------------------------------------------------------
 
 function TypeBadge({ type }: { type: TemplateType }) {
-  const { cls, label } = TYPE_BADGE[type] ?? { cls: 'border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))]', label: type };
+  const { cls, label } = TYPE_BADGE[type] ?? { cls: 'border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))]', label: type };
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold tracking-wide ${cls}`}>
       {label}
@@ -127,7 +127,7 @@ function TypeBadge({ type }: { type: TemplateType }) {
 
 function VarChip({ value }: { value: string }) {
   return (
-    <code className="inline-flex items-center gap-1 rounded-md border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-2 py-0.5 font-mono text-xs text-[hsl(var(--on-surface-variant))]">
+    <code className="inline-flex items-center gap-1 rounded-md border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-2 py-0.5 font-mono text-xs text-[hsl(var(--on-surface-variant))]">
       {value}
     </code>
   );
@@ -150,8 +150,8 @@ function ConfirmDeleteModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-[hsl(0,72%,55%,0.3)] bg-[hsl(var(--card))] backdrop-blur-[var(--glass-blur)] shadow-[0_4px_16px_rgba(0,0,0,0.08)] p-6 overflow-hidden">
+      <div className="absolute inset-0 bg-black/60 -sm" onClick={onCancel} />
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-[hsl(0,72%,55%,0.3)] bg-[hsl(var(--card))] -[var()] shadow-[0_4px_16px_rgba(0,0,0,0.08)] p-6 overflow-hidden">
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-[hsl(0,72%,55%,0.3)] bg-[hsl(0,72%,55%,0.1)]">
           <Trash2 className="h-5 w-5 text-[hsl(0,72%,80%)]" />
         </div>
@@ -172,7 +172,7 @@ function ConfirmDeleteModal({
           <button
             onClick={onCancel}
             disabled={deleting}
-            className="flex-1 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))] backdrop-blur-sm transition-all hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary)/0.1)] active:scale-[0.98]"
+            className="flex-1 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-4 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))] -sm transition-all hover:border-[hsl(var([hsl(var(--color-border))]))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary)/0.1)] active:scale-[0.98]"
           >
             ยกเลิก
           </button>
@@ -205,7 +205,7 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
   const vars = extractVariables(form.body);
 
   return (
-    <div className="rounded-2xl border border-[hsl(var(--primary)/0.15)] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] p-5">
+    <div className="rounded-2xl border border-[hsl(var(--primary)/0.15)] bg-[hsl(var(--card))]  shadow-[0_4px_16px_rgba(0,0,0,0.08)] p-5">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="font-display text-base font-semibold text-[hsl(var(--card-foreground))]">{title}</h3>
         <button
@@ -234,7 +234,7 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="ตัวอย่าง: ใบแจ้งหนี้ประจำเดือน — ภาษาไทย"
-            className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))] backdrop-blur-sm focus:border-[hsl(217,100%,67%,0.5)] focus:outline-none focus:ring-2 focus:ring-[hsl(217,100%,67%,0.2)] transition-all"
+            className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))] -sm focus:border-[hsl(217,100%,67%,0.5)] focus:outline-none focus:ring-2 focus:ring-[hsl(217,100%,67%,0.2)] transition-all"
           />
         </div>
 
@@ -247,7 +247,7 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
             <select
               value={form.type}
               onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as TemplateType }))}
-              className="w-full appearance-none rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] backdrop-blur-sm focus:border-[hsl(217,100%,67%,0.5)] focus:outline-none focus:ring-2 focus:ring-[hsl(217,100%,67%,0.2)] transition-all cursor-pointer"
+              className="w-full appearance-none rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 text-sm text-[hsl(var(--card-foreground))] -sm focus:border-[hsl(217,100%,67%,0.5)] focus:outline-none focus:ring-2 focus:ring-[hsl(217,100%,67%,0.2)] transition-all cursor-pointer"
             >
               {TYPE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value} className="bg-[hsl(var(--card))]">{o.label}</option>
@@ -268,7 +268,7 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
                 key={hint.value}
                 type="button"
                 onClick={() => insertVariable(hint.value)}
-                className="inline-flex items-center gap-1 rounded-md border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-2.5 py-1 font-mono text-xs text-[hsl(var(--on-surface-variant))] shadow-sm transition-all hover:border-[hsl(217,100%,67%,0.3)] hover:bg-[hsl(217,100%,67%,0.1)] hover:text-[hsl(217,100%,90%)] active:scale-[0.98]"
+                className="inline-flex items-center gap-1 rounded-md border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-2.5 py-1 font-mono text-xs text-[hsl(var(--on-surface-variant))] shadow-sm transition-all hover:border-[hsl(217,100%,67%,0.3)] hover:bg-[hsl(217,100%,67%,0.1)] hover:text-[hsl(217,100%,90%)] active:scale-[0.98]"
               >
                 <Plus className="h-3 w-3" />
                 {hint.label}
@@ -287,7 +287,7 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
             onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
             placeholder="เขียนข้อความที่นี่ ใช้ตัวแปร เช่น {{tenant_name}} เพื่อปรับแต่งข้อความ"
             rows={6}
-            className="w-full rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-2.5 font-mono text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))] backdrop-blur-sm focus:border-[hsl(217,100%,67%,0.5)] focus:outline-none focus:ring-2 focus:ring-[hsl(217,100%,67%,0.2)] transition-all resize-y"
+            className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 font-mono text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--on-surface-variant))] -sm focus:border-[hsl(217,100%,67%,0.5)] focus:outline-none focus:ring-2 focus:ring-[hsl(217,100%,67%,0.2)] transition-all resize-y"
           />
           <p className="mt-1.5 text-xs text-[hsl(var(--on-surface-variant))]">{form.body.length} characters</p>
         </div>
@@ -313,7 +313,7 @@ function TemplateForm({ initial, onSave, onCancel, saving, error, title }: Templ
           <button
             onClick={onCancel}
             disabled={saving}
-            className="rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))] backdrop-blur-sm transition-all hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
+            className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))] -sm transition-all hover:border-[hsl(var([hsl(var(--color-border))]))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
           >
             ยกเลิก
           </button>
@@ -342,14 +342,14 @@ function TemplateCard({ template, onEdit, onDelete, onDuplicate }: TemplateCardP
   const vars = template.variables ?? extractVariables(template.body);
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] p-5 transition-all hover:border-[hsl(var(--glass-border))] hover:shadow-[var(--glow-primary)]">
+    <div className="group relative overflow-hidden rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))]  shadow-[0_4px_16px_rgba(0,0,0,0.08)] p-5 transition-all hover:border-[hsl(var([hsl(var(--color-border))]))] hover:shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
       {/* Glow accent on hover */}
       <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.03)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
       {/* Header */}
       <div className="relative flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--primary)/0.1)] shadow-[var(--glow-primary)]">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--primary)/0.1)] shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
             <MessageSquare className="h-4 w-4 text-[hsl(var(--primary))]" />
           </div>
           <div className="min-w-0">
@@ -371,17 +371,17 @@ function TemplateCard({ template, onEdit, onDelete, onDuplicate }: TemplateCardP
       )}
 
       {/* Actions */}
-      <div className="relative mt-4 flex items-center gap-2 pt-4 border-t border-[hsl(var(--glass-border))]">
+      <div className="relative mt-4 flex items-center gap-2 pt-4 border-t border-[hsl(var([hsl(var(--color-border))]))]">
         <button
           onClick={() => onEdit(template)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] backdrop-blur-sm transition-all hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] -sm transition-all hover:border-[hsl(var([hsl(var(--color-border))]))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
         >
           <Pencil className="h-3.5 w-3.5" />
           แก้ไข
         </button>
         <button
           onClick={() => onDuplicate(template)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] backdrop-blur-sm transition-all hover:border-[hsl(var(--glass-border))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] -sm transition-all hover:border-[hsl(var([hsl(var(--color-border))]))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
         >
           <ClipboardCopy className="h-3.5 w-3.5" />
           คัดลอก
@@ -570,7 +570,7 @@ export default function MessageTemplatesPage() {
       {toast && (
         <div
           className={[
-            'fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium shadow-lg backdrop-blur-sm',
+            'fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium shadow-lg -sm',
             toast.ok
               ? 'border-[hsl(142,70%,45%,0.3)] bg-[hsl(142,70%,45%,0.1)] text-[hsl(142,70%,70%)]'
               : 'border-[hsl(0,72%,55%,0.3)] bg-[hsl(0,72%,55%,0.1)] text-[hsl(0,72%,80%)]',
@@ -586,12 +586,12 @@ export default function MessageTemplatesPage() {
       )}
 
       {/* Page header */}
-      <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur px-6 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
+      <div className="relative overflow-hidden rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))]  px-6 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
         <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.08)] to-transparent pointer-events-none" />
         <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-[hsl(var(--primary)/0.06)] blur-3xl pointer-events-none" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--primary)/0.1)] shadow-[var(--glow-primary)]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--primary)/0.1)] shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
               <MessageSquare className="h-5 w-5 text-[hsl(var(--primary))]" strokeWidth={1.75} />
             </div>
             <div>
@@ -605,7 +605,7 @@ export default function MessageTemplatesPage() {
               setFormError(null);
               setShowAddForm(true);
             }}
-            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--primary)/0.1)] px-4 py-2 text-sm font-semibold text-[hsl(var(--primary)/0.9)] shadow-[var(--glow-primary)] transition-all hover:border-[hsl(var(--primary)/0.3)] hover:bg-[hsl(var(--primary)/0.2)] hover:shadow-[var(--glow-primary)] active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--primary)/0.1)] px-4 py-2 text-sm font-semibold text-[hsl(var(--primary)/0.9)] shadow-[0_1px_3px_rgba(0,0,0,0.5)] transition-all hover:border-[hsl(var(--primary)/0.3)] hover:bg-[hsl(var(--primary)/0.2)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.5)] active:scale-[0.98]"
           >
             <Plus className="h-4 w-4" />
             สร้างเทมเพลต
@@ -628,7 +628,7 @@ export default function MessageTemplatesPage() {
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="animate-pulse rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur-[var(--glass-blur)] p-5 space-y-3">
+            <div key={i} className="animate-pulse rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] -[var()] p-5 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-xl bg-[hsl(var(--card))]" />
                 <div className="h-4 w-32 rounded bg-[hsl(var(--card))]" />
@@ -640,8 +640,8 @@ export default function MessageTemplatesPage() {
           ))}
         </div>
       ) : templates.length === 0 && !showAddForm ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur-[var(--glass-blur)] py-20 text-center">
-          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))]">
+        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] -[var()] py-20 text-center">
+          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))]">
             <MessageSquare className="h-7 w-7 text-[hsl(var(--card-foreground))]/15" />
           </div>
           <p className="font-semibold text-[hsl(var(--on-surface-variant))]">ยังไม่มีเทมเพลต</p>

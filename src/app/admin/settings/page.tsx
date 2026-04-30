@@ -152,7 +152,7 @@ const INTEGRATIONS: SettingCategory[] = [
 function CategoryCard({ cat }: { cat: SettingCategory }) {
   return (
     <Link href={cat.href}
-      className="group glass-card rounded-xl overflow-hidden transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] hover:shadow-glow cursor-pointer">
+      className="group  rounded-xl overflow-hidden transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] hover:shadow-glow cursor-pointer">
       <div className="p-5">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className={['flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm', cat.iconBg].join(' ')}>
@@ -170,7 +170,7 @@ function CategoryCard({ cat }: { cat: SettingCategory }) {
         <div className="font-semibold text-[hsl(var(--on-surface))] text-sm leading-snug">{cat.title}</div>
         <p className="mt-1.5 text-xs leading-relaxed text-[hsl(var(--on-surface-variant))]">{cat.description}</p>
       </div>
-      <div className="border-t border-[hsl(var(--glass-border))] px-5 py-3 bg-[hsl(var(--glass-bg))] flex items-center justify-between">
+      <div className="border-t border-[hsl(var([hsl(var(--color-border))]))] px-5 py-3 bg-[hsl(var(--glass-bg))] flex items-center justify-between">
         <span className="text-xs font-medium text-[hsl(var(--primary))] group-hover:text-[hsl(var(--primary))]/80 transition-colors">
           ตั้งค่า →
         </span>
@@ -227,7 +227,7 @@ function ResetSystemModal({
   if (success) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
-        <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--glass-border))] p-6 shadow-xl" style={{ background: 'hsl(var(--card))' }}>
+        <div className="w-full max-w-md rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] p-6 shadow-xl" style={{ background: 'hsl(var(--card))' }}>
           <div className="flex flex-col items-center text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 mb-4">
               <CheckCircle className="h-8 w-8 text-emerald-400" />
@@ -242,7 +242,7 @@ function ResetSystemModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
-      <div className="w-full max-w-md rounded-2xl border border-[hsl(var(--glass-border))] p-6 shadow-xl" style={{ background: 'hsl(var(--card))' }}>
+      <div className="w-full max-w-md rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] p-6 shadow-xl" style={{ background: 'hsl(var(--card))' }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -275,7 +275,7 @@ function ResetSystemModal({
               'flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-all',
               resetMode === 'clear'
                 ? 'border-red-500/40 bg-red-500/10'
-                : 'border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] hover:border-red-500/20',
+                : 'border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] hover:border-red-500/20',
             ].join(' ')}
           >
             <input
@@ -297,7 +297,7 @@ function ResetSystemModal({
               'flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-all',
               resetMode === 'backup'
                 ? 'border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/10'
-                : 'border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] hover:border-[hsl(var(--primary))]/20',
+                : 'border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] hover:border-[hsl(var(--primary))]/20',
             ].join(' ')}
           >
             <input
@@ -328,7 +328,7 @@ function ResetSystemModal({
           <button
             onClick={onClose}
             disabled={isResetting}
-            className="flex-1 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-4 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))] hover:bg-white/5 transition-colors disabled:opacity-50"
+            className="flex-1 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-4 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))] hover:bg-white/5 transition-colors disabled:opacity-50"
           >
             ยกเลิก
           </button>
@@ -383,12 +383,12 @@ export default function AdminSettingsPage() {
     <>
       <main className="space-y-8">
         {/* Page-level header */}
-        <div className="relative overflow-hidden rounded-xl border border-[hsl(var(--glass-border))] px-6 py-5 shadow-xl" style={{ background: 'hsl(var(--card))' }}>
+        <div className="relative overflow-hidden rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] px-6 py-5 shadow-xl" style={{ background: 'hsl(var(--card))' }}>
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute inset-0 opacity-30" style={{ background: 'linear-gradient(135deg, hsl(217 100% 67% / 0.15) 0%, transparent 60%)' }} />
           </div>
           <div className="relative flex items-center gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--primary) / 0.2)' }}>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]" style={{ background: 'hsl(var(--primary) / 0.2)' }}>
               <Settings className="h-5 w-5 text-[hsl(var(--primary))]" strokeWidth={1.75} />
             </div>
             <div>
@@ -425,7 +425,7 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Reset System */}
-        <div className="border-t border-[hsl(var(--glass-border))] pt-6">
+        <div className="border-t border-[hsl(var([hsl(var(--color-border))]))] pt-6">
           <div className="rounded-xl border border-red-500/20 p-5" style={{ background: 'rgba(239,68,68,0.05)' }}>
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">

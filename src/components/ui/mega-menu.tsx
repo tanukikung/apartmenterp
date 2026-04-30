@@ -157,7 +157,7 @@ function MegaMenuDropdown({
               onClick={onClose}
               className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors duration-150 ${
                 active
-                  ? "bg-[hsl(var(--primary))] text-[hsl(var(--on-primary))] shadow-sm shadow-[hsl(var(--primary))]/30"
+                  ? "bg-[hsl(var(--primary))] text-[hsl(var(--on-primary))] shadow-[rgb(28,56,96)]/30"
                   : "text-[hsl(var(--color-text-2))] hover:bg-[hsl(var(--color-bg))] hover:text-[hsl(var(--color-text))]"
               }`}
             >

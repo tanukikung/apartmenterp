@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getVerifiedActor, requireRole } from '@/lib/auth/guards';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse, AppError, BadRequestError, NotFoundError } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { getOutboxProcessor } from '@/lib/outbox';
@@ -47,11 +47,18 @@ function normalizeReceiptDownloadLink(receiptId: string, requestedLink?: string)
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN', 'STAFF']);
+    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const { id } = params;
-    const body = await req.json().catch(() => ({}));
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: { message: 'Invalid JSON body', statusCode: 400, name: 'ParseError', code: 'INVALID_JSON' } },
+        { status: 400 }
+      );
+    }
     const input = schema.parse(body);
-    const actor = getVerifiedActor(req);
     if (!isLineConfigured()) {
       throw new AppError(
         'LINE messaging is unavailable because credentials are not configured.',
@@ -119,8 +126,7 @@ export const POST = asyncHandler(
     );
 
     await logAudit({
-      actorId: actor.actorId,
-      actorRole: actor.actorRole,
+      req,
       action: 'RECEIPT_SEND_REQUESTED',
       entityType: 'RECEIPT',
       entityId: id,

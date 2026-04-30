@@ -52,8 +52,13 @@ export function useUrlState<T extends Serializable>(
     if (raw === null) return defaultValue;
     if (parse) return parse(raw);
     // Infer from default value type
-    if (typeof defaultValue === 'number') return (Number(raw) as unknown) as T;
-    if (typeof defaultValue === 'boolean') return ((raw === 'true') as unknown) as T;
+    if (typeof defaultValue === 'number') {
+      const n = Number(raw);
+      return Number.isNaN(n) ? defaultValue : (n as unknown) as T;
+    }
+    if (typeof defaultValue === 'boolean') {
+      return (raw === 'true' ? true : raw === 'false' ? false : defaultValue) as unknown as T;
+    }
     return (raw as unknown) as T;
   }, [searchParams, key, defaultValue, parse]);
 

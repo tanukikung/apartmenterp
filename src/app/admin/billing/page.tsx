@@ -179,7 +179,7 @@ function KpiCard({
   icon: React.ReactNode; iconBg: string; iconColor: string;
 }) {
   return (
-    <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.12)] hover:border-[hsl(var(--color-border))]/30 transition-all duration-200 active:scale-[0.98]">
+    <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-all duration-200 active:scale-[0.98]">
       <div className="flex items-start gap-4">
         <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg} ${iconColor}`}>
           {icon}
@@ -369,17 +369,17 @@ export default function AdminBillingPage() {
           <p className="mt-1 text-sm text-[hsl(var(--on-surface))]/50">จัดการรอบบิล สร้างใบแจ้งหนี้ และติดตามการชำระเงิน</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/admin/billing/wizard" className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-glow-primary transition-all hover:bg-[hsl(var(--color-primary-dark))] shadow-glow-primary-hover active:scale-[0.98]">
+          <Link href="/admin/billing/wizard" className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98]">
             <Zap className="h-4 w-4" />
             Billing Wizard
           </Link>
-          <Link href="/admin/billing/import" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/80 transition-all hover:bg-[hsl(var(--color-surface))] hover:border-white/20 active:scale-[0.98]">
+          <Link href="/admin/billing/import" className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))] transition-all hover:bg-[hsl(var(--color-surface-hover))] active:scale-[0.98]">
             <FileSpreadsheet className="h-4 w-4" />
             นำเข้า Excel
           </Link>
           <button
             onClick={() => { setActiveTab('invoices'); void refetchInvoices(); }}
-            className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-glow-primary transition-all hover:bg-[hsl(var(--color-primary-dark))] shadow-glow-primary-hover active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98]"
           >
             <ReceiptText className="h-4 w-4" />
             ใบแจ้งหนี้
@@ -390,7 +390,7 @@ export default function AdminBillingPage() {
           <button
             onClick={() => void (activeTab === 'cycles' ? refetchCycles() : refetchInvoices())}
             disabled={loading || invoiceLoading}
-            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-2 text-sm font-medium text-[hsl(var(--on-surface-variant))] transition-all hover:bg-[hsl(var(--color-surface))] hover:border-white/20 active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm font-medium text-[hsl(var(--on-surface-variant))] transition-all hover:bg-[hsl(var(--color-surface-hover))] active:scale-[0.98]"
           >
             <RefreshCw className={`h-4 w-4 ${loading || invoiceLoading ? 'animate-spin' : ''}`} />
           </button>
@@ -398,7 +398,7 @@ export default function AdminBillingPage() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="inline-flex items-center gap-1 rounded-xl bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] p-1 w-fit">
+      <div className="inline-flex items-center gap-1 rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-1 w-fit">
         {[
           { id: 'cycles', label: 'รอบบิล', icon: <ReceiptText className="h-4 w-4" />, count: cycles.length },
           { id: 'invoices', label: 'ใบแจ้งหนี้', icon: <FileText className="h-4 w-4" />, badge: overdueCount > 0 ? `${overdueCount} ค้าง` : null },
@@ -408,7 +408,7 @@ export default function AdminBillingPage() {
             onClick={() => handleTabChange(tab.id as 'cycles' | 'invoices')}
             className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all active:scale-[0.98] ${
               activeTab === tab.id
-                ? 'bg-[hsl(var(--primary))]/20 text-[hsl(var(--color-primary-light))] border border-[hsl(var(--primary))]/30 shadow-glow-primary'
+                ? 'bg-[hsl(var(--primary))]/20 text-[hsl(var(--color-primary-light))] border border-[hsl(var(--primary))]/30 shadow-[0_0_20px_rgba(99,102,241,0.15)]'
                 : 'text-[hsl(var(--on-surface))]/50 hover:bg-[hsl(var(--color-surface))] hover:text-[hsl(var(--on-surface))]/80'
             }`}
           >
@@ -430,12 +430,12 @@ export default function AdminBillingPage() {
 
       {/* ── Alerts ─────────────────────────────────────────── */}
       {sendError && (
-        <div className="rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 text-sm px-4 py-3 font-medium backdrop-blur">
+        <div className="rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 text-sm px-4 py-3 font-medium">
           {sendError}
         </div>
       )}
       {sendSuccess && (
-        <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-sm px-4 py-3 font-medium backdrop-blur">
+        <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-sm px-4 py-3 font-medium">
           {sendSuccess}
         </div>
       )}
@@ -445,7 +445,7 @@ export default function AdminBillingPage() {
         <>
           {/* API unavailable notice */}
           {!loading && cyclesError && (
-            <div className="flex items-start gap-3 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-3 text-sm text-[hsl(var(--on-surface-variant))]">
+            <div className="flex items-start gap-3 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-3 text-sm text-[hsl(var(--on-surface-variant))]">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--color-primary-light))]" />
               <div>
                 <span className="font-semibold text-[hsl(var(--on-surface))]/80">Billing API ไม่พร้อมใช้งาน</span>{' '}
@@ -458,7 +458,7 @@ export default function AdminBillingPage() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-2xl p-5 animate-pulse">
+                <div key={i} className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-2xl p-5 animate-pulse">
                   <div className="flex items-start gap-4">
                     <div className="h-11 w-11 rounded-xl bg-white/[0.05]" />
                     <div className="flex-1 space-y-2 pt-1">
@@ -492,7 +492,7 @@ export default function AdminBillingPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as CycleStatus | 'ALL')}
-                className="appearance-none rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur py-2 pl-3 pr-8 text-sm text-[hsl(var(--on-surface))]/80 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                className="appearance-none rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] py-2 pl-3 pr-8 text-sm text-[hsl(var(--on-surface))]/80 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               >
                 {STATUS_FILTER_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -505,7 +505,7 @@ export default function AdminBillingPage() {
               <select
                 value={monthFilter}
                 onChange={(e) => setMonthFilter(e.target.value)}
-                className="appearance-none rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur py-2 pl-3 pr-8 text-sm text-[hsl(var(--on-surface))]/80 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                className="appearance-none rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] py-2 pl-3 pr-8 text-sm text-[hsl(var(--on-surface))]/80 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               >
                 {monthOptions.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -517,7 +517,7 @@ export default function AdminBillingPage() {
             {(statusFilter !== 'ALL' || monthFilter !== 'ALL') && (
               <button
                 onClick={() => { setStatusFilter('ALL'); setMonthFilter('ALL'); }}
-                className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-2 text-sm text-[hsl(var(--on-surface))]/50 transition-all hover:bg-[hsl(var(--color-surface))] hover:text-[hsl(var(--on-surface))]/80 active:scale-[0.98]"
+                className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm text-[hsl(var(--on-surface))]/50 transition-all hover:bg-[hsl(var(--color-surface-hover))] active:scale-[0.98]"
               >
                 ล้างตัวกรอง
               </button>
@@ -525,7 +525,7 @@ export default function AdminBillingPage() {
           </div>
 
           {/* Table */}
-          <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-2xl overflow-hidden">
+          <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-2xl overflow-hidden">
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--primary))]" />
@@ -537,7 +537,7 @@ export default function AdminBillingPage() {
                   <>
                     <p className="font-semibold text-[hsl(var(--on-surface))]/80">ยังไม่มีรอบบิล</p>
                     <p className="mt-1 text-sm text-[hsl(var(--on-surface-variant))]">เริ่มต้นโดย Import Excel</p>
-                    <Link href="/admin/billing/import" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-glow-primary transition-all hover:bg-[hsl(var(--color-primary-dark))] active:scale-[0.98]">
+                    <Link href="/admin/billing/import" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:bg-[hsl(var(--color-primary-dark))] active:scale-[0.98]">
                       <FileSpreadsheet className="h-4 w-4" />
                       นำเข้า Excel
                     </Link>
@@ -630,7 +630,7 @@ export default function AdminBillingPage() {
                               <div className="flex items-center justify-end gap-2">
                                 <Link
                                   href={`/admin/billing/${cycle.id}`}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))] hover:border-white/20 active:scale-[0.98]"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface-hover))] active:scale-[0.98]"
                                 >
                                   ดูรายละเอียด
                                 </Link>
@@ -640,7 +640,7 @@ export default function AdminBillingPage() {
                                     onClick={() => { setBatchGenerateTarget({ periodId: cycle.id, needsLock }); setBatchGenerateConfirmOpen(true); }}
                                     disabled={busy}
                                     title={needsLock ? 'ล็อกทั้งหมด แล้วสร้างใบแจ้งหนี้' : 'สร้างใบแจ้งหนี้ทั้งหมด'}
-                                    className="inline-flex items-center gap-1 rounded-lg bg-[hsl(var(--primary))] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--on-surface))] shadow-glow-primary transition-all hover:bg-[hsl(var(--color-primary-dark))] shadow-glow-primary-hover active:scale-[0.98] disabled:opacity-40"
+                                    className="inline-flex items-center gap-1 rounded-lg bg-[hsl(var(--primary))] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98] disabled:opacity-40"
                                   >
                                     {bs === 'locking' ? (
                                       <><Loader2 className="h-3.5 w-3.5 animate-spin" /> กำลังล็อก…</>
@@ -698,14 +698,14 @@ export default function AdminBillingPage() {
                 value={invoiceSearch}
                 onChange={(e) => setInvoiceSearch(e.target.value)}
                 placeholder="ค้นหาเลขใบแจ้งหนี้, ห้อง, ชื่อผู้เช่า..."
-                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur py-2 pl-9 pr-4 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] py-2 pl-9 pr-4 text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               />
             </div>
             <div className="relative">
               <select
                 value={invoiceStatusFilter}
                 onChange={(e) => setInvoiceStatusFilter(e.target.value as InvoiceStatus | 'ALL')}
-                className="appearance-none rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur py-2 pl-3 pr-8 text-sm text-[hsl(var(--on-surface))]/80 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+                className="appearance-none rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] py-2 pl-3 pr-8 text-sm text-[hsl(var(--on-surface))]/80 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
               >
                 {INVOICE_TABS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -716,7 +716,7 @@ export default function AdminBillingPage() {
           </div>
 
           {/* Invoice table */}
-          <div className="bg-[hsl(var(--color-surface))] backdrop-blur border border-[hsl(var(--color-border))] rounded-2xl overflow-hidden">
+          <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-2xl overflow-hidden">
             {invoiceLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--primary))]" />
@@ -765,13 +765,13 @@ export default function AdminBillingPage() {
                             {inv.status !== 'PAID' && (
                               <button
                                 onClick={() => { setSendTargetInvoiceId(inv.id); setSendConfirmOpen(true); }}
-                                className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))] hover:border-white/20 active:scale-[0.98]"
+                                className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))] hover:border-white/20 active:scale-[0.98]"
                               >
                                 <Send className="h-3 w-3" />
                                 ส่ง
                               </button>
                             )}
-                            <Link href={`/admin/invoices/${inv.id}`} className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface))] hover:border-white/20 active:scale-[0.98]">
+                            <Link href={`/admin/invoices/${inv.id}`} className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface-hover))] active:scale-[0.98]">
                               ดู →
                             </Link>
                           </div>

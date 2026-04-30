@@ -28,11 +28,18 @@ export type JobResult = {
 // ── 1. Mark overdue invoices ────────────────────────────────────────────────
 // Sets status = OVERDUE for any invoice whose dueDate is in the past and
 // that has not yet been paid or cancelled.
+//
+// Idempotency: only processes invoices that are not already OVERDUE.
+// A second concurrent or overlapping run will find 0 rows matching the guard
+// and report 0 updated — no duplicate status transitions.
 export async function runOverdueFlag(): Promise<JobResult> {
   const now = new Date();
   const result = await prisma.invoice.updateMany({
     where: {
-      status: { in: ['GENERATED', 'SENT', 'VIEWED'] },
+      // Idempotency guard: skip invoices already marked OVERDUE to prevent
+      // redundant updates (e.g. when cron fires twice or job re-runs before
+      // the next billing cycle). Only transition non-OVERDUE invoices.
+      status: { not: 'OVERDUE' },
       dueDate: { lt: now },
     },
     data: { status: 'OVERDUE' },
@@ -81,8 +88,9 @@ export async function runBillingGenerate(): Promise<JobResult> {
 
 // ── 3. Send pending invoices ────────────────────────────────────────────────
 // Advances GENERATED invoices to SENT status and stamps sentAt.
-// In production this would also dispatch LINE notifications; here it just
-// updates the status so the UI reflects the correct state.
+// Idempotency: only processes GENERATED invoices (not SENT/VIEWED/OVERDUE/PAID).
+// A second concurrent or overlapping run will find 0 rows and report 0 sent —
+// no duplicate LINE message dispatches.
 export async function runInvoiceSend(): Promise<JobResult> {
   const result = await prisma.invoice.updateMany({
     where: { status: 'GENERATED' },
@@ -266,16 +274,9 @@ export async function runDocumentNotify(): Promise<JobResult> {
   for (const file of filesToNotify) {
     if (!file.uploadedBy) continue;
 
-    // Look up uploader LINE user ID — try admin first, then staff
+    // Look up uploader LINE user ID
     const admin = await prisma.adminUser.findFirst({ where: { id: file.uploadedBy } });
-    // StaffUser model may not exist — wrap in try/catch
-    let staff: { lineUserId?: string | null } | null = null;
-    try {
-      staff = await (prisma as unknown as { staffUser?: { findFirst: (args: { where: { id: string } }) => Promise<{ lineUserId?: string | null } | null> } }).staffUser?.findFirst({ where: { id: file.uploadedBy } }) ?? null;
-    } catch {
-      staff = null;
-    }
-    const lineUserId = admin?.lineUserId ?? staff?.lineUserId;
+    const lineUserId = admin?.lineUserId;
     if (!lineUserId) continue;
     if (!isLineConfigured()) continue;
 
@@ -473,7 +474,7 @@ export async function runBackupCleanup(): Promise<JobResult> {
           }
         }
       }
-    } catch (_err) {
+    } catch {
       // Archive directory may not exist — nothing to clean
       logger.info({ archivedPrefix }, 'backup-cleanup: archive directory not found, skipping');
     }

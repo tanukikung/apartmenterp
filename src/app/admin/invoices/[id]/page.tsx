@@ -193,7 +193,7 @@ function RecordPaymentForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 backdrop-blur p-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
       <h3 className="text-sm font-semibold text-emerald-400">บันทึกการชำระเงิน</h3>
       {message && (
         <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
@@ -207,21 +207,21 @@ function RecordPaymentForm({
       )}
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="text-xs font-medium text-[hsl(var(--color-text))]/50">จำนวน (บาท)</label>
+          <label className="text-xs font-medium text-[hsl(var(--on-surface-variant))]">จำนวน (บาท)</label>
           <CurrencyInput
             value={amount}
             onChange={setAmount}
             ariaLabel="จำนวน (บาท)"
             required
-            className="mt-1 w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-2 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+            className="mt-1 w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-[hsl(var(--color-text))]/50">วิธีการชำระ</label>
+          <label className="text-xs font-medium text-[hsl(var(--on-surface-variant))]">วิธีการชำระ</label>
           <select
             value={paymentMethod}
             onChange={e => setPaymentMethod(e.target.value as 'CASH' | 'CHECK' | 'TRANSFER')}
-            className="mt-1 w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-2 text-sm text-[hsl(var(--color-text))]/80 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+            className="mt-1 w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm text-[hsl(var(--color-text))]/80 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
           >
             <option value="CASH">เงินสด</option>
             <option value="CHECK">เช็ค</option>
@@ -229,22 +229,22 @@ function RecordPaymentForm({
           </select>
         </div>
         <div>
-          <label className="text-xs font-medium text-[hsl(var(--color-text))]/50">วันที่ชำระ</label>
+          <label className="text-xs font-medium text-[hsl(var(--on-surface-variant))]">วันที่ชำระ</label>
           <input
             type="date"
             value={paidAt}
             onChange={e => setPaidAt(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-2 text-sm text-[hsl(var(--color-text))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+            className="mt-1 w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm text-[hsl(var(--color-text))] focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
             required
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-[hsl(var(--color-text))]/50">หมายเหตุ (ไม่บังคับ)</label>
+          <label className="text-xs font-medium text-[hsl(var(--on-surface-variant))]">หมายเหตุ (ไม่บังคับ)</label>
           <input
             type="text"
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-3 py-2 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
+            className="mt-1 w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))]/30 focus:border-[hsl(var(--primary))]/50 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
             placeholder="เช่น รับเงินที่เคาน์เตอร์"
           />
         </div>
@@ -423,7 +423,7 @@ export default function InvoiceDetailPage() {
           <span className="text-[hsl(var(--color-text))]/20">/</span>
           <span className="font-medium text-[hsl(var(--color-text))]/60">ไม่พบ</span>
         </nav>
-        <div className="flex flex-col items-center gap-4 rounded-3xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur py-20 text-center">
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] py-20 text-center">
           <AlertTriangle className="h-12 w-12 text-amber-400" />
           <div>
             <h2 className="text-lg font-semibold text-[hsl(var(--color-text))]">ไม่พบใบแจ้งหนี้</h2>
@@ -433,7 +433,7 @@ export default function InvoiceDetailPage() {
           </div>
           <Link
             href="/admin/invoices"
-            className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--color-text))] shadow-glow-primary transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-glow-primary-hover active:scale-[0.98] mt-2"
+            className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-[hsl(var(--color-text))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98] mt-2"
           >
             <ArrowLeft className="h-4 w-4" />
             กลับไปยังใบแจ้งหนี้
@@ -489,7 +489,7 @@ export default function InvoiceDetailPage() {
       </nav>
 
       {/* Page header */}
-      <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-gradient-to-br from-[hsl(var(--primary))]/20 to-[hsl(var(--primary))]/5 backdrop-blur px-6 py-5 shadow-[var(--glow-primary)]">
+      <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-gradient-to-br from-[hsl(var(--primary))]/20 to-[hsl(var(--primary))]/5 px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-4">
           <Link
             href="/admin/invoices"
@@ -504,7 +504,7 @@ export default function InvoiceDetailPage() {
                 {inv.status}
               </span>
             </div>
-            <p className="text-sm text-[hsl(var(--color-text))]/50">
+            <p className="text-sm text-[hsl(var(--on-surface-variant))]">
               {period} · Room {roomNumber} · {tenantName}
             </p>
           </div>
@@ -512,7 +512,7 @@ export default function InvoiceDetailPage() {
         <div className="flex items-center gap-2 mt-4 flex-wrap">
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ['invoices', invoiceId] })}
-            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 transition-all hover:bg-[hsl(var(--color-surface))]/80 hover:border-[hsl(var(--color-border))]/80 active:scale-[0.98]"
           >
             <RefreshCw className="h-4 w-4" />
             รีเฟรช
@@ -531,7 +531,7 @@ export default function InvoiceDetailPage() {
             href={`/api/invoices/${invoiceId}/pdf`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 transition-all hover:bg-white/[0.08] active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 transition-all hover:bg-white/[0.08] active:scale-[0.98]"
           >
             <ExternalLink className="h-4 w-4" />
             ดู PDF
@@ -548,7 +548,7 @@ export default function InvoiceDetailPage() {
                 setTimeout(() => setCopyLinkMessage(null), 2000);
               }
             }}
-            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 transition-all hover:bg-white/[0.08] active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 transition-all hover:bg-white/[0.08] active:scale-[0.98]"
           >
             <Copy className="h-4 w-4" />
             คัดลอกลิงก์
@@ -584,7 +584,7 @@ export default function InvoiceDetailPage() {
       </section>
 
       {error && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 backdrop-blur">
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           {error instanceof Error ? error.message : String(error)}
         </div>
       )}
@@ -592,7 +592,7 @@ export default function InvoiceDetailPage() {
       {/* Invoice details */}
       <section className="grid gap-4 lg:grid-cols-3">
         {/* Left: details card */}
-        <div className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-5 lg:col-span-2">
+        <div className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-5 lg:col-span-2">
           <h2 className="text-sm font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40 mb-4">รายละเอียดใบแจ้งหนี้</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -646,8 +646,8 @@ export default function InvoiceDetailPage() {
                   {lineItems.map(item => (
                     <tr key={item.id} className="border-b border-[hsl(var(--color-border))]/50 last:border-0">
                       <td className="py-2 text-[hsl(var(--color-text))]/70">{item.description}</td>
-                      <td className="py-2 text-right tabular-nums text-[hsl(var(--color-text))]/50">{item.quantity}</td>
-                      <td className="py-2 text-right tabular-nums text-[hsl(var(--color-text))]/50">{money(item.unitPrice)}</td>
+                      <td className="py-2 text-right tabular-nums text-[hsl(var(--on-surface-variant))]">{item.quantity}</td>
+                      <td className="py-2 text-right tabular-nums text-[hsl(var(--on-surface-variant))]">{money(item.unitPrice)}</td>
                       <td className="py-2 text-right tabular-nums font-semibold text-[hsl(var(--color-text))]/90">{money(item.amount)}</td>
                     </tr>
                   ))}
@@ -665,7 +665,7 @@ export default function InvoiceDetailPage() {
         <div className="flex flex-col gap-4">
           {/* Delivery history */}
           {inv.deliveries && inv.deliveries.length > 0 && (
-            <div className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur p-5">
+            <div className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-5">
               <h2 className="text-xs font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40 mb-3">ประวัติการส่ง</h2>
               <div className="flex flex-col gap-2">
                 {inv.deliveries.map(d => (
@@ -700,7 +700,7 @@ export default function InvoiceDetailPage() {
           )}
 
           {inv.status === 'PAID' && (
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 backdrop-blur p-4">
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
               <div className="flex items-center gap-2 text-emerald-400">
                 <CheckCircle2 className="h-5 w-5" />
                 <span className="text-sm font-semibold">รับชำระแล้ว</span>

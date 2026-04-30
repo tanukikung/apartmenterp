@@ -66,9 +66,9 @@ function monthLabel(year: number, month: number) {
 function GlassCard({ children, className = '', hover = false }: { children: React.ReactNode; className?: string; hover?: boolean }) {
   return (
     <div className={[
-      'rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] backdrop-blur',
-      'shadow-[0_8px_32px_hsl(240_6%_10%/_0.06),0_0_0_1px_hsl(var(--color-border))]',
-      hover ? 'hover:bg-[hsl(var(--color-surface))] hover:shadow-[0_12px_40px_hsl(var(--color-primary)/_0.08),0_0_0_1px_hsl(var(--color-primary)/_0.15)] hover:scale-[1.01] transition-all duration-200 cursor-pointer' : '',
+      'rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))]',
+      'shadow-[0_1px_3px_rgba(0,0,0,0.5)]',
+      hover ? 'hover:bg-[hsl(var(--color-surface-hover))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.15)] hover:scale-[1.01] transition-all duration-200 cursor-pointer' : '',
       className,
     ].join(' ')}>
       {children}
@@ -179,11 +179,10 @@ export default function AnalyticsPage() {
   return (
     <main className="space-y-6 p-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-[hsl(var(--primary))] px-6 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.08)] backdrop-blur">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+      <div className="relative overflow-hidden rounded-2xl bg-[hsl(var(--primary))] px-6 py-5">
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--color-surface)/0.15)] ring-1 ring-[hsl(var(--color-border))] shadow-[var(--glow-primary)]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--color-surface))]/15 ring-1 ring-[hsl(var(--color-border))]">
               <TrendingUp className="h-5 w-5 text-[hsl(var(--on-primary))]" strokeWidth={1.75} />
             </div>
             <div>

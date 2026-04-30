@@ -8,7 +8,7 @@ import { parsePagination } from '@/lib/utils/pagination';
 export const dynamic = 'force-dynamic';
 
 const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const url = new URL(req.url);
   const { page, pageSize } = parsePagination(req);
   const lineUserId = url.searchParams.get('lineUserId');
@@ -97,7 +97,7 @@ const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResp
 export const GET = withTiming(getConversations);
 
 const markRead = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const { searchParams } = new URL(req.url);
   const conversationId = searchParams.get('conversationId');
 

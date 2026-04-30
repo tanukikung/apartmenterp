@@ -6,6 +6,7 @@ import { getDocumentResolverService } from '@/modules/documents/resolver.service
 describe('document resolver service', () => {
   beforeEach(() => {
     (prisma.room.findMany as any).mockReset();
+    (prisma.config.findMany as any).mockReset();
   });
 
   it('aggregates room, tenant, billing, invoice, and payment data into render context', async () => {
@@ -79,6 +80,11 @@ describe('document resolver service', () => {
           },
         ],
       },
+    ]);
+
+    (prisma.config.findMany as any).mockResolvedValue([
+      { key: 'building.name', value: 'Test Building' },
+      { key: 'building.address', value: '123 Test Street' },
     ]);
 
     const service = getDocumentResolverService();

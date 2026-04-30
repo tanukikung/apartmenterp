@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import { ArrowLeft, Send, User, MessageSquare, X, Loader2, AlertCircle } from 'lucide-react';
+import { useWebSocket, type WebSocketStatus } from '@/lib/hooks/useWebSocket';
 
 type Message = {
   id: string;
@@ -43,8 +44,19 @@ export default function ChatConversationPage() {
   const [modalSending, setModalSending] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [wsStatus, setWsStatus] = useState<WebSocketStatus>('disconnected');
 
-  async function load() {
+  const { sendTypingIndicator } = useWebSocket(conversationId ?? null, {
+    onMessage: (msg) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg as Message];
+      });
+    },
+    onStatusChange: setWsStatus,
+  });
+
+  const load = useCallback(async function load() {
     setLoading(true);
     setError(null);
     try {
@@ -58,12 +70,18 @@ export default function ChatConversationPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [conversationId]);
 
   useEffect(() => {
     void load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]);
+  }, [load]);
+
+  // Extended polling fallback — runs every 30s since WebSocket handles real-time
+  useEffect(() => {
+    if (!conversationId) return;
+    const poll = setInterval(() => void load(), 30_000);
+    return () => clearInterval(poll);
+  }, [conversationId, load]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -118,19 +136,32 @@ export default function ChatConversationPage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <section className="relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))]5 bg-[hsl(var(--color-surface))] backdrop-blur-[var(--glass-blur)] px-6 py-5 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
-        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(217,100%,67%,0.1)] to-transparent pointer-events-none" />
-        <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-[hsl(217,100%,67%,0.06)] blur-3xl pointer-events-none" />
+      <section className="relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+        <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-[hsl(var(--primary))]/6 blur-3xl pointer-events-none" />
         <div className="relative flex items-center gap-3">
           <Link
             href="/admin/chat"
-            className="flex items-center gap-1 text-sm font-medium text-[hsl(var(--card-foreground))]/50 hover:text-[hsl(var(--card-foreground))] transition-colors active:scale-[0.98]"
+            className="flex items-center gap-1 text-sm font-medium text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--on-surface))] transition-colors active:scale-[0.98]"
           >
             <ArrowLeft className="h-4 w-4" /> แชท
           </Link>
-          <span className="text-[hsl(var(--card-foreground))]/20">/</span>
+          <span className="text-[hsl(var(--on-surface-variant))]/20">/</span>
           <div className="flex-1">
-            <h1 className="font-display text-xl font-semibold tracking-tight text-[hsl(var(--card-foreground))]">{tenantName}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-semibold text-[hsl(var(--on-surface))]">{tenantName}</h1>
+              <span
+                title={
+                  wsStatus === 'connected' ? 'เชื่อมต่อแล้ว' :
+                  wsStatus === 'reconnecting' ? 'กำลังเชื่อมต่อใหม่...' :
+                  'ไม่ได้เชื่อมต่อ'
+                }
+                className={`h-2 w-2 rounded-full ${
+                  wsStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' :
+                  wsStatus === 'reconnecting' ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)] animate-pulse' :
+                  'bg-[hsl(var(--card-foreground))]/20'
+                }`}
+              />
+            </div>
             <p className="text-xs text-[hsl(var(--card-foreground))]/50 mt-0.5">
               {conversation ? `การสนทนา · ${conversation.status}` : 'กำลังโหลดการสนทนา...'}
             </p>
@@ -138,7 +169,7 @@ export default function ChatConversationPage() {
           {conversation?.lineUserId && (
             <button
               onClick={() => setModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[hsl(var(--color-border))]10 bg-[hsl(217,100%,67%,0.1)] px-4 py-2 text-xs font-semibold text-[hsl(217,100%,90%)] shadow-[var(--glow-primary)] transition-all hover:border-[hsl(217,100%,67%,0.3)] hover:bg-[hsl(217,100%,67%,0.15)] hover:shadow-[var(--glow-primary-hover)] active:scale-[0.98]"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/10 px-4 py-2 text-xs font-semibold text-[hsl(var(--on-primary))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:bg-[hsl(var(--primary))]/20 active:scale-[0.98]"
             >
               <Send size={12} /> ส่งข้อความ
             </button>
@@ -147,7 +178,7 @@ export default function ChatConversationPage() {
       </section>
 
       {error ? (
-        <div className="rounded-xl border border-[hsl(0,72%,55%,0.3)] bg-[hsl(0,72%,55%,0.1)] px-4 py-3 text-sm text-[hsl(0,72%,90%)] backdrop-blur-sm flex items-center gap-2">
+        <div className="rounded-xl border border-[hsl(0,72%,55%,0.3)] bg-[hsl(0,72%,55%,0.1)] px-4 py-3 text-sm text-[hsl(0,72%,90%)]  flex items-center gap-2">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>
@@ -156,15 +187,15 @@ export default function ChatConversationPage() {
       {/* Chat layout */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
         {/* Message thread */}
-        <section className="rounded-2xl border border-[hsl(var(--color-border))]5 bg-[hsl(var(--color-surface))] backdrop-blur-[var(--glass-blur)] shadow-[0_4px_16px_rgba(0,0,0,0.08)] flex flex-col overflow-hidden transition-all hover:border-white/10">
+        <section className="rounded-2xl border border-[hsl(var(--color-border))]5 bg-[hsl(var(--color-surface))] shadow-[0_4px_16px_rgba(0,0,0,0.08)] flex flex-col overflow-hidden transition-all hover:border-white/10">
           <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[hsl(var(--color-border))]10 bg-[hsl(217,100%,67%,0.1)] shadow-[var(--glow-primary)]">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[hsl(var(--color-border))]10 bg-[hsl(217,100%,67%,0.1)] shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
                 <MessageSquare className="h-4 w-4 text-[hsl(217,100%,67%)]" />
               </div>
               <span className="text-sm font-semibold text-[hsl(var(--card-foreground))]/80">ข้อความ</span>
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--color-border))]10 bg-white/5 px-2.5 py-0.5 text-[11px] font-semibold text-[hsl(var(--card-foreground))]/50 backdrop-blur-sm">{messages.length}</span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--color-border))]10 bg-white/5 px-2.5 py-0.5 text-[11px] font-semibold text-[hsl(var(--card-foreground))]/50 ">{messages.length}</span>
           </div>
 
           {/* Messages */}
@@ -185,7 +216,7 @@ export default function ChatConversationPage() {
                       className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm shadow-[var(--shadow-sm)] transition-all hover:shadow-[var(--shadow-md)] ${
                         isOutbound
                           ? 'rounded-tr-sm bg-gradient-to-br from-[hsl(217,100%,67%)] to-[hsl(217,100%,55%)] text-[hsl(var(--card-foreground))] shadow-[0_4px_20px_rgba(99,102,241,0.3)]'
-                          : 'rounded-tl-sm border border-[hsl(var(--color-border))]10 bg-white/5 text-[hsl(var(--card-foreground))]/90 backdrop-blur-sm'
+                          : 'rounded-tl-sm border border-[hsl(var(--color-border))]10 bg-white/5 text-[hsl(var(--card-foreground))]/90 '
                       }`}
                     >
                       <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
@@ -212,15 +243,16 @@ export default function ChatConversationPage() {
             ) : null}
             <form onSubmit={(e) => void sendReply(e)} className="flex gap-2">
               <input
-                className="flex-1 rounded-xl border border-[hsl(var(--color-border))]10 bg-white/5 px-4 py-3 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--card-foreground))]/25 backdrop-blur-sm focus:border-[hsl(217,100%,67%,0.5)] focus:outline-none focus:ring-2 focus:ring-[hsl(217,100%,67%,0.2)] focus:bg-white/8 transition-all"
+                className="flex-1 rounded-xl border border-[hsl(var(--color-border))]10 bg-white/5 px-4 py-3 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--card-foreground))]/25  focus:border-[hsl(217,100%,67%,0.5)] focus:outline-none focus:ring-2 focus:ring-[hsl(217,100%,67%,0.2)] focus:bg-white/8 transition-all"
                 placeholder="พิมพ์ตอบ..."
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
+                onFocus={() => sendTypingIndicator()}
                 disabled={sending}
               />
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))]10 bg-[hsl(217,100%,67%,0.1)] px-5 py-3 text-sm font-semibold text-[hsl(217,100%,90%)] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:border-[hsl(217,100%,67%,0.3)] hover:bg-[hsl(217,100%,67%,0.2)] hover:shadow-[var(--glow-primary-hover)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))]10 bg-[hsl(217,100%,67%,0.1)] px-5 py-3 text-sm font-semibold text-[hsl(217,100%,90%)] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:border-[hsl(217,100%,67%,0.3)] hover:bg-[hsl(217,100%,67%,0.2)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_0_1px_rgba(99,102,241,0.15)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
                 disabled={sending || !replyText.trim()}
               >
                 <Send className="h-4 w-4" />
@@ -232,7 +264,7 @@ export default function ChatConversationPage() {
 
         {/* Sidebar info */}
         <div className="space-y-4">
-          <section className="rounded-2xl border border-[hsl(var(--color-border))]5 bg-[hsl(var(--color-surface))] backdrop-blur-[var(--glass-blur)] shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden transition-all hover:border-white/10">
+          <section className="rounded-2xl border border-[hsl(var(--color-border))]5 bg-[hsl(var(--color-surface))] shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden transition-all hover:border-white/10">
             <div className="px-5 py-4 border-b border-white/5">
               <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[hsl(var(--color-border))]10 bg-[hsl(217,100%,67%,0.1)]">
@@ -252,7 +284,7 @@ export default function ChatConversationPage() {
                   <div className="text-sm text-[hsl(var(--card-foreground))]/40">{conversation.tenant.phone}</div>
                   <Link
                     href={`/admin/tenants/${conversation.tenant.id}`}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-[hsl(var(--color-border))]10 bg-white/5 px-4 py-2.5 text-xs font-medium text-[hsl(var(--card-foreground))]/70 shadow-sm backdrop-blur-sm transition-all hover:border-white/20 hover:text-[hsl(var(--card-foreground))]/90 hover:bg-white/10 active:scale-[0.98] w-full text-center"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-[hsl(var(--color-border))]10 bg-white/5 px-4 py-2.5 text-xs font-medium text-[hsl(var(--card-foreground))]/70 shadow-sm  transition-all hover:border-white/20 hover:text-[hsl(var(--card-foreground))]/90 hover:bg-white/10 active:scale-[0.98] w-full text-center"
                   >
                     ดูโปรไฟล์ผู้เช่า →
                   </Link>
@@ -266,14 +298,14 @@ export default function ChatConversationPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[hsl(var(--color-border))]5 bg-[hsl(var(--color-surface))] backdrop-blur-[var(--glass-blur)] shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden transition-all hover:border-white/10">
+          <section className="rounded-2xl border border-[hsl(var(--color-border))]5 bg-[hsl(var(--color-surface))] shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden transition-all hover:border-white/10">
             <div className="px-5 py-4 border-b border-white/5">
               <span className="text-sm font-semibold text-[hsl(var(--card-foreground))]/80">การสนทนา</span>
             </div>
             <div className="p-4 space-y-3 text-sm">
               <div className="flex justify-between items-center">
                 <span className="text-[hsl(var(--card-foreground))]/30">สถานะ</span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--color-border))]10 bg-white/5 px-2.5 py-0.5 text-[11px] font-semibold text-[hsl(var(--card-foreground))]/50 backdrop-blur-sm">{conversation?.status ?? '-'}</span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--color-border))]10 bg-white/5 px-2.5 py-0.5 text-[11px] font-semibold text-[hsl(var(--card-foreground))]/50 ">{conversation?.status ?? '-'}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-[hsl(var(--card-foreground))]/30">เริ่มต้น</span>
@@ -295,10 +327,10 @@ export default function ChatConversationPage() {
       {/* Send Message Modal */}
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 "
           onClick={(e) => { if (e.target === e.currentTarget) setModalOpen(false); }}
         >
-          <div className="rounded-2xl border border-[hsl(var(--color-border))]10 bg-[hsl(var(--color-surface))] backdrop-blur-[var(--glass-blur)] shadow-[0_4px_16px_rgba(0,0,0,0.08)] w-full max-w-md mx-4 overflow-hidden">
+          <div className="rounded-2xl border border-[hsl(var(--color-border))]10 bg-[hsl(var(--color-surface))] shadow-[0_4px_16px_rgba(0,0,0,0.08)] w-full max-w-md mx-4 overflow-hidden">
             <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
               <h3 className="font-display text-base font-semibold text-[hsl(var(--card-foreground))]">ส่งข้อความ</h3>
               <button
@@ -320,20 +352,20 @@ export default function ChatConversationPage() {
                 onChange={(e) => setModalText(e.target.value)}
                 placeholder="พิมพ์ข้อความที่ต้องการส่ง..."
                 rows={5}
-                className="w-full resize-none rounded-xl border border-[hsl(var(--color-border))]10 bg-white/5 px-4 py-3 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--card-foreground))]/25 backdrop-blur-sm focus:border-[hsl(217,100%,67%,0.5)] focus:outline-none focus:ring-2 focus:ring-[hsl(217,100%,67%,0.2)] transition-all"
+                className="w-full resize-none rounded-xl border border-[hsl(var(--color-border))]10 bg-white/5 px-4 py-3 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--card-foreground))]/25  focus:border-[hsl(217,100%,67%,0.5)] focus:outline-none focus:ring-2 focus:ring-[hsl(217,100%,67%,0.2)] transition-all"
               />
               <div className="flex items-center justify-end gap-2">
                 <button
                   onClick={() => setModalOpen(false)}
                   disabled={modalSending}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-[hsl(var(--color-border))]10 bg-white/5 px-4 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))]/60 backdrop-blur-sm transition-all hover:border-white/20 hover:text-[hsl(var(--card-foreground))]/80 hover:bg-white/10 active:scale-[0.98] disabled:opacity-40"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[hsl(var(--color-border))]10 bg-white/5 px-4 py-2.5 text-sm font-medium text-[hsl(var(--card-foreground))]/60  transition-all hover:border-white/20 hover:text-[hsl(var(--card-foreground))]/80 hover:bg-white/10 active:scale-[0.98] disabled:opacity-40"
                 >
                   ยกเลิก
                 </button>
                 <button
                   onClick={() => void sendModalMessage()}
                   disabled={modalSending || !modalText.trim()}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[hsl(217,100%,67%,0.1)] border border-[hsl(217,100%,67%,0.2)] px-5 py-2.5 text-sm font-semibold text-[hsl(217,100%,90%)] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:border-[hsl(217,100%,67%,0.4)] hover:bg-[hsl(217,100%,67%,0.2)] hover:shadow-[var(--glow-primary-hover)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[hsl(217,100%,67%,0.1)] border border-[hsl(217,100%,67%,0.2)] px-5 py-2.5 text-sm font-semibold text-[hsl(217,100%,90%)] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:border-[hsl(217,100%,67%,0.4)] hover:bg-[hsl(217,100%,67%,0.2)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.5),0_0_0_1px_rgba(99,102,241,0.15)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {modalSending ? (
                     <><Loader2 className="h-4 w-4 animate-spin" />กำลังส่ง...</>

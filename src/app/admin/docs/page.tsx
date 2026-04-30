@@ -13,14 +13,14 @@ import {
 
 function JourneyGroupSelector({ active, onChange }: { active: string | null; onChange: (id: string | null) => void }) {
   return (
-    <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card p-4">
+    <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-4">
       <label className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2 block">
         Journey Group
       </label>
       <select
         value={active ?? ''}
         onChange={e => onChange(e.target.value || null)}
-        className="w-full text-sm rounded-lg border border-[hsl(var(--glass-border))] glass-card px-3 py-2 text-[hsl(var(--card-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/50 cursor-pointer appearance-none"
+        className="w-full text-sm rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  px-3 py-2 text-[hsl(var(--card-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/50 cursor-pointer appearance-none"
         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}
       >
         <option value="">— All flows —</option>
@@ -43,8 +43,8 @@ function FlowList({ flows, selectedId, activeGroup, onSelect }: {
     : null;
 
   return (
-    <div className="rounded-xl border border-[hsl(var(--glass-border))] glass-card flex-1 overflow-hidden flex flex-col">
-      <div className="px-4 py-3 border-b border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--card))' }}>
+    <div className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  flex-1 overflow-hidden flex flex-col">
+      <div className="px-4 py-3 border-b border-[hsl(var([hsl(var(--color-border))]))]" style={{ background: 'hsl(var(--card))' }}>
         <h3 className="text-sm font-semibold text-[hsl(var(--card-foreground))]">
           {groupLabel ? `${groupLabel.emoji} ${groupLabel.title}` : `Flows (${flows.length})`}
         </h3>
@@ -68,7 +68,7 @@ function FlowList({ flows, selectedId, activeGroup, onSelect }: {
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-semibold text-[hsl(var(--card-foreground))]">{flow.nameTh}</div>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded glass-card text-[10px] text-[hsl(var(--on-surface-variant))]">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded  text-[10px] text-[hsl(var(--on-surface-variant))]">
                     {catLabel?.nameTh ?? flow.category}
                   </span>
                   <span className="text-[10px] text-[hsl(var(--on-surface-variant))]">· {flow.linearLayout?.length ?? 0} steps</span>
@@ -156,15 +156,15 @@ function ZoomableDiagram({ flow, onNodeClick, selectedNodeId }: { flow: FlowDefi
     <div className="relative w-full h-full flex flex-col">
       {/* Zoom controls */}
       <div className="flex-none flex items-center gap-1 mb-2">
-        <button onClick={() => { zoomRef.current = Math.min(zoomRef.current * 1.2, 3); setZoomDisplay(Math.round(zoomRef.current * 100)); applyTransform(zoomRef.current); }} className="px-2 py-1 text-xs rounded-lg border border-[hsl(var(--glass-border))] glass-card hover:bg-white/10 text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95">+</button>
+        <button onClick={() => { zoomRef.current = Math.min(zoomRef.current * 1.2, 3); setZoomDisplay(Math.round(zoomRef.current * 100)); applyTransform(zoomRef.current); }} className="px-2 py-1 text-xs rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  hover:bg-white/10 text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95">+</button>
         <span className="text-xs text-[hsl(var(--on-surface-variant))] font-mono px-1">{zoomDisplay}%</span>
-        <button onClick={() => { zoomRef.current = Math.max(zoomRef.current * 0.8, 0.5); setZoomDisplay(Math.round(zoomRef.current * 100)); applyTransform(zoomRef.current); }} className="px-2 py-1 text-xs rounded-lg border border-[hsl(var(--glass-border))] glass-card hover:bg-white/10 text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95">−</button>
+        <button onClick={() => { zoomRef.current = Math.max(zoomRef.current * 0.8, 0.5); setZoomDisplay(Math.round(zoomRef.current * 100)); applyTransform(zoomRef.current); }} className="px-2 py-1 text-xs rounded-lg border border-[hsl(var([hsl(var(--color-border))]))]  hover:bg-white/10 text-[hsl(var(--card-foreground))] transition-all hover:scale-105 active:scale-95">−</button>
         <button onClick={handleReset} className="px-2 py-1 text-xs text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--card-foreground))] ml-1 transition-colors">รีเซ็ต</button>
       </div>
 
       {/* Diagram area */}
       <div
-        className="flex-1 rounded-xl border border-[hsl(var(--glass-border))] glass-card relative"
+        className="flex-1 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  relative"
         ref={containerRef}
         style={{ cursor: isDragging.current ? 'grabbing' : 'grab', overflow: 'hidden' }}
         onMouseDown={handleMouseDown}
@@ -239,7 +239,7 @@ function FlowSteps({ flow, selectedNodeId, onNodeClick }: { flow: FlowDefinition
           <div
             key={nodeId}
             onClick={() => onNodeClick(nodeId)}
-            className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isSelected ? 'border-[hsl(var(--primary))]' : 'border-[hsl(var(--glass-border))]'}`}
+            className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isSelected ? 'border-[hsl(var(--primary))]' : 'border-[hsl(var([hsl(var(--color-border))]))]'}`}
             style={isSelected ? { background: 'rgba(99,102,241,0.08)' } : { background: 'hsl(var(--card))' }}
           >
             <div className="flex-none flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold"
@@ -255,7 +255,7 @@ function FlowSteps({ flow, selectedNodeId, onNodeClick }: { flow: FlowDefinition
               {node.files.length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {node.files.map((f, fi) => (
-                    <span key={fi} className="text-xs glass-card px-1.5 py-0.5 rounded font-mono text-[hsl(var(--on-surface-variant))]">{f.path.split('/').pop()}</span>
+                    <span key={fi} className="text-xs  px-1.5 py-0.5 rounded font-mono text-[hsl(var(--on-surface-variant))]">{f.path.split('/').pop()}</span>
                   ))}
                 </div>
               )}
@@ -274,10 +274,10 @@ function NodeDetailModal({ node, flow, onClose }: { node: FlowNode; flow: FlowDe
   const nodeIndex = (flow.linearLayout || []).indexOf(node.id);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden border border-[hsl(var(--glass-border))] glass-card" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="relative rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden border border-[hsl(var([hsl(var(--color-border))]))] " onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-[hsl(var(--glass-border))]" style={{ backgroundColor: style.bg }}>
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))]" style={{ backgroundColor: style.bg }}>
           <div className="flex-none flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold" style={{ backgroundColor: style.border, color: 'white' }}>
             {nodeIndex >= 0 ? nodeIndex + 1 : '?'}
           </div>
@@ -285,7 +285,7 @@ function NodeDetailModal({ node, flow, onClose }: { node: FlowNode; flow: FlowDe
             <div className="text-xs font-semibold" style={{ color: style.text }}>{style.label}</div>
             <div className="text-sm font-semibold text-[hsl(var(--card-foreground))] truncate">{node.label}</div>
           </div>
-          <button onClick={onClose} className="ml-auto flex-none w-8 h-8 rounded-full glass-card hover:bg-white/10 flex items-center justify-center text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--card-foreground))] transition-colors">✕</button>
+          <button onClick={onClose} className="ml-auto flex-none w-8 h-8 rounded-full  hover:bg-white/10 flex items-center justify-center text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--card-foreground))] transition-colors">✕</button>
         </div>
 
         {/* Body */}
@@ -299,7 +299,7 @@ function NodeDetailModal({ node, flow, onClose }: { node: FlowNode; flow: FlowDe
             <div className="text-xs font-semibold text-[hsl(var(--on-surface-variant))] uppercase tracking-wider mb-2">Source Files</div>
             <div className="space-y-2">
               {node.files.map((f, fi) => (
-                <div key={fi} className="flex items-start gap-2 p-2 rounded-lg border border-[hsl(var(--glass-border))] glass-card">
+                <div key={fi} className="flex items-start gap-2 p-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] ">
                   <span className="text-xs text-[hsl(var(--on-surface-variant))] font-mono mt-0.5">📄</span>
                   <div className="min-w-0">
                     <div className="text-xs font-mono text-[hsl(var(--card-foreground))] break-all">{f.path}</div>
@@ -372,7 +372,7 @@ function TroubleshootingSection() {
   ];
 
   return (
-    <div className="rounded-xl border border-[rgba(251,191,36,0.2)] glass-card p-4 space-y-2" style={{ background: 'rgba(251,191,36,0.05)' }}>
+    <div className="rounded-xl border border-[rgba(251,191,36,0.2)]  p-4 space-y-2" style={{ background: 'rgba(251,191,36,0.05)' }}>
       <div className="flex items-center gap-2 mb-3">
         <span className="text-sm font-semibold text-[#fbbf24]">Troubleshooting</span>
       </div>
@@ -386,7 +386,7 @@ function TroubleshootingSection() {
             <span className="font-medium">{item.q}</span>
           </button>
           {openId === item.id && (
-            <div className="ml-6 px-3 py-2 text-sm rounded-lg glass-card text-[hsl(var(--on-surface-variant))]">
+            <div className="ml-6 px-3 py-2 text-sm rounded-lg  text-[hsl(var(--on-surface-variant))]">
               {item.a}
             </div>
           )}
@@ -402,7 +402,7 @@ function PageRow({ page }: { page: AdminPage }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="border-b border-[hsl(var(--glass-border))] last:border-0">
+    <div className="border-b border-[hsl(var([hsl(var(--color-border))]))] last:border-0">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-white/5 transition-colors"
@@ -417,7 +417,7 @@ function PageRow({ page }: { page: AdminPage }) {
           {page.apiCalls.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {page.apiCalls.map((call, i) => (
-                <span key={i} className="text-xs font-mono glass-card px-1.5 py-0.5 rounded text-[hsl(var(--on-surface-variant))]">{call}</span>
+                <span key={i} className="text-xs font-mono  px-1.5 py-0.5 rounded text-[hsl(var(--on-surface-variant))]">{call}</span>
               ))}
             </div>
           )}
@@ -434,14 +434,14 @@ function RouteRow({ route }: { route: ApiRoute }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="border-b border-[hsl(var(--glass-border))] last:border-0">
+    <div className="border-b border-[hsl(var([hsl(var(--color-border))]))] last:border-0">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-white/5 transition-colors"
       >
         <span className="text-[hsl(var(--on-surface-variant))] text-xs">{expanded ? '▼' : '▶'}</span>
         <code className="text-xs font-mono text-[#a78bfa]">{route.method} {route.path}</code>
-        {route.auth && <span className="ml-auto text-xs glass-card px-1.5 py-0.5 rounded text-[hsl(var(--on-surface-variant))]">auth</span>}
+        {route.auth && <span className="ml-auto text-xs  px-1.5 py-0.5 rounded text-[hsl(var(--on-surface-variant))]">auth</span>}
       </button>
       {expanded && (
         <div className="px-4 pb-2 space-y-1">
@@ -453,7 +453,7 @@ function RouteRow({ route }: { route: ApiRoute }) {
           )}
           <div className="flex flex-wrap gap-1 mt-1">
             {route.tags.map((tag, i) => (
-              <span key={i} className="text-xs glass-card px-1.5 py-0.5 rounded text-[hsl(var(--on-surface-variant))]">{tag}</span>
+              <span key={i} className="text-xs  px-1.5 py-0.5 rounded text-[hsl(var(--on-surface-variant))]">{tag}</span>
             ))}
           </div>
           {route.files[0] && <div className="text-xs text-[hsl(var(--on-surface-variant))] mt-1 font-mono">{route.files[0]}</div>}
@@ -510,7 +510,7 @@ export default function DocsPage() {
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center gap-1 rounded-xl border border-[hsl(var(--glass-border))] glass-card p-1">
+        <div className="flex items-center gap-1 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-1">
           <button
             onClick={() => setActiveTab('flows')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'flows' ? 'bg-[hsl(var(--primary))] text-white shadow-sm' : 'text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--card-foreground))] hover:bg-white/5'}`}
@@ -536,7 +536,7 @@ export default function DocsPage() {
           </div>
 
           {/* MIDDLE — Flow steps */}
-          <div className="flex-1 rounded-xl border border-[hsl(var(--glass-border))] glass-card p-4 overflow-y-auto">
+          <div className="flex-1 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-4 overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-semibold text-[hsl(var(--card-foreground))]">Steps</h3>
@@ -555,7 +555,7 @@ export default function DocsPage() {
           </div>
 
           {/* RIGHT — Zoomable diagram */}
-          <div className="flex-1 rounded-xl border border-[hsl(var(--glass-border))] glass-card p-4 overflow-hidden">
+          <div className="flex-1 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  p-4 overflow-hidden">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-semibold text-[hsl(var(--card-foreground))]">Flow Diagram</h3>
@@ -584,11 +584,11 @@ export default function DocsPage() {
       {activeTab === 'map' && (
         <div className="flex gap-4">
           {/* Left: Pages */}
-          <div className="flex-1 rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
-            <div className="px-4 py-3 border-b border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--card))' }}>
+          <div className="flex-1 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
+            <div className="px-4 py-3 border-b border-[hsl(var([hsl(var(--color-border))]))]" style={{ background: 'hsl(var(--card))' }}>
               <h3 className="text-sm font-semibold text-[hsl(var(--card-foreground))]">Admin Pages ({ADMIN_PAGES.length})</h3>
             </div>
-            <div className="divide-y divide-[hsl(var(--glass-border))] max-h-[calc(100vh-200px)] overflow-y-auto">
+            <div className="divide-y divide-[hsl(var([hsl(var(--color-border))]))] max-h-[calc(100vh-200px)] overflow-y-auto">
               {ADMIN_PAGES.map(page => (
                 <PageRow key={page.path} page={page} />
               ))}
@@ -596,11 +596,11 @@ export default function DocsPage() {
           </div>
 
           {/* Right: API Routes */}
-          <div className="flex-1 rounded-xl border border-[hsl(var(--glass-border))] glass-card overflow-hidden">
-            <div className="px-4 py-3 border-b border-[hsl(var(--glass-border))]" style={{ background: 'hsl(var(--card))' }}>
+          <div className="flex-1 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))]  overflow-hidden">
+            <div className="px-4 py-3 border-b border-[hsl(var([hsl(var(--color-border))]))]" style={{ background: 'hsl(var(--card))' }}>
               <h3 className="text-sm font-semibold text-[hsl(var(--card-foreground))]">API Routes ({API_ROUTES.length})</h3>
             </div>
-            <div className="divide-y divide-[hsl(var(--glass-border))] max-h-[calc(100vh-200px)] overflow-y-auto">
+            <div className="divide-y divide-[hsl(var([hsl(var(--color-border))]))] max-h-[calc(100vh-200px)] overflow-y-auto">
               {API_ROUTES.map(route => (
                 <RouteRow key={`${route.method}-${route.path}`} route={route} />
               ))}

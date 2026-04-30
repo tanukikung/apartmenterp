@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 
+export const dynamic = 'force-dynamic';
+
 export const GET = asyncHandler(async (): Promise<NextResponse> => {
   const [initializedConfig, roomCount, tenantCount] = await Promise.all([
     prisma.config.findUnique({ where: { key: 'system.initialized' } }),

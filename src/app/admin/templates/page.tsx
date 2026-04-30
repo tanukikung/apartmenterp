@@ -53,12 +53,12 @@ export default function TemplatesPage() {
   return (
     <main className="space-y-6">
       {/* Hero Header */}
-      <section className="relative overflow-hidden rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] px-6 py-5">
+      <section className="relative overflow-hidden rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] shadow-[0_4px_16px_rgba(0,0,0,0.08)] px-6 py-5">
         <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.1)] via-transparent to-violet-500/10 pointer-events-none" />
         <div className="absolute top-0 right-0 w-64 h-64 bg-[hsl(var(--primary)/0.05)] rounded-full blur-3xl pointer-events-none" />
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[hsl(var(--primary)/0.2)] border border-[hsl(var(--primary)/0.3)] shadow-[var(--glow-primary)]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[hsl(var(--primary)/0.2)] border border-[hsl(var(--primary)/0.3)] shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
               <Layers3 className="h-5 w-5 text-[hsl(var(--primary))]" />
             </div>
             <div>
@@ -70,7 +70,7 @@ export default function TemplatesPage() {
           </div>
           <Link
             href="/admin/templates/new/edit"
-            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.2)] hover:border-[hsl(var(--primary)/0.5)] hover:shadow-[var(--glow-primary)] px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.2)] hover:border-[hsl(var(--primary)/0.5)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.5)] px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98]"
           >
             <FilePlus2 className="h-4 w-4" />
             เทมเพลตใหม่
@@ -79,32 +79,32 @@ export default function TemplatesPage() {
       </section>
 
       {fetchError ? (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 backdrop-blur-sm">
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           {fetchError instanceof Error ? fetchError.message : String(fetchError)}
         </div>
       ) : null}
 
       {/* Main Card */}
-      <section className="rounded-2xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] backdrop-blur shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
+      <section className="rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] shadow-[0_4px_16px_rgba(0,0,0,0.08)] overflow-hidden">
         {/* Table Header */}
-        <div className="px-5 py-4 border-b border-[hsl(var(--glass-border))] flex items-center justify-between bg-[hsl(var(--card))]">
+        <div className="px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))] flex items-center justify-between bg-[hsl(var(--card))]">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--card-foreground))]">
               <Layers3 className="h-4 w-4 text-[hsl(var(--primary))]" />
               ทะเบียนเทมเพลต
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--glass-border))]">
+            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] border border-[hsl(var([hsl(var(--color-border))]))]">
               {templates.length} เทมเพลต
             </span>
           </div>
           {/* View toggle */}
-          <div className="flex items-center gap-1 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] p-0.5 backdrop-blur">
+          <div className="flex items-center gap-1 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] p-0.5">
             <button
               type="button"
               onClick={() => setViewMode('table')}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
                 viewMode === 'table'
-                  ? 'bg-[hsl(var(--primary)/0.2)] text-[hsl(var(--primary))] border border-[hsl(var(--primary)/0.3)] shadow-[var(--glow-primary)]'
+                  ? 'bg-[hsl(var(--primary)/0.2)] text-[hsl(var(--primary))] border border-[hsl(var(--primary)/0.3)] shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
                   : 'text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--card))]'
               }`}
             >
@@ -116,7 +116,7 @@ export default function TemplatesPage() {
               onClick={() => setViewMode('grid')}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
                 viewMode === 'grid'
-                  ? 'bg-[hsl(var(--primary)/0.2)] text-[hsl(var(--primary))] border border-[hsl(var(--primary)/0.3)] shadow-[var(--glow-primary)]'
+                  ? 'bg-[hsl(var(--primary)/0.2)] text-[hsl(var(--primary))] border border-[hsl(var(--primary)/0.3)] shadow-[0_1px_3px_rgba(0,0,0,0.5)]'
                   : 'text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--card-foreground))] hover:bg-[hsl(var(--card))]'
               }`}
             >
@@ -156,7 +156,7 @@ export default function TemplatesPage() {
                   templates.map((template, idx) => (
                     <tr
                       key={template.id}
-                      className="border-t border-[hsl(var(--glass-border))] hover:bg-[hsl(var(--primary))]/5 transition-colors duration-150 group"
+                      className="border-t border-[hsl(var([hsl(var(--color-border))]))] hover:bg-[hsl(var(--primary))]/5 transition-colors duration-150 group"
                       style={{ animationDelay: `${idx * 30}ms` }}
                     >
                       <td>
@@ -166,7 +166,7 @@ export default function TemplatesPage() {
                         ) : null}
                       </td>
                       <td>
-                        <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--glass-border))]">
+                        <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-[hsl(var(--card))] text-[hsl(var(--on-surface-variant))] border border-[hsl(var([hsl(var(--color-border))]))]">
                           {TEMPLATE_TYPE_LABELS[template.type] ?? template.type.replace(/_/g, ' ')}
                         </span>
                       </td>
@@ -192,14 +192,14 @@ export default function TemplatesPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <Link
                             href={`/admin/templates/${template.id}`}
-                            className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary)/0.1)] hover:border-[hsl(var(--primary)/0.3)] active:scale-[0.98]"
+                            className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary)/0.1)] hover:border-[hsl(var(--primary)/0.3)] active:scale-[0.98]"
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                             รายละเอียด
                           </Link>
                           <Link
                             href={`/admin/templates/${template.id}/edit`}
-                            className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-3 py-1.5 text-xs font-medium text-[hsl(var(--primary))] shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary)/0.2)] hover:border-[hsl(var(--primary)/0.4)] hover:shadow-[var(--glow-primary)] active:scale-[0.98]"
+                            className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] px-3 py-1.5 text-xs font-medium text-[hsl(var(--primary))] shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary)/0.2)] hover:border-[hsl(var(--primary)/0.4)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.5)] active:scale-[0.98]"
                           >
                             <PencilLine className="h-3.5 w-3.5" />
                             แก้ไข
@@ -223,14 +223,14 @@ export default function TemplatesPage() {
                   <Link
                     key={template.id}
                     href={`/admin/templates/${template.id}/edit`}
-                    className="group flex flex-col rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--card))] overflow-hidden hover:border-[hsl(var(--primary)/0.3)] hover:shadow-[var(--glow-primary)] transition-all duration-300 active:scale-[0.98]"
+                    className="group flex flex-col rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] overflow-hidden hover:border-[hsl(var(--primary)/0.3)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.5)] transition-all duration-300 active:scale-[0.98]"
                   >
                     {/* Paper thumbnail */}
                     <div className="relative h-36 bg-gradient-to-br from-[hsl(var(--primary))]/10 to-[hsl(var(--primary))]/5 overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-violet-500/5" />
                       <div className="absolute inset-0 flex items-center justify-center">
                         {/* Mini paper mockup */}
-                        <div className="relative w-20 bg-[hsl(var(--card))] rounded-sm shadow-lg border border-[hsl(var(--glass-border))] overflow-hidden">
+                        <div className="relative w-20 bg-[hsl(var(--card))] rounded-sm shadow-lg border border-[hsl(var([hsl(var(--color-border))]))] overflow-hidden">
                           <div className="h-2 bg-gradient-to-r from-blue-500/60 to-blue-400/30" />
                           <div className="p-1.5 space-y-1">
                             <div className="h-1.5 bg-[hsl(var(--on-surface-variant))]/20 rounded w-3/4" />
@@ -243,7 +243,7 @@ export default function TemplatesPage() {
                       </div>
                       {/* Type badge */}
                       <div className="absolute top-2 left-2">
-                        <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold bg-[hsl(var(--card)/0.8)] text-[hsl(var(--primary))] border border-[hsl(var(--primary)/0.3)] shadow-md backdrop-blur">
+                        <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold bg-[hsl(var(--card)/0.8)] text-[hsl(var(--primary))] border border-[hsl(var(--primary)/0.3)] shadow-md">
                           {TEMPLATE_TYPE_LABELS[template.type] ?? template.type.replace(/_/g, ' ')}
                         </span>
                       </div>

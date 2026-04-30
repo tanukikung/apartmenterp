@@ -6,8 +6,13 @@ import { getServiceContainer } from '@/lib/service-container';
 import { logger } from '@/lib/utils/logger';
 import { prisma } from '@/lib';
 import { PaymentStatus } from '@prisma/client';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
 const VALID_PAYMENT_STATUSES: string[] = Object.values(PaymentStatus);
+
+// Payment write operations: 10/min
+const PAYMENT_WINDOW_MS = 60 * 1000;
+const PAYMENT_MAX_ATTEMPTS = 10;
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   requireAuthSession(req);
@@ -58,9 +63,27 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 });
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const body = await req.json().catch(() => ({}));
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`payments:${ip}`, PAYMENT_MAX_ATTEMPTS, PAYMENT_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many payment requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { success: false, error: { message: 'Invalid JSON body', statusCode: 400, name: 'ParseError', code: 'INVALID_JSON' } },
+      { status: 400 }
+    );
+  }
   const actor = getVerifiedActor(req);
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const input = createPaymentSchema.parse(body) as CreatePaymentInput;
 

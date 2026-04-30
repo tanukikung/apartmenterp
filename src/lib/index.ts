@@ -4,7 +4,6 @@ export {
   connectPrisma,
   disconnectPrisma,
   withTransaction,
-  rawQuery,
 } from './db/client';
 
 // Export all Prisma types

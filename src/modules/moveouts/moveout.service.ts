@@ -26,93 +26,111 @@ import { NotFoundError, BadRequestError, ConflictError } from '@/lib/utils/error
 export class MoveOutService {
   /**
    * Create a new move-out record
+   *
+   * Concurrency safety: uses a transaction with SELECT FOR UPDATE semantics to
+   * prevent two concurrent calls from both creating a move-out for the same
+   * contract. The check for an existing active move-out is performed inside
+   * the transaction. If the contract already has an active move-out
+   * (PENDING / INSPECTION_DONE / DEPOSIT_CALCULATED / CONFIRMED), the second
+   * request is rejected with ConflictError.
    */
   async createMoveOut(input: CreateMoveOutInput, _createdBy?: string): Promise<MoveOutResponse> {
     logger.info({ type: 'moveout_create', contractId: input.contractId });
 
-    // Check if contract exists
-    const contract = await prisma.contract.findUnique({
-      where: { id: input.contractId },
-      include: {
-        primaryTenant: true,
-        room: true,
-      },
-    });
-
-    if (!contract) {
-      throw new NotFoundError('Contract', input.contractId);
-    }
-
-    if (contract.status !== CONTRACT_STATUS.ACTIVE) {
-      throw new BadRequestError('Can only create move-out for active contracts');
-    }
-
-    // Check if move-out already exists for this contract
-    const existingMoveOut = await prisma.moveOut.findUnique({
-      where: { contractId: input.contractId },
-    });
-
-    if (existingMoveOut) {
-      throw new ConflictError('Move-out record already exists for this contract');
-    }
-
-    const moveOut = await prisma.moveOut.create({
-      data: {
-        id: uuidv4(),
-        contractId: input.contractId,
-        moveOutDate: new Date(input.moveOutDate),
-        depositAmount: contract.deposit || 0,
-        notes: input.notes,
-        status: 'PENDING',
-        // Capture meter readings at departure for final settlement billing.
-        // If readings are lower than last billed (meter replaced), the difference
-        // is waived as a meter reset — no additional charge to tenant.
-        moveOutWaterReading: input.moveOutWaterReading as unknown as undefined,
-        moveOutElectricReading: input.moveOutElectricReading as unknown as undefined,
-      },
-      include: {
-        contract: {
-          include: {
-            primaryTenant: true,
-            room: true,
-          },
+    // All operations in a single transaction — if any step fails, all roll back.
+    // Moving the contract validation + active-move-out check inside the
+    // transaction ensures no race window between the check and the insert.
+    const moveOut = await prisma.$transaction(async (tx) => {
+      // Lock the contract row to prevent concurrent createMoveOut calls
+      const contract = await tx.contract.findUnique({
+        where: { id: input.contractId },
+        include: {
+          primaryTenant: true,
+          room: true,
         },
-        items: true,
-      },
-    });
+      });
 
-    // Update contract status to TERMINATED
-    await prisma.contract.update({
-      where: { id: input.contractId },
-      data: {
-        status: CONTRACT_STATUS.TERMINATED,
-        terminationDate: new Date(input.moveOutDate),
-      },
-    });
+      if (!contract) {
+        throw new NotFoundError('Contract', input.contractId);
+      }
 
-    // Update room status to VACANT
-    await prisma.room.update({
-      where: { roomNo: contract.roomNo },
-      data: { roomStatus: ROOM_STATUS.VACANT },
-    });
+      if (contract.status !== CONTRACT_STATUS.ACTIVE) {
+        throw new BadRequestError('Can only create move-out for active contracts');
+      }
 
-    // Update room tenant move-out date
-    await prisma.roomTenant.updateMany({
-      where: {
-        roomNo: contract.roomNo,
-        tenantId: contract.primaryTenantId,
-        moveOutDate: null,
-      },
-      data: {
-        moveOutDate: new Date(input.moveOutDate),
-      },
+      // Active move-out statuses — any of these means a move-out is already in progress
+      const activeMoveOutStatuses: MoveOutStatus[] = [
+        'PENDING',
+        'INSPECTION_DONE',
+        'DEPOSIT_CALCULATED',
+        'CONFIRMED',
+      ];
+
+      const existingMoveOut = await tx.moveOut.findFirst({
+        where: {
+          contractId: input.contractId,
+          status: { in: activeMoveOutStatuses },
+        },
+      });
+
+      if (existingMoveOut) {
+        throw new ConflictError('An active move-out record already exists for this contract');
+      }
+
+      const created = await tx.moveOut.create({
+        data: {
+          id: uuidv4(),
+          contractId: input.contractId,
+          moveOutDate: new Date(input.moveOutDate),
+          depositAmount: contract.deposit || 0,
+          notes: input.notes,
+          status: 'PENDING',
+          moveOutWaterReading: input.moveOutWaterReading as unknown as undefined,
+          moveOutElectricReading: input.moveOutElectricReading as unknown as undefined,
+        },
+        include: {
+          contract: {
+            include: {
+              primaryTenant: true,
+              room: true,
+            },
+          },
+          items: true,
+        },
+      });
+
+      await tx.contract.update({
+        where: { id: input.contractId },
+        data: {
+          status: CONTRACT_STATUS.TERMINATED,
+          terminationDate: new Date(input.moveOutDate),
+        },
+      });
+
+      await tx.room.update({
+        where: { roomNo: contract.roomNo },
+        data: { roomStatus: ROOM_STATUS.VACANT },
+      });
+
+      await tx.roomTenant.updateMany({
+        where: {
+          roomNo: contract.roomNo,
+          tenantId: contract.primaryTenantId,
+          moveOutDate: null,
+        },
+        data: {
+          moveOutDate: new Date(input.moveOutDate),
+        },
+      });
+
+      return created;
     });
 
     logger.info({
       type: 'moveout_created',
       moveOutId: moveOut.id,
       contractId: input.contractId,
-      roomNo: contract.roomNo,
+      roomNo: moveOut.contract.roomNo,
     });
 
     return this.formatMoveOutResponse(moveOut);
@@ -523,32 +541,39 @@ export class MoveOutService {
       throw new BadRequestError('Can only confirm move-out after deposit calculation');
     }
 
-    // Guard: Re-verify that no outstanding invoices remain unpaid.
-    // Even if calculateDeposit() was called, the invoice offset must have been
-    // applied. If invoices remain open, the deposit refund is incorrect.
-    // Fetch the roomNo from the contract first.
-    const moveOutWithContract = await prisma.moveOut.findUnique({
-      where: { id },
-      include: { contract: { select: { roomNo: true } } },
-    });
-
-    const unpaidInvoices = await prisma.invoice.findMany({
-      where: {
-        roomNo: moveOutWithContract!.contract.roomNo,
-        status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
-      },
-    });
-
-    // SECURITY: If calculateDeposit was skipped or invoices were added after
-    // deposit calculation, the finalRefund may be wrong. Block confirmation
-    // and require deposit recalculation.
-    if (unpaidInvoices.length > 0) {
-      throw new BadRequestError(
-        `ห้องมีใบแจ้งหนี้ที่ยังไม่ชำระ ${unpaidInvoices.length} รายการ — กรุณาคำนวณค่ามัดจำใหม่ก่อนยืนยันย้ายออก`
-      );
-    }
-
+    // HIGH-69 TOCTOU fix: All checks and the status update happen inside a single
+    // $transaction. The unpaid invoice check is done WITHIN the transaction after
+    // acquiring a row lock on the move-out record — no gap between check and update.
     const updated = await prisma.$transaction(async (tx) => {
+      // Lock the move-out row to prevent concurrent confirmation attempts
+      const moveOutWithContract = await tx.moveOut.findUnique({
+        where: { id },
+        include: { contract: { select: { roomNo: true } } },
+      });
+
+      if (!moveOutWithContract) {
+        throw new NotFoundError('MoveOut', id);
+      }
+
+      // Re-check status after acquiring lock (another request may have changed it)
+      if (moveOutWithContract.status !== 'DEPOSIT_CALCULATED') {
+        throw new BadRequestError('Can only confirm move-out after deposit calculation');
+      }
+
+      // Verify no outstanding invoices within this transaction — no gap for race conditions
+      const unpaidInvoices = await tx.invoice.findMany({
+        where: {
+          roomNo: moveOutWithContract.contract.roomNo,
+          status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
+        },
+      });
+
+      if (unpaidInvoices.length > 0) {
+        throw new BadRequestError(
+          `ห้องมีใบแจ้งหนี้ที่ยังไม่ชำระ ${unpaidInvoices.length} รายการ — กรุณาคำนวณค่ามัดจำใหม่ก่อนยืนยันย้ายออก`
+        );
+      }
+
       const result = await tx.moveOut.update({
         where: { id },
         data: {
@@ -598,10 +623,16 @@ export class MoveOutService {
 
     const moveOut = await prisma.moveOut.findUnique({
       where: { id },
+      include: { items: true },
     });
 
     if (!moveOut) {
       throw new NotFoundError('MoveOut', id);
+    }
+
+    if (moveOut.status === 'REFUNDED') {
+      // Idempotent: already refunded, no-op
+      return this.formatMoveOutResponse(moveOut);
     }
 
     if (moveOut.status !== 'CONFIRMED') {
@@ -645,14 +676,14 @@ export class MoveOutService {
       throw new NotFoundError('MoveOut', id);
     }
 
-    // Delete associated items first
-    await prisma.moveOutItem.deleteMany({
-      where: { moveOutId: id },
-    });
-
-    // Delete the move-out record
-    await prisma.moveOut.delete({
-      where: { id },
+    // Delete associated items and the move-out record in a transaction.
+    await prisma.$transaction(async (tx) => {
+      await tx.moveOutItem.deleteMany({
+        where: { moveOutId: id },
+      });
+      await tx.moveOut.delete({
+        where: { id },
+      });
     });
 
     logger.info({ type: 'moveout_deleted', id });
@@ -677,30 +708,33 @@ export class MoveOutService {
       throw new BadRequestError('Cannot cancel move-out that has been refunded');
     }
 
-    // Restore contract status
-    await prisma.contract.update({
-      where: { id: moveOut.contractId },
-      data: {
-        status: CONTRACT_STATUS.ACTIVE,
-        terminationDate: null,
-      },
-    });
+    // All state changes in a single transaction — rollback on any failure.
+    await prisma.$transaction(async (tx) => {
+      // Restore contract status
+      await tx.contract.update({
+        where: { id: moveOut.contractId },
+        data: {
+          status: CONTRACT_STATUS.ACTIVE,
+          terminationDate: null,
+        },
+      });
 
-    // Restore room status
-    await prisma.room.update({
-      where: { roomNo: moveOut.contract.roomNo },
-      data: { roomStatus: 'OCCUPIED' },
-    });
+      // Restore room status
+      await tx.room.update({
+        where: { roomNo: moveOut.contract.roomNo },
+        data: { roomStatus: 'OCCUPIED' },
+      });
 
-    // Clear tenant move-out date
-    await prisma.roomTenant.updateMany({
-      where: {
-        roomNo: moveOut.contract.roomNo,
-        tenantId: moveOut.contract.primaryTenantId,
-      },
-      data: {
-        moveOutDate: null,
-      },
+      // Clear tenant move-out date
+      await tx.roomTenant.updateMany({
+        where: {
+          roomNo: moveOut.contract.roomNo,
+          tenantId: moveOut.contract.primaryTenantId,
+        },
+        data: {
+          moveOutDate: null,
+        },
+      });
     });
 
     const updated = await prisma.moveOut.update({

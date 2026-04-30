@@ -92,9 +92,9 @@ function exportCsv(invoices: OverdueInvoice[]) {
 function GlassCard({ children, className = '', hover = false }: { children: React.ReactNode; className?: string; hover?: boolean }) {
   return (
     <div className={[
-      'rounded-2xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))] backdrop-blur',
+      'rounded-2xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]',
       'shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.04)]',
-      hover ? 'hover:bg-[hsl(var(--color-surface))]/80 hover:shadow-[0_12px_40px_rgba(0,0,0,0.5),shadow-glow-primary] hover:scale-[1.01] transition-all duration-200 cursor-pointer' : '',
+      hover ? 'hover:bg-[hsl(var(--color-surface))]/80 hover:shadow-[0_12px_40px_rgba(0,0,0,0.5),shadow-[0_0_20px_rgba(99,102,241,0.15)]] hover:scale-[1.01] transition-all duration-200 cursor-pointer' : '',
       className,
     ].join(' ')}>
       {children}
@@ -112,10 +112,8 @@ export default function AdminOverduePage() {
 
   const { data: overdueData, isLoading, error: _fetchError, refetch } = useApiData<{ success: boolean; data?: { data: OverdueInvoice[] } }>('/api/invoices?status=OVERDUE&pageSize=100', ['overdue-invoices']);
 
-  const invoices: OverdueInvoice[] = overdueData?.data?.data ?? [];
-
   const filtered = useMemo(() => {
-    let rows = invoices;
+    let rows: OverdueInvoice[] = overdueData?.data?.data ?? [];
     if (search.trim()) {
       const q = search.toLowerCase();
       rows = rows.filter((inv) => roomNum(inv).toLowerCase().includes(q) || tenantName(inv).toLowerCase().includes(q) || (inv.invoiceNumber ?? inv.id).toLowerCase().includes(q));
@@ -135,15 +133,16 @@ export default function AdminOverduePage() {
       const db = daysSince(b.dueDate) ?? 0;
       return db - da;
     });
-  }, [invoices, search, range]);
+  }, [overdueData, search, range]);
 
   const kpi = useMemo(() => {
-    const total = invoices.length;
-    const totalAmount = invoices.reduce((s, inv) => s + inv.totalAmount, 0);
-    const avgDays = total > 0 ? Math.round(invoices.reduce((s, inv) => s + (daysSince(inv.dueDate) ?? 0), 0) / total) : 0;
-    const uniqueRooms = new Set(invoices.map((inv) => roomNum(inv))).size;
+    const list: OverdueInvoice[] = overdueData?.data?.data ?? [];
+    const total = list.length;
+    const totalAmount = list.reduce((s, inv) => s + inv.totalAmount, 0);
+    const avgDays = total > 0 ? Math.round(list.reduce((s, inv) => s + (daysSince(inv.dueDate) ?? 0), 0) / total) : 0;
+    const uniqueRooms = new Set(list.map((inv) => roomNum(inv))).size;
     return { total, totalAmount, avgDays, uniqueRooms };
-  }, [invoices]);
+  }, [overdueData]);
 
   async function sendReminder(id: string) {
     setWorking(`remind:${id}`); setActionError(null); setMessage(null);
@@ -181,7 +180,7 @@ export default function AdminOverduePage() {
   return (
     <main className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600/80 to-blue-700/60 px-6 py-5 shadow-[0_8px_32px_rgba(0,0,0,0.5),shadow-glow-primary] backdrop-blur">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600/80 to-blue-700/60 px-6 py-5 shadow-[0_8px_32px_rgba(0,0,0,0.5),shadow-[0_0_20px_rgba(99,102,241,0.15)]]">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.1),_transparent_60%)]" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -273,9 +272,9 @@ export default function AdminOverduePage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--color-text))]/30" />
           <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="ค้นหาห้อง, ผู้เช่า, เลขใบแจ้งหนี้..."
-            className="w-full rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 py-2.5 pl-9 pr-3 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 backdrop-blur-sm" />
+            className="w-full rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 py-2.5 pl-9 pr-3 text-sm text-[hsl(var(--color-text))] placeholder:text-[hsl(var(--color-text))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
         </div>
-        <div className="inline-flex items-center gap-1 rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))] p-1 backdrop-blur-sm">
+        <div className="inline-flex items-center gap-1 rounded-xl border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))] p-1">
           {(['all', '1-30', '31-60', '60+'] as OverdueRange[]).map((r) => (
             <button key={r} onClick={() => setRange(r)}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all active:scale-95 ${
@@ -294,7 +293,7 @@ export default function AdminOverduePage() {
           <span className="inline-flex items-center rounded-full bg-red-500/15 border border-red-500/30 px-2.5 py-0.5 text-xs font-semibold text-red-600">{filtered.length} ใบ</span>
         </div>
 
-        {!isLoading && invoices.length === 0 ? (
+        {!isLoading && (overdueData?.data?.data ?? []).length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20">
               <CheckCircle2 className="h-7 w-7 text-emerald-600" />
@@ -327,11 +326,11 @@ export default function AdminOverduePage() {
                     return (
                       <tr key={inv.id} className="border-b border-[hsl(var(--color-border))]/50 hover:bg-[hsl(var(--color-surface))] transition-colors">
                         <td className="px-4 py-3 font-semibold text-[hsl(var(--color-text))]">{roomNum(inv)}</td>
-                        <td className="px-4 py-3 text-[hsl(var(--color-text))]/50">{tenantName(inv)}</td>
+                        <td className="px-4 py-3 text-[hsl(var(--on-surface-variant))]">{tenantName(inv)}</td>
                         <td className="px-4 py-3">
                           <span className="font-mono text-xs font-medium text-blue-600">{inv.invoiceNumber ?? inv.id.slice(0, 8)}</span>
                         </td>
-                        <td className="px-4 py-3 text-[hsl(var(--color-text))]/50"><ClientOnly fallback="-">{new Date(inv.dueDate).toLocaleDateString('th-TH')}</ClientOnly></td>
+                        <td className="px-4 py-3 text-[hsl(var(--on-surface-variant))]"><ClientOnly fallback="-">{new Date(inv.dueDate).toLocaleDateString('th-TH')}</ClientOnly></td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${daysOverdueBadge(days ?? 0)}`}>
                             <Clock className={`h-3 w-3 ${daysOverdueText(days ?? 0)}`} />

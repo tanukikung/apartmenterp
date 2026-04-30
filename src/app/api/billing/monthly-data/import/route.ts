@@ -8,6 +8,11 @@ import { requireRole } from '@/lib/auth/guards';
 import { getStorage } from '@/infrastructure/storage';
 import { prisma } from '@/lib/db/client';
 import { v4 as uuidv4 } from 'uuid';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+// Admin write operations: 20/min
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 20;
 
 function guessWorkbookMimeType(name: string, fallback: string): string {
   const lower = name.toLowerCase();
@@ -22,7 +27,7 @@ function guessWorkbookMimeType(name: string, fallback: string): string {
 
 // GET — list monthly data import batches
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF']);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') ?? '1', 10);
@@ -43,7 +48,17 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
 // POST — create preview batch (upload file + year/month)
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN', 'STAFF']);
+  const limiter = getLoginRateLimiter();
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const { allowed, remaining, resetAt } = await limiter.check(`billing-monthly-import:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: { message: `Too many billing requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
+    );
+  }
+
+  const session = requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   // Support both JSON (year, month) and FormData (year, month, file)
   const contentType = req.headers.get('content-type') ?? '';
@@ -157,9 +172,15 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     } as ApiResponse<typeof result>);
   } catch (error) {
     if (uploadedFileId) {
-      await prisma.uploadedFile.delete({ where: { id: uploadedFileId } }).catch(() => null);
+      await prisma.uploadedFile
+        .delete({ where: { id: uploadedFileId } })
+        .catch((e) => {
+          console.warn('[billing/monthly-import] cleanup failed:', e);
+        });
     }
-    await storage.deleteFile(storageKey).catch(() => null);
+    await storage.deleteFile(storageKey).catch((e) => {
+      console.warn('[billing/monthly-import] cleanup failed:', e);
+    });
     throw error;
   }
 });

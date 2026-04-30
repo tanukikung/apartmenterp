@@ -5,6 +5,12 @@ import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import type { BillingAuditAction } from '@prisma/client';
+
+// Admin write operations: 20/min
+const ADMIN_WINDOW_MS = 60 * 1000;
+const ADMIN_MAX_ATTEMPTS = 20;
 
 // ============================================================================
 // POST /api/billing/periods/[id]/generate-invoices
@@ -14,8 +20,18 @@ import { logger } from '@/lib/utils/logger';
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    const limiter = getLoginRateLimiter();
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+    const { allowed, remaining: rateLimitRemaining, resetAt } = await limiter.check(`billing-generate:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: { message: `Too many billing requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(rateLimitRemaining) } }
+      );
+    }
+
     const { id: periodId } = params;
-    const session = requireRole(req, ['ADMIN']);
+    const session = requireRole(req, ['ADMIN', 'OWNER']);
 
     // Verify period exists
     const period = await prisma.billingPeriod.findUnique({ where: { id: periodId } });
@@ -110,8 +126,26 @@ export const POST = asyncHandler(
                 totalAmount:   Number(inv.totalAmount),
                 dueDate:       dueDate.toISOString().split('T')[0],
                 generatedBy:   session.sub,
-              } as any as Prisma.InputJsonValue,
+              } as Prisma.InputJsonValue,
               retryCount: 0,
+            },
+          });
+
+          // P3-05: Write BillingAuditLog for INVOICE_CREATED action
+          await tx.billingAuditLog.create({
+            data: {
+              id:            uuidv4(),
+              billingRecordId: rb.id,
+              action:         'INVOICE_CREATED' as BillingAuditAction,
+              actorId:        session.sub,
+              actorRole:      'ADMIN',
+              metadata: {
+                invoiceId:   inv.id,
+                year:         period.year,
+                month:        period.month,
+                totalAmount:  Number(inv.totalAmount),
+                dueDate:      dueDate.toISOString().split('T')[0],
+              } as Prisma.InputJsonValue,
             },
           });
         });

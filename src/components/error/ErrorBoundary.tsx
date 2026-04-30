@@ -32,7 +32,9 @@ export class ErrorBoundary extends Component<Props, State> {
     // Report to Sentry if available (continues gracefully without it).
     void import('@sentry/nextjs')
       .then(({ captureException }) => captureException(error, { extra: { componentStack: info.componentStack } }))
-      .catch(() => { /* Sentry unavailable */ });
+      .catch((e) => {
+        console.warn('[ErrorBoundary] Sentry unavailable:', e);
+      });
   }
 
   handleReset = () => {

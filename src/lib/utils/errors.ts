@@ -94,6 +94,15 @@ export class ConflictError extends AppError {
 }
 
 /**
+ * Gone Error (410)
+ */
+export class GoneError extends AppError {
+  constructor(message: string = 'Resource gone') {
+    super(message, 'GONE', 410);
+  }
+}
+
+/**
  * Validation Error (422)
  */
 export class ValidationError extends AppError {
@@ -363,7 +372,7 @@ export function asyncHandler<
             }
 
             if (policy.accessClass === 'operator' || policy.accessClass === 'system-or-operator') {
-              if (!['ADMIN', 'STAFF'].includes(session.role)) {
+              if (!['OWNER', 'ADMIN', 'STAFF'].includes(session.role)) {
                 throw new ForbiddenError('Insufficient permissions');
               }
             }
