@@ -125,7 +125,7 @@ export default function SettingsModulesPage() {
   }, [fetchModules]);
 
   const handleChange = (key: ModuleKey, value: boolean) => {
-    setModules((prev) => ({ ...prev, [key]: value }));
+    setModules((prev: ModuleFlags) => ({ ...prev, [key]: value }));
     setSaved(false);
   };
 

@@ -47,10 +47,11 @@ export default function ChatConversationPage() {
   const [wsStatus, setWsStatus] = useState<WebSocketStatus>('disconnected');
 
   const { sendTypingIndicator } = useWebSocket(conversationId ?? null, {
-    onMessage: (msg) => {
+    onMessage: (msg: unknown) => {
+      const typedMsg = msg as Message;
       setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
-        return [...prev, msg as Message];
+        if (prev.some((m) => m.id === typedMsg.id)) return prev;
+        return [...prev, typedMsg];
       });
     },
     onStatusChange: setWsStatus,
