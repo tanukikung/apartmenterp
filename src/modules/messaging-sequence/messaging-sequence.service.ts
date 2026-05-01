@@ -45,7 +45,7 @@ const StepUpdateSchema = z.object({
   stepOrder: z.number().int().min(0).optional(),
   delayDays: z.number().int().min(0).optional(),
   subject: z.string().optional(),
-  contentTh: z.string().min(1).optional(),
+  contentTh: z.string().min(1),
   contentEn: z.string().optional(),
   messageType: z.enum(['TEXT', 'FLEX_RECEIPT', 'FLEX_ROOM', 'FLEX_MAINTENANCE', 'TEMPLATE_BUTTONS', 'TEMPLATE_CONFIRM']).optional(),
   responseType: z.enum(['NONE', 'ROOM_NO', 'NAME', 'PHONE', 'YES_NO', 'FREE_TEXT']).optional(),
