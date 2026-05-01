@@ -4,6 +4,7 @@ import { terminateContractSchema } from '@/modules/contracts/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { requireRole } from '@/lib/auth/guards';
+import { logAudit } from '@/modules/audit/audit.service';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
 const ADMIN_WINDOW_MS = 60 * 1000;
@@ -24,14 +25,16 @@ export const POST = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    requireRole(req, ['ADMIN', 'OWNER']);
+    const session = requireRole(req, ['ADMIN', 'OWNER']);
     const { id } = params;
     const body = await req.json();
 
     const input = terminateContractSchema.parse(body);
 
     const { contractService } = getServiceContainer();
-    const contract = await contractService.terminateContract(id, input);
+    const contract = await contractService.terminateContract(id, input, session.sub);
+
+    await logAudit({ req, action: 'CONTRACT_TERMINATED', reqId: id, actorId: session.sub, changes: { contractId: contract.id, ...input } });
 
     logger.info({
       type: 'contract_terminated_api',

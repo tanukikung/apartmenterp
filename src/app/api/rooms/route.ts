@@ -6,7 +6,7 @@ import {
 } from '@/modules/rooms/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
-import { requireRole } from '@/lib/auth/guards';
+import { requireOperator } from '@/lib/auth/guards';
 import { prisma } from '@/lib';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req);
+  requireOperator(req);
   const url = new URL(req.url);
   
   // Parse query parameters

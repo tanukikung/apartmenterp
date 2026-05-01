@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { prisma } from '@/lib';
-import { requireRole } from '@/lib/auth/guards';
+import { requireOperator } from '@/lib/auth/guards';
 
 type FloorOccupancy = {
   floorNumber: number;
@@ -33,7 +33,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 let cache: { value: OccupancyData; expiry: number } | null = null;
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req);
+  requireOperator(req);
   const now = Date.now();
   if (cache && cache.expiry > now) {
     return NextResponse.json({ success: true, data: cache.value } as ApiResponse<OccupancyData>);

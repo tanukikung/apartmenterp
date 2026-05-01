@@ -407,8 +407,17 @@ async function buildRoomContext(room: SelectedRoom, billingRecord: SelectedRoom[
           startDate: toIsoDate(contract.startDate) ?? '',
           endDate: toIsoDate(contract.endDate) ?? '',
           monthlyRent: toNumber(contract.monthlyRent),
+          monthlyRentText: contract.monthlyRent ? money(toNumber(contract.monthlyRent)) : null,
           deposit: contract.deposit ? toNumber(contract.deposit) : null,
+          depositText: contract.deposit ? money(toNumber(contract.deposit)) : null,
           furnitureFee: contract.furnitureFee ? toNumber(contract.furnitureFee) : null,
+          landlordName: 'บริษัท เจ้าพ่อคอนโด จำกัด',
+          landlordAddress: '123 ถนนสุขุมวิท กรุงเทพฯ 10110',
+          landlordPhone: '02-123-4567',
+          signDate: contract.startDate ? toIsoDate(contract.startDate) : null,
+          rentDueDay: contract.rentDueDay ?? 5,
+          specialTerms: contract.specialTerms ?? null,
+          parkingSpaces: null,
         }
       : null,
     billing: billingRecord

@@ -30,7 +30,8 @@ export class Outbox {
     aggregateType: string,
     aggregateId: string,
     eventType: string,
-    payload: Json
+    payload: Json,
+    scheduledAt?: Date
   ): Promise<OutboxEvent> {
     const outboxEvent = await this.prisma.outboxEvent.create({
       data: {
@@ -40,6 +41,7 @@ export class Outbox {
         eventType,
         payload: payload as Prisma.InputJsonValue,
         retryCount: 0,
+        scheduledAt,
       },
     });
 
@@ -77,12 +79,17 @@ export class Outbox {
   }
 
   /**
-   * Get unprocessed events
+   * Get unprocessed events that are due (scheduledAt <= now or null)
    */
   async getUnprocessed(limit: number = 100): Promise<OutboxEvent[]> {
+    const now = new Date();
     const events = await this.prisma.outboxEvent.findMany({
       where: {
         processedAt: null,
+        OR: [
+          { scheduledAt: null },
+          { scheduledAt: { lte: now } },
+        ],
       },
       orderBy: {
         createdAt: 'asc',

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
 import { logger } from '@/lib/utils/logger';
-import { requireRole } from '@/lib/auth/guards';
+import { requireOperator } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { getServiceContainer } from '@/lib/service-container';
 import { v4 as uuidv4 } from 'uuid';
@@ -130,7 +130,7 @@ async function getLatestBatch(periodId: string | null): Promise<{ id: string; fi
 // ─── GET: Get current wizard state ────────────────────────────────────────────
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req);
+  requireOperator(req);
 
   const period = await getCurrentPeriod();
   const periodExists = period !== null;
@@ -178,7 +178,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
 
-  requireRole(req);
+  requireOperator(req);
 
   const body = await req.json();
   const input = wizardActionSchema.parse(body);

@@ -64,8 +64,8 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  // Only ADMIN can reset the system
-  const session = requireRole(req, ['OWNER']);
+  // Only ADMIN or OWNER can reset the system (STAFF excluded)
+  const session = requireRole(req, ['ADMIN', 'OWNER']);
 
   const body = await resetSchema.parse(await req.json());
 

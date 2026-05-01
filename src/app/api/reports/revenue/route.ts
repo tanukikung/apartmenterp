@@ -28,9 +28,12 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const yearFilter = yearParam ? Number(yearParam) : undefined;
 
   // Build the date range: go back (months-1) from current month
+  // Use day=1 for start, and the last day of current month for end
   const now = new Date();
   const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
-  const endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 23, 59, 59));
+  // Last day of current month: getUTCMonth() + 1, day = 0 means last day of previous month
+  // But we want last day of current month, so use getUTCMonth() + 1 with day = 0
+  const endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59));
 
   // Fetch all paid invoices in the range with their room billing breakdown
   const where: Prisma.InvoiceWhereInput = {

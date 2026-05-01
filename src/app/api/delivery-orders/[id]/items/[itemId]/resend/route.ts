@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuthSession } from '@/lib/auth/guards';
+import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { getDeliveryService } from '@/modules/deliveries/delivery.service';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
@@ -20,7 +20,7 @@ export const POST = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireAuthSession(req);
+  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const service = getDeliveryService();
   const result = await service.resendItem(params.id, params.itemId);

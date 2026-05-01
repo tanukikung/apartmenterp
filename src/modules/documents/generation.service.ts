@@ -265,9 +265,11 @@ export class DocumentGenerationService {
     year?: number | null,
     month?: number | null,
     roomNo?: string | null,
+    documentType?: string,
   ) {
-    const keyPrefix = (year && month && roomNo)
-      ? `documents/${year}/${String(month).padStart(2, '0')}/${roomNo}`
+    const ym = year && month ? `${year}/${String(month).padStart(2, '0')}` : null;
+    const keyPrefix = (ym && roomNo)
+      ? `documents/${documentType ?? 'doc'}/${ym}/${roomNo}`
       : `generated-documents/${generatedDocumentId}`;
 
     const sourceFile = await storeDocumentFile({
@@ -494,6 +496,7 @@ export class DocumentGenerationService {
         });
 
         const title = document.title.replace(/[^\w.\-]/g, '_');
+        const docType = template.type.toLowerCase(); // e.g. 'invoice' → 'invoices'
         const persisted = await this.persistGeneratedFiles(
           document.id,
           title,
@@ -502,6 +505,7 @@ export class DocumentGenerationService {
           document.year,
           document.month,
           document.roomNo,
+          docType,
         );
         const primaryPdf = persisted.files.find((file) => file.role === GeneratedDocumentFileRole.PDF);
         if (input.includeZipBundle && primaryPdf) {

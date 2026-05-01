@@ -845,6 +845,7 @@ export const EventTypes = {
 
   // Messaging Sequences
   MESSAGE_SEQUENCE_STEP: 'MessageSequenceStep',
+  MESSAGE_SEQUENCE_TRIGGERED: 'MessageSequenceTriggered',
 } as const;
 
 // ============================================================================

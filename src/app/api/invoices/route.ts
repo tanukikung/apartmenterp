@@ -3,7 +3,7 @@ import { getServiceContainer } from '@/lib/service-container';
 import { listInvoicesQuerySchema, generateInvoiceSchema } from '@/modules/invoices/types';
 import { asyncHandler, ApiResponse, formatError, AppError } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
-import { requireRole } from '@/lib/auth/guards';
+import { requireOperator } from '@/lib/auth/guards';
 import { logAudit } from '@/modules/audit';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req);
+  requireOperator(req);
   const url = new URL(req.url);
   
   const query = {

@@ -532,6 +532,36 @@ model MessageTemplate {
   @@map("message_templates")
 }
 
+model MessageSequence {
+  id          String   @id @default(uuid())
+  name        String
+  trigger     MessageSequenceTrigger
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  steps       MessageSequenceStep[]
+
+  @@map("message_sequences")
+}
+
+model MessageSequenceStep {
+  id           String   @id @default(uuid())
+  sequenceId   String
+  stepOrder    Int
+  delayDays    Int      @default(0)
+  subject      String?
+  contentTh    String
+  contentEn    String?
+  messageType  MessageType  @default(TEXT)
+  responseType MessageSequenceResponseType @default(NONE)
+  invalidReply String?
+  sequence     MessageSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  @@index([sequenceId])
+  @@map("message_sequence_steps")
+}
+
 model UploadedFile {
   id                           String                    @id @default(uuid())
   originalName                 String
@@ -639,11 +669,12 @@ model OutboxEvent {
   eventType     String
   payload       Json
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  scheduledAt   DateTime? @db.Timestamptz(6)
   processedAt   DateTime? @db.Timestamptz(6)
   retryCount    Int       @default(0)
   lastError     String?
 
-  @@index([processedAt])
+  @@index([processedAt, scheduledAt])
   @@index([aggregateType, aggregateId])
   @@index([processedAt, createdAt])
   @@index([eventType])
@@ -1167,6 +1198,11 @@ enum MessageType {
   IMAGE
   STICKER
   SYSTEM
+  FLEX_RECEIPT
+  FLEX_ROOM
+  FLEX_MAINTENANCE
+  TEMPLATE_BUTTONS
+  TEMPLATE_CONFIRM
 }
 
 enum NotificationStatus {
@@ -1378,6 +1414,22 @@ enum MessageTemplateType {
   PAYMENT_REMINDER
   OVERDUE_NOTICE
   CUSTOM
+}
+
+enum MessageSequenceTrigger {
+  REGISTRATION_APPROVED
+  MOVE_OUT_CONFIRMED
+  CONTRACT_EXPIRING_SOON
+  MANUAL
+}
+
+enum MessageSequenceResponseType {
+  NONE
+  ROOM_NO
+  NAME
+  PHONE
+  YES_NO
+  FREE_TEXT
 }
 
 enum DocumentTemplateType {

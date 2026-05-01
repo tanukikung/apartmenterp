@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
-import { requireRole } from '@/lib/auth/guards';
+import { requireOperator } from '@/lib/auth/guards';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 
 export const dynamic = 'force-dynamic';
@@ -37,7 +37,7 @@ export interface DashboardAlertsData {
 }
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req);
+  requireOperator(req);
 
   const now = new Date();
   const currentYear = now.getFullYear();

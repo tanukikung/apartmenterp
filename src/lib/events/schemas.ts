@@ -77,6 +77,26 @@ export const EventPayloadSchemas: Record<string, z.ZodTypeAny> = {
     conversationId: z.string().min(1),
     text: z.string().min(1),
   }),
+  // Messaging Sequences
+  [EventTypes.MESSAGE_SEQUENCE_STEP]: z.object({
+    sequenceId: z.string(),
+    stepId: z.string(),
+    stepOrder: z.number().int(),
+    lineUserId: z.string(),
+    messageType: z.string(),
+    subject: z.string().nullable().optional(),
+    contentTh: z.string(),
+    contentEn: z.string().nullable().optional(),
+    responseType: z.string(),
+    invalidReply: z.string().nullable().optional(),
+    firedBy: z.string().nullable().optional(),
+  }),
+  [EventTypes.MESSAGE_SEQUENCE_TRIGGERED]: z.object({
+    sequenceId: z.string(),
+    sequenceName: z.string(),
+    stepCount: z.number().int(),
+    tenantId: z.string(),
+  }),
 };
 
 export function validateEventPayload(eventType: string, payload: Record<string, unknown>): void {

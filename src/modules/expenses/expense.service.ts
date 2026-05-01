@@ -186,11 +186,22 @@ export class ExpenseService {
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59, 999);
 
-    // Get paid invoices for the period
+    // Get paid invoices for the period with their room billing breakdown
     const paidInvoices = await prisma.invoice.findMany({
       where: {
         status: 'PAID',
         paidAt: { gte: start, lte: end },
+      },
+      include: {
+        roomBilling: {
+          select: {
+            rentAmount: true,
+            electricTotal: true,
+            waterTotal: true,
+            otherFee: true,
+            furnitureFee: true,
+          },
+        },
       },
     });
 
@@ -219,13 +230,29 @@ export class ExpenseService {
       }
     }
 
+    // Group income by category (RENT, ELECTRIC, WATER, OTHER) from room billing
+    const incomeCategories = new Map<string, { category: string; categoryLabel: string; total: number }>();
+    incomeCategories.set('RENT', { category: 'RENT', categoryLabel: 'ค่าเช่า', total: 0 });
+    incomeCategories.set('ELECTRIC', { category: 'ELECTRIC', categoryLabel: 'ค่าไฟ', total: 0 });
+    incomeCategories.set('WATER', { category: 'WATER', categoryLabel: 'ค่าน้ำ', total: 0 });
+    incomeCategories.set('OTHER', { category: 'OTHER', categoryLabel: 'อื่นๆ', total: 0 });
+    for (const inv of paidInvoices) {
+      const rb = inv.roomBilling;
+      if (rb) {
+        incomeCategories.get('RENT')!.total += Number(rb.rentAmount);
+        incomeCategories.get('ELECTRIC')!.total += Number(rb.electricTotal);
+        incomeCategories.get('WATER')!.total += Number(rb.waterTotal);
+        incomeCategories.get('OTHER')!.total += Number(rb.otherFee) + Number(rb.furnitureFee);
+      }
+    }
+
     return {
       year,
       month,
       totalIncome,
       totalExpenses,
       netProfit: totalIncome - totalExpenses,
-      incomeByCategory: [{ category: 'RENT', total: totalIncome }],
+      incomeByCategory: Array.from(incomeCategories.values()).filter(c => c.total > 0),
       expenseByCategory: Array.from(expenseByCategory.values()) as { category: ExpenseCategory; categoryLabel: string; total: number }[],
     };
   }

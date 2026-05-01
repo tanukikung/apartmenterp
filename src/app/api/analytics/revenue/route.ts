@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { prisma } from '@/lib';
-import { requireRole } from '@/lib/auth/guards';
+import { requireOperator } from '@/lib/auth/guards';
 
 type RevenuePoint = { year: number; month: number; total: number };
 
@@ -19,13 +19,15 @@ function last12Months(ref: Date): Array<{ year: number; month: number }> {
 }
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req);
+  requireOperator(req);
   const now = Date.now();
   if (cache && cache.expiry > now) {
     return NextResponse.json({ success: true, data: cache.value } as ApiResponse<RevenuePoint[]>);
   }
 
   const months = last12Months(new Date());
+  // months[0] is the oldest month (12 months ago), months[11] is the current month
+  // Use months[0].year and months[0].month directly without -1
   const startDate = new Date(Date.UTC(months[0].year, months[0].month - 1, 1));
   const endDate = new Date(Date.UTC(months[11].year, months[11].month, 0, 23, 59, 59));
 

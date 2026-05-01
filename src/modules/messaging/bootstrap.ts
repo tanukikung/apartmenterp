@@ -16,6 +16,8 @@ export async function bootstrapMessagingRuntime(options?: { allowInTest?: boolea
       import('./payment-notifier'),
       import('./reminder-notifier'),
       import('./welcome-notifier'),
+      import('./sequence-executor'),
+      import('./sequence-notifier'),
     ]);
 
     registerFileSendWorker(options);
