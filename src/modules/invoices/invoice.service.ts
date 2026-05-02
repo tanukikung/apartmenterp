@@ -628,6 +628,8 @@ export class InvoiceService {
             deliveryId,
             lineUserId,
             pdfUrl,
+            imageUrl: `${process.env.APP_BASE_URL || ''}/api/invoices/${id}/image`,
+            format: input.format ?? 'pdf',
             roomNo: invoice.roomNo,
             totalAmount: Number(invoice.totalAmount),
             dueDate: invoice.dueDate?.toISOString?.() ?? null,

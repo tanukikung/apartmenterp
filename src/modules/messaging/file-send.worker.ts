@@ -74,6 +74,8 @@ export function registerFileSendWorker(options?: { allowInTest?: boolean }): voi
         deliveryId?: string | null;
         lineUserId?: string | null;
         pdfUrl: string;
+        imageUrl?: string | null;
+        format?: string | null;
         roomId?: string | null;
         roomNo?: string | null;
         roomNumber?: string | null;
@@ -100,13 +102,78 @@ export function registerFileSendWorker(options?: { allowInTest?: boolean }): voi
         throw new Error('No LINE recipient resolved for invoice delivery');
       }
 
-      // Build absolute URL for LINE file message (must be publicly accessible)
       const baseUrl = (process.env.APP_BASE_URL || '').replace(/\/+$/, '');
+      const deliveryFormat = payload.format ?? 'pdf';
+      const roomLabel = payload.roomNumber || payload.roomNo || 'unknown';
+
+      // ── IMAGE format: upload screenshot to LINE CDN, send as image message ──
+      if (deliveryFormat === 'image') {
+        const imageSourceUrl = payload.imageUrl
+          ? (payload.imageUrl.startsWith('http') ? payload.imageUrl : `${baseUrl}${payload.imageUrl}`)
+          : (payload.pdfUrl.startsWith('http') ? payload.pdfUrl : `${baseUrl}${payload.pdfUrl}`);
+
+        // imageSourceUrl points to /api/invoices/[id]/image — fetch the PNG buffer
+        const imgResponse = await fetch(imageSourceUrl);
+        if (!imgResponse.ok) {
+          throw new Error(`Failed to fetch invoice image: ${imgResponse.status} ${imgResponse.statusText}`);
+        }
+        const imageBuffer = Buffer.from(await imgResponse.arrayBuffer());
+
+        // Upload to LINE CDN to get a content messageId
+        const { uploadContentToLine } = await import('@/lib/line/client');
+        const messageId = await uploadContentToLine(imageBuffer, 'image/png');
+        const contentUrl = `https://api-data.line.me/v2/bot/message/${messageId}/content`;
+
+        const { getLineClient } = await import('@/lib/line/client');
+        const client = getLineClient();
+        await client.pushMessage(targetLineUserId, {
+          type: 'image',
+          originalContentUrl: contentUrl,
+          previewImageUrl: contentUrl,
+        } as never);
+
+        // Send the text notification separately
+        let textMessage: string;
+        if (payload.templateBody && payload.templateBody.trim().length > 0) {
+          textMessage = applyPlainTextTemplateVariables(
+            payload.templateBody,
+            (payload.interpolationVars as Record<string, string>) || {},
+          );
+        } else {
+          const parts: string[] = ['Invoice sent (image)'];
+          if (roomLabel !== 'unknown') parts.push(`Room ${roomLabel}`);
+          if (payload.totalAmount != null) parts.push(`Amount ${payload.totalAmount}`);
+          if (payload.dueDate) parts.push(`Due ${new Date(payload.dueDate).toLocaleDateString()}`);
+          textMessage = parts.join(' | ');
+        }
+        await (await import('@/lib/line/client')).sendLineMessage(targetLineUserId, textMessage);
+
+        if (payload.deliveryId) {
+          await prisma.invoiceDelivery.update({
+            where: { id: payload.deliveryId },
+            data: {
+              status: 'SENT',
+              sentAt: new Date(),
+              recipientRef: targetLineUserId,
+              errorMessage: null,
+            },
+          });
+        }
+
+        logger.info({
+          type: 'invoice_image_sent',
+          invoiceId: payload.invoiceId,
+          conversationId,
+          lineUserId: targetLineUserId,
+        });
+        return;
+      }
+
+      // ── PDF format (default): send as LINE file attachment ──────────────────
       const absolutePdfUrl = payload.pdfUrl.startsWith('http')
         ? payload.pdfUrl
         : `${baseUrl}${payload.pdfUrl}`;
 
-      const roomLabel = payload.roomNumber || payload.roomNo || 'unknown';
       const fileName = `invoice-${roomLabel}-${payload.dueDate ? new Date(payload.dueDate).toLocaleDateString('th-TH') : 'document'}.pdf`;
 
       // Send PDF as LINE file attachment

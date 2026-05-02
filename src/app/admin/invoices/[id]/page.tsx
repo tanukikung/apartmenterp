@@ -342,6 +342,7 @@ export default function InvoiceDetailPage() {
   const [sending, setSending] = useState(false);
   const [sendMessage, setSendMessage] = useState<string | null>(null);
   const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
+  const [sendFormat, setSendFormat] = useState<'pdf' | 'image'>('pdf');
   const [regenerating, setRegenerating] = useState(false);
   const [regenerateMessage, setRegenerateMessage] = useState<React.ReactNode>(null);
   const [regenerateSuccess, setRegenerateSuccess] = useState(false);
@@ -374,9 +375,10 @@ export default function InvoiceDetailPage() {
       const res = await fetch(`/api/invoices/${invoiceId}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ format: sendFormat }),
       }).then(r => r.json());
       if (res.success) {
-        setSendMessage('Invoice sent via LINE.');
+        setSendMessage(sendFormat === 'image' ? 'Invoice sent as image via LINE.' : 'Invoice sent as PDF via LINE.');
         await queryClient.invalidateQueries({ queryKey: ['invoices', invoiceId] });
       } else {
         setSendMessage(res.error?.message || 'Failed to send invoice');
@@ -543,6 +545,15 @@ export default function InvoiceDetailPage() {
           >
             <ExternalLink className="h-4 w-4" />
             ดู PDF
+          </Link>
+          <Link
+            href={`/api/invoices/${invoiceId}/image`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--color-text))]/70 transition-all hover:bg-white/[0.08] active:scale-[0.98]"
+          >
+            <ExternalLink className="h-4 w-4" />
+            ดูรูปภาพ
           </Link>
           <button
             onClick={async () => {
@@ -720,10 +731,39 @@ export default function InvoiceDetailPage() {
           )}
         </div>
       </section>
+      {/* Send Invoice Dialog */}
       <ConfirmDialog
         open={sendConfirmOpen}
         title="ส่งใบแจ้งหนี้ LINE?"
-        description="ระบบจะส่งใบแจ้งหนี้ไปยัง LINE ของผู้เช่า หากเชื่อมต่อไว้"
+        description={
+          <div className="flex flex-col gap-3">
+            <p>ระบบจะส่งใบแจ้งหนี้ไปยัง LINE ของผู้เช่า หากเชื่อมต่อไว้</p>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="sendFormat"
+                  value="pdf"
+                  checked={sendFormat === 'pdf'}
+                  onChange={() => setSendFormat('pdf')}
+                  className="accent-blue-400"
+                />
+                <span className="text-sm text-[hsl(var(--color-text))]">ส่งเป็น PDF</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="sendFormat"
+                  value="image"
+                  checked={sendFormat === 'image'}
+                  onChange={() => setSendFormat('image')}
+                  className="accent-blue-400"
+                />
+                <span className="text-sm text-[hsl(var(--color-text))]">ส่งเป็นรูปภาพ (PNG)</span>
+              </label>
+            </div>
+          </div>
+        }
         confirmLabel="ส่งเลย"
         cancelLabel="ยกเลิก"
         onConfirm={() => { setSendConfirmOpen(false); void sendInvoice(); }}

@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth/session';
 import { ForbiddenError, UnauthorizedError } from '@/lib/utils/errors';
 
-type InvoiceAccessAction = 'pdf' | 'view';
+type InvoiceAccessAction = 'pdf' | 'view' | 'image';
 
 // IMPORTANT: Each environment must configure its own INVOICE_ACCESS_SECRET.
 // No fallback chain — if not set in production, deny all access.

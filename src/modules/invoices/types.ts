@@ -24,6 +24,15 @@ export type GenerateInvoiceInput = z.infer<typeof generateInvoiceSchema>;
 export const sendInvoiceSchema = z.object({
   sendToLine: z.boolean().default(true),
   channel: z.enum(['LINE', 'PDF', 'PRINT']).default('LINE'),
+  /**
+   * Delivery format for LINE messages:
+   * - 'pdf'   → send as PDF file attachment (existing default)
+   * - 'image' → send as PNG image (inline preview, no download required)
+   *
+   * Only relevant when channel is 'LINE'. Defaults to 'pdf' for backward
+   * compatibility.
+   */
+  format: z.enum(['pdf', 'image']).default('pdf').optional(),
   /** Optional ID of a MessageTemplate to use for the LINE notification body. */
   templateId: z.string().optional(),
 });
