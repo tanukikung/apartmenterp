@@ -6,7 +6,7 @@ import {
 } from '@/modules/tenants/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
-import { requireOperator } from '@/lib/auth/guards';
+import { requireOperator, requireRole } from '@/lib/auth/guards';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
 const ADMIN_WINDOW_MS = 60 * 1000;

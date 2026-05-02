@@ -343,6 +343,15 @@ export default function AdminContractsPage() {
     setNewSaving(true);
     setNewError(null);
     try {
+      // Check for overlapping contracts before submission
+      const overlapRes = await fetch(
+        `/api/contracts/check-overlap?roomNo=${encodeURIComponent(newForm.roomId)}&startDate=${newForm.startDate}&endDate=${newForm.endDate}`
+      );
+      const overlapJson = await overlapRes.json();
+      if (overlapJson.success && overlapJson.data?.hasOverlap) {
+        throw new Error('มีสัญญาที่ทับซ้อนกันสำหรับห้องนี้ในช่วงวันที่ที่เลือก');
+      }
+
       const body = {
         roomId: newForm.roomId,
         primaryTenantId: newForm.primaryTenantId,

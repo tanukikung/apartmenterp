@@ -12,11 +12,123 @@ import type { BillingAuditAction } from '@prisma/client';
 const ADMIN_WINDOW_MS = 60 * 1000;
 const ADMIN_MAX_ATTEMPTS = 20;
 
+// Batch size for non-blocking invoice generation.
+// Yields to the event loop every N records so the API can respond to other
+// requests (health checks, other admin actions) even with thousands of rooms.
+const BATCH_SIZE = 50;
+
 // ============================================================================
 // POST /api/billing/periods/[id]/generate-invoices
 // Generate invoices for ALL LOCKED RoomBilling records that do not yet have
-// an invoice.  Returns a summary { generated, skipped, errors }.
+// an invoice.  Processes in batches of BATCH_SIZE with setImmediate yields
+// to prevent blocking the event loop.
+// Returns a summary { generated, skipped, errors }.
 // ============================================================================
+
+async function processBatches(
+  billings: Array<{ id: string; roomNo: string; totalDue: Prisma.Decimal }>,
+  periodId: string,
+  period: { year: number; month: number; dueDay: number | null },
+  session: { sub: string },
+): Promise<{ generated: number; skipped: number; errors: number; errorDetails: string[] }> {
+  let generated = 0;
+  let skipped = 0;
+  let errors = 0;
+  const errorDetails: string[] = [];
+
+  const buildDueDate = (): Date => {
+    const now = new Date();
+    const dueDay = period.dueDay ?? 25;
+    const d = new Date(period.year, period.month - 1, dueDay);
+    return d < now ? new Date(period.year, period.month, dueDay) : d;
+  };
+
+  for (let i = 0; i < billings.length; i++) {
+    const rb = billings[i];
+
+    // Yield to event loop every BATCH_SIZE records to keep server responsive.
+    // This does NOT make the request asynchronous — it just prevents the loop
+    // from blocking the Node.js event loop for the full duration of generation.
+    if (i > 0 && i % BATCH_SIZE === 0) {
+      await new Promise<void>((resolve) => { setImmediate(resolve); });
+    }
+
+    try {
+      const dueDate = buildDueDate();
+
+      await prisma.$transaction(async (tx) => {
+        // Check inside transaction with row lock to prevent TOCTOU race
+        const existing = await tx.invoice.findUnique({ where: { roomBillingId: rb.id } });
+        if (existing) { skipped++; return; }
+        const inv = await tx.invoice.create({
+          data: {
+            id:           uuidv4(),
+            roomNo:       rb.roomNo,
+            roomBillingId: rb.id,
+            year:         period.year,
+            month:        period.month,
+            status:       'GENERATED',
+            totalAmount:  rb.totalDue,
+            dueDate,
+            issuedAt:     new Date(),
+          },
+        });
+
+        await tx.roomBilling.update({
+          where: { id: rb.id },
+          data:  { status: 'INVOICED' },
+        });
+
+        await tx.outboxEvent.create({
+          data: {
+            id:            uuidv4(),
+            aggregateType: 'Invoice',
+            aggregateId:   inv.id,
+            eventType:     'InvoiceGenerated',
+            payload: {
+              invoiceId:     inv.id,
+              roomNo:        inv.roomNo,
+              roomBillingId: rb.id,
+              year:          inv.year,
+              month:         inv.month,
+              totalAmount:   Number(inv.totalAmount),
+              dueDate:       dueDate.toISOString().split('T')[0],
+              generatedBy:   session.sub,
+            } as Prisma.InputJsonValue,
+            retryCount: 0,
+          },
+        });
+
+        // P3-05: Write BillingAuditLog for INVOICE_CREATED action
+        await tx.billingAuditLog.create({
+          data: {
+            id:              uuidv4(),
+            billingRecordId: rb.id,
+            action:          'INVOICE_CREATED' as BillingAuditAction,
+            actorId:         session.sub,
+            actorRole:       'ADMIN',
+            metadata: {
+              invoiceId:   inv.id,
+              year:        period.year,
+              month:       period.month,
+              totalAmount: Number(inv.totalAmount),
+              dueDate:     dueDate.toISOString().split('T')[0],
+            } as Prisma.InputJsonValue,
+          },
+        });
+      });
+
+      generated++;
+    } catch (err) {
+      errors++;
+      const msg = err instanceof Error ? err.message : String(err);
+      errorDetails.push(`${rb.roomNo}: ${msg}`);
+      logger.error({ type: 'batch_invoice_error', roomNo: rb.roomNo, error: msg });
+    }
+  }
+
+  return { generated, skipped, errors, errorDetails };
+}
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
@@ -59,6 +171,11 @@ export const POST = asyncHandler(
         status: 'LOCKED',
         invoice: null,           // no invoice yet (via relation filter)
       },
+      select: {
+        id: true,
+        roomNo: true,
+        totalDue: true,
+      },
     });
 
     if (billings.length === 0) {
@@ -69,101 +186,14 @@ export const POST = asyncHandler(
       } as ApiResponse<{ generated: number; skipped: number; errors: number; errorDetails: string[] }>);
     }
 
-    let generated = 0;
-    let skipped   = 0;
-    let errors    = 0;
-    const errorDetails: string[] = [];
-
-    // Due date = period.dueDay of next month (or same month if in the future)
-    const buildDueDate = (): Date => {
-      const now   = new Date();
-      const dueDay = period.dueDay ?? 25;
-      // Try same month first
-      const d = new Date(period.year, period.month - 1, dueDay);
-      // If already past, push to same month next year (edge case only)
-      return d < now ? new Date(period.year, period.month, dueDay) : d;
-    };
-
-    for (const rb of billings) {
-      try {
-        const dueDate = buildDueDate();
-
-        await prisma.$transaction(async (tx) => {
-          // Check inside transaction with row lock to prevent TOCTOU race
-          const existing = await tx.invoice.findUnique({ where: { roomBillingId: rb.id } });
-          if (existing) { skipped++; return; }
-          const inv = await tx.invoice.create({
-            data: {
-              id:           uuidv4(),
-              roomNo:       rb.roomNo,
-              roomBillingId: rb.id,
-              year:         period.year,
-              month:        period.month,
-              status:       'GENERATED',
-              totalAmount:  rb.totalDue,
-              dueDate,
-              issuedAt:     new Date(),
-            },
-          });
-
-          await tx.roomBilling.update({
-            where: { id: rb.id },
-            data:  { status: 'INVOICED' },
-          });
-
-          await tx.outboxEvent.create({
-            data: {
-              id:            uuidv4(),
-              aggregateType: 'Invoice',
-              aggregateId:   inv.id,
-              eventType:     'InvoiceGenerated',
-              payload: {
-                invoiceId:     inv.id,
-                roomNo:        inv.roomNo,
-                roomBillingId: rb.id,
-                year:          inv.year,
-                month:         inv.month,
-                totalAmount:   Number(inv.totalAmount),
-                dueDate:       dueDate.toISOString().split('T')[0],
-                generatedBy:   session.sub,
-              } as Prisma.InputJsonValue,
-              retryCount: 0,
-            },
-          });
-
-          // P3-05: Write BillingAuditLog for INVOICE_CREATED action
-          await tx.billingAuditLog.create({
-            data: {
-              id:            uuidv4(),
-              billingRecordId: rb.id,
-              action:         'INVOICE_CREATED' as BillingAuditAction,
-              actorId:        session.sub,
-              actorRole:      'ADMIN',
-              metadata: {
-                invoiceId:   inv.id,
-                year:         period.year,
-                month:        period.month,
-                totalAmount:  Number(inv.totalAmount),
-                dueDate:      dueDate.toISOString().split('T')[0],
-              } as Prisma.InputJsonValue,
-            },
-          });
-        });
-
-        generated++;
-      } catch (err) {
-        errors++;
-        const msg = err instanceof Error ? err.message : String(err);
-        errorDetails.push(`${rb.roomNo}: ${msg}`);
-        logger.error({ type: 'batch_invoice_error', roomNo: rb.roomNo, error: msg });
-      }
-    }
+    // Process in batches with setImmediate yields to avoid blocking the event loop.
+    const result = await processBatches(billings, periodId, period, session);
 
     // Update period status to CLOSED (fully invoiced) when no more LOCKED records remain
     const remaining = await prisma.roomBilling.count({
       where: { billingPeriodId: periodId, status: 'LOCKED' },
     });
-    if (remaining === 0 && generated > 0) {
+    if (remaining === 0 && result.generated > 0) {
       await prisma.billingPeriod.update({
         where: { id: periodId },
         data:  { status: 'CLOSED' },
@@ -173,15 +203,15 @@ export const POST = asyncHandler(
     logger.info({
       type: 'billing_period_generate_invoices',
       periodId, year: period.year, month: period.month,
-      generated, skipped, errors,
+      generated: result.generated, skipped: result.skipped, errors: result.errors,
     });
 
     return NextResponse.json({
       success: true,
-      data:    { generated, skipped, errors, errorDetails },
-      message: `Generated ${generated} invoices` +
-               (skipped ? `, skipped ${skipped} (already invoiced)` : '') +
-               (errors  ? `, ${errors} errors` : ''),
+      data:    result,
+      message: `Generated ${result.generated} invoices` +
+               (result.skipped ? `, skipped ${result.skipped} (already invoiced)` : '') +
+               (result.errors  ? `, ${result.errors} errors` : ''),
     } as ApiResponse<{ generated: number; skipped: number; errors: number; errorDetails: string[] }>);
   }
 );

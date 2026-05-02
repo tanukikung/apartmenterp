@@ -141,6 +141,7 @@ function KpiCard({
   value,
   numericValue,
   sub,
+  subValue,
   icon: Icon,
   accent,
   href,
@@ -151,6 +152,7 @@ function KpiCard({
   value: string | number;
   numericValue?: number;
   sub?: string;
+  subValue?: string;
   icon: React.ElementType;
   accent: 'green' | 'red' | 'yellow' | 'blue';
   href?: string;
@@ -213,6 +215,7 @@ function KpiCard({
           )}
         </div>
         {sub && <div className="text-xs text-[hsl(var(--on-surface-variant))] mt-1.5 opacity-70">{sub}</div>}
+        {subValue && <div className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5 opacity-50">{subValue}</div>}
       </div>
     </div>
   );
@@ -403,6 +406,7 @@ export default function AdminDashboardPage() {
   const [auditLogs, setAuditLogs] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('');
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const { date } = todayThai();
 
@@ -425,6 +429,9 @@ export default function AdminDashboardPage() {
           }
         };
 
+        // Track API errors so we can show user-facing error state instead of silent 0s
+        const apiErrors: string[] = [];
+
         const [
           occupancyRes,
           summaryRes,
@@ -444,7 +451,9 @@ export default function AdminDashboardPage() {
         ]);
 
         if (occupancyRes?.success) setOccupancy(occupancyRes.data);
+        else apiErrors.push('ไม่สามารถโหลดข้อมูลการเข้าพัก');
         if (summaryRes?.success) setSummary(summaryRes.data);
+        else apiErrors.push('ไม่สามารถโหลดข้อมูลสรุป');
 
         if (maintenanceRes?.success) {
           const data = maintenanceRes.data;
@@ -492,6 +501,7 @@ export default function AdminDashboardPage() {
           setAuditLogs(logs.slice(0, 10));
         }
       } finally {
+        if (apiErrors.length > 0) setApiError(apiErrors[0]);
         setLoading(false);
       }
     }
@@ -500,7 +510,8 @@ export default function AdminDashboardPage() {
 
   // Derive overdue 3+ days items (use due date comparison)
   const overdueItems = overdueInvoices.slice(0, 3).map((inv) => ({
-    label: `${inv.room?.roomNumber ?? inv.room?.roomNo ?? '?'} — ${inv.tenant?.fullName ?? 'ไม่ระบุ'}`,
+    // Show room number as primary identifier; "ไม่ระบุ" only as secondary when tenant IS defined but name is null
+    label: `${inv.room?.roomNumber ?? inv.room?.roomNo ?? '?'} — ${inv.tenant ? inv.tenant.fullName ?? 'ไม่ระบุ' : 'ไม่ระบุ'}`,
     sub: MONTH_ABBR[(inv.month - 1) % 12] + ' ' + inv.year,
   }));
 
@@ -574,11 +585,14 @@ export default function AdminDashboardPage() {
                 <KpiCard
                   label="รายได้เดือนนี้"
                   value={moneyCompact(summary?.monthlyRevenue ?? 0)}
-                  sub="รายรับรวม"
+                  sub="เงินสดที่รับได้ (ต่อเดือน)"
+                  subValue={summary?.unpaidInvoices ? `${summary.unpaidInvoices} รายการ รอรับ` : undefined}
                   icon={DollarSign}
                   accent="blue"
                 />
               </StaggerItem>
+              {/* NOTE: monthlyRevenue is cash-basis (received this month), not accrual-basis.
+                  For accrual-basis, use sum of invoice.amount where invoice.month+year = current month. */}
               <StaggerItem>
                 <KpiCard
                   label="แจ้งซ่อมรอดำเนินการ"
@@ -593,6 +607,14 @@ export default function AdminDashboardPage() {
             </>
           )}
         </StaggerList>
+
+        {/* API error banner */}
+        {apiError && !loading && (
+          <div className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-400">
+            <AlertTriangle size={15} />
+            {apiError}
+          </div>
+        )}
 
         {/* ── 3 Big Action Buttons ────────────────────────────────── */}
         <StaggerList stagger={0.08} delay={0.15} className="grid grid-cols-1 sm:grid-cols-3 gap-4">

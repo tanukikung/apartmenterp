@@ -15,44 +15,48 @@ interface RateLimitEntry {
   resetAt: number; // epoch ms
 }
 
-// Auth route: 20 req/min per IP
-const AUTH_RATE_LIMIT = 20;
-const AUTH_RATE_WINDOW_MS = 60_000;
-
-// Read route (GET): 100 req/min per user
-const READ_RATE_LIMIT = 100;
-
-// Write route (POST/PATCH/PUT/DELETE): 30 req/min per user
-const WRITE_RATE_LIMIT = 30;
+// Auth route: 300 req/min per IP (higher to accommodate NextAuth polling)
+const AUTH_RATE_LIMIT = 300;
+// Read route (GET): 1000 req/min per user (authenticated) or per IP (anonymous)
+const READ_RATE_LIMIT = 1000;
+// Write route (POST/PATCH/PUT/DELETE): 120 req/min per user
+const WRITE_RATE_LIMIT = 120;
+// Sliding window: track individual request timestamps, not just counts
+const RATE_STORE_MAX_ENTRIES = 20000;
 
 // Health check paths excluded from rate limiting
 const HEALTH_CHECK_PATHS = ['/api/health', '/api/health/deep'];
 
-const rateLimitStore = new Map<string, RateLimitEntry>();
+const rateLimitStore = new Map<string, { timestamps: number[] }>();
 
 function rateLimit(key: string, limit: number, windowMs: number): { allowed: boolean; remaining: number; resetAt: Date } {
   const now = Date.now();
-  // Cleanup expired entries on every call
-  for (const [k, v] of rateLimitStore) {
-    if (now >= v.resetAt) rateLimitStore.delete(k);
-  }
   const entry = rateLimitStore.get(key);
-  if (!entry || now >= entry.resetAt) {
-    const resetAt = now + windowMs;
-    rateLimitStore.set(key, { count: 1, resetAt });
-    return { allowed: true, remaining: limit - 1, resetAt: new Date(resetAt) };
+  if (!entry) {
+    rateLimitStore.set(key, { timestamps: [now] });
+    return { allowed: true, remaining: limit - 1, resetAt: new Date(now + windowMs) };
   }
-  if (entry.count >= limit) {
-    return { allowed: false, remaining: 0, resetAt: new Date(entry.resetAt) };
+  // Remove timestamps outside the window
+  entry.timestamps = entry.timestamps.filter(t => now - t < windowMs);
+  if (entry.timestamps.length >= limit) {
+    const oldest = entry.timestamps[0];
+    return { allowed: false, remaining: 0, resetAt: new Date(oldest + windowMs) };
   }
-  entry.count++;
-  return { allowed: true, remaining: Math.max(0, limit - entry.count), resetAt: new Date(entry.resetAt) };
+  entry.timestamps.push(now);
+  // Cleanup entire store if it grows too large
+  if (rateLimitStore.size > RATE_STORE_MAX_ENTRIES) {
+    const cutoff = now - windowMs;
+    for (const [k, v] of rateLimitStore) {
+      if (v.timestamps.every(t => t < cutoff)) rateLimitStore.delete(k);
+    }
+  }
+  return { allowed: true, remaining: Math.max(0, limit - entry.timestamps.length), resetAt: new Date(now + windowMs) };
 }
 
 function getPathTier(pathname: string): 'auth' | 'read' | 'write' | 'excluded' {
   if (HEALTH_CHECK_PATHS.some(p => pathname.startsWith(p))) return 'excluded';
   if (pathname.startsWith('/api/auth/')) return 'auth';
-  return 'write';
+  return 'read'; // default to read tier; method check below overrides for mutations
 }
 
 function getRateLimitKey(req: NextRequest, tier: 'auth' | 'read' | 'write', ip: string, userId?: string): string {
@@ -128,12 +132,12 @@ export async function middleware(req: NextRequest) {
     const tier = getPathTier(url.pathname);
     if (tier !== 'excluded') {
       const method = req.method;
-      const pathTier = method === 'GET' || method === 'HEAD' ? 'read' : tier === 'auth' ? 'auth' : 'write';
+      // Auth tier always uses auth limit; otherwise GET/HEAD = read, mutations = write
+      const pathTier = tier === 'auth' ? 'auth' : (method === 'GET' || method === 'HEAD' ? 'read' : 'write');
       const userId = (req as unknown as { sub?: string }).sub;
       const key = getRateLimitKey(req, pathTier, ip, userId);
       const limit = pathTier === 'auth' ? AUTH_RATE_LIMIT : pathTier === 'read' ? READ_RATE_LIMIT : WRITE_RATE_LIMIT;
-      const windowMs = AUTH_RATE_WINDOW_MS;
-      const { allowed, remaining, resetAt } = rateLimit(key, limit, windowMs);
+      const { allowed, remaining, resetAt } = rateLimit(key, limit, 60_000);
       if (!allowed) {
         const retryAfter = Math.ceil((resetAt.getTime() - Date.now()) / 1000);
         return NextResponse.json(

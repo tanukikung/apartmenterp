@@ -359,6 +359,30 @@ export class TenantService {
       );
     }
 
+    // Guard: prevent deletion if the tenant has any unpaid invoices.
+    // An invoice belongs to a room (roomNo), not directly to a tenant.
+    // We look for invoices linked to rooms where this tenant is the primary
+    // occupant (role=PRIMARY, moveOutDate=null).
+    const unpaidInvoices = await prisma.invoice.findMany({
+      where: {
+        status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
+        room: {
+          tenants: {
+            some: {
+              tenantId: id,
+              role: 'PRIMARY',
+              moveOutDate: null,
+            },
+          },
+        },
+      },
+    });
+    if (unpaidInvoices.length > 0) {
+      throw new ConflictError(
+        `Cannot delete tenant: ${unpaidInvoices.length} unpaid invoice(s) exist for rooms where this tenant is the primary occupant. Settle or cancel the invoices first.`,
+      );
+    }
+
     await prisma.$transaction(async (tx) => {
       // Detach nullable references so the hard-delete isn't blocked by FKs.
       await tx.conversation.updateMany({

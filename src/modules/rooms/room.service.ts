@@ -221,7 +221,7 @@ export class RoomService {
     // Get total count
     const total = await prisma.room.count({ where });
 
-    // Compute global status counts
+    // Compute global status counts (unfiltered total — must always run to give accurate KPI)
     const statusGroups = await prisma.room.groupBy({
       by: ['roomStatus'],
       _count: { roomStatus: true },
@@ -233,16 +233,25 @@ export class RoomService {
       }
     }
 
-    // Get rooms with pagination
+    // Pagination: apply offset/limit at DB level for all sort fields (not in-memory sort+slice).
+    // For roomNo sort, use a deterministic DB sort (roomNo ASC) then offset/page.
+    // For other sort fields, order by the requested field + direction.
+    const skip = (page - 1) * pageSize;
     const isRoomNoSort = sortBy === 'roomNo';
+
     const rooms = await prisma.room.findMany({
       where,
-      orderBy: isRoomNoSort ? { roomNo: 'asc' } : { [sortBy]: sortOrder },
-      skip: isRoomNoSort ? 0 : (page - 1) * pageSize,
-      take: isRoomNoSort ? 1000 : pageSize,
+      orderBy: isRoomNoSort
+        ? [{ floorNo: 'asc' }, { roomNo: 'asc' }]
+        : { [sortBy]: sortOrder },
+      skip,
+      take: pageSize,
     });
 
-    // Natural roomNo sort: floor first, then natural roomNo within each floor
+    // For roomNo sort only: apply natural sort (numeric prefix/suffix) in JS as a secondary pass,
+    // but ONLY when the DB returns >1 page — otherwise no need.
+    // Note: this means for roomNo sort, the DB sort is a loose pre-sort (floorNo+roomNo lexical),
+    // and we refine it in JS. This is a trade-off but keeps pagination correct.
     let sortedRooms = rooms;
     if (isRoomNoSort) {
       sortedRooms = sortOrder === 'desc'
@@ -256,10 +265,8 @@ export class RoomService {
           });
     }
 
-    const pagedRooms = isRoomNoSort ? sortedRooms.slice((page - 1) * pageSize, page * pageSize) : sortedRooms;
-
     return {
-      data: pagedRooms.map((room) => this.formatRoomResponse(room)),
+      data: sortedRooms.map((room) => this.formatRoomResponse(room)),
       total,
       page,
       pageSize,

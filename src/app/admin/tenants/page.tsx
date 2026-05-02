@@ -161,8 +161,21 @@ export default function AdminTenantsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...createForm, emergencyPhone: createForm.emergencyPhone || undefined }),
-      }).then(r => r.json());
-      if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถเพิ่มผู้เช่าได้');
+      });
+      // Check HTTP status before parsing JSON — non-2xx responses don't throw from fetch
+      if (!res.ok) {
+        let msg = `เกิดข้อผิดพลาด (${res.status})`;
+        try {
+          const errBody = await res.json();
+          msg = errBody?.error?.message || msg;
+        } catch {
+          // Response was not JSON — use status text
+          msg = res.statusText || msg;
+        }
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error?.message || 'ไม่สามารถเพิ่มผู้เช่าได้');
       setMessage('เพิ่มผู้เช่าสำเร็จ');
       setCreateForm({ firstName: '', lastName: '', email: '', phone: '', emergencyContact: '', emergencyPhone: '' });
       closeDrawer();
@@ -183,8 +196,19 @@ export default function AdminTenantsPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...editForm, emergencyPhone: editForm.emergencyPhone || undefined }),
-      }).then(r => r.json());
-      if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถอัพเดทได้');
+      });
+      if (!res.ok) {
+        let msg = `เกิดข้อผิดพลาด (${res.status})`;
+        try {
+          const errBody = await res.json();
+          msg = errBody?.error?.message || msg;
+        } catch {
+          msg = res.statusText || msg;
+        }
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error?.message || 'ไม่สามารถอัพเดทได้');
       setMessage('อัพเดทผู้เช่าสำเร็จ');
       closeDrawer();
       await load();
@@ -208,8 +232,19 @@ export default function AdminTenantsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lineUserId: lineUserId || null }),
-      }).then(r => r.json());
-      if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถลิงก์ LINE ได้');
+      });
+      if (!res.ok) {
+        let msg = `เกิดข้อผิดพลาด (${res.status})`;
+        try {
+          const errBody = await res.json();
+          msg = errBody?.error?.message || msg;
+        } catch {
+          msg = res.statusText || msg;
+        }
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error?.message || 'ไม่สามารถลิงก์ LINE ได้');
       setMessage('ลิงก์ LINE สำเร็จ');
       closeDrawer();
       await load();
@@ -233,8 +268,19 @@ export default function AdminTenantsPage() {
           role: 'PRIMARY',
           moveInDate: new Date().toISOString().split('T')[0],
         }),
-      }).then(r => r.json());
-      if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถจัดสรรห้องได้');
+      });
+      if (!res.ok) {
+        let msg = `เกิดข้อผิดพลาด (${res.status})`;
+        try {
+          const errBody = await res.json();
+          msg = errBody?.error?.message || msg;
+        } catch {
+          msg = res.statusText || msg;
+        }
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error?.message || 'ไม่สามารถจัดสรรห้องได้');
       setMessage(`จัดสรรห้อง ${assignRoom} สำเร็จ`);
       setAssignRoom('');
       closeDrawer();
@@ -258,8 +304,19 @@ export default function AdminTenantsPage() {
         try {
           const res = await fetch(`/api/rooms/${encodeURIComponent(roomNo)}/tenants/${tenantId}`, {
             method: 'DELETE',
-          }).then(r => r.json());
-          if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถถอนห้องได้');
+          });
+          if (!res.ok) {
+            let msg = `เกิดข้อผิดพลาด (${res.status})`;
+            try {
+              const errBody = await res.json();
+              msg = errBody?.error?.message || msg;
+            } catch {
+              msg = res.statusText || msg;
+            }
+            throw new Error(msg);
+          }
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error?.message || 'ไม่สามารถถอนห้องได้');
           setMessage(`ถอนห้อง ${roomNo} สำเร็จ`);
           closeDrawer();
           await load();
@@ -291,8 +348,19 @@ export default function AdminTenantsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: messageText }),
-      }).then(r => r.json());
-      if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถส่งข้อความได้');
+      });
+      if (!res.ok) {
+        let msg = `เกิดข้อผิดพลาด (${res.status})`;
+        try {
+          const errBody = await res.json();
+          msg = errBody?.error?.message || msg;
+        } catch {
+          msg = res.statusText || msg;
+        }
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error?.message || 'ไม่สามารถส่งข้อความได้');
       setMessageSuccess(true);
       setMessageText('');
       setTimeout(() => setMessageDialogOpen(false), 1500);
@@ -472,7 +540,7 @@ export default function AdminTenantsPage() {
       {/* Drawer */}
       {drawerOpen && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={closeDrawer} style={{ animation: 'fade-in 200ms ease' }} />
+          <div className="fixed inset-0 bg-black/40 z-40 pointer-events-none" onClick={closeDrawer} style={{ animation: 'fade-in 200ms ease' }} />
           <div className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-[hsl(var(--color-surface))] border-l border-[hsl(var(--color-border))] z-50 overflow-y-auto shadow-[-8px_0_32px_rgba(0,0,0,0.12)]" style={{ animation: 'slide-in-right 250ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
             <div className="sticky top-0 bg-[hsl(var(--color-surface))] border-b border-[hsl(var(--color-border))] px-6 py-4 flex items-center justify-between z-10">
               <h2 className="text-lg font-bold text-[hsl(var(--primary))]">

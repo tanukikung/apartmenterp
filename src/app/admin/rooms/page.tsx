@@ -102,15 +102,16 @@ export default function AdminRoomsPage() {
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; description?: string; onConfirm: () => void } | null>(null);
 
   // React Query for rooms data
+  const [currentPage, setCurrentPage] = useState(1);
   const roomsQueryParams = useMemo(() => {
     const params = new URLSearchParams({
-      page: '1',
+      page: String(currentPage),
       pageSize: '50',
       ...(search.trim() ? { q: search.trim() } : {}),
       ...(statusFilter ? { roomStatus: statusFilter } : {}),
     });
     return `/api/rooms?${params.toString()}`;
-  }, [search, statusFilter]);
+  }, [search, statusFilter, currentPage]);
 
   const { data: roomsData, isLoading: loading, refetch } = useApiData<RoomList>(roomsQueryParams, ['rooms']);
 
@@ -542,6 +543,53 @@ export default function AdminRoomsPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Pagination Controls ── */}
+      {roomsData && roomsData.totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 border border-[hsl(var(--color-border))] rounded-xl bg-[hsl(var(--color-surface))]">
+          <div className="text-sm text-[hsl(var(--on-surface-variant))]">
+            หน้า {roomsData.page} จาก {roomsData.totalPages} — ทั้งหมด {roomsData.total} ห้อง
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={roomsData.page <= 1}
+              className="px-4 py-2 text-sm font-semibold rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] hover:bg-[hsl(var(--color-surface-hover))] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+            >
+              ← ก่อนหน้า
+            </button>
+            {Array.from({ length: Math.min(5, roomsData.totalPages) }, (_, i) => {
+              const totalPages = roomsData.totalPages;
+              let pageNum: number;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (roomsData.page <= 3) {
+                pageNum = i + 1;
+              } else if (roomsData.page >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = roomsData.page - 2 + i;
+              }
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`w-9 h-9 text-sm font-bold rounded-lg transition-all duration-200 ${roomsData.page === pageNum ? 'bg-[hsl(var(--primary))] text-white shadow-[0_0_16px_rgba(99,102,241,0.2)]' : 'border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] hover:bg-[hsl(var(--color-surface-hover))]'}`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setCurrentPage(p => Math.min(roomsData.totalPages, p + 1))}
+              disabled={roomsData.page >= roomsData.totalPages}
+              className="px-4 py-2 text-sm font-semibold rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] hover:bg-[hsl(var(--color-surface-hover))] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+            >
+              ถัดไป →
+            </button>
           </div>
         </div>
       )}

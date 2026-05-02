@@ -124,17 +124,25 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
 
-  // Check remaining amount to detect overpayment
+  // Check remaining amount — reject overpayment
   const remainingAmount = await getInvoiceRemainingAmount(invoiceId);
-  const isOverpayment = amount > remainingAmount;
+  if (amount > remainingAmount) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          message: `จำนวนเงินชำระ (${amount.toLocaleString()} บาท) เกินยอดค้างชำระ (${remainingAmount.toLocaleString()} บาท) กรุณาตรวจสอบจำนวนเงินและลองใหม่`,
+          code: 'PAYMENT_OVERPAYMENT',
+          name: 'BadRequestError',
+          statusCode: 400,
+        },
+      },
+      { status: 400 }
+    );
+  }
 
   const result = await prisma.$transaction(async (tx) => {
     const paymentId = uuidv4();
-
-    // Determine remark for overpayment
-    const remark = isOverpayment
-      ? `Manual payment overpayment: excess of ${(amount - remainingAmount).toFixed(2)} THB over remaining balance.`
-      : notes ?? null;
 
     // Create the Payment record directly (not via PaymentTransaction)
     const payment = await tx.payment.create({
@@ -149,7 +157,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         matchedInvoiceId: invoiceId,
         confirmedAt: new Date(),
         confirmedBy: actor.actorId,
-        remark,
+        remark: notes ?? null,
       },
     });
 
@@ -174,15 +182,12 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       paymentId: result.payment.id,
       amount,
       paymentMethod,
-      isOverpayment,
       settled: result.settled,
     },
   });
 
   const message = result.transitionedToPaid
     ? 'Payment recorded and invoice settled'
-    : isOverpayment
-    ? 'Payment recorded (overpayment detected)'
     : 'Payment recorded';
 
   return NextResponse.json(
@@ -193,7 +198,6 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         invoice: result.invoice,
         settled: result.settled,
         transitionedToPaid: result.transitionedToPaid,
-        isOverpayment,
         remainingAmount,
       },
       message,

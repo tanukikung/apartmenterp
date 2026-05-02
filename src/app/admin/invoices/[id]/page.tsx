@@ -164,6 +164,14 @@ function RecordPaymentForm({
     setSubmitting(true);
     setMessage(null);
     setError(null);
+
+    // Client-side overpayment validation
+    if (amount !== null && amount > remainingAmount) {
+      setError('จำนวนเงินที่ชำระเกินยอดค้างชำระ กรุณาตรวจสอบ');
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/payments/manual', {
         method: 'POST',

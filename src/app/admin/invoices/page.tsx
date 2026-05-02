@@ -161,6 +161,7 @@ export default function AdminInvoicesPage() {
   const [total, setTotal] = useState(0);
 
   const [statusTotals, setStatusTotals] = useState<Partial<Record<InvoiceStatus, number>>>({});
+  const [statusTotalsLoaded, setStatusTotalsLoaded] = useState(false);
 
   // Bulk selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -174,7 +175,7 @@ export default function AdminInvoicesPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const load = useCallback(async (pg = 1, status: StatusFilter = 'ALL', q = '') => {
+  const load = useCallback(async (pg = 1, status: StatusFilter = 'ALL', q = '', loadStatusCounts = false) => {
     setLoading(true);
     setError(null);
     try {
@@ -186,11 +187,17 @@ export default function AdminInvoicesPage() {
       if (q) params.set('q', q);
 
       const STATUSES: InvoiceStatus[] = ['GENERATED', 'SENT', 'VIEWED', 'PAID', 'OVERDUE'];
+
+      // Only fetch status counts on first page load (not on pagination)
+      const statusPromises = loadStatusCounts
+        ? STATUSES.map((s) =>
+            fetch(`/api/invoices?status=${s}&pageSize=1&page=1`, { cache: 'no-store' }).then((r) => r.json()),
+          )
+        : STATUSES.map(() => Promise.resolve(null));
+
       const [listRes, ...statusRes] = await Promise.all([
         fetch(`/api/invoices?${params.toString()}`, { cache: 'no-store' }).then((r) => r.json()),
-        ...STATUSES.map((s) =>
-          fetch(`/api/invoices?status=${s}&pageSize=1&page=1`, { cache: 'no-store' }).then((r) => r.json()),
-        ),
+        ...statusPromises,
       ]);
 
       if (!listRes.success) throw new Error(listRes.error?.message ?? 'ไม่สามารถโหลดใบแจ้งหนี้');
@@ -200,12 +207,15 @@ export default function AdminInvoicesPage() {
       setTotal(payload.total ?? 0);
       setPage(pg);
 
-      const totals: Partial<Record<InvoiceStatus, number>> = {};
-      STATUSES.forEach((s, idx) => {
-        const r = statusRes[idx];
-        if (r?.success) totals[s] = (r.data?.total as number | undefined) ?? 0;
-      });
-      setStatusTotals(totals);
+      if (loadStatusCounts) {
+        const totals: Partial<Record<InvoiceStatus, number>> = {};
+        STATUSES.forEach((s, idx) => {
+          const r = statusRes[idx];
+          if (r?.success) totals[s] = (r as any)?.data?.total ?? (r as any)?.total ?? 0;
+        });
+        setStatusTotals(totals);
+        setStatusTotalsLoaded(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดใบแจ้งหนี้');
     } finally {
@@ -215,7 +225,7 @@ export default function AdminInvoicesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { void load(1, statusFilter, searchDebounced); }, [load, statusFilter, searchDebounced]);
+  useEffect(() => { void load(1, statusFilter, searchDebounced, !statusTotalsLoaded); }, [load, statusFilter, searchDebounced, statusTotalsLoaded]);
 
   async function sendInvoice(id: string) {
     setSending(id);

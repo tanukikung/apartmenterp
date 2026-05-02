@@ -58,10 +58,12 @@ export const POST = asyncHandler(async (req: NextRequest, context: Params): Prom
   // ─── CASE A: Room has no tenants (new primary tenant registration) ─
   if (room.tenants.length === 0) {
     // Parse name from lineDisplayName or fallback to phone
+    // Sanitize to prevent XSS: strip any HTML/tag patterns before storing in DB
+    const sanitize = (v: string) => v.replace(/<[^>]*>/g, '').trim();
     const displayName = reg.lineDisplayName || reg.phone || 'ผู้เช่า';
     const nameParts = displayName.trim().split(/\s+/);
-    const firstName = nameParts[0] || displayName;
-    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+    const firstName = sanitize(nameParts[0] || displayName);
+    const lastName = nameParts.length > 1 ? sanitize(nameParts.slice(1).join(' ')) : '';
 
     let createdTenantId: string | undefined;
 

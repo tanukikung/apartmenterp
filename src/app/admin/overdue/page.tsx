@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import Link from 'next/link';
 import {
@@ -15,7 +15,6 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { useApiData } from '@/hooks/useApi';
 
 type OverdueInvoice = {
   id: string;
@@ -109,11 +108,31 @@ export default function AdminOverduePage() {
   const [search, setSearch] = useState('');
   const [range, setRange] = useState<OverdueRange>('all');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [overdueInvoices, setOverdueInvoices] = useState<OverdueInvoice[]>([]);
+  const [overdueTotal, setOverdueTotal] = useState(0);
 
-  const { data: overdueData, isLoading, error: _fetchError, refetch } = useApiData<{ success: boolean; data?: { data: OverdueInvoice[] } }>('/api/invoices?status=OVERDUE&pageSize=100', ['overdue-invoices']);
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    fetch('/api/invoices?status=OVERDUE&pageSize=100')
+      .then(r => r.json())
+      .then(json => {
+        if (cancelled) return;
+        const raw = json.data;
+        const arr: OverdueInvoice[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
+        setOverdueInvoices(arr);
+        setOverdueTotal(raw?.total ?? arr.length);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const filtered = useMemo(() => {
-    let rows: OverdueInvoice[] = overdueData?.data?.data ?? [];
+    let rows: OverdueInvoice[] = overdueInvoices;
     if (search.trim()) {
       const q = search.toLowerCase();
       rows = rows.filter((inv) => roomNum(inv).toLowerCase().includes(q) || tenantName(inv).toLowerCase().includes(q) || (inv.invoiceNumber ?? inv.id).toLowerCase().includes(q));
@@ -133,16 +152,30 @@ export default function AdminOverduePage() {
       const db = daysSince(b.dueDate) ?? 0;
       return db - da;
     });
-  }, [overdueData, search, range]);
+  }, [overdueInvoices, search, range]);
 
   const kpi = useMemo(() => {
-    const list: OverdueInvoice[] = overdueData?.data?.data ?? [];
+    const list: OverdueInvoice[] = overdueInvoices;
     const total = list.length;
     const totalAmount = list.reduce((s, inv) => s + inv.totalAmount, 0);
     const avgDays = total > 0 ? Math.round(list.reduce((s, inv) => s + (daysSince(inv.dueDate) ?? 0), 0) / total) : 0;
     const uniqueRooms = new Set(list.map((inv) => roomNum(inv))).size;
     return { total, totalAmount, avgDays, uniqueRooms };
-  }, [overdueData]);
+  }, [overdueInvoices]);
+
+  function refetch() {
+    setIsLoading(true);
+    fetch('/api/invoices?status=OVERDUE&pageSize=100')
+      .then(r => r.json())
+      .then(json => {
+        const raw = json.data;
+        const arr: OverdueInvoice[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
+        setOverdueInvoices(arr);
+        setOverdueTotal(raw?.total ?? arr.length);
+        setIsLoading(false);
+      })
+      .catch(() => setIsLoading(false));
+  }
 
   async function sendReminder(id: string) {
     setWorking(`remind:${id}`); setActionError(null); setMessage(null);
@@ -293,7 +326,7 @@ export default function AdminOverduePage() {
           <span className="inline-flex items-center rounded-full bg-red-500/15 border border-red-500/30 px-2.5 py-0.5 text-xs font-semibold text-red-600">{filtered.length} ใบ</span>
         </div>
 
-        {!isLoading && (overdueData?.data?.data ?? []).length === 0 ? (
+        {!isLoading && overdueInvoices.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20">
               <CheckCircle2 className="h-7 w-7 text-emerald-600" />
