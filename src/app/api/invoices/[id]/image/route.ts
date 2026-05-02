@@ -121,7 +121,7 @@ export const GET = asyncHandler(
 
     const filename = `invoice_${id}.png`;
 
-    return new NextResponse(imageBuffer, {
+    return new NextResponse(new Uint8Array(imageBuffer), {
       status: 200,
       headers: {
         'content-type': 'image/png',
