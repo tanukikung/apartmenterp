@@ -384,6 +384,8 @@ model Tenant {
 
   @@index([phone])
   @@index([email])
+  @@index([hasActiveContract])
+  @@index([deletedAt])
   @@map("tenants")
 }
 
@@ -403,6 +405,7 @@ model RoomTenant {
   @@index([tenantId])
   @@index([role])
   @@index([moveOutDate])
+  @@index([roomNo, moveOutDate])
   @@map("room_tenants")
 }
 

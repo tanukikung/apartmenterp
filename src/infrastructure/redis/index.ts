@@ -57,10 +57,14 @@ export async function ensureRedisConnected(): Promise<RedisClientType | null> {
   return c;
 }
 
+// All Redis keys are namespaced under "apt:" to prevent collisions with
+// other services sharing the same Redis instance.
+export const REDIS_NS = 'apt';
+
 export async function redisRateLimit(key: string, max: number, windowSeconds: number): Promise<number> {
   const c = await ensureRedisConnected();
   if (!c) return 0;
-  const nowKey = `ratelimit:${key}`;
+  const nowKey = `${REDIS_NS}:rl:${key}`;
   const count = await c.incr(nowKey);
   if (count === 1) {
     await c.expire(nowKey, windowSeconds);
@@ -87,7 +91,7 @@ export async function setWorkerHeartbeat(ttlSeconds: number = 30): Promise<void>
     return;
   }
   try {
-    await c.set('worker:heartbeat', Date.now().toString(), { EX: ttlSeconds });
+    await c.set(`${REDIS_NS}:worker:heartbeat`, Date.now().toString(), { EX: ttlSeconds });
   } catch {
     // ignore
   }
@@ -100,7 +104,7 @@ export async function getWorkerHeartbeat(): Promise<number | null> {
     return inMemoryHeartbeat;
   }
   try {
-    const val = await c.get('worker:heartbeat');
+    const val = await c.get(`${REDIS_NS}:worker:heartbeat`);
     if (!val) return null;
     const n = Number(val);
     return Number.isFinite(n) ? n : null;

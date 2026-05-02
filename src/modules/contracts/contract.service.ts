@@ -38,9 +38,10 @@ export class ContractService {
    */
   async createContract(
     input: CreateContractInput,
-    createdBy?: string
+    createdBy?: string,
+    requestId?: string,
   ): Promise<ContractResponse> {
-    logger.info({ type: 'contract_create', roomNo: input.roomId, tenantId: input.primaryTenantId });
+    logger.info({ type: 'contract_create', requestId: requestId ?? null, actorId: createdBy ?? null, roomNo: input.roomId, tenantId: input.primaryTenantId });
 
     // Validate room exists
     const room = await prisma.room.findUnique({
@@ -370,9 +371,10 @@ export class ContractService {
   async renewContract(
     id: string,
     input: RenewContractInput,
-    renewedBy?: string
+    renewedBy?: string,
+    requestId?: string,
   ): Promise<ContractResponse> {
-    logger.info({ type: 'contract_renew', id, newEndDate: input.newEndDate });
+    logger.info({ type: 'contract_renew', requestId: requestId ?? null, actorId: renewedBy ?? null, entityId: id, newEndDate: input.newEndDate });
 
     const existing = await prisma.contract.findUnique({
       where: { id },
@@ -492,6 +494,24 @@ export class ContractService {
 
     if (contract.status !== 'ACTIVE') {
       throw new BadRequestError('Can only terminate active contracts');
+    }
+
+    // Block termination when the tenant still has outstanding debt unless the
+    // caller explicitly acknowledges via forceTerminate=true.
+    if (!input.forceTerminate) {
+      const unpaidCount = await prisma.invoice.count({
+        where: {
+          roomNo: contract.roomNo,
+          status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
+        },
+      });
+      if (unpaidCount > 0) {
+        throw new BadRequestError(
+          `Cannot terminate: ${unpaidCount} unpaid invoice(s) exist for this room. ` +
+          `Collect payment or set forceTerminate=true to override.`,
+          { unpaidCount, roomNo: contract.roomNo }
+        );
+      }
     }
 
     const updated = await prisma.$transaction(async (tx) => {

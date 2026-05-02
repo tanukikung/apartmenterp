@@ -55,10 +55,10 @@ export class RateLimiter {
 
   private async getRedisTtl(key: string, windowSeconds: number): Promise<number> {
     try {
-      const { getRedisClient } = await import('@/infrastructure/redis');
+      const { getRedisClient, REDIS_NS } = await import('@/infrastructure/redis');
       const c = getRedisClient();
       if (!c || !c.isOpen) return windowSeconds;
-      const ttl = await c.ttl(`ratelimit:${key}`);
+      const ttl = await c.ttl(`${REDIS_NS}:rl:${key}`);
       return ttl > 0 ? ttl : windowSeconds;
     } catch {
       return windowSeconds;

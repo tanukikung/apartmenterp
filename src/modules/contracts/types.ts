@@ -77,6 +77,9 @@ export const terminateContractSchema = z.object({
     .max(500, 'Reason too long')
     .transform(stripHtml)
     .optional(),
+  // Set true to force termination even when unpaid invoices exist.
+  // Requires explicit acknowledgement — prevents accidental debt abandonment.
+  forceTerminate: z.boolean().default(false),
 });
 
 export type TerminateContractInput = z.infer<typeof terminateContractSchema>;

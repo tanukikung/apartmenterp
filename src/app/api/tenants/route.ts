@@ -6,7 +6,7 @@ import {
 } from '@/modules/tenants/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
-import { requireOperator, requireRole } from '@/lib/auth/guards';
+import { requireOperator, requireRole, requireBuildingAccess } from '@/lib/auth/guards';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
 const ADMIN_WINDOW_MS = 60 * 1000;
@@ -57,7 +57,8 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'OWNER']);
+  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  requireBuildingAccess(session, null);
   const body = await req.json();
 
   const input = createTenantSchema.parse(body);

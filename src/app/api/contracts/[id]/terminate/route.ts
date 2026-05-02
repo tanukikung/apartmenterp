@@ -6,6 +6,7 @@ import { logger } from '@/lib/utils/logger';
 import { requireRole } from '@/lib/auth/guards';
 import { logAudit } from '@/modules/audit/audit.service';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { withIdempotency } from '@/lib/utils/idempotency';
 
 const ADMIN_WINDOW_MS = 60 * 1000;
 const ADMIN_MAX_ATTEMPTS = 20;
@@ -17,6 +18,7 @@ const ADMIN_MAX_ATTEMPTS = 20;
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
     const session = requireRole(req, ['ADMIN', 'OWNER']);
+    return withIdempotency(req, 'contract_terminate', async () => {
 
     const limiter = getLoginRateLimiter();
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
@@ -50,5 +52,7 @@ export const POST = asyncHandler(
       data: contract,
       message: 'Contract terminated successfully',
     } as ApiResponse<typeof contract>);
+
+    }); // end withIdempotency
   }
 );

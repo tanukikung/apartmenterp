@@ -6,7 +6,7 @@ import {
 } from '@/modules/contracts/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
-import { requireRole } from '@/lib/auth/guards';
+import { requireRole, requireBuildingAccess } from '@/lib/auth/guards';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
 const ADMIN_WINDOW_MS = 60 * 1000;
@@ -50,25 +50,30 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 // ============================================================================
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  requireBuildingAccess(session, null);
+
   const limiter = getLoginRateLimiter();
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-  const { allowed, remaining, resetAt } = await limiter.check(`contracts:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  const { allowed, remaining, resetAt } = await limiter.check(`contracts:${session.sub}:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'OWNER']);
+  const requestId = req.headers.get('x-request-id') ?? undefined;
   const body = await req.json();
 
   const input = createContractSchema.parse(body);
 
   const { contractService } = getServiceContainer();
-  const contract = await contractService.createContract(input);
+  const contract = await contractService.createContract(input, session.sub, requestId);
 
   logger.info({
     type: 'contract_created_api',
+    requestId: requestId ?? null,
+    actorId: session.sub,
     contractId: contract.id,
     roomNo: contract.roomNo,
   });

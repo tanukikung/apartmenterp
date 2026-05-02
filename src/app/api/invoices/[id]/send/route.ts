@@ -41,8 +41,9 @@ export const POST = asyncHandler(
     }
     const input = sendInvoiceSchema.parse(body);
 
+    const requestId = req.headers.get('x-request-id') ?? undefined;
     const { invoiceService } = getServiceContainer();
-    const result = await invoiceService.sendInvoice(id, input, actorId);
+    const result = await invoiceService.sendInvoice(id, input, actorId, requestId);
 
     if (!result.queued) {
       if (!result.lineConfigured) {

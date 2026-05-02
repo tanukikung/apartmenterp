@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/lib';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { getVerifiedActor, requireRole } from '@/lib/auth/guards';
+import { withIdempotency } from '@/lib/utils/idempotency';
 import { syncInvoicePaymentState } from '@/modules/payments/invoice-payment-state';
 import { logAudit } from '@/modules/audit';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
@@ -46,6 +47,7 @@ async function getInvoiceRemainingAmount(invoiceId: string): Promise<number> {
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const session = requireRole(req, ['ADMIN', 'OWNER']);
+  return withIdempotency(req, 'payment_manual', async () => {
 
   const limiter = getLoginRateLimiter();
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
@@ -204,4 +206,6 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     } as ApiResponse<unknown>,
     { status: 201 }
   );
+
+  }); // end withIdempotency
 });

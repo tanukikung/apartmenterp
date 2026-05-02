@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
+import { withIdempotency } from '@/lib/utils/idempotency';
 import { getServiceContainer } from '@/lib/service-container';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 import { z } from 'zod';
@@ -15,6 +16,7 @@ const confirmMatchSchema = z.object({
 
 export const POST = asyncHandler(async (request: NextRequest): Promise<NextResponse> => {
   const session = requireRole(request, ['ADMIN', 'OWNER']);
+  return withIdempotency(request, 'payment_match_confirm', async () => {
 
   const limiter = getLoginRateLimiter();
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
@@ -60,4 +62,6 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
       { status: 500 }
     );
   }
+
+  }); // end withIdempotency
 });

@@ -149,9 +149,10 @@ export class InvoiceService {
    */
   async generateInvoice(
     input: GenerateInvoiceInput,
-    generatedBy?: string
+    generatedBy?: string,
+    requestId?: string,
   ): Promise<InvoiceResponse> {
-    logger.info({ type: 'invoice_generate', roomBillingId: input.billingRecordId });
+    logger.info({ type: 'invoice_generate', requestId: requestId ?? null, actorId: generatedBy ?? null, roomBillingId: input.billingRecordId });
 
     // All validation and writes are now inside the transaction — no TOCTOU window.
     const invoice = await prisma.$transaction(async (tx) => {
@@ -518,9 +519,10 @@ export class InvoiceService {
   async sendInvoice(
     id: string,
     input: SendInvoiceInput,
-    sentBy?: string
+    sentBy?: string,
+    requestId?: string,
   ): Promise<InvoiceSendResult> {
-    logger.info({ type: 'invoice_send', invoiceId: id, channel: input.channel });
+    logger.info({ type: 'invoice_send', requestId: requestId ?? null, actorId: sentBy ?? null, entityId: id, invoiceId: id, channel: input.channel });
 
     // PDF / PRINT channels do not go through LINE or the outbox. They
     // record a synchronous InvoiceDelivery row and return the admin-facing
@@ -829,20 +831,35 @@ export class InvoiceService {
     cancelledBy: string,
     reason: string,
     cancelReasonCategory?: string,
+    requestId?: string,
   ): Promise<InvoiceResponse> {
-    const invoice = await prisma.invoice.findUnique({ where: { id } });
-    if (!invoice) {
-      throw new NotFoundError('Invoice', id);
-    }
-
-    if (invoice.status === INVOICE_STATUS.CANCELLED) {
-      throw new BadRequestError('Invoice is already cancelled');
-    }
-    if (invoice.status === INVOICE_STATUS.SENT || invoice.status === INVOICE_STATUS.PAID) {
-      throw new BadRequestError(`Cannot cancel an invoice with status ${invoice.status}`);
-    }
+    // Pre-flight existence check (outside transaction for fast 404)
+    const exists = await prisma.invoice.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) throw new NotFoundError('Invoice', id);
 
     const updated = await prisma.$transaction(async (tx) => {
+      // SELECT FOR UPDATE — acquires a row-level lock so concurrent cancel
+      // requests are serialised. Without this, two requests can both read
+      // status=GENERATED and both proceed to cancel the same invoice.
+      await tx.$queryRaw`SELECT id FROM "invoices" WHERE id = ${id} FOR UPDATE`;
+
+      // Re-read inside the transaction after the lock is held
+      const invoice = await tx.invoice.findUnique({ where: { id } });
+      if (!invoice) throw new NotFoundError('Invoice', id);
+
+      if (invoice.status === INVOICE_STATUS.CANCELLED) {
+        // Idempotent: already cancelled — return current state without error
+        return { cancelled: invoice, snapshot: invoice };
+      }
+      if (invoice.status === INVOICE_STATUS.PAID) {
+        throw new BadRequestError('Cannot cancel a paid invoice');
+      }
+      if (invoice.status === INVOICE_STATUS.SENT) {
+        throw new BadRequestError('Cannot cancel a sent invoice');
+      }
+
+      logger.info({ type: 'invoice_cancel', requestId: requestId ?? null, invoiceId: id, cancelledBy });
+
       // Cancel the invoice — write all audit fields
       const cancelled = await tx.invoice.update({
         where: { id },
@@ -867,7 +884,7 @@ export class InvoiceService {
         data: { status: 'CANCELLED' as const },
       });
 
-      return cancelled;
+      return { cancelled, snapshot: invoice };
     });
 
     await logAudit({
@@ -877,18 +894,18 @@ export class InvoiceService {
       entityType: 'INVOICE',
       entityId: id,
       metadata: {
-        roomBillingId: invoice.roomBillingId,
+        roomBillingId: updated.snapshot.roomBillingId,
         reason,
         cancelReasonCategory: cancelReasonCategory ?? null,
-        totalAmount: Number(invoice.totalAmount),
-        beforeStatus: invoice.status,
+        totalAmount: Number(updated.snapshot.totalAmount),
+        beforeStatus: updated.snapshot.status,
         afterStatus: 'CANCELLED',
       },
     });
 
-    logger.info({ type: 'invoice_cancelled', invoiceId: id, cancelledBy, reason });
+    logger.info({ type: 'invoice_cancelled', requestId: requestId ?? null, invoiceId: id, cancelledBy, reason });
 
-    return this.formatInvoiceResponse(updated);
+    return this.formatInvoiceResponse(updated.cancelled);
   }
 
   /**

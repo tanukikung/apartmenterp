@@ -5,6 +5,7 @@ import { asyncHandler, type ApiResponse, BadRequestError } from '@/lib/utils/err
 import { logger } from '@/lib/utils/logger';
 import { getServiceContainer } from '@/lib/service-container';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { withIdempotency } from '@/lib/utils/idempotency';
 
 const ADMIN_WINDOW_MS = 60 * 1000;
 const ADMIN_MAX_ATTEMPTS = 20;
@@ -30,6 +31,7 @@ const cancelSchema = z.object({
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
     const session = requireRole(req, ['ADMIN', 'OWNER']);
+    return withIdempotency(req, 'invoice_cancel', async () => {
 
     const limiter = getLoginRateLimiter();
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
@@ -56,16 +58,19 @@ export const POST = asyncHandler(
       throw new BadRequestError('ต้องระบุเหตุผลการยกเลิกอย่างน้อย 10 ตัวอักษร');
     }
 
+    const requestId = req.headers.get('x-request-id') ?? undefined;
     const { invoiceService } = getServiceContainer();
     const cancelled = await invoiceService.cancelInvoice(
       id,
       session.sub,
       parsed.data.reason,
       parsed.data.cancelReasonCategory,
+      requestId,
     );
 
     logger.info({
       type: 'invoice_cancel_api',
+      requestId: requestId ?? null,
       invoiceId: id,
       actorId: session.sub,
       reason: parsed.data.reason,
@@ -76,5 +81,7 @@ export const POST = asyncHandler(
       data: cancelled,
       message: 'Invoice cancelled — RoomBilling has been unlocked for re-invoicing',
     } as ApiResponse<typeof cancelled>);
+
+    }); // end withIdempotency
   }
 );
