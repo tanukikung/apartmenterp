@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/lib';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
-import { getVerifiedActor, requireAuthSession, requireRole } from '@/lib/auth/guards';
+import { getVerifiedActor, requireRole } from '@/lib/auth/guards';
 import { syncInvoicePaymentState } from '@/modules/payments/invoice-payment-state';
 import { logAudit } from '@/modules/audit';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
@@ -45,9 +45,11 @@ async function getInvoiceRemainingAmount(invoiceId: string): Promise<number> {
 }
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  const session = requireRole(req, ['ADMIN', 'OWNER']);
+
   const limiter = getLoginRateLimiter();
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-  const { allowed, remaining, resetAt } = await limiter.check(`payments-manual:${ip}`, PAYMENT_MAX_ATTEMPTS, PAYMENT_WINDOW_MS);
+  const { allowed, remaining, resetAt } = await limiter.check(`payments-manual:${session.sub}:${ip}`, PAYMENT_MAX_ATTEMPTS, PAYMENT_WINDOW_MS);
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: { message: `Too many payment requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
@@ -55,8 +57,6 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
 
-  requireAuthSession(req);
-  requireRole(req, ['ADMIN', 'OWNER']);
   const actor = getVerifiedActor(req);
 
   let body: Record<string, unknown>;

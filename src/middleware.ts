@@ -308,16 +308,17 @@ export async function middleware(req: NextRequest) {
   if (url.pathname.startsWith('/api/') && !isEmbeddableRoute) {
     res.headers.set('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline'");
   }
-  // Only log in development — avoid performance overhead on every production request
-  if (process.env.NODE_ENV === 'development') {
+  // Log all API requests with requestId for correlation in all environments.
+  // Middleware cannot observe the final route status code (next() always returns 200),
+  // so we log the request ingress here; route handlers log egress with actual status.
+  if (url.pathname.startsWith('/api/')) {
     logger.info({
-      type: 'api_request',
+      type: 'api_ingress',
       method: req.method,
       path: url.pathname,
-      statusCode: res.status,
-      duration: `${Date.now() - start}ms`,
       requestId,
       ip,
+      duration: `${Date.now() - start}ms`,
     });
   }
   return res;

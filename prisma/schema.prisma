@@ -402,6 +402,7 @@ model RoomTenant {
   @@index([roomNo])
   @@index([tenantId])
   @@index([role])
+  @@index([moveOutDate])
   @@map("room_tenants")
 }
 

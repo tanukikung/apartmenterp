@@ -426,16 +426,29 @@ export function asyncHandler<
       // returns NextResponse|void.
       return await (handler as (req: unknown, ctx?: unknown) => Promise<NextResponse>)(req, resOrContext);
     } catch (error) {
-      const [, resOrContext] = args as [unknown, unknown?];
+      const [req, resOrContext] = args as [unknown, unknown?];
+      const requestId = (req && typeof (req as { headers?: { get?: (k: string) => string | null } }).headers?.get === 'function')
+        ? ((req as { headers: { get: (k: string) => string | null } }).headers.get('x-request-id') ?? undefined)
+        : undefined;
+
+      const response = formatError(error);
+      if (response.error.statusCode >= 500) {
+        logger.error({
+          type: 'unhandled_route_error',
+          requestId: requestId ?? null,
+          statusCode: response.error.statusCode,
+          code: response.error.code,
+          message: response.error.message,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+      }
 
       if (resOrContext && typeof (resOrContext as { status?: unknown }).status === 'function') {
-        const response = formatError(error);
         return (resOrContext as { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } })
           .status(response.error.statusCode)
           .json(response);
       }
 
-      const response = formatError(error);
       return NextResponse.json(response, {
         status: response.error.statusCode,
       });

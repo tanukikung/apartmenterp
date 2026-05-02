@@ -602,8 +602,10 @@ export class PaymentMatchingService {
   async confirmMatch(
     transactionId: string,
     invoiceId: string,
-    confirmedBy: string
+    confirmedBy: string,
+    requestId?: string,
   ): Promise<void> {
+    logger.info({ type: 'payment_match_confirm_start', requestId: requestId ?? null, transactionId, invoiceId, confirmedBy });
     // Pre-flight: fetch full transaction state for early-exit and error messaging.
     // All authoritative validation and writes happen inside the $transaction.
     const transaction = await prisma.paymentTransaction.findUnique({

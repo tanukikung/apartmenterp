@@ -473,9 +473,10 @@ export class ContractService {
   async terminateContract(
     id: string,
     input: TerminateContractInput,
-    terminatedBy?: string
+    terminatedBy?: string,
+    requestId?: string,
   ): Promise<ContractResponse> {
-    logger.info({ type: 'contract_terminate', id });
+    logger.info({ type: 'contract_terminate', requestId: requestId ?? null, id });
 
     const contract = await prisma.contract.findUnique({
       where: { id },

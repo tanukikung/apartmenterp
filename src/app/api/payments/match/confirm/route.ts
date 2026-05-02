@@ -14,16 +14,17 @@ const confirmMatchSchema = z.object({
 });
 
 export const POST = asyncHandler(async (request: NextRequest): Promise<NextResponse> => {
+  const session = requireRole(request, ['ADMIN', 'OWNER']);
+
   const limiter = getLoginRateLimiter();
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-  const { allowed, remaining, resetAt } = await limiter.check(`payments-match-confirm:${ip}`, PAYMENT_MAX_ATTEMPTS, PAYMENT_WINDOW_MS);
+  const { allowed, remaining, resetAt } = await limiter.check(`payments-match-confirm:${session.sub}:${ip}`, PAYMENT_MAX_ATTEMPTS, PAYMENT_WINDOW_MS);
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: { message: `Too many payment requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireRole(request, ['ADMIN', 'OWNER']);
   const body = await request.json();
 
   const validation = confirmMatchSchema.safeParse(body);
@@ -36,10 +37,11 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
 
   const { transactionId, invoiceId } = validation.data;
   const userId = session.sub;
+  const requestId = request.headers.get('x-request-id') ?? undefined;
 
   try {
     const service = getServiceContainer().paymentMatchingService;
-    await service.confirmMatch(transactionId, invoiceId, userId);
+    await service.confirmMatch(transactionId, invoiceId, userId, requestId);
 
     return NextResponse.json({
       success: true,
