@@ -490,14 +490,7 @@ export class TenantService {
         throw new ConflictError('Tenant is already assigned to this room');
       }
 
-      // If assigning PRIMARY tenant to a VACANT room, transition room to OCCUPIED
-      if (input.role === 'PRIMARY' && room.roomStatus === ROOM_STATUS.VACANT) {
-        await tx.room.update({
-          where: { roomNo: roomId },
-          data: { roomStatus: ROOM_STATUS.OCCUPIED },
-        });
-      }
-
+      
       const created = await tx.roomTenant.create({
         data: {
           id: uuidv4(),

@@ -120,9 +120,47 @@ export const POST = asyncHandler(
         await sendTextWithQuickReply(lineUserId, `ℹ️ ห้อง ${invoice.roomNo} ชำระเงินแล้วเรียบร้อยค่ะ`, []);
         return NextResponse.json({ success: true, data: { sent: false, reason: 'already_paid' } } as ApiResponse<unknown>);
       }
-      await prisma.invoice.update({
-        where: { id: resolvedInvoiceId },
-        data: { status: 'PAID', paidAt: new Date() },
+
+      // Verify CONFIRMED payments actually exist and cover the full amount
+      const confirmedPayments = await prisma.payment.findMany({
+        where: { matchedInvoiceId: resolvedInvoiceId, status: 'CONFIRMED' },
+      });
+      if (confirmedPayments.length === 0) {
+        await sendTextWithQuickReply(lineUserId, `❌ ไม่พบการชำระเงินสำหรับ invoice นี้ กรุณาติดต่อเจ้าหน้าที่`, []);
+        return NextResponse.json({ success: true, data: { sent: false, reason: 'no_payment' } } as ApiResponse<unknown>);
+      }
+
+      const invoiceTotal = Number(invoice.totalAmount);
+      const lateFeeAmount = Number(invoice.lateFeeAmount ?? 0);
+      const totalOwed = invoiceTotal + lateFeeAmount;
+      const totalPaid = confirmedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const EPSILON = Math.max(0.01, totalOwed * 0.0001);
+      const settled = Math.abs(totalPaid - totalOwed) <= EPSILON;
+
+      if (!settled) {
+        const paidAmount = `฿${totalPaid.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+        const expectedAmount = `฿${totalOwed.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+        await sendTextWithQuickReply(
+          lineUserId,
+          `❌ ยอดชำระไม่เพียงพอค่ะ\nจ่ายแล้ว: ${paidAmount}\nต้องชำระ: ${expectedAmount}\n\nกรุณาติดต่อเจ้าหน้าที่หากมีข้อสงสัยค่ะ`,
+          []
+        );
+        return NextResponse.json({ success: true, data: { sent: false, reason: 'insufficient_payment' } } as ApiResponse<unknown>);
+      }
+
+      // Use syncInvoicePaymentState pattern — do NOT set PAID directly without verified payment
+      await prisma.$transaction(async (tx) => {
+        const payment = await tx.payment.findFirst({
+          where: { matchedInvoiceId: resolvedInvoiceId, status: 'CONFIRMED' },
+          orderBy: { confirmedAt: 'desc' },
+        });
+        await tx.invoice.update({
+          where: { id: resolvedInvoiceId },
+          data: {
+            status: 'PAID',
+            paidAt: payment?.confirmedAt ?? new Date(),
+          },
+        });
       });
       await sendTextWithQuickReply(
         lineUserId,

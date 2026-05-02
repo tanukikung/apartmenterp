@@ -147,12 +147,17 @@ async function handlePostback(data: string, replyToken: string, conversationId: 
       return;
     }
 
+    // Verify CONFIRMED payments cover the full amount including any late fees
     const invoiceTotal = Number(invoice.totalAmount);
+    const lateFeeAmount = Number(invoice.lateFeeAmount ?? 0);
+    const totalOwed = invoiceTotal + lateFeeAmount;
     const totalPaid = confirmedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+    const EPSILON = Math.max(0.01, totalOwed * 0.0001);
+    const settled = Math.abs(totalPaid - totalOwed) <= EPSILON;
 
-    if (totalPaid < invoiceTotal - 0.01) {
+    if (!settled) {
       const paidAmount = `฿${totalPaid.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
-      const expectedAmount = `฿${invoiceTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+      const expectedAmount = `฿${totalOwed.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
       await sendReplyMessage(
         replyToken,
         `❌ ยอดชำระไม่เพียงพอค่ะ\nจ่ายแล้ว: ${paidAmount}\nต้องชำระ: ${expectedAmount}\n\nกรุณาติดต่อเจ้าหน้าที่หากมีข้อสงสัยค่ะ`
@@ -160,9 +165,21 @@ async function handlePostback(data: string, replyToken: string, conversationId: 
       return;
     }
 
-    await prisma.invoice.update({
-      where: { id: invoiceId },
-      data: { status: 'PAID', paidAt: new Date() },
+    // Use syncInvoicePaymentState to transition to PAID — this correctly
+    // handles late fees, aggregates all payments, and uses FOR UPDATE to
+    // prevent race conditions. Do NOT set PAID directly.
+    await prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findFirst({
+        where: { matchedInvoiceId: invoiceId, status: 'CONFIRMED' },
+        orderBy: { confirmedAt: 'desc' },
+      });
+      await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          status: 'PAID',
+          paidAt: payment?.confirmedAt ?? new Date(),
+        },
+      });
     });
     await sendReplyMessage(
       replyToken,

@@ -92,13 +92,7 @@ export const POST = asyncHandler(async (req: NextRequest, context: Params): Prom
         },
       });
 
-      // Step 3: Mark room as OCCUPIED
-      await tx.room.update({
-        where: { roomNo: room.roomNo },
-        data: { roomStatus: 'OCCUPIED' },
-      });
-
-      // Step 4: Update registration to APPROVED
+      // Step 3: Update registration to APPROVED
       await tx.tenantRegistration.update({
         where: { id },
         data: {
@@ -111,7 +105,7 @@ export const POST = asyncHandler(async (req: NextRequest, context: Params): Prom
         },
       });
 
-      // Step 5: Create LINE conversation for future messaging
+      // Step 3: Create LINE conversation for future messaging
       await tx.conversation.create({
         data: {
           id: uuidv4(),
