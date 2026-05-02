@@ -14,8 +14,14 @@ const ADMIN_MAX_ATTEMPTS = 20;
  *
  * Requires a reason (min 10 chars) to prevent silent invoice suppression fraud.
  * Only GENERATED/SENT/VIEWED invoices can be cancelled; PAID/OVERDUE_CANCELLED cannot.
+ * Requires ADMIN or OWNER role.
  */
+const CancelReasonCategory = z.enum(['ERROR', 'CUSTOMER_REQUEST', 'FRAUD', 'OTHER']);
+type CancelReasonCategory = z.infer<typeof CancelReasonCategory>;
+
 const cancelSchema = z.object({
+  // Reason category required for audit trail and analytics
+  cancelReasonCategory: CancelReasonCategory,
   // Reason is required to prevent a single admin from silently cancelling invoices
   // (which would make them disappear from overdue reports)
   reason: z.string().min(10, 'ต้องระบุเหตุผลอย่างน้อย 10 ตัวอักษร'),
@@ -50,7 +56,12 @@ export const POST = asyncHandler(
     }
 
     const { invoiceService } = getServiceContainer();
-    const cancelled = await invoiceService.cancelInvoice(id, session.sub, parsed.data.reason);
+    const cancelled = await invoiceService.cancelInvoice(
+      id,
+      session.sub,
+      parsed.data.reason,
+      parsed.data.cancelReasonCategory,
+    );
 
     logger.info({
       type: 'invoice_cancel_api',

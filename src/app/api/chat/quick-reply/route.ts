@@ -10,6 +10,7 @@ import {
   type InvoiceTemplateData,
   type ReceiptTemplateData,
 } from '@/modules/messaging/lineTemplates';
+import { isPaymentSettled, PaymentMatchMode } from '@/modules/payments/payment-tolerance';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
 const CHAT_WINDOW_MS = 60 * 1000;
@@ -134,8 +135,7 @@ export const POST = asyncHandler(
       const lateFeeAmount = Number(invoice.lateFeeAmount ?? 0);
       const totalOwed = invoiceTotal + lateFeeAmount;
       const totalPaid = confirmedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-      const EPSILON = Math.max(0.01, totalOwed * 0.0001);
-      const settled = Math.abs(totalPaid - totalOwed) <= EPSILON;
+      const settled = isPaymentSettled(totalPaid, totalOwed, PaymentMatchMode.ALLOW_SMALL_DIFF);
 
       if (!settled) {
         const paidAmount = `฿${totalPaid.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;

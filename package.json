@@ -28,7 +28,9 @@
     "docker:logs:app": "docker compose logs -f app",
     "test": "vitest run --pool=forks",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "audit:data-integrity": "tsx scripts/audit-data-integrity.ts",
+    "sync:invoice-status": "tsx scripts/sync-invoice-status.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1016.0",

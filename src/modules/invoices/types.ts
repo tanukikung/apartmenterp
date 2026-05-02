@@ -87,7 +87,10 @@ export interface InvoiceResponse {
   billingPeriodId: string;
   year: number;
   month: number;
+  /** Effective status — always derived via getEffectiveInvoiceStatus() */
   status: InvoiceStatus;
+  /** Original stored status from DB — for debugging/invariant checks only */
+  storedStatus?: InvoiceStatus;
   totalAmount: number;
   dueDate: Date;
   issuedAt: Date | null;

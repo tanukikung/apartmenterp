@@ -1,6 +1,41 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { logger } from '../utils/logger';
 
+/**
+ * Soft-delete middleware
+ *
+ * Automatically adds `deletedAt: null` to all findFirst/findMany queries on
+ * Tenant and Contract models. This ensures deleted records are always
+ * excluded without requiring callers to remember the filter.
+ *
+ * Hard deletes on these models are blocked by the model-level @ignore annotation
+ * in schema.prisma — use archiveTenant() / archiveContract() instead.
+ */
+function softDeleteMiddleware(prisma: PrismaClient): void {
+  const modelPrefix = 'model.';
+  const modelsWithSoftDelete = ['Tenant', 'Contract'];
+
+  prisma.$use(async (params, next) => {
+    // Only intercept findFirst/findMany on soft-delete models
+    if (
+      params.action === 'findFirst' ||
+      params.action === 'findMany' ||
+      params.action === 'findUnique'
+    ) {
+      const model = params.model as string;
+      if (modelsWithSoftDelete.includes(model)) {
+        // Push deletedAt filter onto the query's where clause
+        const where = params.args.where ?? {};
+        // Avoid overwriting an explicit deletedAt filter if caller provides one
+        if (!where.deletedAt) {
+          params.args.where = { ...where, deletedAt: null };
+        }
+      }
+    }
+    return next(params);
+  });
+}
+
 /** Typing for Prisma event listener registration — used to type $on calls */
 type PrismaEventListener = {
   $on(event: 'query' | 'warn' | 'error', cb: (e: unknown) => void): void;
@@ -52,6 +87,9 @@ export const prisma =
       { level: 'error', emit: 'event' },
     ],
   });
+
+// Apply soft-delete middleware after instantiation
+softDeleteMiddleware(prisma);
 
 // Set up query logging in development
 if (process.env.NODE_ENV === 'development') {

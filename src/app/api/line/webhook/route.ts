@@ -11,6 +11,7 @@ import type { Prisma } from '@prisma/client';
 import type { MessageType } from '@prisma/client';
 import { getLatestUnpaidInvoiceForLineUser } from '@/modules/invoices/balance-inquiry';
 import { buildInvoiceFlex } from '@/modules/messaging/lineTemplates';
+import { isPaymentSettled, PaymentMatchMode } from '@/modules/payments/payment-tolerance';
 import {
   startMaintenanceRequest,
   handleMaintenanceRequestMessage,
@@ -152,8 +153,7 @@ async function handlePostback(data: string, replyToken: string, conversationId: 
     const lateFeeAmount = Number(invoice.lateFeeAmount ?? 0);
     const totalOwed = invoiceTotal + lateFeeAmount;
     const totalPaid = confirmedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const EPSILON = Math.max(0.01, totalOwed * 0.0001);
-    const settled = Math.abs(totalPaid - totalOwed) <= EPSILON;
+    const settled = isPaymentSettled(totalPaid, totalOwed, PaymentMatchMode.ALLOW_SMALL_DIFF);
 
     if (!settled) {
       const paidAmount = `฿${totalPaid.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;

@@ -192,6 +192,9 @@ model Invoice {
   year                      Int
   month                     Int
   status                    InvoiceStatus              @default(GENERATED)
+  // Persisted computed status — updated daily by sync-invoice-status cron.
+  // This is an optimization for queries; display code MUST use getEffectiveInvoiceStatus().
+  statusComputed            String?
   totalAmount               Decimal                    @db.Decimal(10, 2)
   lateFeeAmount             Decimal                    @default(0) @db.Decimal(10, 2)
   lateFeeAppliedAt          DateTime? @db.Timestamptz(6)
@@ -200,6 +203,11 @@ model Invoice {
   sentAt                    DateTime? @db.Timestamptz(6)
   paidAt                    DateTime? @db.Timestamptz(6)
   note                      String?
+  // Cancel audit trail
+  cancelledAt               DateTime? @db.Timestamptz(6)
+  cancelledBy               String?
+  cancelReason              String?
+  cancelReasonCategory      String? // ERROR | CUSTOMER_REQUEST | FRAUD | OTHER
   accessToken               String?                    @unique
   createdAt                 DateTime @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime @updatedAt @db.Timestamptz(6)
@@ -359,8 +367,13 @@ model Tenant {
   email                     String?
   emergencyContact          String?
   emergencyPhone            String?
+  // Set to true when an ACTIVE contract is created for this tenant; false when contract terminates.
+  // Used to enforce CONTRACT_REQUIRED flow: no invoice generation without active contract.
+  hasActiveContract         Boolean                   @default(false)
   createdAt                 DateTime @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime @updatedAt @db.Timestamptz(6)
+  // Soft delete — set to deletion timestamp. All queries MUST filter deletedAt: null.
+  deletedAt                 DateTime?
   contracts                 Contract[]                 @relation("PrimaryTenant")
   conversations             Conversation[]
   documentGenerationTargets DocumentGenerationTarget[]
@@ -404,6 +417,8 @@ model Contract {
   status                    ContractStatus             @default(ACTIVE)
   terminationDate           DateTime? @db.Timestamptz(6)
   terminationReason         String?
+  // Soft delete — set to deletion timestamp. All queries MUST filter deletedAt: null.
+  deletedAt                 DateTime?
   createdAt                 DateTime @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime @updatedAt @db.Timestamptz(6)
   primaryTenant             Tenant                     @relation("PrimaryTenant", fields: [primaryTenantId], references: [id])

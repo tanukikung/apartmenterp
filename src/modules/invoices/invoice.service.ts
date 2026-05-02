@@ -8,6 +8,7 @@ import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
 import { INVOICE_STATUS } from '@/lib/constants';
+import { getEffectiveInvoiceStatus } from './status';
 
 import {
   GenerateInvoiceInput,
@@ -184,6 +185,19 @@ export class InvoiceService {
       });
       if (existingInvoice) {
         throw new BadRequestError('Invoice already exists for this billing record');
+      }
+
+      // ── CONTRACT_REQUIRED enforcement ──────────────────────────────────────
+      // An invoice can only be generated for a room that has an ACTIVE contract.
+      // This prevents billing for rooms where no formal contract exists.
+      const activeContract = await tx.contract.findFirst({
+        where: { roomNo: roomBilling.roomNo, status: 'ACTIVE' },
+        select: { id: true },
+      });
+      if (!activeContract) {
+        throw new BadRequestError(
+          `No active contract for room ${roomBilling.roomNo}. Invoice generation requires a signed contract.`
+        );
       }
 
       // ── Fetch billingPeriod details (needed for due date calculation) ────────
@@ -808,8 +822,14 @@ export class InvoiceService {
    * Cancel an invoice and revert the associated RoomBilling to LOCKED
    * so it can be re-invoiced after corrections.
    * Only GENERATED/overdue invoices can be cancelled; SENT/PAID cannot.
+   * Writes full audit trail: cancelledAt, cancelledBy, cancelReason, cancelReasonCategory.
    */
-  async cancelInvoice(id: string, cancelledBy: string, reason: string): Promise<InvoiceResponse> {
+  async cancelInvoice(
+    id: string,
+    cancelledBy: string,
+    reason: string,
+    cancelReasonCategory?: string,
+  ): Promise<InvoiceResponse> {
     const invoice = await prisma.invoice.findUnique({ where: { id } });
     if (!invoice) {
       throw new NotFoundError('Invoice', id);
@@ -823,10 +843,16 @@ export class InvoiceService {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
-      // Cancel the invoice
+      // Cancel the invoice — write all audit fields
       const cancelled = await tx.invoice.update({
         where: { id },
-        data: { status: INVOICE_STATUS.CANCELLED },
+        data: {
+          status: INVOICE_STATUS.CANCELLED,
+          cancelledAt: new Date(),
+          cancelledBy,
+          cancelReason: reason,
+          cancelReasonCategory: cancelReasonCategory ?? null,
+        },
       });
 
       // Revert RoomBilling to LOCKED so it can be re-invoiced
@@ -850,7 +876,14 @@ export class InvoiceService {
       action: 'INVOICE_CANCELLED',
       entityType: 'INVOICE',
       entityId: id,
-      metadata: { roomBillingId: invoice.roomBillingId, reason },
+      metadata: {
+        roomBillingId: invoice.roomBillingId,
+        reason,
+        cancelReasonCategory: cancelReasonCategory ?? null,
+        totalAmount: Number(invoice.totalAmount),
+        beforeStatus: invoice.status,
+        afterStatus: 'CANCELLED',
+      },
     });
 
     logger.info({ type: 'invoice_cancelled', invoiceId: id, cancelledBy, reason });
@@ -1147,6 +1180,13 @@ export class InvoiceService {
       : null;
     const invoiceNumber = `INV-${invoice.year}${String(invoice.month).padStart(2, '0')}-${invoice.roomNo}`;
 
+    // Compute effective status — this is the authoritative status for display
+    const effectiveStatus = getEffectiveInvoiceStatus({
+      storedStatus: invoice.status,
+      dueDate: invoice.dueDate,
+      paidAt: invoice.paidAt ?? null,
+    });
+
     return {
       id: invoice.id,
       invoiceNumber,
@@ -1155,7 +1195,8 @@ export class InvoiceService {
       billingPeriodId: invoice.roomBilling?.billingPeriodId ?? '',
       year: invoice.year,
       month: invoice.month,
-      status: invoice.status as InvoiceStatus,
+      status: effectiveStatus as InvoiceStatus, // Always use effective status for display
+      storedStatus: invoice.status as InvoiceStatus, // Original stored status for debugging
       totalAmount: Number(invoice.totalAmount),
       dueDate: invoice.dueDate,
       issuedAt: invoice.issuedAt ?? null,

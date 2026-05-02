@@ -160,6 +160,11 @@ export class ContractService {
         where: { roomNo: input.roomId },
         data: { roomStatus: ROOM_STATUS.OCCUPIED },
       });
+      // Set tenant's hasActiveContract = true since room is now OCCUPIED via this contract
+      await tx.tenant.update({
+        where: { id: created.primaryTenantId },
+        data: { hasActiveContract: true },
+      });
       await tx.outboxEvent.create({
         data: {
           id: uuidv4(),
@@ -504,6 +509,11 @@ export class ContractService {
       await tx.room.update({
         where: { roomNo: result.roomNo },
         data: { roomStatus: 'VACANT' },
+      });
+      // Clear tenant's hasActiveContract since contract is now terminated
+      await tx.tenant.update({
+        where: { id: result.primaryTenantId },
+        data: { hasActiveContract: false },
       });
       await tx.outboxEvent.create({
         data: {

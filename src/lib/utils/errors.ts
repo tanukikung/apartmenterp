@@ -57,6 +57,23 @@ export class BadRequestError extends AppError {
 }
 
 /**
+ * Data Integrity Violation Error (500)
+ *
+ * This error indicates a CRITICAL invariant was violated — a code bug, not a user error.
+ * Examples:
+ *   - PAID invoice without sufficient CONFIRMED payment
+ *   - OCCUPIED room without ACTIVE contract
+ *   - OVERDUE stored status with future dueDate
+ *
+ * This is not a 4xx because the client cannot fix it — it requires code/database fixes.
+ */
+export class DataIntegrityError extends AppError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(message, 'DATA_INTEGRITY_VIOLATION', 500, details);
+  }
+}
+
+/**
  * Unauthorized Error (401)
  */
 export class UnauthorizedError extends AppError {

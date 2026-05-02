@@ -2,6 +2,10 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Prisma } from '@prisma/client';
 import { EventTypes } from '@/lib';
 import { NotFoundError } from '@/lib/utils/errors';
+import { isPaymentSettled, PaymentMatchMode } from './payment-tolerance';
+import { assertInvoiceHasSufficientPayment, assertInvoicePaidHasPaidAt } from '@/lib/invariants';
+
+export { PaymentMatchMode } from './payment-tolerance';
 
 
 type InvoicePaymentSnapshot = {
@@ -16,6 +20,8 @@ export interface SyncInvoicePaymentStateInput {
   paymentId: string;
   paymentAmount: number;
   paidAt: Date;
+  /** Tolerance mode for payment settlement check. Defaults to ALLOW_SMALL_DIFF. */
+  mode?: PaymentMatchMode;
 }
 
 export interface SyncInvoicePaymentStateResult {
@@ -29,6 +35,8 @@ export async function syncInvoicePaymentState(
   tx: Prisma.TransactionClient,
   input: SyncInvoicePaymentStateInput,
 ): Promise<SyncInvoicePaymentStateResult> {
+  const mode = input.mode ?? PaymentMatchMode.ALLOW_SMALL_DIFF;
+
   // Lock the row to prevent concurrent payments from causing TOCTOU race conditions.
   // This ensures only one payment can transition the invoice to PAID at a time.
   // Using raw query because Prisma.TransactionClient type doesn't expose `for: 'update'`.
@@ -58,13 +66,18 @@ export async function syncInvoicePaymentState(
   const invoiceTotal = Number(invoice.totalAmount);
   const lateFeeAmount = Number(invoice.lateFeeAmount ?? 0);
   const totalOwed = invoiceTotal + lateFeeAmount;
-  // Use epsilon comparison scaled to totalOwed to handle floating-point rounding
-  const EPSILON = Math.max(0.01, totalOwed * 0.0001); // 0.01 minimum, or 0.01% of total
-  const settled = Math.abs(totalPaid - totalOwed) <= EPSILON;
+  // Use explicit tolerance mode instead of percentage-based EPSILON
+  const settled = isPaymentSettled(totalPaid, totalOwed, mode);
   const transitionedToPaid = settled && invoice.status !== 'PAID';
 
   let updatedInvoice: InvoicePaymentSnapshot = invoice;
   if (transitionedToPaid) {
+    // HARD INVARIANT: Before setting PAID, verify sufficient payment exists.
+    // This is a belt-and-suspenders check — the settled computation above
+    // already guarantees this, but the assert catches any race conditions
+    // or misuse of this function.
+    await assertInvoiceHasSufficientPayment(tx, input.invoiceId);
+    await assertInvoicePaidHasPaidAt(tx, input.invoiceId);
     updatedInvoice = await tx.invoice.update({
       where: { id: input.invoiceId },
       data: {
