@@ -76,6 +76,33 @@ export class PaymentMatchingService {
     let imported = 0;
     let matched = 0;
 
+    // ── Pre-load all candidate unpaid invoices ONCE for the entire import ────────
+    // Previously: each entry called attemptMatch() which ran its own invoice.findMany
+    // with a ±75-day date-range + room+tenant includes. For 500 entries that was
+    // 500 separate heavy queries. Now: 1 query covering the full date span of the
+    // import, shared across all entries via an in-memory map.
+    const dateMin = new Date(Math.min(...entries.map(e => e.date.getTime()))
+      - INVOICE_SEARCH_DAYS_BEFORE * 86_400_000);
+    const dateMax = new Date(Math.max(...entries.map(e => e.date.getTime()))
+      + INVOICE_SEARCH_DAYS_AFTER * 86_400_000);
+
+    const allCandidateInvoices = await prisma.invoice.findMany({
+      where: {
+        status: { in: ['GENERATED', 'SENT', 'VIEWED'] },
+        dueDate: { gte: dateMin, lte: dateMax },
+      },
+      include: {
+        room: {
+          include: {
+            tenants: {
+              where: { moveOutDate: null },
+              include: { tenant: true },
+            },
+          },
+        },
+      },
+    });
+
     // Process entries in batches to amortize transaction overhead
     for (let i = 0; i < entries.length; i += BATCH_SIZE) {
       const batch = entries.slice(i, i + BATCH_SIZE);
@@ -103,7 +130,12 @@ export class PaymentMatchingService {
 
             batchResults.push({ imported: true, matched: false });
 
-            const matchResult = await this.attemptMatch(transaction.id, tx as Prisma.TransactionClient, { autoConfirmHighConfidence: true });
+            // Pass the pre-loaded invoice cache so attemptMatch doesn't hit the DB
+            const matchResult = await this.attemptMatch(
+              transaction.id,
+              tx as Prisma.TransactionClient,
+              { autoConfirmHighConfidence: true, invoiceCache: allCandidateInvoices },
+            );
             if (matchResult === 'CONFIRMED') {
               batchResults[batchResults.length - 1].matched = true;
             } else if (matchResult) {
@@ -171,7 +203,20 @@ export class PaymentMatchingService {
   async attemptMatch(
     transactionId: string,
     tx?: Prisma.TransactionClient,
-    options: { autoConfirmHighConfidence?: boolean } = {},
+    options: {
+      autoConfirmHighConfidence?: boolean;
+      /**
+       * Pre-loaded invoice cache from importBankStatement.
+       * When provided, skips the per-entry invoice.findMany DB query — the
+       * caller already fetched all candidates once for the entire batch.
+       * Without the cache every entry triggers a separate heavy join query.
+       *
+       * Shape must match what prisma.invoice.findMany returns with
+       * { include: { room: { include: { tenants: { include: { tenant: true } } } } } }
+       */
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      invoiceCache?: any[];
+    } = {},
   ): Promise<MatchCandidate | 'CONFIRMED' | null> {
     const { autoConfirmHighConfidence = false } = options;
     const db = tx ?? prisma;
@@ -183,26 +228,30 @@ export class PaymentMatchingService {
       throw new NotFoundError('PaymentTransaction', transactionId);
     }
 
-    // Get unpaid invoices within the search window
-    const unpaidInvoices = await db.invoice.findMany({
-      where: {
-        status: { in: ['GENERATED', 'SENT', 'VIEWED'] },
-        dueDate: {
-          gte: new Date(transaction.transactionDate.getTime() - INVOICE_SEARCH_DAYS_BEFORE * 24 * 60 * 60 * 1000),
-          lte: new Date(transaction.transactionDate.getTime() + INVOICE_SEARCH_DAYS_AFTER * 24 * 60 * 60 * 1000),
-        },
-      },
-      include: {
-        room: {
+    // Filter invoices to the ±window around this transaction's date.
+    // If a cache was passed (bulk import path), filter in-memory — zero DB queries.
+    // Otherwise fall back to a targeted DB query (single-match path).
+    const windowStart = new Date(transaction.transactionDate.getTime() - INVOICE_SEARCH_DAYS_BEFORE * 86_400_000);
+    const windowEnd   = new Date(transaction.transactionDate.getTime() + INVOICE_SEARCH_DAYS_AFTER  * 86_400_000);
+
+    const unpaidInvoices = options.invoiceCache
+      ? options.invoiceCache.filter(inv =>
+          inv.dueDate >= windowStart && inv.dueDate <= windowEnd &&
+          ['GENERATED', 'SENT', 'VIEWED'].includes(inv.status)
+        )
+      : await db.invoice.findMany({
+          where: {
+            status: { in: ['GENERATED', 'SENT', 'VIEWED'] },
+            dueDate: { gte: windowStart, lte: windowEnd },
+          },
           include: {
-            tenants: {
-              where: { moveOutDate: null },
-              include: { tenant: true },
+            room: {
+              include: {
+                tenants: { where: { moveOutDate: null }, include: { tenant: true } },
+              },
             },
           },
-        },
-      },
-    });
+        });
 
     const candidates: MatchCandidate[] = [];
 

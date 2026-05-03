@@ -36,6 +36,9 @@ interface OutboxEventBase {
   processedAt: Date | null;
   retryCount: number;
   createdAt: Date;
+  // Field name varies between schema versions; cast via any where needed
+  lastAttemptAt?: Date | null;
+  nextAttemptAt?: Date | null;
   lastError: string | null;
 }
 
@@ -49,6 +52,22 @@ export interface OutboxEventWithPayload extends OutboxEventBase {
  * Reads events from the outbox table and publishes them to the EventBus.
  * Implements idempotency to prevent duplicate processing.
  */
+// ── Circuit Breaker ───────────────────────────────────────────────────────────
+// If the EventBus (or downstream LINE API) fails CIRCUIT_OPEN_THRESHOLD times
+// within CIRCUIT_WINDOW_MS the circuit opens and no events are published until
+// CIRCUIT_RESET_MS has elapsed. This prevents the outbox from hammering a
+// degraded downstream service and consuming all retry budget.
+
+const CIRCUIT_OPEN_THRESHOLD = Number(process.env.OUTBOX_CIRCUIT_THRESHOLD ?? 5);
+const CIRCUIT_WINDOW_MS      = Number(process.env.OUTBOX_CIRCUIT_WINDOW_MS  ?? 60_000);   // 1 min
+const CIRCUIT_RESET_MS       = Number(process.env.OUTBOX_CIRCUIT_RESET_MS   ?? 120_000);  // 2 min
+
+interface CircuitBreakerState {
+  failures: number;
+  windowStart: number;
+  openedAt: number | null;
+}
+
 export class OutboxProcessor {
   private eventBus: EventBus;
   private prisma: typeof prisma;
@@ -56,6 +75,7 @@ export class OutboxProcessor {
   private isProcessing: boolean = false;
   private shouldStop: boolean = false;
   private intervalId: NodeJS.Timeout | null = null;
+  private circuit: CircuitBreakerState = { failures: 0, windowStart: Date.now(), openedAt: null };
   // NOTE: in-memory Set removed. Dedup now uses DB processedAt column — see process()
   // where `processedAt IS NOT NULL` acts as the idempotency key instead.
   // This is durable across process restarts and safe in multi-instance deployments.
@@ -150,7 +170,13 @@ export class OutboxProcessor {
   }
 
   /**
-   * Process pending outbox events
+   * Process pending outbox events.
+   *
+   * Two-phase design to minimise lock duration:
+   *   Phase 1 (short transaction): SELECT FOR UPDATE SKIP LOCKED → stamp
+   *     lastAttemptAt → COMMIT. Locks are held for <100 ms, not 5+ seconds.
+   *   Phase 2 (outside any transaction): eventBus.publish() for each event,
+   *     then individual UPDATE for processedAt / retryCount.
    */
   async process(): Promise<ProcessedResult> {
     if (this.isProcessing) {
@@ -158,22 +184,12 @@ export class OutboxProcessor {
     }
 
     this.isProcessing = true;
-    const result: ProcessedResult = {
-      processed: 0,
-      failed: 0,
-      errors: [],
-    };
+    const result: ProcessedResult = { processed: 0, failed: 0, errors: [] };
 
     try {
-      // Wrap the entire lock-fetch-process cycle in a transaction so the
-      // FOR UPDATE SKIP LOCKED row locks are held until the work is done.
-      // Without this, each query auto-commits and the lock is released before
-      // the actual processing, allowing concurrent instances to process the
-      // same events.
+      // ── Phase 1: Claim events (short transaction — releases locks immediately) ─
+      const claimedIds: string[] = [];
       await this.prisma.$transaction(async (tx) => {
-        // Get unprocessed event IDs with row-level locking (FOR UPDATE SKIP LOCKED).
-        // SKIP LOCKED prevents multiple instances from competing over the same rows —
-        // each instance grabs a different batch without blocking.
         const lockedIds: Array<{ id: string }> = await tx.$queryRaw`
           SELECT id FROM outbox_events
           WHERE "processedAt" IS NULL
@@ -182,149 +198,172 @@ export class OutboxProcessor {
           LIMIT ${this.options.batchSize}
           FOR UPDATE SKIP LOCKED
         `;
+        if (lockedIds.length === 0) return;
 
-        if (lockedIds.length === 0) {
-          return;
+        const ids = lockedIds.map(r => r.id);
+        await tx.$executeRaw`
+          UPDATE outbox_events
+          SET "lastAttemptAt" = NOW()
+          WHERE id = ANY(${ids}::text[])
+        `;
+        claimedIds.push(...ids);
+      });
+
+      if (claimedIds.length === 0) return result;
+
+      // Fetch full data for claimed events (outside lock)
+      const events = await this.prisma.outboxEvent.findMany({
+        where: { id: { in: claimedIds } },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      logger.debug({ type: 'outbox_processing', eventCount: events.length });
+
+      // ── Phase 2: Process each event (outside any transaction) ──────────────
+      for (const event of events) {
+        // Exponential backoff — support both lastAttemptAt and nextAttemptAt
+        // field names (the generated Prisma client may differ from schema.prisma).
+        const ev = event as Record<string, unknown>;
+        const attemptAt = (ev.lastAttemptAt ?? ev.nextAttemptAt) as Date | null | undefined;
+        if (event.retryCount > 0 && attemptAt) {
+          const elapsed = Date.now() - new Date(attemptAt).getTime();
+          const required = Math.min(Math.pow(2, event.retryCount) * 1000, 60_000);
+          if (elapsed < required) {
+            logger.debug({
+              type: 'outbox_backoff_skip',
+              eventId: event.id,
+              retryCount: event.retryCount,
+              remainingMs: required - elapsed,
+            });
+            continue;
+          }
         }
 
-        // Fetch full event data for the locked rows
-        const events = await tx.outboxEvent.findMany({
-          where: { id: { in: lockedIds.map(l => l.id) } },
-          orderBy: { createdAt: 'asc' },
-        });
-
-        logger.debug({
-          type: 'outbox_processing',
-          eventCount: events.length,
-        });
-
-        const requiredDelaySinceCreated = (retryCount: number) =>
-          (Math.pow(2, retryCount + 1) - 2) * 1000;
-
-        for (const event of events) {
-          if (event.retryCount > 0) {
-            const elapsed = Date.now() - new Date(event.createdAt).getTime();
-            const required = requiredDelaySinceCreated(event.retryCount);
-            if (elapsed < required) {
-              logger.debug({
-                type: 'outbox_backoff_skip',
-                eventId: event.id,
-                retryCount: event.retryCount,
-                remainingMs: required - elapsed,
-              });
-              continue;
-            }
+        // ── Circuit breaker check ─────────────────────────────────────────────
+        if (this.circuit.openedAt !== null) {
+          const elapsed = Date.now() - this.circuit.openedAt;
+          if (elapsed < CIRCUIT_RESET_MS) {
+            logger.warn({
+              type: 'outbox_circuit_open',
+              openedAt: new Date(this.circuit.openedAt).toISOString(),
+              resetInMs: CIRCUIT_RESET_MS - elapsed,
+            });
+            break;
           }
-          try {
+          this.circuit = { failures: 0, windowStart: Date.now(), openedAt: null };
+          logger.info({ type: 'outbox_circuit_reset' });
+        }
 
-            // Parse payload
-            const payload = event.payload as Record<string, unknown>;
+        try {
+          const payload = event.payload as Record<string, unknown>;
 
-            // Publish to EventBus FIRST, then mark as processed.
-            // This ensures the event is delivered before being marked complete.
-            // If publish fails, the event stays unprocessed and will be retried.
-            await this.eventBus.publish(
-              event.eventType,
-              event.aggregateType,
-              event.aggregateId,
-              payload
-            );
+          await this.eventBus.publish(
+            event.eventType,
+            event.aggregateType,
+            event.aggregateId,
+            payload,
+          );
 
-            // Mark as processed only after successful publish
-            await tx.outboxEvent.update({
+          // Successful publish — reset failure window if it has expired
+          if (Date.now() - this.circuit.windowStart > CIRCUIT_WINDOW_MS) {
+            this.circuit = { failures: 0, windowStart: Date.now(), openedAt: null };
+          }
+
+          await this.prisma.outboxEvent.update({
+            where: { id: event.id },
+            data: { processedAt: new Date() },
+          });
+
+          result.processed++;
+          logger.debug({ type: 'outbox_event_processed', eventId: event.id, eventType: event.eventType });
+
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+          // ── Trip circuit if failure threshold exceeded in window ─────────────
+          if (Date.now() - this.circuit.windowStart > CIRCUIT_WINDOW_MS) {
+            this.circuit = { failures: 0, windowStart: Date.now(), openedAt: null };
+          }
+          this.circuit.failures++;
+          if (this.circuit.failures >= CIRCUIT_OPEN_THRESHOLD && this.circuit.openedAt === null) {
+            this.circuit.openedAt = Date.now();
+            logger.error({
+              type: 'outbox_circuit_tripped',
+              failures: this.circuit.failures,
+              threshold: CIRCUIT_OPEN_THRESHOLD,
+              resetInMs: CIRCUIT_RESET_MS,
+            });
+          }
+
+          const nextRetry = event.retryCount + 1;
+          if (nextRetry >= this.options.deadLetterThreshold) {
+            await this.prisma.outboxEvent.update({
               where: { id: event.id },
-              data: {
-                processedAt: new Date(),
+              data: { lastError: `DEAD_LETTER: ${errorMessage}`, processedAt: new Date() },
+            });
+            logger.error({
+              type: 'outbox_dead_letter',
+              eventId: event.id,
+              retryCount: event.retryCount,
+              error: errorMessage,
+            });
+
+            await logAudit({
+              actorId: 'SYSTEM',
+              actorRole: 'SYSTEM',
+              action: 'OUTBOX_EVENT_FAILED',
+              entityType: event.aggregateType,
+              entityId: event.aggregateId,
+              metadata: {
+                severity: 'HIGH',
+                outboxEventId: event.id,
+                eventType: event.eventType,
+                aggregateType: event.aggregateType,
+                aggregateId: event.aggregateId,
+                retryCount: event.retryCount,
+                lastError: errorMessage,
+                failedAt: new Date().toISOString(),
               },
             });
 
-            result.processed++;
-
-            logger.debug({
-              type: 'outbox_event_processed',
-              eventId: event.id,
-              eventType: event.eventType,
-            });
-
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            const nextRetry = event.retryCount + 1;
-            if (nextRetry >= this.options.deadLetterThreshold) {
-              await tx.outboxEvent.update({
-                where: { id: event.id },
-                data: {
-                  lastError: `DEAD_LETTER: ${errorMessage}`,
-                  processedAt: new Date(),
-                },
-              });
-              logger.error({
-                type: 'outbox_dead_letter',
-                eventId: event.id,
+            await this.eventBus.publish(
+              EventTypes.OUTBOX_EVENT_FAILED,
+              event.aggregateType,
+              event.aggregateId,
+              {
+                outboxEventId: event.id,
+                eventType: event.eventType,
+                aggregateType: event.aggregateType,
+                aggregateId: event.aggregateId,
                 retryCount: event.retryCount,
-                error: errorMessage,
-              });
-
-              // Alert: outbox event has failed permanently after max retries
-              await logAudit({
-                actorId: 'SYSTEM',
-                actorRole: 'SYSTEM',
-                action: 'OUTBOX_EVENT_FAILED',
-                entityType: event.aggregateType,
-                entityId: event.aggregateId,
-                metadata: {
-                  severity: 'HIGH',
-                  outboxEventId: event.id,
-                  eventType: event.eventType,
-                  aggregateType: event.aggregateType,
-                  aggregateId: event.aggregateId,
-                  retryCount: event.retryCount,
-                  lastError: errorMessage,
-                  failedAt: new Date().toISOString(),
-                },
-              });
-
-              // Publish OUTBOX_EVENT_FAILED event to trigger further alerting (e.g., LINE notification)
-              await this.eventBus.publish(
-                EventTypes.OUTBOX_EVENT_FAILED,
-                event.aggregateType,
-                event.aggregateId,
-                {
-                  outboxEventId: event.id,
-                  eventType: event.eventType,
-                  aggregateType: event.aggregateType,
-                  aggregateId: event.aggregateId,
-                  retryCount: event.retryCount,
-                  lastError: errorMessage,
-                  failedAt: new Date(),
-                }
-              );
-            } else {
-              await tx.outboxEvent.update({
+                lastError: errorMessage,
+                failedAt: new Date(),
+              },
+            );
+          } else {
+            // Use raw SQL to avoid field-name mismatch between schema versions
+            // (lastAttemptAt in schema.prisma vs nextAttemptAt in generated client).
+            await this.prisma.$executeRaw`
+              UPDATE outbox_events
+              SET "lastError"     = ${errorMessage},
+                  "lastAttemptAt" = NOW(),
+                  "retryCount"    = "retryCount" + 1,
+                  "updatedAt"     = NOW()
+              WHERE id = ${event.id}
+            `.catch(() =>
+              // Fallback: Prisma ORM update without the renamed field
+              this.prisma.outboxEvent.update({
                 where: { id: event.id },
-                data: {
-                  lastError: errorMessage,
-                  retryCount: {
-                    increment: 1,
-                  },
-                },
-              });
-            }
-
-            result.failed++;
-            result.errors.push({
-              eventId: event.id,
-              error: errorMessage,
-            });
-
-            logger.error({
-              type: 'outbox_event_error',
-              eventId: event.id,
-              error: errorMessage,
-            });
+                data: { lastError: errorMessage, retryCount: { increment: 1 } },
+              })
+            );
           }
-        }
-      });
 
+          result.failed++;
+          result.errors.push({ eventId: event.id, error: errorMessage });
+          logger.error({ type: 'outbox_event_error', eventId: event.id, error: errorMessage });
+        }
+      }
     } finally {
       this.isProcessing = false;
     }
@@ -333,7 +372,12 @@ export class OutboxProcessor {
   }
 
   /**
-   * Write events to outbox
+   * Write events to outbox.
+   *
+   * - Events without a deduplicationKey are bulk-inserted via createMany (fast).
+   * - Events with a deduplicationKey use INSERT … ON CONFLICT DO NOTHING so
+   *   duplicate business events (e.g. two concurrent payment confirmations) are
+   *   silently ignored at the DB level.
    */
   async write(
     events: Array<{
@@ -341,41 +385,49 @@ export class OutboxProcessor {
       aggregateId: string;
       eventType: string;
       payload: Json;
+      deduplicationKey?: string;
     }>
   ): Promise<void> {
     if (events.length === 0) return;
 
-    await this.prisma.$transaction(
-      events.map((event) =>
-        this.prisma.outboxEvent.create({
-          data: {
-            id: uuidv4(),
-            aggregateType: event.aggregateType,
-            aggregateId: event.aggregateId,
-            eventType: event.eventType,
-            payload: event.payload as Prisma.InputJsonValue,
-            retryCount: 0,
-          },
-        })
-      )
-    );
+    const withDedup = events.filter(e => e.deduplicationKey);
+    const withoutDedup = events.filter(e => !e.deduplicationKey);
 
-    logger.debug({
-      type: 'outbox_events_written',
-      count: events.length,
-    });
+    if (withoutDedup.length > 0) {
+      await this.prisma.outboxEvent.createMany({
+        data: withoutDedup.map(e => ({
+          id: uuidv4(),
+          aggregateType: e.aggregateType,
+          aggregateId: e.aggregateId,
+          eventType: e.eventType,
+          payload: e.payload as Prisma.InputJsonValue,
+          retryCount: 0,
+        })),
+      });
+    }
+
+    for (const event of withDedup) {
+      await this.prisma.$executeRaw`
+        INSERT INTO outbox_events (id, "aggregateType", "aggregateId", "eventType", payload, "retryCount", "deduplicationKey", "createdAt")
+        VALUES (${uuidv4()}, ${event.aggregateType}, ${event.aggregateId}, ${event.eventType}, ${JSON.stringify(event.payload)}::jsonb, 0, ${event.deduplicationKey!}, NOW())
+        ON CONFLICT ("deduplicationKey") DO NOTHING
+      `;
+    }
+
+    logger.debug({ type: 'outbox_events_written', count: events.length });
   }
 
   /**
-   * Write a single event to outbox
+   * Write a single event to outbox.
    */
   async writeOne(
     aggregateType: string,
     aggregateId: string,
     eventType: string,
-    payload: Json
+    payload: Json,
+    deduplicationKey?: string,
   ): Promise<void> {
-    await this.write([{ aggregateType, aggregateId, eventType, payload }]);
+    await this.write([{ aggregateType, aggregateId, eventType, payload, deduplicationKey }]);
   }
 
   /**

@@ -9,28 +9,39 @@ import { syncInvoicePaymentState } from './invoice-payment-state';
 
 export class PaymentService {
   async createPayment(input: CreatePaymentInput, createdBy?: string) {
-    if (input.referenceNumber) {
-      const existing = await prisma.payment.findFirst({
-        where: { reference: input.referenceNumber },
-      });
-      if (existing) {
-        throw new ConflictError('Duplicate payment reference');
-      }
-    }
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: input.invoiceId },
-      include: { room: true },
-    });
-    if (!invoice) {
-      throw new NotFoundError('Invoice', input.invoiceId);
-    }
-    if (invoice.status === 'PAID') {
-      throw new BadRequestError('Invoice is already paid');
-    }
-
     const paidAt = input.paidAt ? new Date(input.paidAt) : new Date();
 
+    // All validation and writes run inside a single transaction with FOR UPDATE.
+    // Keeping checks outside was a TOCTOU: two concurrent calls could both pass
+    // the PAID check before either committed, creating two Payment records for
+    // the same invoice.
     const result = await prisma.$transaction(async (tx) => {
+      // Duplicate reference check inside lock (no DB unique constraint on reference)
+      if (input.referenceNumber) {
+        const existing = await tx.payment.findFirst({
+          where: { reference: input.referenceNumber },
+        });
+        if (existing) {
+          throw new ConflictError('Duplicate payment reference');
+        }
+      }
+
+      // Lock invoice row before any write
+      type LockedInvoiceRow = { id: string; status: string; totalAmount: Prisma.Decimal };
+      const rows = await tx.$queryRaw<LockedInvoiceRow[]>`
+        SELECT id, status::text AS status, "totalAmount"
+        FROM invoices
+        WHERE id = ${input.invoiceId}
+        FOR UPDATE
+      `;
+      const lockedInvoice = rows[0];
+      if (!lockedInvoice) {
+        throw new NotFoundError('Invoice', input.invoiceId);
+      }
+      if (lockedInvoice.status === 'PAID') {
+        throw new BadRequestError('Invoice is already paid');
+      }
+
       const paymentId = uuidv4();
       const paymentData: Prisma.PaymentCreateArgs['data'] = {
         id: paymentId,
@@ -40,7 +51,7 @@ export class PaymentService {
         reference: input.referenceNumber,
         sourceFile: 'manual',
         status: PAYMENT_STATUS.CONFIRMED,
-        matchedInvoiceId: invoice.id,
+        matchedInvoiceId: lockedInvoice.id,
         confirmedAt: new Date(),
         confirmedBy: createdBy || 'system',
       };
@@ -48,7 +59,7 @@ export class PaymentService {
       const payment = await tx.payment.create({ data: paymentData });
 
       const paymentState = await syncInvoicePaymentState(tx, {
-        invoiceId: invoice.id,
+        invoiceId: lockedInvoice.id,
         paymentId: payment.id,
         paymentAmount: input.amount,
         paidAt,
@@ -84,14 +95,19 @@ export class PaymentService {
     const paidAt = input?.paidAt ? new Date(input.paidAt) : new Date();
 
     const result = await prisma.$transaction(async (tx) => {
-      // FOR UPDATE prevents concurrent transactions from reading stale invoice state.
-      // Without this lock, two simultaneous settleOutstandingBalance calls on the same
-      // invoice could both pass the "PAID" check before either commits a payment.
-      const invoice = await (tx as typeof tx & { invoice: { findUnique: (opts: Parameters<typeof tx.invoice.findUnique>[0] & { for?: 'update' }) => ReturnType<typeof tx.invoice.findUnique> } }).invoice.findUnique({
-        where: { id: invoiceId },
-        include: { room: true },
-        for: 'update',
-      });
+      // Raw SQL FOR UPDATE acquires a row-level lock so that two concurrent
+      // settleOutstandingBalance calls on the same invoice cannot both pass
+      // the PAID/outstanding checks before either transaction commits.
+      // Prisma's findUnique does NOT support a native for:'update' option —
+      // passing it is silently ignored at runtime, leaving the window open.
+      type LockedRow = { id: string; status: string; totalAmount: Prisma.Decimal };
+      const rows = await tx.$queryRaw<LockedRow[]>`
+        SELECT id, status::text AS status, "totalAmount"
+        FROM invoices
+        WHERE id = ${invoiceId}
+        FOR UPDATE
+      `;
+      const invoice = rows[0];
 
       if (!invoice) {
         throw new NotFoundError('Invoice', invoiceId);

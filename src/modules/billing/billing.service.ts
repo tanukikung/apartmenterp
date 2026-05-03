@@ -549,135 +549,129 @@ export class BillingService {
   }> {
     const allRows = workbook.floors.flatMap((f) => f.rows);
     logger.info({ type: 'billing_import_batch_start', batchId, totalRows: allRows.length });
-    const created: Array<{ roomNo: string; billingRecordId: string }> = [];
-    const skipped: Array<{ roomNo: string; reason: string }> = [];
-    const errors: Array<{ roomNo: string; error: string }> = [];
 
-    let rowsImported = 0;
-    let rowsSkipped = 0;
-    let rowsErrored = 0;
+    // ── Bulk prefetch (2 queries total regardless of row count) ─────────────────
+    // Previously: 3–5 queries PER ROW (findUnique room + findUnique billing +
+    // importBatch.update × 3) → O(N) round-trips. For 1000 rooms = ~5000 queries.
+    // Now: 2 prefetch queries + 1 upsert + 1 batch-status update = O(1).
+    const uniqueRoomNos = [...new Set(allRows.map((r) => r.roomNo))];
 
-    for (const row of allRows) {
-      const { roomNo } = row;
-      try {
-        // Check room exists
-        const room = await prisma.room.findUnique({ where: { roomNo } });
-        if (!room) {
-          skipped.push({ roomNo, reason: 'Room not found in database' });
-          rowsSkipped++;
-          await prisma.importBatch.update({
-            where: { id: batchId },
-            data: { rowsSkipped, rowsErrored },
-          });
-          continue;
-        }
+    const [roomsFromDb, existingBillings] = await Promise.all([
+      prisma.room.findMany({
+        where: { roomNo: { in: uniqueRoomNos } },
+        select: { roomNo: true, defaultAccountId: true, defaultRuleCode: true },
+      }),
+      prisma.roomBilling.findMany({
+        where: { billingPeriodId, roomNo: { in: uniqueRoomNos } },
+        select: { id: true, roomNo: true, status: true },
+      }),
+    ]);
+    const roomMap = new Map(roomsFromDb.map((r) => [r.roomNo, r]));
+    const existingMap = new Map(existingBillings.map((b) => [b.roomNo, b]));
 
-        // Check for existing RoomBilling
-        const existing = await prisma.roomBilling.findUnique({
-          where: { billingPeriodId_roomNo: { billingPeriodId, roomNo } },
+    // ── Partition rows in-memory (zero DB round-trips) ──────────────────────────
+    const { rowsToUpsert, rowsToSkip, rowErrors } = this.partitionRowsForUpsert(
+      allRows, roomMap, existingMap,
+    );
+
+    // ── Single bulk upsert + outbox events in one transaction ──────────────────
+    if (rowsToUpsert.length > 0) {
+      // Reuse the same bulk upsert logic from importBillingRows
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`
+          INSERT INTO "room_billings" (
+            "id", "billingPeriodId", "roomNo", "status",
+            "recvAccountOverrideId", "recvAccountId", "ruleOverrideCode", "ruleCode",
+            "rentAmount", "proratedRent",
+            "waterMode", "waterPrev", "waterCurr", "waterUnitsManual",
+            "waterUnits", "waterUsageCharge", "waterServiceFeeManual", "waterServiceFee", "waterTotal",
+            "electricMode", "electricPrev", "electricCurr", "electricUnitsManual",
+            "electricUnits", "electricUsageCharge", "electricServiceFeeManual", "electricServiceFee", "electricTotal",
+            "furnitureFee", "otherFee", "totalDue",
+            "note", "checkNotes"
+          ) VALUES ${join(rowsToUpsert.map(row => sql`
+            (
+              ${row.id}, ${billingPeriodId}, ${row.roomNo}, ${BILLING_STATUS.DRAFT},
+              ${row.recvAccountOverrideId ?? sql`NULL`},
+              ${row.recvAccountId},
+              ${row.ruleOverrideCode ?? sql`NULL`},
+              ${row.ruleCode},
+              ${row.rentAmount}::decimal,
+              ${row.proratedRent != null ? `${row.proratedRent}` + '::decimal' : sql`NULL`},
+              ${row.waterMode}, ${row.waterPrev ?? sql`NULL`}, ${row.waterCurr ?? sql`NULL`},
+              ${row.waterUnitsManual != null ? row.waterUnitsManual + '::decimal' : sql`NULL`},
+              ${row.waterUnits}::decimal, ${row.waterUsageCharge}::decimal,
+              ${row.waterServiceFeeManual != null ? row.waterServiceFeeManual + '::decimal' : sql`NULL`},
+              ${row.waterServiceFee}::decimal, ${row.waterTotal}::decimal,
+              ${row.electricMode}, ${row.electricPrev ?? sql`NULL`}, ${row.electricCurr ?? sql`NULL`},
+              ${row.electricUnitsManual != null ? row.electricUnitsManual + '::decimal' : sql`NULL`},
+              ${row.electricUnits}::decimal, ${row.electricUsageCharge}::decimal,
+              ${row.electricServiceFeeManual != null ? row.electricServiceFeeManual + '::decimal' : sql`NULL`},
+              ${row.electricServiceFee}::decimal, ${row.electricTotal}::decimal,
+              ${row.furnitureFee}::decimal, ${row.otherFee}::decimal, ${row.totalDue}::decimal,
+              ${row.note ?? sql`NULL`}, ${row.checkNotes ?? sql`NULL`}
+            )
+          `))}
+          ON CONFLICT ("billingPeriodId", "roomNo")
+          DO UPDATE SET
+            "recvAccountOverrideId" = EXCLUDED."recvAccountOverrideId",
+            "recvAccountId" = EXCLUDED."recvAccountId",
+            "ruleOverrideCode" = EXCLUDED."ruleOverrideCode",
+            "ruleCode" = EXCLUDED."ruleCode",
+            "rentAmount" = EXCLUDED."rentAmount",
+            "proratedRent" = EXCLUDED."proratedRent",
+            "waterMode" = EXCLUDED."waterMode",
+            "waterPrev" = EXCLUDED."waterPrev",
+            "waterCurr" = EXCLUDED."waterCurr",
+            "waterUnitsManual" = EXCLUDED."waterUnitsManual",
+            "waterUnits" = EXCLUDED."waterUnits",
+            "waterUsageCharge" = EXCLUDED."waterUsageCharge",
+            "waterServiceFeeManual" = EXCLUDED."waterServiceFeeManual",
+            "waterServiceFee" = EXCLUDED."waterServiceFee",
+            "waterTotal" = EXCLUDED."waterTotal",
+            "electricMode" = EXCLUDED."electricMode",
+            "electricPrev" = EXCLUDED."electricPrev",
+            "electricCurr" = EXCLUDED."electricCurr",
+            "electricUnitsManual" = EXCLUDED."electricUnitsManual",
+            "electricUnits" = EXCLUDED."electricUnits",
+            "electricUsageCharge" = EXCLUDED."electricUsageCharge",
+            "electricServiceFeeManual" = EXCLUDED."electricServiceFeeManual",
+            "electricServiceFee" = EXCLUDED."electricServiceFee",
+            "electricTotal" = EXCLUDED."electricTotal",
+            "furnitureFee" = EXCLUDED."furnitureFee",
+            "otherFee" = EXCLUDED."otherFee",
+            "totalDue" = EXCLUDED."totalDue",
+            "note" = EXCLUDED."note",
+            "checkNotes" = EXCLUDED."checkNotes",
+            "updatedAt" = NOW()
+        `;
+
+        await tx.outboxEvent.createMany({
+          data: rowsToUpsert.map(row => ({
+            id: uuidv4(),
+            aggregateType: 'RoomBilling',
+            aggregateId: row.id,
+            eventType: EventTypes.BILLING_RECORD_CREATED,
+            payload: { billingRecordId: row.id, roomNo: row.roomNo, billingPeriodId, importedBy },
+            retryCount: 0,
+          })),
         });
-        if (existing) {
-          if (existing.status !== BILLING_STATUS.DRAFT) {
-            skipped.push({ roomNo, reason: `Already ${existing.status}` });
-            rowsSkipped++;
-            await prisma.importBatch.update({
-              where: { id: batchId },
-              data: { rowsSkipped, rowsErrored },
-            });
-            continue;
-          }
-          // Overwrite DRAFT record
-          await prisma.roomBilling.update({
-            where: { id: existing.id },
-            data: buildBillingDataFromRow(
-              row,
-              row.recvAccountOverrideId ?? room.defaultAccountId,
-              row.ruleOverrideCode ?? room.defaultRuleCode,
-            ),
-          });
-          created.push({ roomNo, billingRecordId: existing.id });
-          rowsImported++;
-          await prisma.importBatch.update({
-            where: { id: batchId },
-            data: { rowsImported, rowsSkipped, rowsErrored },
-          });
-          continue;
-        }
-
-        // Create new RoomBilling with outbox event
-        const rb = await prisma.$transaction(async (tx) => {
-          const roomBilling = await tx.roomBilling.create({
-            data: {
-              id: uuidv4(),
-              billingPeriodId,
-              roomNo,
-              recvAccountOverrideId: row.recvAccountOverrideId,
-              recvAccountId: row.recvAccountOverrideId ?? room.defaultAccountId,
-              ruleOverrideCode: row.ruleOverrideCode,
-              ruleCode: row.ruleOverrideCode ?? room.defaultRuleCode,
-              rentAmount: row.rentAmount,
-              waterMode: normaliseMeterMode(row.waterMode),
-              waterPrev: row.waterPrev,
-              waterCurr: row.waterCurr,
-              waterUnitsManual: row.waterUnitsManual,
-              waterUnits: row.waterUnits,
-              waterUsageCharge: row.waterUsageCharge,
-              waterServiceFeeManual: row.waterServiceFeeManual,
-              waterServiceFee: row.waterServiceFee,
-              waterTotal: row.waterTotal,
-              electricMode: normaliseMeterMode(row.electricMode),
-              electricPrev: row.electricPrev,
-              electricCurr: row.electricCurr,
-              electricUnitsManual: row.electricUnitsManual,
-              electricUnits: row.electricUnits,
-              electricUsageCharge: row.electricUsageCharge,
-              electricServiceFeeManual: row.electricServiceFeeManual,
-              electricServiceFee: row.electricServiceFee,
-              electricTotal: row.electricTotal,
-              furnitureFee: row.furnitureFee,
-              otherFee: row.otherFee,
-              totalDue: row.totalDue,
-              note: row.note,
-              checkNotes: row.checkNotes,
-              status: BILLING_STATUS.DRAFT,
-            },
-          });
-          await tx.outboxEvent.create({
-            data: {
-              id: uuidv4(),
-              aggregateType: 'RoomBilling',
-              aggregateId: roomBilling.id,
-              eventType: EventTypes.BILLING_RECORD_CREATED,
-              payload: {
-                billingRecordId: roomBilling.id,
-                roomNo,
-                billingPeriodId,
-                importedBy,
-              },
-              retryCount: 0,
-            },
-          });
-          return roomBilling;
-        });
-
-        created.push({ roomNo, billingRecordId: rb.id });
-        rowsImported++;
-        await prisma.importBatch.update({
-          where: { id: batchId },
-          data: { rowsImported, rowsSkipped, rowsErrored },
-        });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        errors.push({ roomNo, error: msg });
-        rowsErrored++;
-        // Propagate batch update failures — batch stuck in PROCESSING is worse than failing the row
-        await prisma.importBatch.update({
-          where: { id: batchId },
-          data: { rowsSkipped, rowsErrored },
-        });
-        logger.error({ type: 'billing_import_row_error', roomNo, error: msg });
-      }
+      });
     }
+
+    const created = rowsToUpsert.map(r => ({ roomNo: r.roomNo, billingRecordId: r.id }));
+    const skipped = rowsToSkip.map(r => ({ roomNo: r.roomNo, reason: r.reason }));
+    const errors  = rowErrors.map(r => ({ roomNo: r.roomNo, error: r.error }));
+
+    // ── Single ImportBatch status update at the end (was N per-row) ─────────────
+    await prisma.importBatch.update({
+      where: { id: batchId },
+      data: {
+        rowsImported: created.length,
+        rowsSkipped:  skipped.length,
+        rowsErrored:  errors.length,
+      },
+    });
 
     logger.info({ type: 'billing_import_rows_with_batch_done', batchId, created: created.length, skipped: skipped.length, errors: errors.length });
     return { created, skipped, errors };

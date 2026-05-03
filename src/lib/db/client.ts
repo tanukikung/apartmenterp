@@ -43,6 +43,7 @@ type PrismaEventListener = {
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
+  readPrisma: PrismaClient | undefined;
 };
 
 // Query logging function
@@ -50,19 +51,30 @@ interface QueryEventLike {
   duration: number;
   query: string;
 }
-function logQuery(event: QueryEventLike): void {
+function logQuery(event: QueryEventLike, source: 'write' | 'read' = 'write'): void {
   const duration = event.duration;
   const query = event.query.replace(/\s+/g, ' ').trim();
-  
+
+  // Emit slow-query metric for observability
+  if (duration > 500) {
+    try {
+      const { observeHistogram, incrementCounter } = require('@/lib/metrics/registry');
+      observeHistogram('db_query_duration_seconds', duration / 1000, { source });
+      if (duration > 1000) incrementCounter('db_slow_queries_total', { source });
+    } catch { /* metrics optional */ }
+  }
+
   if (duration > 1000) {
     logger.warn({
       type: 'slow_query',
+      source,
       duration: `${duration}ms`,
       query: query.substring(0, 200),
     });
-  } else {
+  } else if (process.env.NODE_ENV === 'development') {
     logger.debug({
       type: 'query',
+      source,
       duration: `${duration}ms`,
       query: query.substring(0, 200),
     });
@@ -78,24 +90,42 @@ function logError(event: 'warn' | 'error', message: string): void {
   });
 }
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+function makePrismaClient(url?: string): PrismaClient {
+  const client = new PrismaClient({
+    datasources: url ? { db: { url } } : undefined,
     log: [
       { level: 'query', emit: 'event' },
-      { level: 'warn', emit: 'event' },
+      { level: 'warn',  emit: 'event' },
       { level: 'error', emit: 'event' },
     ],
   });
+  softDeleteMiddleware(client);
+  return client;
+}
 
-// Apply soft-delete middleware after instantiation
-softDeleteMiddleware(prisma);
+// ── Write DB (primary) ─────────────────────────────────────────────────────────
+export const prisma: PrismaClient =
+  globalForPrisma.prisma ?? makePrismaClient();
 
-// Set up query logging in development
-if (process.env.NODE_ENV === 'development') {
-  (prisma as unknown as PrismaEventListener).$on(
+// ── Read DB (replica if DATABASE_REPLICA_URL is set, otherwise same as write) ─
+// Route read-heavy endpoints (balance queries, list views) here.
+// In single-DB deployments this is identical to `prisma`.
+// In scaled deployments set DATABASE_REPLICA_URL to the replica connection string.
+export const readDb: PrismaClient =
+  globalForPrisma.readPrisma ??
+  (process.env.DATABASE_REPLICA_URL
+    ? makePrismaClient(process.env.DATABASE_REPLICA_URL)
+    : prisma);
+
+// Set up query logging
+(prisma as unknown as PrismaEventListener).$on(
+  'query',
+  (e: unknown) => logQuery(e as QueryEventLike, 'write')
+);
+if (readDb !== prisma) {
+  (readDb as unknown as PrismaEventListener).$on(
     'query',
-    (e: unknown) => logQuery(e as QueryEventLike)
+    (e: unknown) => logQuery(e as QueryEventLike, 'read')
   );
 }
 
@@ -110,7 +140,8 @@ if (process.env.NODE_ENV === 'development') {
 
 // Prevent multiple instances in development
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
+  globalForPrisma.prisma     = prisma;
+  globalForPrisma.readPrisma = readDb;
 }
 
 /**
@@ -120,6 +151,7 @@ if (process.env.NODE_ENV !== 'production') {
 export async function disconnectPrisma(): Promise<void> {
   logger.info('Closing Prisma connection...');
   await prisma.$disconnect();
+  if (readDb !== prisma) await readDb.$disconnect();
   logger.info('Prisma connection closed');
 }
 
