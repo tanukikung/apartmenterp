@@ -1,13 +1,11 @@
 import { ZodError } from 'zod';
 // Avoid importing Prisma runtime types here to remain Edge-safe
 import { NextResponse, type NextRequest } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { logger } from './logger';
 import { redisRateLimit } from '@/infrastructure/redis';
 import { mapPrismaError } from '@/lib/errors/prismaErrorMapper';
 import { getSessionFromRequest, refreshSessionIfNeeded, type AuthSessionPayload } from '@/lib/auth/session';
 import { hasValidCronSecret, resolveApiRoutePolicy, isForcePasswordChangeExemptRoute } from '@/lib/auth/api-policy';
-import { runWithRequestContext, getRequestId } from '@/lib/context/request-context';
 
 // ============================================================================
 // Custom Error Classes
@@ -197,7 +195,6 @@ export function formatError(
   error: unknown,
   requestId?: string
 ): ErrorResponse {
-  const resolvedRequestId = requestId ?? getRequestId();
   // Handle Zod validation errors
   if (error instanceof ZodError) {
     const details: Record<string, string[]> = {};
@@ -217,7 +214,7 @@ export function formatError(
         code: 'VALIDATION_ERROR',
         statusCode: 422,
         details,
-        requestId: resolvedRequestId,
+        requestId,
       },
     };
   }
@@ -242,7 +239,7 @@ export function formatError(
           message: mapped.message,
           code: e.code,
           statusCode: mapped.status,
-          requestId: resolvedRequestId,
+          requestId,
         },
       };
     }
@@ -254,7 +251,7 @@ export function formatError(
         message: 'Database operation failed',
         code: e.code,
         statusCode: 500,
-        requestId: resolvedRequestId,
+        requestId,
       },
     };
   }
@@ -277,7 +274,7 @@ export function formatError(
     )
   ) {
     const e = error as { name: string; message: string };
-    logger.error({ type: 'prisma_client_error', name: e.name, message: e.message, requestId: resolvedRequestId });
+    logger.error({ type: 'prisma_client_error', name: e.name, message: e.message, requestId });
     // Never leak raw Prisma messages to clients — they can reveal schema,
     // field names, query structure. Always log server-side, return generic.
     return {
@@ -287,7 +284,7 @@ export function formatError(
         message: 'Database operation failed',
         code: e.name,
         statusCode: 500,
-        requestId: resolvedRequestId,
+        requestId,
       },
     };
   }
@@ -302,7 +299,7 @@ export function formatError(
         code: error.code,
         statusCode: error.statusCode,
         details: error.details,
-        requestId: resolvedRequestId,
+        requestId,
       },
     };
   }
@@ -317,7 +314,7 @@ export function formatError(
     name: unknownError.name,
     message: unknownError.message,
     stack: unknownError.stack,
-    requestId: resolvedRequestId,
+    requestId,
   });
 
   return {
@@ -327,7 +324,7 @@ export function formatError(
       message: 'An unexpected error occurred',
       code: 'INTERNAL_ERROR',
       statusCode: 500,
-      requestId: resolvedRequestId,
+      requestId,
     },
   };
 }
@@ -351,17 +348,8 @@ export function asyncHandler<
   handler: any,
 ): (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse> {
   return (async (...args: unknown[]): Promise<NextResponse | void> => {
-    // Generate (or propagate) a request-scoped correlation ID.
-    // Allows tracing a single request across all log lines.
-    const [req] = args as [unknown, unknown?];
-    const incomingRequestId =
-      typeof (req as { headers?: { get?: (h: string) => string | null } })?.headers?.get === 'function'
-        ? ((req as NextRequest).headers.get('x-request-id') ?? undefined)
-        : undefined;
-    const requestId = incomingRequestId ?? uuidv4();
-
     try {
-      const [, resOrContext] = args as [unknown, unknown?];
+      const [req, resOrContext] = args as [unknown, unknown?];
 
       const isNextStyle =
         typeof req === 'object' &&
@@ -375,18 +363,14 @@ export function asyncHandler<
             ? new URL((req as { url: string }).url)
             : null;
 
-        let session: ReturnType<typeof getSessionFromRequest> = null;
-
         if (requestUrl) {
           const policy = resolveApiRoutePolicy(requestUrl.pathname, (r as { method?: string }).method || 'GET');
           if (policy && policy.accessClass !== 'public' && policy.accessClass !== 'custom') {
             if (policy.accessClass === 'system-or-operator' && hasValidCronSecret(r)) {
-              return await runWithRequestContext({ requestId }, () =>
-                (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(r, resOrContext as { params: Params } | undefined)
-              ).then(addRequestIdHeader(requestId));
+              return await (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(r, resOrContext as { params: Params } | undefined);
             }
 
-            session = getSessionFromRequest(r);
+            const session = getSessionFromRequest(r);
             if (!session) {
               throw new UnauthorizedError('Authentication required');
             }
@@ -414,9 +398,7 @@ export function asyncHandler<
 
         if (process.env.NODE_ENV !== 'test') {
           if (!requestUrl) {
-            return await runWithRequestContext({ requestId, userId: session?.sub, sessionRole: session?.role }, () =>
-              (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(r, resOrContext as { params: Params } | undefined)
-            ).then(addRequestIdHeader(requestId));
+            return await (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(r, resOrContext as { params: Params } | undefined);
           }
           const xff = r.headers.get('x-forwarded-for');
           const ip = xff ? xff.split(',')[0].trim() : '0.0.0.0';
@@ -432,78 +414,46 @@ export function asyncHandler<
           if (count > maxPerWindow) {
             return NextResponse.json(
               { success: false, error: 'Too Many Requests' },
-              { status: 429, headers: { 'X-Request-ID': requestId } }
+              { status: 429 }
             );
           }
-
-          // ── Per-user rate limiting (separate key space from IP limiting) ────
-          // Fails-CLOSED (blocks) on Redis failure — same policy as IP rate
-          // limiting. A fail-open (.catch(() => 0)) would silently disable
-          // per-user limits during Redis outages, defeating the protection.
-          if (session) {
-            const userKey = `user:${session.sub}:${requestUrl.pathname}`;
-            const userMax = Number(process.env.RATE_LIMIT_USER_MAX ?? 60);
-            const userCount = await redisRateLimit(userKey, userMax, limitWindowSeconds).catch((err) => {
-              logger.error({ type: 'rate_limit_redis_fail', key: userKey, error: err?.message });
-              return userMax + 1; // fail-closed: block when Redis is down
-            });
-            if (userCount > userMax) {
-              return NextResponse.json(
-                { success: false, error: 'Too Many Requests' },
-                { status: 429, headers: { 'X-Request-ID': requestId } }
-              );
-            }
-          }
         }
-        // ── Request latency metrics ───────────────────────────────────────
-        const startMs = Date.now();
-        const method  = (r as { method?: string }).method ?? 'GET';
-        const route   = requestUrl?.pathname ?? 'unknown';
-        let statusCode = 200;
-        try {
-          const handlerResult = await runWithRequestContext(
-            { requestId, userId: session?.sub, sessionRole: session?.role },
-            () => (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(r, resOrContext as { params: Params } | undefined)
-          );
-          statusCode = (handlerResult as NextResponse)?.status ?? 200;
-          return addRequestIdHeader(requestId)(handlerResult);
-        } finally {
-          try {
-            const { recordHttpRequest } = await import('@/lib/metrics/registry');
-            recordHttpRequest(method, route, statusCode, (Date.now() - startMs) / 1000);
-          } catch { /* metrics optional — never block the response */ }
-        }
+        return await (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(r, resOrContext as { params: Params } | undefined);
       }
 
       // Fallback for edge/custom server adapters — handler is typed as `any`
       // to support heterogeneous API shapes; safe because asyncHandler always
       // returns NextResponse|void.
-      return await (handler as (req: unknown, ctx?: unknown) => Promise<NextResponse>)(req, args[1]);
+      return await (handler as (req: unknown, ctx?: unknown) => Promise<NextResponse>)(req, resOrContext);
     } catch (error) {
-      const [, resOrContext] = args as [unknown, unknown?];
+      const [req, resOrContext] = args as [unknown, unknown?];
+      const requestId = (req && typeof (req as { headers?: { get?: (k: string) => string | null } }).headers?.get === 'function')
+        ? ((req as { headers: { get: (k: string) => string | null } }).headers.get('x-request-id') ?? undefined)
+        : undefined;
+
+      const response = formatError(error);
+      if (response.error.statusCode >= 500) {
+        logger.error({
+          type: 'unhandled_route_error',
+          requestId: requestId ?? null,
+          statusCode: response.error.statusCode,
+          code: response.error.code,
+          message: response.error.message,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+      }
 
       if (resOrContext && typeof (resOrContext as { status?: unknown }).status === 'function') {
-        const response = formatError(error, requestId);
         return (resOrContext as { status: (code: number) => { json: (body: ApiResponse<unknown>) => void } })
           .status(response.error.statusCode)
           .json(response);
       }
 
-      const response = formatError(error, requestId);
       return NextResponse.json(response, {
         status: response.error.statusCode,
-        headers: { 'X-Request-ID': requestId },
       });
     }
   }) as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>;
-}
-
-/** Attach X-Request-ID header to any NextResponse without changing its body/status. */
-function addRequestIdHeader(requestId: string) {
-  return (response: NextResponse): NextResponse => {
-    response.headers.set('X-Request-ID', requestId);
-    return response;
-  };
 }
 
 /**

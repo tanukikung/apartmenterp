@@ -12,7 +12,7 @@
  *  3. OVERDUE invoices with future dueDate
  *  4. OCCUPIED rooms without ACTIVE contract
  *  5. Duplicate invoices per RoomBilling (unique constraint violation)
- *  6. Tenant with hasActiveContract=true but no ACTIVE contract
+ *  6. (removed — hasActiveContract field removed from schema)
  *  7. Orphan RoomTenant records (tenant or room no longer exists)
  *  8. Invoice with cancelledAt set but status != CANCELLED
  *  9. Contract with ACTIVE status but deletedAt != null
@@ -68,7 +68,7 @@ async function main() {
   await checkOverdueWithFutureDueDate(results);
   await checkOccupiedWithoutActiveContract(results);
   await checkDuplicateInvoicesPerRoomBilling(results);
-  await checkTenantHasActiveContractMismatch(results);
+  // Check 6 removed — hasActiveContract field removed from schema (FM-11)
   await checkOrphanRoomTenants(results);
   await checkCancelledAtMismatch(results);
   await checkContractActiveWithDeletedAt(results);
@@ -301,49 +301,6 @@ async function checkDuplicateInvoicesPerRoomBilling(results: AuditResults) {
   }
 
   if (issues.count > 0) results.issues.push(issues);
-}
-
-// ── Check 6: Tenant hasActiveContract mismatch ────────────────────────────────
-
-async function checkTenantHasActiveContractMismatch(results: AuditResults) {
-  const issues: AuditIssue = {
-    category: 'TENANT_HAS_ACTIVE_CONTRACT_MISMATCH',
-    severity: 'WARN',
-    count: 0,
-    details: [],
-  };
-
-  // Tenants flagged as having active contract but actually don't
-  const mismatchedTrue = await prisma.$queryRaw<Array<{ id: string; firstName: string; lastName: string }>>`
-    SELECT t.id, t."firstName", t."lastName"
-    FROM tenants t
-    WHERE t."hasActiveContract" = true
-    AND NOT EXISTS (
-      SELECT 1 FROM contracts c
-      WHERE c."primaryTenantId" = t.id AND c.status = 'ACTIVE'
-    )
-    AND t."deletedAt" IS NULL
-  `;
-
-  for (const t of mismatchedTrue) {
-    issues.details.push({
-      id: t.id,
-      description: `hasActiveContract=true but no ACTIVE contract for ${t.firstName} ${t.lastName}`,
-    });
-    issues.count++;
-
-    if (!dryRun) {
-      await prisma.tenant.update({
-        where: { id: t.id },
-        data: { hasActiveContract: false },
-      });
-    }
-  }
-
-  if (issues.count > 0) {
-    results.issues.push(issues);
-    if (!dryRun) results.fixedCount += issues.count;
-  }
 }
 
 // ── Check 7: Orphan RoomTenant records ────────────────────────────────────────

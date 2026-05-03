@@ -41,8 +41,7 @@ export const PATCH = asyncHandler(
 
     const limiter = getLoginRateLimiter();
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-    const key = `tenants-patch:${session.sub}:${ip}`;
-    const { allowed, remaining, resetAt } = await limiter.check(key, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+    const { allowed, remaining, resetAt } = await limiter.check(`tenants-patch:${session.sub}:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
     if (!allowed) {
       return NextResponse.json(
         { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },

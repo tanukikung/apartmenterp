@@ -6,6 +6,7 @@ import { logger } from '@/lib/utils/logger';
 import { requireRole } from '@/lib/auth/guards';
 import { logAudit } from '@/modules/audit/audit.service';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { withIdempotency } from '@/lib/utils/idempotency';
 
 const ADMIN_WINDOW_MS = 60 * 1000;
 const ADMIN_MAX_ATTEMPTS = 20;
@@ -17,12 +18,11 @@ const ADMIN_MAX_ATTEMPTS = 20;
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
     const session = requireRole(req, ['ADMIN', 'OWNER']);
-    const userId = session.sub;
+    return withIdempotency(req, 'contract_renew', async () => {
 
     const limiter = getLoginRateLimiter();
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-    const key = `contracts-renew:${userId}:${ip}`;
-    const { allowed, remaining, resetAt } = await limiter.check(key, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+    const { allowed, remaining, resetAt } = await limiter.check(`contracts-renew:${session.sub}:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
     if (!allowed) {
       return NextResponse.json(
         { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
@@ -34,13 +34,16 @@ export const POST = asyncHandler(
 
     const input = renewContractSchema.parse(body);
 
+    const requestId = req.headers.get('x-request-id') ?? undefined;
     const { contractService } = getServiceContainer();
-    const contract = await contractService.renewContract(id, input, session.sub);
+    const contract = await contractService.renewContract(id, input, session.sub, requestId);
 
-    await logAudit({ req, action: 'CONTRACT_RENEWED', entityType: 'Contract', entityId: contract.id, metadata: { newEndDate: input.newEndDate } });
+    await logAudit({ req, action: 'CONTRACT_RENEWED', entityType: 'Contract', entityId: id, metadata: { contractId: contract.id, newEndDate: input.newEndDate } });
 
     logger.info({
       type: 'contract_renewed_api',
+      requestId: requestId ?? null,
+      actorId: session.sub,
       contractId: contract.id,
       newEndDate: input.newEndDate,
     });
@@ -50,5 +53,7 @@ export const POST = asyncHandler(
       data: contract,
       message: 'Contract renewed successfully',
     } as ApiResponse<typeof contract>);
+
+    }); // end withIdempotency
   }
 );

@@ -38,9 +38,10 @@ export class ContractService {
    */
   async createContract(
     input: CreateContractInput,
-    createdBy?: string
+    createdBy?: string,
+    requestId?: string,
   ): Promise<ContractResponse> {
-    logger.info({ type: 'contract_create', roomNo: input.roomId, tenantId: input.primaryTenantId });
+    logger.info({ type: 'contract_create', requestId: requestId ?? null, actorId: createdBy ?? null, roomNo: input.roomId, tenantId: input.primaryTenantId });
 
     // Validate room exists
     const room = await prisma.room.findUnique({
@@ -70,7 +71,7 @@ export class ContractService {
       // same room.  This ensures that only one CREATE transaction can proceed
       // to the overlap check below.
       await tx.$executeRaw`
-        SELECT "roomNo" FROM rooms
+        SELECT id FROM rooms
         WHERE "roomNo" = ${input.roomId}
         FOR UPDATE
       `;
@@ -159,11 +160,6 @@ export class ContractService {
       await tx.room.update({
         where: { roomNo: input.roomId },
         data: { roomStatus: ROOM_STATUS.OCCUPIED },
-      });
-      // Set tenant's hasActiveContract = true since room is now OCCUPIED via this contract
-      await tx.tenant.update({
-        where: { id: created.primaryTenantId },
-        data: { hasActiveContract: true },
       });
       await tx.outboxEvent.create({
         data: {
@@ -370,9 +366,10 @@ export class ContractService {
   async renewContract(
     id: string,
     input: RenewContractInput,
-    renewedBy?: string
+    renewedBy?: string,
+    requestId?: string,
   ): Promise<ContractResponse> {
-    logger.info({ type: 'contract_renew', id, newEndDate: input.newEndDate });
+    logger.info({ type: 'contract_renew', requestId: requestId ?? null, actorId: renewedBy ?? null, entityId: id, newEndDate: input.newEndDate });
 
     const existing = await prisma.contract.findUnique({
       where: { id },
@@ -468,10 +465,7 @@ export class ContractService {
   }
 
   /**
-   * Terminate a contract.
-   * Safety check: blocks termination if the tenant has unpaid invoices
-   * (GENERATED/SENT/VIEWED/OVERDUE) unless forceTermination=true is set.
-   * Uses SELECT FOR UPDATE to prevent concurrent state changes.
+   * Terminate a contract
    */
   async terminateContract(
     id: string,
@@ -479,7 +473,7 @@ export class ContractService {
     terminatedBy?: string,
     requestId?: string,
   ): Promise<ContractResponse> {
-    logger.info({ type: 'contract_terminate', requestId: requestId ?? null, entityId: id, actorId: terminatedBy });
+    logger.info({ type: 'contract_terminate', requestId: requestId ?? null, id });
 
     const contract = await prisma.contract.findUnique({
       where: { id },
@@ -498,37 +492,36 @@ export class ContractService {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
-      // Lock the contract row
-      const [locked] = await tx.$queryRaw<Array<{ id: string; status: string }>>`
-        SELECT "id", "status"::text FROM "contracts" WHERE "id" = ${id} FOR UPDATE OF "contracts"
-      `;
+      // Acquire exclusive row lock on the contract FIRST so that a concurrent
+      // invoice-generation job that runs between the pre-flight check and this
+      // transaction cannot create an invoice that we missed (FM-8).
+      type LockRow = { id: string };
+      const [locked] = await (tx as unknown as { $queryRaw: (s: TemplateStringsArray, ...a: unknown[]) => Promise<LockRow[]> })
+        .$queryRaw`SELECT id FROM contracts WHERE id = ${id} FOR UPDATE`;
+      if (!locked) throw new NotFoundError('Contract', id);
 
-      // Check for unpaid invoices (non-PAID, non-CANCELLED)
-      const unpaidInvoices = await tx.invoice.findMany({
-        where: {
-          roomNo: contract.roomNo,
-          status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
-        },
-        select: { id: true, status: true, totalAmount: true, dueDate: true },
-      });
-
-      if (unpaidInvoices.length > 0 && !input.forceTermination) {
-        const totalUnpaid = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
-        throw new BadRequestError(
-          `Cannot terminate: tenant has ${unpaidInvoices.length} unpaid invoice(s) totaling ${totalUnpaid} THB. ` +
-          `Use forceTermination=true to override (audit will be logged).`
-        );
+      // Re-check status inside transaction after lock (state may have changed)
+      const fresh = await tx.contract.findUnique({ where: { id } });
+      if (!fresh || fresh.status !== 'ACTIVE') {
+        throw new BadRequestError('Can only terminate active contracts');
       }
 
-      if (unpaidInvoices.length > 0 && input.forceTermination) {
-        logger.warn({
-          type: 'contract_terminate_forced',
-          requestId: requestId ?? null,
-          entityId: id,
-          actorId: terminatedBy,
-          unpaidInvoiceCount: unpaidInvoices.length,
-          unpaidTotal: unpaidInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0),
+      // Unpaid invoice check INSIDE transaction — after lock — so that any invoice
+      // generated concurrently is visible here (they commit before our lock).
+      if (!input.forceTerminate) {
+        const unpaidCount = await tx.invoice.count({
+          where: {
+            roomNo: fresh.roomNo,
+            status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
+          },
         });
+        if (unpaidCount > 0) {
+          throw new BadRequestError(
+            `Cannot terminate: ${unpaidCount} unpaid invoice(s) exist for this room. ` +
+            `Collect payment or set forceTerminate=true to override.`,
+            { unpaidCount, roomNo: fresh.roomNo }
+          );
+        }
       }
 
       const result = await tx.contract.update({
@@ -546,11 +539,6 @@ export class ContractService {
       await tx.room.update({
         where: { roomNo: result.roomNo },
         data: { roomStatus: 'VACANT' },
-      });
-      // Clear tenant's hasActiveContract since contract is now terminated
-      await tx.tenant.update({
-        where: { id: result.primaryTenantId },
-        data: { hasActiveContract: false },
       });
       await tx.outboxEvent.create({
         data: {

@@ -1,15 +1,5 @@
 import { createClient, type RedisClientType } from 'redis';
 
-// All Redis keys are namespaced to prevent collision with other applications
-// sharing the same Redis instance.
-const KEY_PREFIX = 'apt:';
-
-export const REDIS_KEYS = {
-  rateLimit: (key: string) => `${KEY_PREFIX}ratelimit:${key}`,
-  workerHeartbeat: () => `${KEY_PREFIX}worker:heartbeat`,
-  billingQueue: () => `${KEY_PREFIX}billing-generation`,
-} as const;
-
 let client: RedisClientType | null = null;
 
 // In-memory heartbeat fallback for when Redis is not configured.
@@ -22,19 +12,16 @@ export function isRedisConfigured(): boolean {
 }
 
 export function getRedisUrl(): string {
-  // Require REDIS_URL to be explicitly set — no silent fallback to localhost.
-  // If not set, Redis-dependent features degrade gracefully (in-memory fallback).
-  return process.env.REDIS_URL ?? '';
+  return process.env.REDIS_URL || 'redis://localhost:6379';
 }
 
 export function getRedisClient(): RedisClientType | null {
   if (process.env.NODE_ENV === 'test') return null;
-  const url = getRedisUrl();
-  if (!url) return null;
+  if (!isRedisConfigured()) return null;
   if (!client) {
     try {
       client = createClient({
-        url,
+        url: getRedisUrl(),
         socket: {
           connectTimeout: 1000, // fail fast if Redis not available
           reconnectStrategy(retries) {
@@ -46,7 +33,7 @@ export function getRedisClient(): RedisClientType | null {
         },
       });
       client.on('error', (err) => {
-        console.error('[Redis] client error:', err.message);
+        console.error('Redis error', err);
       });
     } catch {
       client = null;
@@ -70,10 +57,14 @@ export async function ensureRedisConnected(): Promise<RedisClientType | null> {
   return c;
 }
 
+// All Redis keys are namespaced under "apt:" to prevent collisions with
+// other services sharing the same Redis instance.
+export const REDIS_NS = 'apt';
+
 export async function redisRateLimit(key: string, max: number, windowSeconds: number): Promise<number> {
   const c = await ensureRedisConnected();
   if (!c) return 0;
-  const nowKey = REDIS_KEYS.rateLimit(key);
+  const nowKey = `${REDIS_NS}:rl:${key}`;
   const count = await c.incr(nowKey);
   if (count === 1) {
     await c.expire(nowKey, windowSeconds);
@@ -100,7 +91,7 @@ export async function setWorkerHeartbeat(ttlSeconds: number = 30): Promise<void>
     return;
   }
   try {
-    await c.set(REDIS_KEYS.workerHeartbeat(), Date.now().toString(), { EX: ttlSeconds });
+    await c.set(`${REDIS_NS}:worker:heartbeat`, Date.now().toString(), { EX: ttlSeconds });
   } catch {
     // ignore
   }
@@ -113,11 +104,56 @@ export async function getWorkerHeartbeat(): Promise<number | null> {
     return inMemoryHeartbeat;
   }
   try {
-    const val = await c.get(REDIS_KEYS.workerHeartbeat());
+    const val = await c.get(`${REDIS_NS}:worker:heartbeat`);
     if (!val) return null;
     const n = Number(val);
     return Number.isFinite(n) ? n : null;
   } catch {
     return null;
+  }
+}
+
+// ── LINE API rate limiter (sliding window, sorted-set) ────────────────────────
+// LINE Standard Plan allows ~1000 push messages/min. This limiter prevents the
+// outbox from bursting past that limit, which would cause 429 errors and retries.
+// Key: apt:line:rpm  — shared across all outbox workers in multi-instance deploy.
+// Falls back to "always allowed" when Redis is not configured (dev/test safety).
+
+const LINE_RPM_KEY = `${REDIS_NS}:line:rpm`;
+const LINE_RPM_DEFAULT = 950; // conservative: 5% below 1000 hard limit
+
+export async function checkLineAPIRateLimit(
+  maxPerMinute: number = LINE_RPM_DEFAULT,
+): Promise<{ allowed: boolean; remaining: number; retryAfterMs: number }> {
+  const c = await ensureRedisConnected();
+  if (!c) return { allowed: true, remaining: maxPerMinute, retryAfterMs: 0 };
+
+  try {
+    const now = Date.now();
+    const windowStart = now - 60_000;
+
+    // Clean entries outside the 1-minute window, then check current count
+    await c.zRemRangeByScore(LINE_RPM_KEY, '-inf', windowStart.toString());
+    const currentCount = await c.zCard(LINE_RPM_KEY);
+
+    if (currentCount >= maxPerMinute) {
+      // Oldest entry tells us when a slot will free up
+      const oldest = await c.zRangeWithScores(LINE_RPM_KEY, 0, 0);
+      const oldestScore = oldest[0]?.score ?? windowStart;
+      const retryAfterMs = Math.max(1_000, oldestScore + 60_000 - now + 50);
+      return { allowed: false, remaining: 0, retryAfterMs };
+    }
+
+    // Claim one slot with a unique member so concurrent workers don't collide
+    await c.zAdd(LINE_RPM_KEY, {
+      score: now,
+      value: `${now}:${Math.random().toString(36).slice(2, 9)}`,
+    });
+    await c.expire(LINE_RPM_KEY, 61);
+
+    return { allowed: true, remaining: maxPerMinute - currentCount - 1, retryAfterMs: 0 };
+  } catch {
+    // Redis error — fail open so messages aren't silently dropped
+    return { allowed: true, remaining: maxPerMinute, retryAfterMs: 0 };
   }
 }

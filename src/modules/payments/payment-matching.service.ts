@@ -76,33 +76,6 @@ export class PaymentMatchingService {
     let imported = 0;
     let matched = 0;
 
-    // ── Pre-load all candidate unpaid invoices ONCE for the entire import ────────
-    // Previously: each entry called attemptMatch() which ran its own invoice.findMany
-    // with a ±75-day date-range + room+tenant includes. For 500 entries that was
-    // 500 separate heavy queries. Now: 1 query covering the full date span of the
-    // import, shared across all entries via an in-memory map.
-    const dateMin = new Date(Math.min(...entries.map(e => e.date.getTime()))
-      - INVOICE_SEARCH_DAYS_BEFORE * 86_400_000);
-    const dateMax = new Date(Math.max(...entries.map(e => e.date.getTime()))
-      + INVOICE_SEARCH_DAYS_AFTER * 86_400_000);
-
-    const allCandidateInvoices = await prisma.invoice.findMany({
-      where: {
-        status: { in: ['GENERATED', 'SENT', 'VIEWED'] },
-        dueDate: { gte: dateMin, lte: dateMax },
-      },
-      include: {
-        room: {
-          include: {
-            tenants: {
-              where: { moveOutDate: null },
-              include: { tenant: true },
-            },
-          },
-        },
-      },
-    });
-
     // Process entries in batches to amortize transaction overhead
     for (let i = 0; i < entries.length; i += BATCH_SIZE) {
       const batch = entries.slice(i, i + BATCH_SIZE);
@@ -130,12 +103,7 @@ export class PaymentMatchingService {
 
             batchResults.push({ imported: true, matched: false });
 
-            // Pass the pre-loaded invoice cache so attemptMatch doesn't hit the DB
-            const matchResult = await this.attemptMatch(
-              transaction.id,
-              tx as Prisma.TransactionClient,
-              { autoConfirmHighConfidence: true, invoiceCache: allCandidateInvoices },
-            );
+            const matchResult = await this.attemptMatch(transaction.id, tx as Prisma.TransactionClient, { autoConfirmHighConfidence: true });
             if (matchResult === 'CONFIRMED') {
               batchResults[batchResults.length - 1].matched = true;
             } else if (matchResult) {
@@ -203,20 +171,7 @@ export class PaymentMatchingService {
   async attemptMatch(
     transactionId: string,
     tx?: Prisma.TransactionClient,
-    options: {
-      autoConfirmHighConfidence?: boolean;
-      /**
-       * Pre-loaded invoice cache from importBankStatement.
-       * When provided, skips the per-entry invoice.findMany DB query — the
-       * caller already fetched all candidates once for the entire batch.
-       * Without the cache every entry triggers a separate heavy join query.
-       *
-       * Shape must match what prisma.invoice.findMany returns with
-       * { include: { room: { include: { tenants: { include: { tenant: true } } } } } }
-       */
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      invoiceCache?: any[];
-    } = {},
+    options: { autoConfirmHighConfidence?: boolean } = {},
   ): Promise<MatchCandidate | 'CONFIRMED' | null> {
     const { autoConfirmHighConfidence = false } = options;
     const db = tx ?? prisma;
@@ -228,30 +183,26 @@ export class PaymentMatchingService {
       throw new NotFoundError('PaymentTransaction', transactionId);
     }
 
-    // Filter invoices to the ±window around this transaction's date.
-    // If a cache was passed (bulk import path), filter in-memory — zero DB queries.
-    // Otherwise fall back to a targeted DB query (single-match path).
-    const windowStart = new Date(transaction.transactionDate.getTime() - INVOICE_SEARCH_DAYS_BEFORE * 86_400_000);
-    const windowEnd   = new Date(transaction.transactionDate.getTime() + INVOICE_SEARCH_DAYS_AFTER  * 86_400_000);
-
-    const unpaidInvoices = options.invoiceCache
-      ? options.invoiceCache.filter(inv =>
-          inv.dueDate >= windowStart && inv.dueDate <= windowEnd &&
-          ['GENERATED', 'SENT', 'VIEWED'].includes(inv.status)
-        )
-      : await db.invoice.findMany({
-          where: {
-            status: { in: ['GENERATED', 'SENT', 'VIEWED'] },
-            dueDate: { gte: windowStart, lte: windowEnd },
-          },
+    // Get unpaid invoices within the search window
+    const unpaidInvoices = await db.invoice.findMany({
+      where: {
+        status: { in: ['GENERATED', 'SENT', 'VIEWED'] },
+        dueDate: {
+          gte: new Date(transaction.transactionDate.getTime() - INVOICE_SEARCH_DAYS_BEFORE * 24 * 60 * 60 * 1000),
+          lte: new Date(transaction.transactionDate.getTime() + INVOICE_SEARCH_DAYS_AFTER * 24 * 60 * 60 * 1000),
+        },
+      },
+      include: {
+        room: {
           include: {
-            room: {
-              include: {
-                tenants: { where: { moveOutDate: null }, include: { tenant: true } },
-              },
+            tenants: {
+              where: { moveOutDate: null },
+              include: { tenant: true },
             },
           },
-        });
+        },
+      },
+    });
 
     const candidates: MatchCandidate[] = [];
 
@@ -355,21 +306,9 @@ export class PaymentMatchingService {
     // ── Idempotency re-check INSIDE the transaction ─────────────────────────────
     // Re-fetch the transaction with row lock to prevent concurrent confirmations.
     // If already CONFIRMED, return early — no-op (idempotent).
-    const [currentTx] = await db.$queryRaw<Array<{
-      id: string;
-      amount: Prisma.Decimal;
-      transactionDate: Date;
-      roomNo: string | null;
-      description: string | null;
-      reference: string | null;
-      sourceFile: string;
-      status: string;
-    }>>`
-      SELECT "id", "amount", "transactionDate", "roomNo", "description", "reference", "sourceFile", "status"::text
-      FROM "payment_transactions"
-      WHERE "id" = ${transactionId}
-      FOR UPDATE OF "payment_transactions"
-    `;
+    const currentTx = await db.paymentTransaction.findUnique({
+      where: { id: transactionId },
+    });
     if (!currentTx || currentTx.status === 'CONFIRMED') {
       return; // Idempotent: already confirmed by a concurrent call
     }
@@ -433,7 +372,6 @@ export class PaymentMatchingService {
           description: currentTx.description,
           reference: currentTx.reference,
           sourceFile: currentTx.sourceFile,
-          idempotencyKey: `auto-confirm:${transactionId}:${invoiceId}`,
           status: 'CONFIRMED',
           matchedInvoiceId: invoiceId,
           confirmedAt: new Date(),
@@ -453,22 +391,6 @@ export class PaymentMatchingService {
         return;
       }
       throw error;
-    }
-
-    if (matchType === 'OVERPAY' && payment) {
-      const excessAmount = Number((txAmount - (invoiceTotal ?? 0)).toFixed(2));
-      if (excessAmount > 0) {
-        await db.paymentCredit.create({
-          data: {
-            id: uuidv4(),
-            paymentId: payment.id,
-            invoiceId,
-            amount: excessAmount,
-            reason: 'OVERPAYMENT',
-            status: 'OPEN',
-          },
-        });
-      }
     }
 
     // Sync invoice payment state
@@ -683,13 +605,7 @@ export class PaymentMatchingService {
     confirmedBy: string,
     requestId?: string,
   ): Promise<void> {
-    logger.info({
-      type: 'payment_match_confirm_start',
-      requestId: requestId ?? null,
-      transactionId,
-      invoiceId,
-      confirmedBy,
-    });
+    logger.info({ type: 'payment_match_confirm_start', requestId: requestId ?? null, transactionId, invoiceId, confirmedBy });
     // Pre-flight: fetch full transaction state for early-exit and error messaging.
     // All authoritative validation and writes happen inside the $transaction.
     const transaction = await prisma.paymentTransaction.findUnique({
@@ -717,31 +633,25 @@ export class PaymentMatchingService {
     const txAmount = Number(transaction.amount);
 
     await prisma.$transaction(async (tx) => {
-      // All authoritative checks inside the transaction
-      const [current] = await tx.$queryRaw<Array<{
-        id: string;
-        amount: Prisma.Decimal;
-        transactionDate: Date;
-        description: string | null;
-        reference: string | null;
-        sourceFile: string;
-        status: string;
-      }>>`
-        SELECT "id", "amount", "transactionDate", "description", "reference", "sourceFile", "status"::text
-        FROM "payment_transactions"
-        WHERE "id" = ${transactionId}
-        FOR UPDATE OF "payment_transactions"
-      `;
-      const [invoice] = await tx.$queryRaw<Array<{
-        id: string;
-        status: string;
-        totalAmount: Prisma.Decimal;
-      }>>`
-        SELECT "id", "status"::text, "totalAmount"
-        FROM "invoices"
-        WHERE "id" = ${invoiceId}
-        FOR UPDATE OF "invoices"
-      `;
+      // Acquire exclusive row locks on BOTH the transaction and the invoice
+      // before any reads. This prevents two concurrent staff confirmations from
+      // both passing the "not yet CONFIRMED" check and creating duplicate payments.
+      //
+      // Lock order: payment_transaction → invoices (consistent order prevents deadlock).
+      type LockRow = { id: string };
+      const [txLock] = await (tx as unknown as { $queryRaw: (s: TemplateStringsArray, ...a: unknown[]) => Promise<LockRow[]> })
+        .$queryRaw`SELECT id FROM payment_transactions WHERE id = ${transactionId} FOR UPDATE`;
+      if (!txLock) return; // row gone — idempotent
+
+      const [invLock] = await (tx as unknown as { $queryRaw: (s: TemplateStringsArray, ...a: unknown[]) => Promise<LockRow[]> })
+        .$queryRaw`SELECT id FROM invoices WHERE id = ${invoiceId} FOR UPDATE`;
+      if (!invLock) throw new NotFoundError('Invoice', invoiceId);
+
+      // Re-read full rows after acquiring locks (authoritative state)
+      const [current, invoice] = await Promise.all([
+        tx.paymentTransaction.findUnique({ where: { id: transactionId } }),
+        tx.invoice.findUnique({ where: { id: invoiceId } }),
+      ]);
 
       if (!current || current.status === 'CONFIRMED') return; // idempotent inside tx
 
@@ -761,7 +671,6 @@ export class PaymentMatchingService {
         const excessAmount = txAmount - invoiceTotal;
         logger.warn({
           type: 'overpayment_detected',
-          requestId: requestId ?? null,
           transactionId,
           invoiceId,
           txAmount,
@@ -814,7 +723,6 @@ export class PaymentMatchingService {
       const payment = await tx.payment.create({
         data: {
           id: uuidv4(),
-          idempotencyKey: `match-confirm:${transactionId}:${invoiceId}`,
           amount: transaction.amount,
           paidAt: transaction.transactionDate,
           description: transaction.description,
@@ -829,22 +737,6 @@ export class PaymentMatchingService {
             : null,
         },
       });
-
-      if (confirmedMatchType === 'OVERPAY') {
-        const excessAmount = Number((txAmount - invoiceTotal).toFixed(2));
-        if (excessAmount > 0) {
-          await tx.paymentCredit.create({
-            data: {
-              id: uuidv4(),
-              paymentId: payment.id,
-              invoiceId,
-              amount: excessAmount,
-              reason: 'OVERPAYMENT',
-              status: 'OPEN',
-            },
-          });
-        }
-      }
 
       await syncInvoicePaymentState(tx, {
         invoiceId,
@@ -896,7 +788,6 @@ export class PaymentMatchingService {
 
     logger.info({
       type: 'payment_match_confirmed',
-      requestId: requestId ?? null,
       transactionId,
       invoiceId,
       confirmedBy,

@@ -7,8 +7,6 @@ import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 import type { BillingAuditAction } from '@prisma/client';
-import { enqueueAllBillingJobs } from '@/queues/billing.queue';
-import { enqueueBillingJob } from '@/queues/billing.queue';
 
 // Admin write operations: 20/min
 const ADMIN_WINDOW_MS = 60 * 1000;
@@ -18,12 +16,6 @@ const ADMIN_MAX_ATTEMPTS = 20;
 // Yields to the event loop every N records so the API can respond to other
 // requests (health checks, other admin actions) even with thousands of rooms.
 const BATCH_SIZE = 50;
-
-// Queue mode: set QUEUE_BILLING=true env to use BullMQ instead of setImmediate.
-// In queue mode, jobs are persisted to Redis and a separate worker process
-// (npm run worker) handles them. The API returns immediately with { queued: N }.
-// In inline mode (default), setImmediate processes batches in the same request.
-const USE_QUEUE = process.env.QUEUE_BILLING === 'true';
 
 // ============================================================================
 // POST /api/billing/periods/[id]/generate-invoices
@@ -153,6 +145,12 @@ export const POST = asyncHandler(
     const { id: periodId } = params;
     const session = requireRole(req, ['ADMIN', 'OWNER']);
 
+    // FM-21: Human confirmation guard.
+    // Without ?confirm=true the endpoint returns a dry-run preview so the UI
+    // can show "You are about to generate N invoices for Month/Year — confirm?"
+    const url = new URL(req.url);
+    const confirmed = url.searchParams.get('confirm') === 'true';
+
     // Verify period exists
     const period = await prisma.billingPeriod.findUnique({ where: { id: periodId } });
     if (!period) {
@@ -194,19 +192,54 @@ export const POST = asyncHandler(
       } as ApiResponse<{ generated: number; skipped: number; errors: number; errorDetails: string[] }>);
     }
 
-    // Queue mode: persist jobs to Redis and return immediately.
-    // A separate worker process (npm run worker) processes them.
-    if (USE_QUEUE) {
-      const count = await enqueueAllBillingJobs(periodId);
+    // FM-21: Return dry-run preview when ?confirm=true is absent.
+    // The caller (UI) must explicitly pass confirm=true after showing the user
+    // the count so accidental double-clicks or wrong-month generation is prevented.
+    if (!confirmed) {
       return NextResponse.json({
         success: true,
-        data: { queued: count, generated: 0, skipped: 0, errors: 0, errorDetails: [] as string[] },
-        message: `${count} jobs queued for background processing.`,
-      } as ApiResponse<{ queued: number; generated: number; skipped: number; errors: number; errorDetails: string[] }>);
+        data: {
+          dryRun: true,
+          wouldGenerate: billings.length,
+          year: period.year,
+          month: period.month,
+          rooms: billings.map(b => b.roomNo),
+        },
+        message: `Dry run: ${billings.length} invoice(s) would be generated for ${period.year}/${String(period.month).padStart(2, '0')}. POST with ?confirm=true to proceed.`,
+      });
+    }
+
+    // FM-7: PostgreSQL advisory lock — prevents two concurrent generation jobs
+    // (e.g., cron + manual click) from processing the same period simultaneously.
+    // pg_try_advisory_lock is session-scoped; we release it after generation.
+    // hashtext() produces a stable int4 from the period UUID string.
+    type AdvisoryRow = { acquired: boolean };
+    const [lockResult] = await prisma.$queryRaw<AdvisoryRow[]>`
+      SELECT pg_try_advisory_lock(hashtext(${periodId})) AS acquired
+    `;
+    if (!lockResult?.acquired) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            message: 'Invoice generation is already in progress for this period. Retry in a moment.',
+            code: 'GENERATION_IN_PROGRESS',
+            name: 'ConflictError',
+            statusCode: 409,
+          },
+        },
+        { status: 409 },
+      );
     }
 
     // Process in batches with setImmediate yields to avoid blocking the event loop.
-    const result = await processBatches(billings, periodId, period, session);
+    let result: Awaited<ReturnType<typeof processBatches>>;
+    try {
+      result = await processBatches(billings, periodId, period, session);
+    } finally {
+      // Always release the advisory lock, even if processBatches throws
+      await prisma.$queryRaw`SELECT pg_advisory_unlock(hashtext(${periodId}))`.catch(() => {});
+    }
 
     // Update period status to CLOSED (fully invoiced) when no more LOCKED records remain
     const remaining = await prisma.roomBilling.count({

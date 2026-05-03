@@ -209,10 +209,6 @@ model Invoice {
   cancelReason              String?
   cancelReasonCategory      String? // ERROR | CUSTOMER_REQUEST | FRAUD | OTHER
   accessToken               String?                    @unique
-  // Set atomically by the payment-notifier handler when the LINE receipt is dispatched.
-  // Acts as a one-shot idempotency flag: if the outbox event is re-delivered the handler
-  // sees notificationSentAt IS NOT NULL and skips sending a second message to the tenant.
-  notificationSentAt        DateTime? @db.Timestamptz(6)
   createdAt                 DateTime @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime @updatedAt @db.Timestamptz(6)
   documentGenerationTargets DocumentGenerationTarget[]
@@ -224,7 +220,6 @@ model Invoice {
   paymentTransactions       PaymentTransaction[]       @relation("InvoicePaymentTransactions")
   payments                  Payment[]                  @relation("InvoiceToPayment")
   deliveryOrderItems        DeliveryOrderItem[]
-  paymentCredits            PaymentCredit[]
 
   @@index([roomNo])
   @@index([year, month])
@@ -280,7 +275,6 @@ model ImportBatch {
 model Payment {
   id               String         @id @default(uuid())
   transactionId    String?        @unique
-  idempotencyKey   String?        @unique
   amount           Decimal        @db.Decimal(12, 2)
   paidAt           DateTime @db.Timestamptz(6)
   description      String?
@@ -300,7 +294,6 @@ model Payment {
   matches          PaymentMatch[]
   invoices         Invoice[]      @relation("InvoiceToPayment")
   paymentHistory   PaymentHistory[]
-  paymentCredits   PaymentCredit[]
 
   @@index([status])
   @@index([paidAt])
@@ -374,9 +367,6 @@ model Tenant {
   email                     String?
   emergencyContact          String?
   emergencyPhone            String?
-  // Set to true when an ACTIVE contract is created for this tenant; false when contract terminates.
-  // Used to enforce CONTRACT_REQUIRED flow: no invoice generation without active contract.
-  hasActiveContract         Boolean                   @default(false)
   createdAt                 DateTime @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime @updatedAt @db.Timestamptz(6)
   // Soft delete — set to deletion timestamp. All queries MUST filter deletedAt: null.
@@ -391,6 +381,7 @@ model Tenant {
 
   @@index([phone])
   @@index([email])
+  @@index([deletedAt])
   @@map("tenants")
 }
 
@@ -409,6 +400,8 @@ model RoomTenant {
   @@index([roomNo])
   @@index([tenantId])
   @@index([role])
+  @@index([moveOutDate])
+  @@index([roomNo, moveOutDate])
   @@map("room_tenants")
 }
 
@@ -684,72 +677,59 @@ model Config {
   @@map("configs")
 }
 
-// ── Background Job Queue ──────────────────────────────────────────────────────
-// Async work that would block HTTP responses (bank import, PDF generation, etc.)
-// is enqueued here and processed by the job worker using FOR UPDATE SKIP LOCKED.
-
-model BackgroundJob {
-  id              String    @id @default(uuid())
-  type            String
-  payload         Json
-  status          String    @default("PENDING") // PENDING | RUNNING | DONE | FAILED | DEAD
-  result          Json?
-  error           String?
-  retryCount      Int       @default(0)
-  priority        Int       @default(0)
-  scheduledAt     DateTime  @default(now()) @db.Timestamptz(6)
-  startedAt       DateTime? @db.Timestamptz(6)
-  finishedAt      DateTime? @db.Timestamptz(6)
-  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
-  idempotencyKey  String?   @unique
-
-  @@index([status, scheduledAt])
-  @@index([type, status])
-  @@index([createdAt])
-  @@map("background_jobs")
-}
-
-// ── Idempotency Keys ──────────────────────────────────────────────────────────
-// Stores the response of write endpoints keyed by (Idempotency-Key header, path).
-// Duplicate requests with the same key get the stored response replayed.
-
-model IdempotencyKey {
-  id             String   @id @default(uuid())
-  key            String
-  path           String
-  responseBody   Json
-  responseStatus Int      @default(200)
-  expiresAt      DateTime @db.Timestamptz(6)
-  createdAt      DateTime @default(now()) @db.Timestamptz(6)
-
-  @@unique([key, path], name: "key_path")
-  @@index([expiresAt])
-  @@map("idempotency_keys")
-}
-
 model OutboxEvent {
-  id                String    @id @default(uuid())
-  aggregateType     String
-  aggregateId       String
-  eventType         String
-  payload           Json
-  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
-  scheduledAt       DateTime? @db.Timestamptz(6)
-  processedAt       DateTime? @db.Timestamptz(6)
-  retryCount        Int       @default(0)
-  lastError         String?
-  lastAttemptAt     DateTime? @db.Timestamptz(6)
-  deduplicationKey  String?   @unique
+  id            String    @id @default(uuid())
+  aggregateType String
+  aggregateId   String
+  eventType     String
+  payload       Json
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+  scheduledAt   DateTime? @db.Timestamptz(6)
+  processedAt   DateTime? @db.Timestamptz(6)
+  retryCount    Int       @default(0)
+  nextRetryAt   DateTime? @db.Timestamptz(6)
+  lastError     String?
+  errorCode     String?   // machine-readable: LINE_RATE_LIMIT, PERMANENT_4XX, TIMEOUT, etc.
+  lastFailedAt  DateTime? @db.Timestamptz(6)
 
   @@index([processedAt, scheduledAt])
   @@index([aggregateType, aggregateId])
   @@index([processedAt, createdAt])
-  @@index([processedAt, lastAttemptAt])
+  @@index([processedAt, nextRetryAt])
   @@index([eventType])
   @@index([retryCount])
-  @@index([lastAttemptAt])
   @@map("outbox_events")
+}
+
+// ── Zero-loss inbox ──────────────────────────────────────────────────────────
+// Raw LINE webhook events are persisted here before any processing.
+// InboxProcessor polls this table and processes each event exactly once.
+enum InboxEventStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+  DEAD
+}
+
+model InboxEvent {
+  id           String           @id @default(uuid())
+  source       String           @default("LINE")
+  eventId      String           @unique
+  payload      Json
+  receivedAt   DateTime         @default(now()) @db.Timestamptz(6)
+  status       InboxEventStatus @default(PENDING)
+  retryCount   Int              @default(0)
+  nextRetryAt  DateTime?        @db.Timestamptz(6)
+  processedAt  DateTime?        @db.Timestamptz(6)
+  lastError    String?
+  errorCode    String?          // machine-readable: LINE_RATE_LIMIT, TIMEOUT, etc.
+  lastFailedAt DateTime?        @db.Timestamptz(6)
+
+  @@index([status, nextRetryAt])
+  @@index([status, lastFailedAt])
+  @@index([receivedAt])
+  @@map("inbox_events")
 }
 
 model AdminUser {
@@ -1644,35 +1624,34 @@ model BillingAuditLog {
 }
 
 model IdempotencyRecord {
-  id           String    @id @default(uuid())
-  key          String    @unique
-  resourceType String
-  resourceId   String?
-  result       Json?
-  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  id              String    @id @default(uuid())
+  key             String    @unique
+  resourceType    String
+  resourceId      String?
+  result          Json?
+  // sha256 hex of the canonical request body — used to detect key reuse for different payloads
+  requestBodyHash String?
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([resourceType])
   @@index([createdAt])
   @@map("idempotency_records")
 }
 
-model PaymentCredit {
-  id         String    @id @default(uuid())
-  paymentId  String
-  invoiceId  String
-  amount     Decimal   @db.Decimal(12, 2)
-  reason     String
-  status     String    @default("OPEN")
-  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
-  resolvedAt DateTime? @db.Timestamptz(6)
-  resolvedBy String?
-  payment    Payment   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  invoice    Invoice   @relation(fields: [invoiceId], references: [id])
+// Crash-recovery log for scheduled jobs.
+// On startup, instrumentation.ts checks this table to re-run any job whose
+// last successful run is older than its expected interval.
+model CronJobRun {
+  id         String   @id @default(uuid())
+  jobId      String
+  ranAt      DateTime @default(now()) @db.Timestamptz(6)
+  success    Boolean  @default(true)
+  durationMs Int?
+  message    String?
+  error      String?
 
-  @@index([paymentId])
-  @@index([invoiceId])
-  @@index([status])
-  @@map("payment_credits")
+  @@index([jobId, ranAt(sort: Desc)])
+  @@map("cron_job_runs")
 }
 
 model FailedMessage {
