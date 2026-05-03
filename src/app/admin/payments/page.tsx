@@ -657,6 +657,7 @@ function MatchWorkstationTab() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [matchedTodayCount, setMatchedTodayCount] = useState(0);
   const matchRef = useRef<(() => void) | null>(null);
+  const confirmInFlightRef = useRef(false);
   const toast = useToast();
 
   const { data: paymentsData, isLoading: paymentsLoading, isError: paymentsError, error: paymentsErr, refetch: refetchPayments } = useQuery<{ data: { transactions: Payment[] } }>({
@@ -701,9 +702,11 @@ function MatchWorkstationTab() {
 
   async function handleConfirm(): Promise<MatchResult | null> {
     if (!selectedPayment || !selectedInvoice) return null;
+    if (confirmInFlightRef.current) return null;
+    confirmInFlightRef.current = true;
     try {
       const res = await fetch('/api/payments/match/confirm', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
         body: JSON.stringify({ transactionId: selectedPayment.id, invoiceId: selectedInvoice.id }),
       });
       if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error(body?.error?.message ?? `Server error ${res.status}`); }
@@ -721,6 +724,8 @@ function MatchWorkstationTab() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'ไม่สามารถยืนยันการจับคู่ได้');
       return null;
+    } finally {
+      confirmInFlightRef.current = false;
     }
   }
 
@@ -1046,6 +1051,7 @@ function ManualPaymentTab() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     if (!selectedInvoice) {
       setMessage({ type: 'error', text: 'กรุณาเลือกใบแจ้งหนี้' });
       return;
@@ -1059,7 +1065,7 @@ function ManualPaymentTab() {
     try {
       const res = await fetch('/api/payments/manual', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
         body: JSON.stringify({
           invoiceId: selectedInvoice.id,
           amount,

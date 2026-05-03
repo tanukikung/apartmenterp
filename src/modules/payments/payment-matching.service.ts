@@ -306,9 +306,21 @@ export class PaymentMatchingService {
     // ── Idempotency re-check INSIDE the transaction ─────────────────────────────
     // Re-fetch the transaction with row lock to prevent concurrent confirmations.
     // If already CONFIRMED, return early — no-op (idempotent).
-    const currentTx = await db.paymentTransaction.findUnique({
-      where: { id: transactionId },
-    });
+    const [currentTx] = await db.$queryRaw<Array<{
+      id: string;
+      amount: Prisma.Decimal;
+      transactionDate: Date;
+      roomNo: string | null;
+      description: string | null;
+      reference: string | null;
+      sourceFile: string;
+      status: string;
+    }>>`
+      SELECT "id", "amount", "transactionDate", "roomNo", "description", "reference", "sourceFile", "status"::text
+      FROM "payment_transactions"
+      WHERE "id" = ${transactionId}
+      FOR UPDATE OF "payment_transactions"
+    `;
     if (!currentTx || currentTx.status === 'CONFIRMED') {
       return; // Idempotent: already confirmed by a concurrent call
     }
@@ -372,6 +384,7 @@ export class PaymentMatchingService {
           description: currentTx.description,
           reference: currentTx.reference,
           sourceFile: currentTx.sourceFile,
+          idempotencyKey: `auto-confirm:${transactionId}:${invoiceId}`,
           status: 'CONFIRMED',
           matchedInvoiceId: invoiceId,
           confirmedAt: new Date(),
@@ -391,6 +404,22 @@ export class PaymentMatchingService {
         return;
       }
       throw error;
+    }
+
+    if (matchType === 'OVERPAY' && payment) {
+      const excessAmount = Number((txAmount - (invoiceTotal ?? 0)).toFixed(2));
+      if (excessAmount > 0) {
+        await db.paymentCredit.create({
+          data: {
+            id: uuidv4(),
+            paymentId: payment.id,
+            invoiceId,
+            amount: excessAmount,
+            reason: 'OVERPAYMENT',
+            status: 'OPEN',
+          },
+        });
+      }
     }
 
     // Sync invoice payment state
@@ -602,8 +631,16 @@ export class PaymentMatchingService {
   async confirmMatch(
     transactionId: string,
     invoiceId: string,
-    confirmedBy: string
+    confirmedBy: string,
+    requestId?: string,
   ): Promise<void> {
+    logger.info({
+      type: 'payment_match_confirm_start',
+      requestId: requestId ?? null,
+      transactionId,
+      invoiceId,
+      confirmedBy,
+    });
     // Pre-flight: fetch full transaction state for early-exit and error messaging.
     // All authoritative validation and writes happen inside the $transaction.
     const transaction = await prisma.paymentTransaction.findUnique({
@@ -632,10 +669,30 @@ export class PaymentMatchingService {
 
     await prisma.$transaction(async (tx) => {
       // All authoritative checks inside the transaction
-      const [current, invoice] = await Promise.all([
-        tx.paymentTransaction.findUnique({ where: { id: transactionId } }),
-        tx.invoice.findUnique({ where: { id: invoiceId } }),
-      ]);
+      const [current] = await tx.$queryRaw<Array<{
+        id: string;
+        amount: Prisma.Decimal;
+        transactionDate: Date;
+        description: string | null;
+        reference: string | null;
+        sourceFile: string;
+        status: string;
+      }>>`
+        SELECT "id", "amount", "transactionDate", "description", "reference", "sourceFile", "status"::text
+        FROM "payment_transactions"
+        WHERE "id" = ${transactionId}
+        FOR UPDATE OF "payment_transactions"
+      `;
+      const [invoice] = await tx.$queryRaw<Array<{
+        id: string;
+        status: string;
+        totalAmount: Prisma.Decimal;
+      }>>`
+        SELECT "id", "status"::text, "totalAmount"
+        FROM "invoices"
+        WHERE "id" = ${invoiceId}
+        FOR UPDATE OF "invoices"
+      `;
 
       if (!current || current.status === 'CONFIRMED') return; // idempotent inside tx
 
@@ -655,6 +712,7 @@ export class PaymentMatchingService {
         const excessAmount = txAmount - invoiceTotal;
         logger.warn({
           type: 'overpayment_detected',
+          requestId: requestId ?? null,
           transactionId,
           invoiceId,
           txAmount,
@@ -707,6 +765,7 @@ export class PaymentMatchingService {
       const payment = await tx.payment.create({
         data: {
           id: uuidv4(),
+          idempotencyKey: `match-confirm:${transactionId}:${invoiceId}`,
           amount: transaction.amount,
           paidAt: transaction.transactionDate,
           description: transaction.description,
@@ -721,6 +780,22 @@ export class PaymentMatchingService {
             : null,
         },
       });
+
+      if (confirmedMatchType === 'OVERPAY') {
+        const excessAmount = Number((txAmount - invoiceTotal).toFixed(2));
+        if (excessAmount > 0) {
+          await tx.paymentCredit.create({
+            data: {
+              id: uuidv4(),
+              paymentId: payment.id,
+              invoiceId,
+              amount: excessAmount,
+              reason: 'OVERPAYMENT',
+              status: 'OPEN',
+            },
+          });
+        }
+      }
 
       await syncInvoicePaymentState(tx, {
         invoiceId,
@@ -772,6 +847,7 @@ export class PaymentMatchingService {
 
     logger.info({
       type: 'payment_match_confirmed',
+      requestId: requestId ?? null,
       transactionId,
       invoiceId,
       confirmedBy,

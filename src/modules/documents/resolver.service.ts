@@ -415,8 +415,6 @@ async function buildRoomContext(room: SelectedRoom, billingRecord: SelectedRoom[
           landlordAddress: '123 ถนนสุขุมวิท กรุงเทพฯ 10110',
           landlordPhone: '02-123-4567',
           signDate: contract.startDate ? toIsoDate(contract.startDate) : null,
-          rentDueDay: contract.rentDueDay ?? 5,
-          specialTerms: contract.specialTerms ?? null,
           parkingSpaces: null,
         }
       : null,

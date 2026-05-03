@@ -25,6 +25,7 @@ export const POST = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
+    const requestId = req.headers.get('x-request-id') ?? undefined;
     const session = requireRole(req, ['ADMIN', 'OWNER']);
     const { id } = params;
     const body = await req.json();
@@ -32,12 +33,13 @@ export const POST = asyncHandler(
     const input = terminateContractSchema.parse(body);
 
     const { contractService } = getServiceContainer();
-    const contract = await contractService.terminateContract(id, input, session.sub);
+    const contract = await contractService.terminateContract(id, input, session.sub, requestId);
 
-    await logAudit({ req, action: 'CONTRACT_TERMINATED', reqId: id, actorId: session.sub, changes: { contractId: contract.id, ...input } });
+    await logAudit({ req, action: 'CONTRACT_TERMINATED', entityType: 'Contract', entityId: contract.id, metadata: { ...input } });
 
     logger.info({
       type: 'contract_terminated_api',
+      requestId,
       contractId: contract.id,
       terminationDate: input.terminationDate,
     });

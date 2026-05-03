@@ -406,12 +406,16 @@ export default function AdminDashboardPage() {
   const [auditLogs, setAuditLogs] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('');
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [loadErrors, setLoadErrors] = useState<string[]>([]);
 
   const { date } = todayThai();
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
+      const errors: string[] = [];
+      let occupancyOk = false;
+      let summaryOk = false;
       try {
         const meRes = await fetch('/api/auth/me', { cache: 'no-store' });
         if (meRes.ok) {
@@ -428,9 +432,6 @@ export default function AdminDashboardPage() {
             return null;
           }
         };
-
-        // Track API errors so we can show user-facing error state instead of silent 0s
-        const apiErrors: string[] = [];
 
         const [
           occupancyRes,
@@ -450,10 +451,10 @@ export default function AdminDashboardPage() {
           safe('/api/audit-logs?limit=10'),
         ]);
 
-        if (occupancyRes?.success) setOccupancy(occupancyRes.data);
-        else apiErrors.push('ไม่สามารถโหลดข้อมูลการเข้าพัก');
-        if (summaryRes?.success) setSummary(summaryRes.data);
-        else apiErrors.push('ไม่สามารถโหลดข้อมูลสรุป');
+        if (occupancyRes?.success) { setOccupancy(occupancyRes.data); occupancyOk = true; }
+        else if (!occupancyOk) errors.push('ไม่สามารถโหลดข้อมูลการเข้าพัก');
+        if (summaryRes?.success) { setSummary(summaryRes.data); summaryOk = true; }
+        else if (!summaryOk) errors.push('ไม่สามารถโหลดข้อมูลสรุป');
 
         if (maintenanceRes?.success) {
           const data = maintenanceRes.data;
@@ -501,7 +502,7 @@ export default function AdminDashboardPage() {
           setAuditLogs(logs.slice(0, 10));
         }
       } finally {
-        if (apiErrors.length > 0) setApiError(apiErrors[0]);
+        if (errors.length > 0) setLoadErrors(errors);
         setLoading(false);
       }
     }
@@ -609,10 +610,10 @@ export default function AdminDashboardPage() {
         </StaggerList>
 
         {/* API error banner */}
-        {apiError && !loading && (
+        {loadErrors[0] && !loading && (
           <div className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-400">
             <AlertTriangle size={15} />
-            {apiError}
+            {loadErrors[0]}
           </div>
         )}
 

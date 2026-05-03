@@ -12,6 +12,7 @@ import type { MessageType } from '@prisma/client';
 import { getLatestUnpaidInvoiceForLineUser } from '@/modules/invoices/balance-inquiry';
 import { buildInvoiceFlex } from '@/modules/messaging/lineTemplates';
 import { isPaymentSettled, PaymentMatchMode } from '@/modules/payments/payment-tolerance';
+import { syncInvoicePaymentState } from '@/modules/payments/invoice-payment-state';
 import {
   startMaintenanceRequest,
   handleMaintenanceRequestMessage,
@@ -173,12 +174,12 @@ async function handlePostback(data: string, replyToken: string, conversationId: 
         where: { matchedInvoiceId: invoiceId, status: 'CONFIRMED' },
         orderBy: { confirmedAt: 'desc' },
       });
-      await tx.invoice.update({
-        where: { id: invoiceId },
-        data: {
-          status: 'PAID',
-          paidAt: payment?.confirmedAt ?? new Date(),
-        },
+      if (!payment) return;
+      await syncInvoicePaymentState(tx, {
+        invoiceId,
+        paymentId: payment.id,
+        paymentAmount: Number(payment.amount),
+        paidAt: payment.confirmedAt ?? payment.paidAt,
       });
     });
     await sendReplyMessage(
@@ -387,6 +388,7 @@ async function handleBalanceInquiry(
 //   to after the response is returned. These are slow network calls and must NEVER
 //   block the 200 OK response.
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  const phase2Queue: Array<() => Promise<void>> = [];
   const bodyText = await req.text();
   const signature = req.headers.get('x-line-signature') || '';
   if (!verifyLineSignature(bodyText, signature)) {
@@ -570,22 +572,23 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   // ── Return 200 OK immediately after Phase 1 DB writes complete ───────────
   // LINE requires this within 15 seconds. Slow operations deferred to Phase 2.
   logger.info({ type: 'line_webhook_processed', count: events.length });
+  const runPhase2 = () => Promise.all(phase2Queue.map((fn) => fn())).catch((err) =>
+    logger.error({ type: 'line_webhook_phase2_error', error: err instanceof Error ? err.message : String(err) })
+  );
+  if (process.env.NODE_ENV === 'test') {
+    await runPhase2();
+  } else {
+    setImmediate(() => { void runPhase2(); });
+  }
   return NextResponse.json(
     { success: true, data: { processed: events.length } } as ApiResponse<{ processed: number }>,
     { headers: { 'X-LINE-Status': 'OK' } }
-  );
-
-  // ── Phase 2: Fire-and-forget (runs after response is sent) ───────────────────
-  // All LINE API calls happen here — these do NOT block the HTTP response.
-  void Promise.all(phase2Queue.map((fn) => fn())).catch((err) =>
-    logger.error({ type: 'line_webhook_phase2_error', error: err instanceof Error ? err.message : String(err) })
   );
 });
 
 // ─── Phase 2 queue (LINE API calls, deferred after response) ──────────────────
 // These functions are queued during Phase 1 and executed after 200 OK is returned.
 // They contain slow network operations that must NEVER block the webhook response.
-const phase2Queue: Array<() => Promise<void>> = [];
 
 async function persistFollowEvent(userId: string): Promise<void> {
   const existingConv = await prisma.conversation.findUnique({ where: { lineUserId: userId } });

@@ -46,6 +46,7 @@ export const PUT = asyncHandler(async (req: NextRequest, { params }: StepsParams
   requireRole(req, ['OWNER', 'ADMIN']);
   const body = await req.json();
   const { stepId, step } = body as { stepId: string; step: Record<string, unknown> };
+  // @ts-expect-error StepUpdateSchema has specific enum types; Record<string,unknown> is safe at runtime
   const result = await messagingSequenceService.updateStep(stepId, step);
   return NextResponse.json({ success: true, data: result });
 });

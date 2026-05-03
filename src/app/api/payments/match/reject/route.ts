@@ -15,7 +15,7 @@ const rejectMatchSchema = z.object({
 
 export const POST = asyncHandler(async (request: NextRequest): Promise<NextResponse> => {
   const limiter = getLoginRateLimiter();
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const ip = request.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
   const { allowed, remaining, resetAt } = await limiter.check(`payments-match-reject:${ip}`, PAYMENT_MAX_ATTEMPTS, PAYMENT_WINDOW_MS);
   if (!allowed) {
     return NextResponse.json(

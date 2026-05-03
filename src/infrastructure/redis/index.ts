@@ -1,5 +1,15 @@
 import { createClient, type RedisClientType } from 'redis';
 
+// All Redis keys are namespaced to prevent collision with other applications
+// sharing the same Redis instance.
+const KEY_PREFIX = 'apt:';
+
+export const REDIS_KEYS = {
+  rateLimit: (key: string) => `${KEY_PREFIX}ratelimit:${key}`,
+  workerHeartbeat: () => `${KEY_PREFIX}worker:heartbeat`,
+  billingQueue: () => `${KEY_PREFIX}billing-generation`,
+} as const;
+
 let client: RedisClientType | null = null;
 
 // In-memory heartbeat fallback for when Redis is not configured.
@@ -12,16 +22,19 @@ export function isRedisConfigured(): boolean {
 }
 
 export function getRedisUrl(): string {
-  return process.env.REDIS_URL || 'redis://localhost:6379';
+  // Require REDIS_URL to be explicitly set — no silent fallback to localhost.
+  // If not set, Redis-dependent features degrade gracefully (in-memory fallback).
+  return process.env.REDIS_URL ?? '';
 }
 
 export function getRedisClient(): RedisClientType | null {
   if (process.env.NODE_ENV === 'test') return null;
-  if (!isRedisConfigured()) return null;
+  const url = getRedisUrl();
+  if (!url) return null;
   if (!client) {
     try {
       client = createClient({
-        url: getRedisUrl(),
+        url,
         socket: {
           connectTimeout: 1000, // fail fast if Redis not available
           reconnectStrategy(retries) {
@@ -33,7 +46,7 @@ export function getRedisClient(): RedisClientType | null {
         },
       });
       client.on('error', (err) => {
-        console.error('Redis error', err);
+        console.error('[Redis] client error:', err.message);
       });
     } catch {
       client = null;
@@ -60,7 +73,7 @@ export async function ensureRedisConnected(): Promise<RedisClientType | null> {
 export async function redisRateLimit(key: string, max: number, windowSeconds: number): Promise<number> {
   const c = await ensureRedisConnected();
   if (!c) return 0;
-  const nowKey = `ratelimit:${key}`;
+  const nowKey = REDIS_KEYS.rateLimit(key);
   const count = await c.incr(nowKey);
   if (count === 1) {
     await c.expire(nowKey, windowSeconds);
@@ -87,7 +100,7 @@ export async function setWorkerHeartbeat(ttlSeconds: number = 30): Promise<void>
     return;
   }
   try {
-    await c.set('worker:heartbeat', Date.now().toString(), { EX: ttlSeconds });
+    await c.set(REDIS_KEYS.workerHeartbeat(), Date.now().toString(), { EX: ttlSeconds });
   } catch {
     // ignore
   }
@@ -100,7 +113,7 @@ export async function getWorkerHeartbeat(): Promise<number | null> {
     return inMemoryHeartbeat;
   }
   try {
-    const val = await c.get('worker:heartbeat');
+    const val = await c.get(REDIS_KEYS.workerHeartbeat());
     if (!val) return null;
     const n = Number(val);
     return Number.isFinite(n) ? n : null;

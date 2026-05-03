@@ -764,9 +764,12 @@ export class InvoiceService {
       { userId: sentBy }
     );
 
+    const updatedRecord = updatedInvoiceRecord as InvoiceResponseRecord;
+    const responseInvoice = this.formatInvoiceResponse(updatedRecord);
+    responseInvoice.status = updatedRecord.status as InvoiceStatus;
     return {
       ...txResult,
-      invoice: this.formatInvoiceResponse(updatedInvoiceRecord),
+      invoice: responseInvoice,
     };
   }
 
@@ -784,9 +787,17 @@ export class InvoiceService {
       return this.getInvoiceById(id);
     }
 
-    const updated = await prisma.invoice.update({
-      where: { id },
+    if (invoice.status === INVOICE_STATUS.OVERDUE || invoice.status === INVOICE_STATUS.CANCELLED) {
+      return this.getInvoiceById(id);
+    }
+
+    await prisma.invoice.updateMany({
+      where: { id, status: { in: [INVOICE_STATUS.GENERATED, INVOICE_STATUS.SENT] }, paidAt: null },
       data: { status: INVOICE_STATUS.VIEWED },
+    });
+
+    const updated = await prisma.invoice.findUnique({
+      where: { id },
       include: {
         room: {
           include: {
@@ -801,6 +812,9 @@ export class InvoiceService {
         roomBilling: true,
       },
     });
+    if (!updated) {
+      throw new NotFoundError('Invoice', id);
+    }
 
     const payload: InvoiceViewedPayload = {
       invoiceId: invoice.id,
@@ -822,6 +836,8 @@ export class InvoiceService {
    * Cancel an invoice and revert the associated RoomBilling to LOCKED
    * so it can be re-invoiced after corrections.
    * Only GENERATED/overdue invoices can be cancelled; SENT/PAID cannot.
+   * Uses SELECT FOR UPDATE to prevent TOCTOU race with concurrent payment.
+   * All validation happens INSIDE the transaction — no pre-check outside.
    * Writes full audit trail: cancelledAt, cancelledBy, cancelReason, cancelReasonCategory.
    */
   async cancelInvoice(
@@ -829,22 +845,40 @@ export class InvoiceService {
     cancelledBy: string,
     reason: string,
     cancelReasonCategory?: string,
+    requestId?: string,
   ): Promise<InvoiceResponse> {
-    const invoice = await prisma.invoice.findUnique({ where: { id } });
-    if (!invoice) {
-      throw new NotFoundError('Invoice', id);
-    }
+    const cancelled = await prisma.$transaction(async (tx) => {
+      // SELECT FOR UPDATE — lock the invoice row to prevent concurrent payment
+      // from racing with cancellation. This eliminates the TOCTOU window.
+      const [invoice] = await tx.$queryRaw<Array<{
+        id: string; status: string; totalAmount: Prisma.Decimal;
+        roomBillingId: string; paidAt: Date | null;
+      }>>`
+        SELECT "id", "status"::text, "totalAmount", "roomBillingId", "paidAt"
+        FROM "invoices"
+        WHERE "id" = ${id}
+        FOR UPDATE OF "invoices"
+      `;
 
-    if (invoice.status === INVOICE_STATUS.CANCELLED) {
-      throw new BadRequestError('Invoice is already cancelled');
-    }
-    if (invoice.status === INVOICE_STATUS.SENT || invoice.status === INVOICE_STATUS.PAID) {
-      throw new BadRequestError(`Cannot cancel an invoice with status ${invoice.status}`);
-    }
+      if (!invoice) {
+        throw new NotFoundError('Invoice', id);
+      }
 
-    const updated = await prisma.$transaction(async (tx) => {
+      // Re-check status inside the transaction (after lock acquired)
+      if (invoice.status === 'CANCELLED') {
+        throw new BadRequestError('Invoice is already cancelled');
+      }
+      if (invoice.status === 'SENT' || invoice.status === 'PAID') {
+        throw new BadRequestError(`Cannot cancel an invoice with status ${invoice.status}`);
+      }
+      //PAID check after lock - if payment arrived between pre-check and lock,
+      //the row lock ensures we see the latest committed status
+      if (invoice.paidAt) {
+        throw new BadRequestError('Invoice has a recorded payment and cannot be cancelled');
+      }
+
       // Cancel the invoice — write all audit fields
-      const cancelled = await tx.invoice.update({
+      const result = await tx.invoice.update({
         where: { id },
         data: {
           status: INVOICE_STATUS.CANCELLED,
@@ -867,7 +901,7 @@ export class InvoiceService {
         data: { status: 'CANCELLED' as const },
       });
 
-      return cancelled;
+      return { result, invoice };
     });
 
     await logAudit({
@@ -877,18 +911,26 @@ export class InvoiceService {
       entityType: 'INVOICE',
       entityId: id,
       metadata: {
-        roomBillingId: invoice.roomBillingId,
+        roomBillingId: cancelled.invoice.roomBillingId,
         reason,
         cancelReasonCategory: cancelReasonCategory ?? null,
-        totalAmount: Number(invoice.totalAmount),
-        beforeStatus: invoice.status,
+        totalAmount: Number(cancelled.invoice.totalAmount),
+        beforeStatus: cancelled.invoice.status,
         afterStatus: 'CANCELLED',
       },
     });
 
-    logger.info({ type: 'invoice_cancelled', invoiceId: id, cancelledBy, reason });
+    logger.info({
+      type: 'invoice_cancelled',
+      requestId: requestId ?? null,
+      entityId: id,
+      invoiceId: id,
+      actorId: cancelledBy,
+      roomBillingId: cancelled.invoice.roomBillingId,
+      reason,
+    });
 
-    return this.formatInvoiceResponse(updated);
+    return this.formatInvoiceResponse(cancelled.result);
   }
 
   /**
@@ -1125,9 +1167,11 @@ export class InvoiceService {
       deliveryId: result.delivery.id,
     });
 
+    const responseInvoice = this.formatInvoiceResponse(result.updatedInvoice);
+    responseInvoice.status = result.updatedInvoice.status as InvoiceStatus;
     return {
       queued: true,
-      invoice: this.formatInvoiceResponse(result.updatedInvoice),
+      invoice: responseInvoice,
       errorMessage: null,
       lineConfigured: isLineConfigured(),
       hasLineRecipient: false,

@@ -42,6 +42,13 @@ export class MoveOutService {
     // transaction ensures no race window between the check and the insert.
     const moveOut = await prisma.$transaction(async (tx) => {
       // Lock the contract row to prevent concurrent createMoveOut calls
+      const [lockedContract] = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "contracts" WHERE "id" = ${input.contractId} FOR UPDATE OF "contracts"
+      `;
+      if (!lockedContract) {
+        throw new NotFoundError('Contract', input.contractId);
+      }
+
       const contract = await tx.contract.findUnique({
         where: { id: input.contractId },
         include: {
@@ -546,6 +553,13 @@ export class MoveOutService {
     // acquiring a row lock on the move-out record — no gap between check and update.
     const updated = await prisma.$transaction(async (tx) => {
       // Lock the move-out row to prevent concurrent confirmation attempts
+      const [lockedMoveOut] = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "move_outs" WHERE "id" = ${id} FOR UPDATE OF "move_outs"
+      `;
+      if (!lockedMoveOut) {
+        throw new NotFoundError('MoveOut', id);
+      }
+
       const moveOutWithContract = await tx.moveOut.findUnique({
         where: { id },
         include: { contract: { select: { roomNo: true } } },

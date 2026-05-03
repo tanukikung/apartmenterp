@@ -30,7 +30,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "audit:data-integrity": "tsx scripts/audit-data-integrity.ts",
-    "sync:invoice-status": "tsx scripts/sync-invoice-status.ts"
+    "sync:invoice-status": "tsx scripts/sync-invoice-status.ts",
+    "worker": "tsx scripts/run-billing-worker.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1016.0",
@@ -59,12 +60,14 @@
     "@tiptap/react": "^3.20.2",
     "@tiptap/starter-kit": "^3.20.2",
     "@types/qrcode": "^1.5.6",
+    "bullmq": "^5.76.5",
     "cheerio": "^1.2.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "decimal.js": "^10.4.3",
     "docx": "^9.6.1",
     "dompurify": "^3.3.3",
+    "ioredis": "^5.10.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.577.0",
     "motion": "^12.38.0",

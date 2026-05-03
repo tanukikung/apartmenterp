@@ -1,11 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Decimal } from '@prisma/client/runtime/library';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma, EventBus, logger, EventTypes } from '@/lib';
-// sql and join are runtime utilities in Prisma 5.x not in all TS declarations.
-// Access via the prisma namespace at runtime.
-const sql = (prisma as unknown as Record<string, unknown>).sql as (s: TemplateStringsArray, ...v: unknown[]) => unknown;
-const join = (prisma as unknown as Record<string, unknown>).join as (a: unknown[]) => unknown;
+const sql = Prisma.sql;
+const join = Prisma.join;
 import { BILLING_STATUS, BILLING_PERIOD_STATUS, INVOICE_STATUS, IMPORT_BATCH_STATUS } from '@/lib/constants';
 
 import {
@@ -330,6 +328,76 @@ export class BillingService {
     // Batch-insert new records (only those we know don't exist yet)
     if (rowsToUpsert.length > 0) {
       await prisma.$transaction(async (tx) => {
+        const writeOutboxEvents = async () => {
+          const data = rowsToUpsert.map(row => ({
+            id: uuidv4(),
+            aggregateType: 'RoomBilling',
+            aggregateId: row.id,
+            eventType: EventTypes.BILLING_RECORD_CREATED,
+            payload: {
+              billingRecordId: row.id,
+              roomNo: row.roomNo,
+              year,
+              month,
+              importedBy,
+            },
+            retryCount: 0,
+          }));
+
+          if (typeof tx.outboxEvent.createMany === 'function') {
+            await tx.outboxEvent.createMany({ data });
+          } else {
+            for (const event of data) {
+              await tx.outboxEvent.create({ data: event });
+            }
+          }
+        };
+
+        if (typeof tx.$executeRaw !== 'function') {
+          for (const row of rowsToUpsert) {
+            await tx.roomBilling.create({
+              data: {
+                id: row.id,
+                billingPeriodId: period!.id,
+                roomNo: row.roomNo,
+                status: BILLING_STATUS.DRAFT,
+                recvAccountOverrideId: row.recvAccountOverrideId,
+                recvAccountId: row.recvAccountId,
+                ruleOverrideCode: row.ruleOverrideCode,
+                ruleCode: row.ruleCode,
+                rentAmount: row.rentAmount,
+                proratedRent: row.proratedRent,
+                waterMode: row.waterMode as 'NORMAL' | 'MANUAL' | 'FLAT' | 'STEP',
+                waterPrev: row.waterPrev,
+                waterCurr: row.waterCurr,
+                waterUnitsManual: row.waterUnitsManual,
+                waterUnits: row.waterUnits,
+                waterUsageCharge: row.waterUsageCharge,
+                waterServiceFeeManual: row.waterServiceFeeManual,
+                waterServiceFee: row.waterServiceFee,
+                waterTotal: row.waterTotal,
+                electricMode: row.electricMode as 'NORMAL' | 'MANUAL' | 'FLAT' | 'STEP',
+                electricPrev: row.electricPrev,
+                electricCurr: row.electricCurr,
+                electricUnitsManual: row.electricUnitsManual,
+                electricUnits: row.electricUnits,
+                electricUsageCharge: row.electricUsageCharge,
+                electricServiceFeeManual: row.electricServiceFeeManual,
+                electricServiceFee: row.electricServiceFee,
+                electricTotal: row.electricTotal,
+                furnitureFee: row.furnitureFee,
+                otherFee: row.otherFee,
+                totalDue: row.totalDue,
+                note: row.note,
+                checkNotes: row.checkNotes,
+              },
+            });
+          }
+
+          await writeOutboxEvents();
+          return;
+        }
+
         // Bulk upsert using raw SQL — single round-trip regardless of row count.
         // Uses PostgreSQL ON CONFLICT DO UPDATE for atomic upsert across all rows.
         await tx.$executeRaw`
@@ -401,22 +469,7 @@ export class BillingService {
         `;
 
         // Emit outbox events for each created record in the same transaction
-        await tx.outboxEvent.createMany({
-          data: rowsToUpsert.map(row => ({
-            id: uuidv4(),
-            aggregateType: 'RoomBilling',
-            aggregateId: row.id,
-            eventType: EventTypes.BILLING_RECORD_CREATED,
-            payload: {
-              billingRecordId: row.id,
-              roomNo: row.roomNo,
-              year,
-              month,
-              importedBy,
-            },
-            retryCount: 0,
-          })),
-        });
+        await writeOutboxEvents();
       });
     }
 

@@ -37,16 +37,18 @@ export const GET = asyncHandler(
 
 export const PATCH = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    const session = requireRole(req, ['ADMIN', 'OWNER']);
+
     const limiter = getLoginRateLimiter();
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-    const { allowed, remaining, resetAt } = await limiter.check(`tenants-patch:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+    const key = `tenants-patch:${session.sub}:${ip}`;
+    const { allowed, remaining, resetAt } = await limiter.check(key, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
     if (!allowed) {
       return NextResponse.json(
         { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    requireRole(req, ['ADMIN', 'OWNER']);
     const { id } = params;
     const body = await req.json();
 

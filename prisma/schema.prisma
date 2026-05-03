@@ -220,6 +220,7 @@ model Invoice {
   paymentTransactions       PaymentTransaction[]       @relation("InvoicePaymentTransactions")
   payments                  Payment[]                  @relation("InvoiceToPayment")
   deliveryOrderItems        DeliveryOrderItem[]
+  paymentCredits            PaymentCredit[]
 
   @@index([roomNo])
   @@index([year, month])
@@ -275,6 +276,7 @@ model ImportBatch {
 model Payment {
   id               String         @id @default(uuid())
   transactionId    String?        @unique
+  idempotencyKey   String?        @unique
   amount           Decimal        @db.Decimal(12, 2)
   paidAt           DateTime @db.Timestamptz(6)
   description      String?
@@ -294,6 +296,7 @@ model Payment {
   matches          PaymentMatch[]
   invoices         Invoice[]      @relation("InvoiceToPayment")
   paymentHistory   PaymentHistory[]
+  paymentCredits   PaymentCredit[]
 
   @@index([status])
   @@index([paidAt])
@@ -686,12 +689,16 @@ model OutboxEvent {
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
   scheduledAt   DateTime? @db.Timestamptz(6)
   processedAt   DateTime? @db.Timestamptz(6)
+  lockedAt      DateTime? @db.Timestamptz(6)
+  lockedBy      String?
+  nextAttemptAt DateTime? @db.Timestamptz(6)
   retryCount    Int       @default(0)
   lastError     String?
 
   @@index([processedAt, scheduledAt])
   @@index([aggregateType, aggregateId])
   @@index([processedAt, createdAt])
+  @@index([processedAt, nextAttemptAt, lockedAt])
   @@index([eventType])
   @@index([retryCount])
   @@map("outbox_events")
@@ -1599,6 +1606,25 @@ model IdempotencyRecord {
   @@index([resourceType])
   @@index([createdAt])
   @@map("idempotency_records")
+}
+
+model PaymentCredit {
+  id         String    @id @default(uuid())
+  paymentId  String
+  invoiceId  String
+  amount     Decimal   @db.Decimal(12, 2)
+  reason     String
+  status     String    @default("OPEN")
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  resolvedAt DateTime? @db.Timestamptz(6)
+  resolvedBy String?
+  payment    Payment   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice    Invoice   @relation(fields: [invoiceId], references: [id])
+
+  @@index([paymentId])
+  @@index([invoiceId])
+  @@index([status])
+  @@map("payment_credits")
 }
 
 model FailedMessage {

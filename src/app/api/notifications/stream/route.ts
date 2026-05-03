@@ -36,7 +36,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         }
       });
     },
-    cancel() {
+    cancel(controller: ReadableStreamDefaultController) {
       // Only remove this specific client — don't clear all clients
       removeSseClient(controller);
     },

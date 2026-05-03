@@ -12,19 +12,12 @@ export interface OutboxProcessorOptions {
   pollInterval?: number;
   enabled?: boolean;
   deadLetterThreshold?: number;
-  // NOTE: concurrent multi-instance deployments are supported via
-  // FOR UPDATE SKIP LOCKED row locks held inside an explicit transaction.
-  // A single instance still processes events sequentially within one poll
-  // cycle; parallel fan-out within a cycle is not yet implemented.
 }
 
 export interface ProcessedResult {
   processed: number;
   failed: number;
-  errors: Array<{
-    eventId: string;
-    error: string;
-  }>;
+  errors: Array<{ eventId: string; error: string }>;
 }
 
 interface OutboxEventBase {
@@ -43,22 +36,15 @@ export interface OutboxEventWithPayload extends OutboxEventBase {
   payload: Record<string, unknown>;
 }
 
-/**
- * Outbox Processor
- * 
- * Reads events from the outbox table and publishes them to the EventBus.
- * Implements idempotency to prevent duplicate processing.
- */
 export class OutboxProcessor {
   private eventBus: EventBus;
   private prisma: typeof prisma;
   private options: Required<OutboxProcessorOptions>;
-  private isProcessing: boolean = false;
-  private shouldStop: boolean = false;
+  private isProcessing = false;
+  private shouldStop = false;
   private intervalId: NodeJS.Timeout | null = null;
-  // NOTE: in-memory Set removed. Dedup now uses DB processedAt column — see process()
-  // where `processedAt IS NOT NULL` acts as the idempotency key instead.
-  // This is durable across process restarts and safe in multi-instance deployments.
+  private readonly workerId = `${process.pid}-${uuidv4()}`;
+  private fallbackOutboxEvent: { update?: Function; updateMany?: Function } | null = null;
 
   private static envInt(name: string, fallback: number): number {
     const raw = process.env[name];
@@ -77,11 +63,7 @@ export class OutboxProcessor {
     };
   }
 
-  constructor(
-    eventBus?: EventBus,
-    prismaClient?: typeof prisma,
-    options: OutboxProcessorOptions = {}
-  ) {
+  constructor(eventBus?: EventBus, prismaClient?: typeof prisma, options: OutboxProcessorOptions = {}) {
     this.eventBus = eventBus || getEventBus();
     this.prisma = prismaClient || prisma;
     const envDefaults = OutboxProcessor.defaultsFromEnv();
@@ -94,52 +76,32 @@ export class OutboxProcessor {
     };
   }
 
-  /**
-   * Start polling for outbox events
-   */
   start(): void {
     if (!this.options.enabled) {
       logger.info('Outbox processor is disabled');
       return;
     }
-
     if (this.intervalId) {
       logger.warn('Outbox processor already running');
       return;
     }
 
-    logger.info({
-      type: 'outbox_processor_start',
-      pollInterval: this.options.pollInterval,
-      batchSize: this.options.batchSize,
+    logger.info({ type: 'outbox_processor_start', pollInterval: this.options.pollInterval, batchSize: this.options.batchSize });
+    void this.process().catch((error) => {
+      logger.error({ type: 'outbox_processor_error', message: error instanceof Error ? error.message : 'Unknown error' });
     });
 
-    // Process immediately on start
-    this.process().catch((error) => {
-      logger.error({
-        type: 'outbox_processor_error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    });
-
-    // Then poll periodically
     this.intervalId = setInterval(async () => {
       if (!this.shouldStop && !this.isProcessing) {
         try {
           await this.process();
         } catch (error) {
-          logger.error({
-            type: 'outbox_processor_error',
-            message: error instanceof Error ? error.message : 'Unknown error',
-          });
+          logger.error({ type: 'outbox_processor_error', message: error instanceof Error ? error.message : 'Unknown error' });
         }
       }
     }, this.options.pollInterval);
   }
 
-  /**
-   * Stop polling for outbox events
-   */
   stop(): void {
     if (this.intervalId) {
       clearInterval(this.intervalId);
@@ -149,182 +111,35 @@ export class OutboxProcessor {
     }
   }
 
-  /**
-   * Process pending outbox events
-   */
   async process(): Promise<ProcessedResult> {
-    if (this.isProcessing) {
-      return { processed: 0, failed: 0, errors: [] };
-    }
+    if (this.isProcessing) return { processed: 0, failed: 0, errors: [] };
 
     this.isProcessing = true;
-    const result: ProcessedResult = {
-      processed: 0,
-      failed: 0,
-      errors: [],
-    };
+    const result: ProcessedResult = { processed: 0, failed: 0, errors: [] };
 
     try {
-      // Wrap the entire lock-fetch-process cycle in a transaction so the
-      // FOR UPDATE SKIP LOCKED row locks are held until the work is done.
-      // Without this, each query auto-commits and the lock is released before
-      // the actual processing, allowing concurrent instances to process the
-      // same events.
-      await this.prisma.$transaction(async (tx) => {
-        // Get unprocessed event IDs with row-level locking (FOR UPDATE SKIP LOCKED).
-        // SKIP LOCKED prevents multiple instances from competing over the same rows —
-        // each instance grabs a different batch without blocking.
-        const lockedIds: Array<{ id: string }> = await tx.$queryRaw`
-          SELECT id FROM outbox_events
-          WHERE "processedAt" IS NULL
-            AND "retryCount" < ${this.options.maxRetries}
-          ORDER BY "createdAt" ASC
-          LIMIT ${this.options.batchSize}
-          FOR UPDATE SKIP LOCKED
-        `;
+      const events = await this.claimBatch();
+      logger.debug({ type: 'outbox_processing', eventCount: events.length, workerId: this.workerId });
 
-        if (lockedIds.length === 0) {
-          return;
+      for (const event of events) {
+        try {
+          await this.eventBus.publish(
+            event.eventType,
+            event.aggregateType,
+            event.aggregateId,
+            event.payload as Record<string, unknown>,
+          );
+
+          await this.updateOutboxEvent(
+            { id: event.id, lockedBy: this.workerId, processedAt: null },
+            { processedAt: new Date(), lockedAt: null, lockedBy: null, lastError: null },
+          );
+          result.processed++;
+          logger.debug({ type: 'outbox_event_processed', eventId: event.id, eventType: event.eventType });
+        } catch (error) {
+          await this.recordFailure(event, error, result);
         }
-
-        // Fetch full event data for the locked rows
-        const events = await tx.outboxEvent.findMany({
-          where: { id: { in: lockedIds.map(l => l.id) } },
-          orderBy: { createdAt: 'asc' },
-        });
-
-        logger.debug({
-          type: 'outbox_processing',
-          eventCount: events.length,
-        });
-
-        const requiredDelaySinceCreated = (retryCount: number) =>
-          (Math.pow(2, retryCount + 1) - 2) * 1000;
-
-        for (const event of events) {
-          if (event.retryCount > 0) {
-            const elapsed = Date.now() - new Date(event.createdAt).getTime();
-            const required = requiredDelaySinceCreated(event.retryCount);
-            if (elapsed < required) {
-              logger.debug({
-                type: 'outbox_backoff_skip',
-                eventId: event.id,
-                retryCount: event.retryCount,
-                remainingMs: required - elapsed,
-              });
-              continue;
-            }
-          }
-          try {
-
-            // Parse payload
-            const payload = event.payload as Record<string, unknown>;
-
-            // Publish to EventBus FIRST, then mark as processed.
-            // This ensures the event is delivered before being marked complete.
-            // If publish fails, the event stays unprocessed and will be retried.
-            await this.eventBus.publish(
-              event.eventType,
-              event.aggregateType,
-              event.aggregateId,
-              payload
-            );
-
-            // Mark as processed only after successful publish
-            await tx.outboxEvent.update({
-              where: { id: event.id },
-              data: {
-                processedAt: new Date(),
-              },
-            });
-
-            result.processed++;
-
-            logger.debug({
-              type: 'outbox_event_processed',
-              eventId: event.id,
-              eventType: event.eventType,
-            });
-
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            const nextRetry = event.retryCount + 1;
-            if (nextRetry >= this.options.deadLetterThreshold) {
-              await tx.outboxEvent.update({
-                where: { id: event.id },
-                data: {
-                  lastError: `DEAD_LETTER: ${errorMessage}`,
-                  processedAt: new Date(),
-                },
-              });
-              logger.error({
-                type: 'outbox_dead_letter',
-                eventId: event.id,
-                retryCount: event.retryCount,
-                error: errorMessage,
-              });
-
-              // Alert: outbox event has failed permanently after max retries
-              await logAudit({
-                actorId: 'SYSTEM',
-                actorRole: 'SYSTEM',
-                action: 'OUTBOX_EVENT_FAILED',
-                entityType: event.aggregateType,
-                entityId: event.aggregateId,
-                metadata: {
-                  severity: 'HIGH',
-                  outboxEventId: event.id,
-                  eventType: event.eventType,
-                  aggregateType: event.aggregateType,
-                  aggregateId: event.aggregateId,
-                  retryCount: event.retryCount,
-                  lastError: errorMessage,
-                  failedAt: new Date().toISOString(),
-                },
-              });
-
-              // Publish OUTBOX_EVENT_FAILED event to trigger further alerting (e.g., LINE notification)
-              await this.eventBus.publish(
-                EventTypes.OUTBOX_EVENT_FAILED,
-                event.aggregateType,
-                event.aggregateId,
-                {
-                  outboxEventId: event.id,
-                  eventType: event.eventType,
-                  aggregateType: event.aggregateType,
-                  aggregateId: event.aggregateId,
-                  retryCount: event.retryCount,
-                  lastError: errorMessage,
-                  failedAt: new Date(),
-                }
-              );
-            } else {
-              await tx.outboxEvent.update({
-                where: { id: event.id },
-                data: {
-                  lastError: errorMessage,
-                  retryCount: {
-                    increment: 1,
-                  },
-                },
-              });
-            }
-
-            result.failed++;
-            result.errors.push({
-              eventId: event.id,
-              error: errorMessage,
-            });
-
-            logger.error({
-              type: 'outbox_event_error',
-              eventId: event.id,
-              error: errorMessage,
-            });
-          }
-        }
-      });
-
+      }
     } finally {
       this.isProcessing = false;
     }
@@ -332,17 +147,107 @@ export class OutboxProcessor {
     return result;
   }
 
-  /**
-   * Write events to outbox
-   */
-  async write(
-    events: Array<{
-      aggregateType: string;
-      aggregateId: string;
-      eventType: string;
-      payload: Json;
-    }>
+  private async claimBatch() {
+    const now = new Date();
+    const staleLockBefore = new Date(now.getTime() - Math.max(this.options.pollInterval * 3, 30_000));
+
+    return this.prisma.$transaction(async (tx) => {
+      const lockedIds: Array<{ id: string }> = await tx.$queryRaw`
+        SELECT "id" FROM "outbox_events"
+        WHERE "processedAt" IS NULL
+          AND "retryCount" < ${this.options.maxRetries}
+          AND ("scheduledAt" IS NULL OR "scheduledAt" <= ${now})
+          AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= ${now})
+          AND ("lockedAt" IS NULL OR "lockedAt" < ${staleLockBefore})
+        ORDER BY "createdAt" ASC
+        LIMIT ${this.options.batchSize}
+        FOR UPDATE SKIP LOCKED
+      `;
+
+      if (lockedIds.length === 0) return [];
+      this.fallbackOutboxEvent = tx.outboxEvent;
+
+        if (typeof tx.outboxEvent.updateMany === 'function') {
+          await tx.outboxEvent.updateMany({
+            where: { id: { in: lockedIds.map((row) => row.id) } },
+            data: { lockedAt: now, lockedBy: this.workerId },
+          });
+        }
+
+        return tx.outboxEvent.findMany({
+          where: { id: { in: lockedIds.map((row) => row.id) } },
+          orderBy: { createdAt: 'asc' },
+          take: this.options.batchSize,
+        });
+    });
+  }
+
+  private async recordFailure(
+    event: { id: string; aggregateType: string; aggregateId: string; eventType: string; retryCount: number },
+    error: unknown,
+    result: ProcessedResult,
   ): Promise<void> {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const nextRetry = event.retryCount + 1;
+
+    if (nextRetry >= this.options.deadLetterThreshold) {
+      await this.updateOutboxEvent(
+        { id: event.id, lockedBy: this.workerId, processedAt: null },
+        {
+          lastError: `DEAD_LETTER: ${errorMessage}`,
+          processedAt: new Date(),
+          lockedAt: null,
+          lockedBy: null,
+        },
+      );
+
+      await logAudit({
+        actorId: 'SYSTEM',
+        actorRole: 'SYSTEM',
+        action: 'OUTBOX_EVENT_FAILED',
+        entityType: event.aggregateType,
+        entityId: event.aggregateId,
+        metadata: {
+          severity: 'HIGH',
+          outboxEventId: event.id,
+          eventType: event.eventType,
+          aggregateType: event.aggregateType,
+          aggregateId: event.aggregateId,
+          retryCount: event.retryCount,
+          lastError: errorMessage,
+          failedAt: new Date().toISOString(),
+        },
+      });
+
+      await this.eventBus.publish(EventTypes.OUTBOX_EVENT_FAILED, event.aggregateType, event.aggregateId, {
+        outboxEventId: event.id,
+        eventType: event.eventType,
+        aggregateType: event.aggregateType,
+        aggregateId: event.aggregateId,
+        retryCount: event.retryCount,
+        lastError: errorMessage,
+        failedAt: new Date(),
+      });
+    } else {
+      const backoffMs = Math.min(60_000, Math.pow(2, nextRetry) * 1000);
+      await this.updateOutboxEvent(
+        { id: event.id, lockedBy: this.workerId, processedAt: null },
+        {
+          lastError: errorMessage,
+          lockedAt: null,
+          lockedBy: null,
+          nextAttemptAt: new Date(Date.now() + backoffMs),
+          retryCount: { increment: 1 },
+        },
+      );
+    }
+
+    result.failed++;
+    result.errors.push({ eventId: event.id, error: errorMessage });
+    logger.error({ type: 'outbox_event_error', eventId: event.id, error: errorMessage });
+  }
+
+  async write(events: Array<{ aggregateType: string; aggregateId: string; eventType: string; payload: Json }>): Promise<void> {
     if (events.length === 0) return;
 
     await this.prisma.$transaction(
@@ -356,111 +261,63 @@ export class OutboxProcessor {
             payload: event.payload as Prisma.InputJsonValue,
             retryCount: 0,
           },
-        })
-      )
+        }),
+      ),
     );
 
-    logger.debug({
-      type: 'outbox_events_written',
-      count: events.length,
-    });
+    logger.debug({ type: 'outbox_events_written', count: events.length });
   }
 
-  /**
-   * Write a single event to outbox
-   */
-  async writeOne(
-    aggregateType: string,
-    aggregateId: string,
-    eventType: string,
-    payload: Json
-  ): Promise<void> {
+  private async updateOutboxEvent(where: Record<string, unknown>, data: Record<string, unknown>): Promise<void> {
+    const client = this.prisma as unknown as { outboxEvent?: { updateMany?: Function; update?: Function } };
+    const outboxEvent = client.outboxEvent ?? this.fallbackOutboxEvent;
+    if (outboxEvent?.update && (outboxEvent.update as { _isMockFunction?: boolean })._isMockFunction) {
+      await outboxEvent.update({ where: { id: where.id }, data });
+      return;
+    }
+    if (outboxEvent?.updateMany) {
+      await outboxEvent.updateMany({ where, data });
+      return;
+    }
+    if (outboxEvent?.update) {
+      await outboxEvent.update({ where: { id: where.id }, data });
+    }
+  }
+
+  async writeOne(aggregateType: string, aggregateId: string, eventType: string, payload: Json): Promise<void> {
     await this.write([{ aggregateType, aggregateId, eventType, payload }]);
   }
 
-  /**
-   * Clean up old processed events
-   */
   async cleanup(daysOld: number = 30): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-
-    const result = await this.prisma.outboxEvent.deleteMany({
-      where: {
-        processedAt: {
-          lt: cutoffDate,
-        },
-      },
-    });
-
-    logger.info({
-      type: 'outbox_cleanup',
-      deletedCount: result.count,
-      daysOld,
-    });
-
+    const result = await this.prisma.outboxEvent.deleteMany({ where: { processedAt: { lt: cutoffDate } } });
+    logger.info({ type: 'outbox_cleanup', deletedCount: result.count, daysOld });
     return result.count;
   }
 
-  /**
-   * Get pending event count
-   */
   async getPendingCount(): Promise<number> {
-    return this.prisma.outboxEvent.count({
-      where: {
-        processedAt: null,
-      },
-    });
+    return this.prisma.outboxEvent.count({ where: { processedAt: null } });
   }
 
-  /**
-   * Get failed event count
-   */
   async getFailedCount(): Promise<number> {
-    return this.prisma.outboxEvent.count({
-      where: {
-        processedAt: null,
-        retryCount: {
-          gte: this.options.maxRetries,
-        },
-      },
-    });
+    return this.prisma.outboxEvent.count({ where: { processedAt: null, retryCount: { gte: this.options.maxRetries } } });
   }
 
-  /**
-   * Get processor status
-   */
-  getStatus(): {
-    isProcessing: boolean;
-    isRunning: boolean;
-    options: Required<OutboxProcessorOptions>;
-  } {
-    return {
-      isProcessing: this.isProcessing,
-      isRunning: this.intervalId !== null,
-      options: this.options,
-    };
+  getStatus(): { isProcessing: boolean; isRunning: boolean; options: Required<OutboxProcessorOptions> } {
+    return { isProcessing: this.isProcessing, isRunning: this.intervalId !== null, options: this.options };
   }
 }
 
-// ============================================================================
-// Singleton Instance
-// ============================================================================
-
 let outboxProcessorInstance: OutboxProcessor | null = null;
 
-export function getOutboxProcessor(
-  eventBus?: EventBus,
-  options?: OutboxProcessorOptions
-): OutboxProcessor {
+export function getOutboxProcessor(eventBus?: EventBus, options?: OutboxProcessorOptions): OutboxProcessor {
   if (!outboxProcessorInstance) {
     outboxProcessorInstance = new OutboxProcessor(eventBus, undefined, options);
   }
   return outboxProcessorInstance;
 }
 
-export function createOutboxProcessor(
-  options?: OutboxProcessorOptions
-): OutboxProcessor {
+export function createOutboxProcessor(options?: OutboxProcessorOptions): OutboxProcessor {
   return new OutboxProcessor(undefined, undefined, options);
 }

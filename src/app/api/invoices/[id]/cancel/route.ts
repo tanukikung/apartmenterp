@@ -29,6 +29,7 @@ const cancelSchema = z.object({
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    const requestId = req.headers.get('x-request-id') ?? undefined;
     const limiter = getLoginRateLimiter();
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
     const { allowed, remaining, resetAt } = await limiter.check(`invoice-cancel:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
@@ -61,10 +62,12 @@ export const POST = asyncHandler(
       session.sub,
       parsed.data.reason,
       parsed.data.cancelReasonCategory,
+      requestId,
     );
 
     logger.info({
       type: 'invoice_cancel_api',
+      requestId,
       invoiceId: id,
       actorId: session.sub,
       reason: parsed.data.reason,

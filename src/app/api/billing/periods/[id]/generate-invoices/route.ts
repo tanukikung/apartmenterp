@@ -7,6 +7,8 @@ import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 import type { BillingAuditAction } from '@prisma/client';
+import { enqueueAllBillingJobs } from '@/queues/billing.queue';
+import { enqueueBillingJob } from '@/queues/billing.queue';
 
 // Admin write operations: 20/min
 const ADMIN_WINDOW_MS = 60 * 1000;
@@ -16,6 +18,12 @@ const ADMIN_MAX_ATTEMPTS = 20;
 // Yields to the event loop every N records so the API can respond to other
 // requests (health checks, other admin actions) even with thousands of rooms.
 const BATCH_SIZE = 50;
+
+// Queue mode: set QUEUE_BILLING=true env to use BullMQ instead of setImmediate.
+// In queue mode, jobs are persisted to Redis and a separate worker process
+// (npm run worker) handles them. The API returns immediately with { queued: N }.
+// In inline mode (default), setImmediate processes batches in the same request.
+const USE_QUEUE = process.env.QUEUE_BILLING === 'true';
 
 // ============================================================================
 // POST /api/billing/periods/[id]/generate-invoices
@@ -184,6 +192,17 @@ export const POST = asyncHandler(
         data: { generated: 0, skipped: 0, errors: 0, errorDetails: [] },
         message: 'No locked billing records without invoices found. Lock the period first.',
       } as ApiResponse<{ generated: number; skipped: number; errors: number; errorDetails: string[] }>);
+    }
+
+    // Queue mode: persist jobs to Redis and return immediately.
+    // A separate worker process (npm run worker) processes them.
+    if (USE_QUEUE) {
+      const count = await enqueueAllBillingJobs(periodId);
+      return NextResponse.json({
+        success: true,
+        data: { queued: count, generated: 0, skipped: 0, errors: 0, errorDetails: [] as string[] },
+        message: `${count} jobs queued for background processing.`,
+      } as ApiResponse<{ queued: number; generated: number; skipped: number; errors: number; errorDetails: string[] }>);
     }
 
     // Process in batches with setImmediate yields to avoid blocking the event loop.

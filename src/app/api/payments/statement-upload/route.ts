@@ -18,7 +18,7 @@ const DOCUMENT_MAX_ATTEMPTS = 5;
 
 export const POST = asyncHandler(async (request: NextRequest): Promise<NextResponse> => {
   const limiter = getLoginRateLimiter();
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const ip = request.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
   const { allowed, remaining, resetAt } = await limiter.check(`payments-statement-upload:${ip}`, DOCUMENT_MAX_ATTEMPTS, DOCUMENT_WINDOW_MS);
   if (!allowed) {
     return NextResponse.json(
@@ -93,8 +93,9 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
       fileName: file.name,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new ValidationError(
-      'Invalid statement file. Upload a CSV or Excel bank statement with readable date and amount columns.',
+    return NextResponse.json(
+      { success: false, error: { message: 'Invalid statement file. Upload a CSV or Excel bank statement with readable date and amount columns.' } },
+      { status: 422 }
     );
   }
 

@@ -70,7 +70,7 @@ export class ContractService {
       // same room.  This ensures that only one CREATE transaction can proceed
       // to the overlap check below.
       await tx.$executeRaw`
-        SELECT id FROM rooms
+        SELECT "roomNo" FROM rooms
         WHERE "roomNo" = ${input.roomId}
         FOR UPDATE
       `;
@@ -468,14 +468,18 @@ export class ContractService {
   }
 
   /**
-   * Terminate a contract
+   * Terminate a contract.
+   * Safety check: blocks termination if the tenant has unpaid invoices
+   * (GENERATED/SENT/VIEWED/OVERDUE) unless forceTermination=true is set.
+   * Uses SELECT FOR UPDATE to prevent concurrent state changes.
    */
   async terminateContract(
     id: string,
     input: TerminateContractInput,
-    terminatedBy?: string
+    terminatedBy?: string,
+    requestId?: string,
   ): Promise<ContractResponse> {
-    logger.info({ type: 'contract_terminate', id });
+    logger.info({ type: 'contract_terminate', requestId: requestId ?? null, entityId: id, actorId: terminatedBy });
 
     const contract = await prisma.contract.findUnique({
       where: { id },
@@ -494,6 +498,39 @@ export class ContractService {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
+      // Lock the contract row
+      const [locked] = await tx.$queryRaw<Array<{ id: string; status: string }>>`
+        SELECT "id", "status"::text FROM "contracts" WHERE "id" = ${id} FOR UPDATE OF "contracts"
+      `;
+
+      // Check for unpaid invoices (non-PAID, non-CANCELLED)
+      const unpaidInvoices = await tx.invoice.findMany({
+        where: {
+          roomNo: contract.roomNo,
+          status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
+        },
+        select: { id: true, status: true, totalAmount: true, dueDate: true },
+      });
+
+      if (unpaidInvoices.length > 0 && !input.forceTermination) {
+        const totalUnpaid = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
+        throw new BadRequestError(
+          `Cannot terminate: tenant has ${unpaidInvoices.length} unpaid invoice(s) totaling ${totalUnpaid} THB. ` +
+          `Use forceTermination=true to override (audit will be logged).`
+        );
+      }
+
+      if (unpaidInvoices.length > 0 && input.forceTermination) {
+        logger.warn({
+          type: 'contract_terminate_forced',
+          requestId: requestId ?? null,
+          entityId: id,
+          actorId: terminatedBy,
+          unpaidInvoiceCount: unpaidInvoices.length,
+          unpaidTotal: unpaidInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0),
+        });
+      }
+
       const result = await tx.contract.update({
         where: { id },
         data: {

@@ -40,6 +40,24 @@ const REQUEST_EXPIRY_MS = 30 * MS_PER_MINUTE;
 const AWAITING_DESCRIPTION_TTL_MS = 7 * MS_PER_DAY;
 const DESCRIPTION_PROVIDED_TTL_MS = 3 * MS_PER_DAY;
 
+async function clearStoredMaintenanceState(lineUserId: string, reason: string): Promise<void> {
+  try {
+    await prisma.lineMaintenanceState.delete({ where: { lineUserId } });
+  } catch (err) {
+    try {
+      await prisma.lineMaintenanceState.deleteMany({ where: { lineUserId } });
+    } catch (fallbackErr) {
+      logger.warn({
+        err: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
+        initialError: err instanceof Error ? err.message : String(err),
+        lineUserId,
+        reason,
+      }, 'line-maintenance: failed to clear state');
+    }
+  }
+  _maintenanceRequestCache.delete(lineUserId);
+}
+
 // ============================================================================
 // Helper: Resolve tenant from LINE user
 // ============================================================================
@@ -408,10 +426,7 @@ export async function handleMaintenanceRequestMessage(
 ): Promise<{ replyText: string } | null> {
   // Cancel command — always honoured
   if (text.trim() === 'ยกเลิก') {
-    await prisma.lineMaintenanceState.deleteMany({ where: { lineUserId } }).catch((err) => {
-      logger.warn({ err: err instanceof Error ? err.message : String(err), lineUserId }, 'line-maintenance: failed to delete state on cancel');
-    });
-    _maintenanceRequestCache.delete(lineUserId);
+    await clearStoredMaintenanceState(lineUserId, 'cancel');
     return { replyText: '❌ การแจ้งซ่อมถูกยกเลิกแล้วค่ะ หากต้องการแจ้งซ่อมใหม่ กรุณาเลือก "แจ้งซ่อม" จากเมนูค่ะ' };
   }
 
@@ -570,10 +585,7 @@ export async function finalizeMaintenanceRequest(lineUserId: string): Promise<{ 
   }
 
   // Clear the pending request state
-  await prisma.lineMaintenanceState.deleteMany({ where: { lineUserId } }).catch((err) => {
-    logger.warn({ err: err instanceof Error ? err.message : String(err), lineUserId }, 'line-maintenance: failed to delete state after ticket creation');
-  });
-  _maintenanceRequestCache.delete(lineUserId);
+  await clearStoredMaintenanceState(lineUserId, 'finalize');
 
   // Notify staff
   await notifyStaffOfNewTicket(ticket, requestData.tenantName);
@@ -595,8 +607,5 @@ export async function finalizeMaintenanceRequest(lineUserId: string): Promise<{ 
  * Call this when the user cancels or when the request is completed.
  */
 export async function clearMaintenanceRequest(lineUserId: string): Promise<void> {
-  await prisma.lineMaintenanceState.deleteMany({ where: { lineUserId } }).catch((err) => {
-    logger.warn({ err: err instanceof Error ? err.message : String(err), lineUserId }, 'line-maintenance: failed to clear state');
-  });
-  _maintenanceRequestCache.delete(lineUserId);
+  await clearStoredMaintenanceState(lineUserId, 'manual-clear');
 }

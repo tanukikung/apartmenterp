@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
 import { asyncHandler, type ApiResponse, BadRequestError } from '@/lib/utils/errors';
-import { requireOperator } from '@/lib/auth/guards';
+import { requireOperator, requireRole } from '@/lib/auth/guards';
 import { logAudit } from '@/modules/audit/audit.service';
 import { Prisma } from '@prisma/client';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';

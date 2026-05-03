@@ -51,7 +51,7 @@ export async function register() {
   // Lazy-import to avoid webpack bundling native Node modules.
   const { default: logger } = await import('./lib/utils/logger');
 
-  logger.info('🚀 Server starting — instrumentation hook registered');
+  logger.info({ type: 'server_startup' }, '🚀 Server starting — instrumentation hook registered');
 
   // ── Interval registry for graceful shutdown ─────────────────────────────
   const intervals: ReturnType<typeof setInterval>[] = [];
@@ -64,19 +64,19 @@ export async function register() {
   const SHUTDOWN_TIMEOUT_MS = 30_000;
 
   const shutdown = async (signal: string) => {
-    logger.info({ signal }, '🛑 Shutdown signal received — clearing intervals');
+    logger.info({ type: 'server_shutdown', signal }, '🛑 Shutdown signal received — clearing intervals');
     for (const id of intervals) clearInterval(id);
     intervals.length = 0;
 
     // Wait for in-flight jobs to finish before exiting, but do not wait forever.
     if (inFlightJobs.size > 0) {
-      logger.info({ count: inFlightJobs.size }, '⏳ Waiting for in-flight jobs to complete (max 30s)');
+      logger.info({ type: 'server_shutdown_wait', count: inFlightJobs.size }, '⏳ Waiting for in-flight jobs to complete (max 30s)');
       const timeout = new Promise<void>((resolve) => setTimeout(resolve, SHUTDOWN_TIMEOUT_MS));
       await Promise.race([Promise.all(inFlightJobs), timeout]);
       if (inFlightJobs.size > 0) {
-        logger.warn({ remaining: inFlightJobs.size }, '⚠️  Shutdown timeout reached — forcing exit with jobs still in flight');
+        logger.warn({ type: 'server_shutdown_timeout', remaining: inFlightJobs.size }, '⚠️  Shutdown timeout reached — forcing exit with jobs still in flight');
       } else {
-        logger.info('✅ All in-flight jobs completed');
+        logger.info({ type: 'server_shutdown_complete' }, '✅ All in-flight jobs completed');
       }
     }
   };
@@ -125,14 +125,14 @@ export async function register() {
         }
       }
     } catch (err) {
-      logger.warn({ err }, 'Failed to load automation cron config — using hardcoded schedules');
+      logger.warn({ type: 'cron_config_load_failed', err }, 'Failed to load automation cron config — using hardcoded schedules');
     }
 
     // Merge: override hardcoded schedules with DB values
     const effectiveSchedules: ScheduleEntry[] = SCHEDULES.map((s) =>
       overrideMap[s.jobId] ? { ...s, ...overrideMap[s.jobId] } : s
     );
-    logger.info({ overrideCount: Object.keys(overrideMap).length, overrideMap }, 'Scheduler initialized with automation cron overrides');
+    logger.info({ type: 'scheduler_init', overrideCount: Object.keys(overrideMap).length, overrideMap }, 'Scheduler initialized with automation cron overrides');
 
     // Start a once-per-minute ticker that checks the schedule
     intervals.push(setInterval(() => {
@@ -165,7 +165,7 @@ export async function register() {
                 lastMessage: result.message,
                 durationMs,
               });
-              logger.info({ jobId, ...result, durationMs }, '✅ Scheduled job completed');
+              logger.info({ type: 'job_completed', jobId, ...result, durationMs }, '✅ Scheduled job completed');
             })
             .catch((err: unknown) => {
               inFlightJobs.delete(jobPromise);
@@ -177,7 +177,7 @@ export async function register() {
                 lastMessage: message,
                 durationMs,
               });
-              logger.error({ jobId, error: message }, '❌ Scheduled job failed');
+              logger.error({ type: 'job_failed', jobId, error: message }, '❌ Scheduled job failed');
             });
           inFlightJobs.add(jobPromise);
         }
@@ -188,9 +188,9 @@ export async function register() {
     try {
       const { bootstrapMessagingRuntime } = await import('./modules/messaging/bootstrap');
       await bootstrapMessagingRuntime();
-      logger.info('📨 Messaging runtime bootstrapped');
+      logger.info({ type: 'messaging_runtime_bootstrap' }, '📨 Messaging runtime bootstrapped');
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Messaging runtime bootstrap failed — messaging disabled');
+      logger.error({ type: 'messaging_runtime_failed', error: err instanceof Error ? err.message : String(err) }, '⚠️  Messaging runtime bootstrap failed — messaging disabled');
     }
 
     // ── Rich menu bootstrap — handled via admin UI at POST /api/line/rich-menu ─
@@ -202,18 +202,18 @@ export async function register() {
     try {
       const { startOutboxWorker } = await import('./infrastructure/outbox/outbox.processor');
       startOutboxWorker();
-      logger.info('📤 Outbox worker started');
+      logger.info({ type: 'outbox_worker_start' }, '📤 Outbox worker started');
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Outbox worker failed to start — outbox processing disabled');
+      logger.error({ type: 'outbox_worker_failed', error: err instanceof Error ? err.message : String(err) }, '⚠️  Outbox worker failed to start — outbox processing disabled');
     }
 
     // ── Legacy cron jobs (runs 3am/4am/8am/9am) ───────────────────────────
     try {
       const { startCronIfEnabled } = await import('./server/cron');
       startCronIfEnabled();
-      logger.info('⏰ Legacy cron jobs started');
+      logger.info({ type: 'legacy_cron_start' }, '⏰ Legacy cron jobs started');
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Legacy cron failed to start');
+      logger.error({ type: 'legacy_cron_failed', error: err instanceof Error ? err.message : String(err) }, '⚠️  Legacy cron failed to start');
     }
 
     // ── Worker heartbeat ─────────────────────────────────────────────────
@@ -224,13 +224,13 @@ export async function register() {
       await setWorkerHeartbeat(30);
       intervals.push(setInterval(() => { void setWorkerHeartbeat(30); }, 10_000));
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Worker heartbeat failed — heartbeat will not be maintained');
+      logger.error({ type: 'worker_heartbeat_failed', error: err instanceof Error ? err.message : String(err) }, '⚠️  Worker heartbeat failed — heartbeat will not be maintained');
     }
 
-    logger.info('⏰ Job scheduler started');
+    logger.info({ type: 'job_scheduler_start' }, '⏰ Job scheduler started');
   } catch (err) {
     // Scheduler failure is non-fatal — jobs can still be triggered manually via the UI.
     const msg = err instanceof Error ? err.message : String(err);
-    logger.warn({ error: msg }, '⚠️  Job scheduler failed to start — manual execution still available');
+    logger.warn({ type: 'job_scheduler_failed', error: msg }, '⚠️  Job scheduler failed to start — manual execution still available');
   }
 }

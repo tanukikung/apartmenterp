@@ -16,16 +16,19 @@ const ADMIN_MAX_ATTEMPTS = 20;
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    const session = requireRole(req, ['ADMIN', 'OWNER']);
+    const userId = session.sub;
+
     const limiter = getLoginRateLimiter();
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-    const { allowed, remaining, resetAt } = await limiter.check(`contracts-renew:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+    const key = `contracts-renew:${userId}:${ip}`;
+    const { allowed, remaining, resetAt } = await limiter.check(key, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
     if (!allowed) {
       return NextResponse.json(
         { success: false, error: { message: `Too many requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    const session = requireRole(req, ['ADMIN', 'OWNER']);
     const { id } = params;
     const body = await req.json();
 
@@ -34,7 +37,7 @@ export const POST = asyncHandler(
     const { contractService } = getServiceContainer();
     const contract = await contractService.renewContract(id, input, session.sub);
 
-    await logAudit({ req, action: 'CONTRACT_RENEWED', reqId: id, actorId: session.sub, changes: { contractId: contract.id, newEndDate: input.newEndDate } });
+    await logAudit({ req, action: 'CONTRACT_RENEWED', entityType: 'Contract', entityId: contract.id, metadata: { newEndDate: input.newEndDate } });
 
     logger.info({
       type: 'contract_renewed_api',

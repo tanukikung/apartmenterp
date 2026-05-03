@@ -6,6 +6,7 @@ import { logger } from '@/lib/utils/logger';
 import { requireOperatorOrSignedInvoiceAccess } from '@/lib/invoices/access';
 import { htmlToPdfBuffer } from '@/lib/puppeteer';
 import { renderTemplate, buildInvoiceTemplateData } from '@/lib/template-engine';
+import { generateInvoicePdf } from '@/modules/invoices/pdf';
 
 // ── GET /api/invoices/[id]/pdf ─────────────────────────────────────────────
 // Intentionally public — tenant-facing PDF links delivered via LINE do not
@@ -42,10 +43,14 @@ export const GET = asyncHandler(
         include: { activeVersion: true },
       }),
     ]);
+    const normalizedPreview = {
+      ...preview,
+      roomNo: preview.roomNo ?? (preview as unknown as { roomNumber?: string }).roomNumber ?? '',
+    };
 
     // Guard: cancelled invoices cannot have their PDF regenerated — return 410 Gone
     // to prevent tenant confusion and unnecessary Puppeteer resource usage.
-    if (preview.status === 'CANCELLED') {
+    if (normalizedPreview.status === 'CANCELLED') {
       return NextResponse.json(
         { success: false, error: 'This invoice has been cancelled and cannot generate a PDF' },
         { status: 410 }
@@ -54,7 +59,7 @@ export const GET = asyncHandler(
 
     // Fetch the room's default bank account (sequential — needs preview.roomNo first)
     const roomAccount = await prisma.room.findUnique({
-      where: { roomNo: preview.roomNo },
+      where: { roomNo: normalizedPreview.roomNo },
       select: { defaultAccountId: true },
     }).then(r => r?.defaultAccountId
       ? prisma.bankAccount.findUnique({ where: { id: r.defaultAccountId } })
@@ -91,7 +96,7 @@ export const GET = asyncHandler(
       // Get template body — prefer activeVersion, fall back to body
       const templateBody = template?.activeVersion?.body ?? template?.body ?? '';
 
-      const templateData = buildInvoiceTemplateData(preview, {
+      const templateData = buildInvoiceTemplateData(normalizedPreview, {
         building,
         bankAccount: roomAccount ? {
           bankName: roomAccount.bankName || null,
@@ -100,20 +105,24 @@ export const GET = asyncHandler(
         } : undefined,
       });
 
-      const renderedHtml = renderTemplate(templateBody, templateData);
-      const invoiceNumber = preview.invoiceNumber || `INV-${preview.year}${String(preview.month).padStart(2, '0')}-${preview.roomNo}`;
+      const invoiceNumber = normalizedPreview.invoiceNumber || `INV-${normalizedPreview.year}${String(normalizedPreview.month).padStart(2, '0')}-${normalizedPreview.roomNo}`;
 
-      pdfBytes = await htmlToPdfBuffer(renderedHtml, {
-        title: invoiceNumber,
-        pageSize: 'A4',
-        orientation: 'portrait',
-        marginTop: '0',
-        marginBottom: '0',
-        marginLeft: '0',
-        marginRight: '0',
-        printBackground: true,
-        scale: 1,
-      });
+      if (templateBody.trim()) {
+        const renderedHtml = renderTemplate(templateBody, templateData);
+        pdfBytes = await htmlToPdfBuffer(renderedHtml, {
+          title: invoiceNumber,
+          pageSize: 'A4',
+          orientation: 'portrait',
+          marginTop: '0',
+          marginBottom: '0',
+          marginLeft: '0',
+          marginRight: '0',
+          printBackground: true,
+          scale: 1,
+        });
+      } else {
+        pdfBytes = await generateInvoicePdf(normalizedPreview, { building });
+      }
     } catch (err) {
       logger.error({
         type: 'pdf_render_failure',
