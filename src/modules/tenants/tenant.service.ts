@@ -447,7 +447,7 @@ export class TenantService {
       // passing the uniqueness check.  Using FOR UPDATE serialises access so
       // that only one PRIMARY can be assigned at a time per room.
       await tx.$executeRaw`
-        SELECT id FROM rooms
+        SELECT "roomNo" FROM rooms
         WHERE "roomNo" = ${roomId}
         FOR UPDATE
       `;

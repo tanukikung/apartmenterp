@@ -71,7 +71,7 @@ export class ContractService {
       // same room.  This ensures that only one CREATE transaction can proceed
       // to the overlap check below.
       await tx.$executeRaw`
-        SELECT id FROM rooms
+        SELECT "roomNo" FROM rooms
         WHERE "roomNo" = ${input.roomId}
         FOR UPDATE
       `;
