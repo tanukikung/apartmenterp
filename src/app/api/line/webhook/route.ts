@@ -121,71 +121,60 @@ async function handlePostback(data: string, replyToken: string, conversationId: 
       await sendReplyMessage(replyToken, '❌ ไม่พบใบแจ้งหนี้ที่เกี่ยวข้อง กรุณาติดต่อเจ้าหน้าที่');
       return;
     }
-    const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
-    if (!invoice) {
-      await sendReplyMessage(replyToken, '❌ ไม่พบใบแจ้งหนี้ กรุณาติดต่อเจ้าหน้าที่');
-      return;
-    }
-    // SECURITY: Check PAID first — make this action idempotent.
-    // If LINE retries after invoice is already PAID, return early (still reply so LINE gets a response).
-    if (invoice.status === 'PAID') {
-      await sendReplyMessage(replyToken, `ℹ️ ห้อง ${invoice.roomNo} ชำระเงินแล้วเรียบร้อยค่ะ`);
-      return;
-    }
 
-    // Verify a CONFIRMED payment actually exists for this invoice with sufficient amount
-    const confirmedPayments = await prisma.payment.findMany({
-      where: {
-        matchedInvoiceId: invoiceId,
-        status: 'CONFIRMED',
-      },
-    });
-
-    if (confirmedPayments.length === 0) {
-      await sendReplyMessage(
-        replyToken,
-        '❌ ไม่พบการชำระเงินสำหรับ invoice นี้ กรุณาติดต่อเจ้าหน้าที่'
-      );
-      return;
-    }
-
-    // Verify CONFIRMED payments cover the full amount including any late fees
-    const invoiceTotal = Number(invoice.totalAmount);
-    const lateFeeAmount = Number(invoice.lateFeeAmount ?? 0);
-    const totalOwed = invoiceTotal + lateFeeAmount;
-    const totalPaid = confirmedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const settled = isPaymentSettled(totalPaid, totalOwed, PaymentMatchMode.ALLOW_SMALL_DIFF);
-
-    if (!settled) {
-      const paidAmount = `฿${totalPaid.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
-      const expectedAmount = `฿${totalOwed.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
-      await sendReplyMessage(
-        replyToken,
-        `❌ ยอดชำระไม่เพียงพอค่ะ\nจ่ายแล้ว: ${paidAmount}\nต้องชำระ: ${expectedAmount}\n\nกรุณาติดต่อเจ้าหน้าที่หากมีข้อสงสัยค่ะ`
-      );
-      return;
-    }
-
-    // Use syncInvoicePaymentState to transition to PAID — this correctly
-    // handles late fees, aggregates all payments, and uses FOR UPDATE to
-    // prevent race conditions. Do NOT set PAID directly.
+    // Run entire confirm_payment flow inside a single transaction with FOR UPDATE
+    // on the invoice row to eliminate the TOCTOU window between reading payment
+    // status and writing the PAID transition.
+    let replyMsg = '';
     await prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.findFirst({
+      const rows = await tx.$queryRaw<Array<{ id: string; status: string; totalAmount: string; roomNo: string; lateFeeAmount: string | null }>>`
+        SELECT id, status::text, "totalAmount"::text, "roomNo", "lateFeeAmount"::text
+        FROM invoices WHERE id = ${invoiceId} FOR UPDATE
+      `;
+      const invoice = rows[0];
+      if (!invoice) {
+        replyMsg = '❌ ไม่พบใบแจ้งหนี้ กรุณาติดต่อเจ้าหน้าที่';
+        return;
+      }
+      if (invoice.status === 'PAID') {
+        replyMsg = `ℹ️ ห้อง ${invoice.roomNo} ชำระเงินแล้วเรียบร้อยค่ะ`;
+        return;
+      }
+
+      const confirmedPayments = await tx.payment.findMany({
         where: { matchedInvoiceId: invoiceId, status: 'CONFIRMED' },
-        orderBy: { confirmedAt: 'desc' },
       });
-      if (!payment) return;
+
+      if (confirmedPayments.length === 0) {
+        replyMsg = '❌ ไม่พบการชำระเงินสำหรับ invoice นี้ กรุณาติดต่อเจ้าหน้าที่';
+        return;
+      }
+
+      const totalOwed = Number(invoice.totalAmount) + Number(invoice.lateFeeAmount ?? 0);
+      const totalPaid = confirmedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const settled = isPaymentSettled(totalPaid, totalOwed, PaymentMatchMode.ALLOW_SMALL_DIFF);
+
+      if (!settled) {
+        const paidAmount = `฿${totalPaid.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+        const expectedAmount = `฿${totalOwed.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+        replyMsg = `❌ ยอดชำระไม่เพียงพอค่ะ\nจ่ายแล้ว: ${paidAmount}\nต้องชำระ: ${expectedAmount}\n\nกรุณาติดต่อเจ้าหน้าที่หากมีข้อสงสัยค่ะ`;
+        return;
+      }
+
+      const payment = confirmedPayments.sort((a, b) =>
+        new Date(b.confirmedAt ?? b.paidAt ?? 0).getTime() - new Date(a.confirmedAt ?? a.paidAt ?? 0).getTime()
+      )[0];
+
       await syncInvoicePaymentState(tx, {
         invoiceId,
         paymentId: payment.id,
         paymentAmount: Number(payment.amount),
-        paidAt: payment.confirmedAt ?? payment.paidAt,
+        paidAt: payment.confirmedAt ?? payment.paidAt ?? new Date(),
       });
+      replyMsg = `✅ ยืนยันการชำระเงินเรียบร้อยแล้วสำหรับห้อง ${invoice.roomNo} ใบเสร็จจะถูกส่งให้ท่านเร็วๆ นี้ค่ะ 😊`;
     });
-    await sendReplyMessage(
-      replyToken,
-      `✅ ยืนยันการชำระเงินเรียบร้อยแล้วสำหรับห้อง ${invoice.roomNo} ใบเสร็จจะถูกส่งให้ท่านเร็วๆ นี้ค่ะ 😊`
-    );
+
+    await sendReplyMessage(replyToken, replyMsg);
     logger.info({ type: 'postback_confirm_payment', invoiceId, conversationId });
 
   } else if (action === 'confirm_payment_inquiry') {
@@ -382,12 +371,15 @@ async function handleBalanceInquiry(
 // ─── Main Webhook Handler ─────────────────────────────────────────────────────
 //
 // Performance architecture (LINE 15-second timeout):
-// - Phase 1 (synchronous): Validate signature, persist all events to DB, return 200 OK.
+// - Phase 1 (synchronous): Validate signature, persist all events to DB.
 //   All Phase 1 ops are local DB writes — no network calls.
-// - Phase 2 (fire-and-forget): LINE API calls (profile refresh, replies) are deferred
-//   to after the response is returned. These are slow network calls and must NEVER
-//   block the 200 OK response.
+// - Phase 2 (fire-and-forget): LINE API calls (profile refresh, replies) are
+//   kicked off with void Promise.all() BEFORE the return statement, so they
+//   run concurrently while Node.js sends the HTTP response. The queue is local
+//   to this request — never shared across calls.
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  // ── Phase 2 queue — local to THIS request, never shared ─────────────────
+  // Must be declared first so all Phase 1 code can push to it.
   const phase2Queue: Array<() => Promise<void>> = [];
   const bodyText = await req.text();
   const signature = req.headers.get('x-line-signature') || '';
@@ -464,8 +456,29 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         });
       }
 
-      // Handle postback: LINE API reply deferred to Phase 2
+      // Handle postback: dedup check BEFORE pushing to phase2Queue so that
+      // rapid double-taps on the same button are silently ignored. The message
+      // is persisted here (Phase 1) so subsequent retries are also deduplicated.
       if (incoming.type === 'POSTBACK' && incoming.replyToken) {
+        const existingPostback = await prisma.message.findUnique({
+          where: { lineMessageId: incoming.lineMessageId },
+        });
+        if (existingPostback) {
+          logger.info({ type: 'line_postback_dedup', lineMessageId: incoming.lineMessageId });
+          continue;
+        }
+        const sentAt = new Date((event as { timestamp?: number }).timestamp || Date.now());
+        await prisma.message.create({
+          data: {
+            id: uuidv4(),
+            conversation: { connect: { id: conversation.id } },
+            lineMessageId: incoming.lineMessageId,
+            direction: 'INCOMING',
+            type: 'POSTBACK' as MessageType,
+            content: incoming.content,
+            sentAt,
+          },
+        });
         phase2Queue.push(() => handlePostbackAsync(incoming, conversation.id));
         continue;
       }
@@ -569,8 +582,17 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     }
   }
 
-  // ── Return 200 OK immediately after Phase 1 DB writes complete ───────────
-  // LINE requires this within 15 seconds. Slow operations deferred to Phase 2.
+  // ── Phase 2: Fire-and-forget LINE API calls ──────────────────────────────
+  // Kicked off BEFORE the return so Node.js schedules them as microtasks.
+  // The HTTP response is sent immediately after; Phase 2 resolves in the
+  // background. This must come BEFORE return — code after return is dead.
+  if (phase2Queue.length > 0) {
+    void Promise.all(phase2Queue.map((fn) => fn())).catch((err) =>
+      logger.error({ type: 'line_webhook_phase2_error', error: err instanceof Error ? err.message : String(err) })
+    );
+  }
+
+  // ── Return 200 OK — LINE requires this within 15 seconds ─────────────────
   logger.info({ type: 'line_webhook_processed', count: events.length });
   const runPhase2 = () => Promise.all(phase2Queue.map((fn) => fn())).catch((err) =>
     logger.error({ type: 'line_webhook_phase2_error', error: err instanceof Error ? err.message : String(err) })
@@ -586,9 +608,10 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   );
 });
 
-// ─── Phase 2 queue (LINE API calls, deferred after response) ──────────────────
-// These functions are queued during Phase 1 and executed after 200 OK is returned.
-// They contain slow network operations that must NEVER block the webhook response.
+// ─── Phase 2 helpers (LINE API calls, deferred after response) ────────────────
+// These are queued during Phase 1 via the per-request phase2Queue and executed
+// before the return statement. They contain slow network operations that must
+// NEVER block the webhook response.
 
 async function persistFollowEvent(userId: string): Promise<void> {
   const existingConv = await prisma.conversation.findUnique({ where: { lineUserId: userId } });

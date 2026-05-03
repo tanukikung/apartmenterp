@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'crypto';
 import { asyncHandler, ValidationError } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
-import { getServiceContainer } from '@/lib/service-container';
 import { bankStatementParser } from '@/modules/payments/bank-statement-parser';
 import { logAudit } from '@/modules/audit/audit.service';
 import { logger } from '@/lib/utils/logger';
 import { getStorage } from '@/infrastructure/storage';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { enqueueJob } from '@/lib/queue/job-queue';
+import { JOB_TYPE } from '@/lib/queue/types';
 
 const DOCUMENT_WINDOW_MS = 60 * 1000;
 const DOCUMENT_MAX_ATTEMPTS = 5;
@@ -48,7 +50,15 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const fileName = file.name.toLowerCase();
-  const storageKey = `bank-statements/${Date.now()}-${file.name}`;
+
+  // SHA-256 of the raw file content — used as the job idempotency key so
+  // uploading the same file twice (even at different times) deduplicates to
+  // the same background job instead of importing the statement twice.
+  // The storageKey still includes a timestamp so duplicate files in storage
+  // are distinguishable, but only ONE processing job is ever created.
+  const fileHash = createHash('sha256').update(buffer).digest('hex');
+  const jobIdempotencyKey = `bank-import-${fileHash}`;
+  const storageKey = `bank-statements/${fileHash}-${file.name}`;
 
   // Optional column-mapping override. Lets the operator point at non-standard
   // column headers (e.g. Thai-language exports) when auto-detection fails.
@@ -122,44 +132,50 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
     });
   }
 
-  // Persist transaction rows and attempt auto-matching.
-  const service = getServiceContainer().paymentMatchingService;
-  const result = await service.importBankStatement(entries, file.name, {
+  // ── Enqueue async processing — return immediately with a job ID ─────────────
+  // Previously: the route blocked while processing the entire file (potentially
+  // 500+ DB operations, 30+ seconds). For 1000 tenants with large statements
+  // this caused HTTP timeouts and blocked the server thread.
+  // Now: parsing is synchronous (fast, in-memory), processing is async.
+  const jobId = await enqueueJob(JOB_TYPE.BANK_STATEMENT_IMPORT, {
+    entries: entries.map(e => ({
+      date: e.date.toISOString(),
+      time: e.time,
+      amount: e.amount,
+      description: e.description,
+      reference: e.reference,
+      roomNo: e.roomNo,
+    })),
+    sourceFile: file.name,
+    storageKey,
+    fileHash,
     actorId: session.sub,
     actorRole: session.role,
-  });
+  }, { idempotencyKey: jobIdempotencyKey });
 
-  // Audit log with real actor from session (not hardcoded 'system').
   await logAudit({
     req: request,
     action: 'BANK_STATEMENT_UPLOADED',
     entityType: 'PAYMENT_TRANSACTION',
     entityId: file.name,
-    metadata: {
-      totalEntries: entries.length,
-      imported: result.imported,
-      matched: result.matched,
-      storageKey,
-    },
+    metadata: { totalEntries: entries.length, jobId, storageKey },
   });
 
   logger.info({
-    type: 'bank_statement_uploaded',
+    type: 'bank_statement_enqueued',
     actorId: session.sub,
     fileName: file.name,
     totalEntries: entries.length,
-    imported: result.imported,
-    matched: result.matched,
+    jobId,
   });
 
   return NextResponse.json({
     success: true,
     data: {
+      jobId,
       totalEntries: entries.length,
-      imported: result.imported,
-      matched: result.matched,
-      unmatched: result.imported - result.matched,
       storageKey,
+      message: `Import enqueued. Poll /api/payments/statement-upload/${jobId} for status.`,
     },
-  });
+  }, { status: 202 });
 });

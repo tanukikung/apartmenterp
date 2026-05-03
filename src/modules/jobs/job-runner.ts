@@ -127,12 +127,23 @@ export async function runDbCleanup(): Promise<JobResult> {
     metadata: { cutoff: cutoff.toISOString(), retentionDays: 90 },
   });
 
-  const [auditResult, tokenResult] = await Promise.all([
+  const [auditResult, tokenResult, idempotencyResult, deadJobResult] = await Promise.all([
     prisma.auditLog.deleteMany({
       where: { createdAt: { lt: cutoff } },
     }),
     prisma.passwordResetToken.deleteMany({
       where: { expiresAt: { lt: new Date() } },
+    }),
+    // Purge expired idempotency keys (TTL-based)
+    (prisma as any).idempotencyKey.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    }),
+    // Purge dead background jobs older than 7 days
+    (prisma as any).backgroundJob.deleteMany({
+      where: {
+        status: 'DEAD',
+        createdAt: { lt: new Date(Date.now() - 7 * 86_400_000) },
+      },
     }),
   ]);
 
@@ -140,6 +151,8 @@ export async function runDbCleanup(): Promise<JobResult> {
     type: 'db_cleanup_completed',
     auditLogDeletedCount: auditResult.count,
     tokenDeletedCount: tokenResult.count,
+    idempotencyKeyDeletedCount: idempotencyResult.count,
+    deadJobDeletedCount: deadJobResult.count,
     cutoff: cutoff.toISOString(),
     retentionDays: 90,
   });
@@ -153,14 +166,17 @@ export async function runDbCleanup(): Promise<JobResult> {
     metadata: {
       auditLogDeletedCount: auditResult.count,
       tokenDeletedCount: tokenResult.count,
+      idempotencyKeyDeletedCount: idempotencyResult.count,
+      deadJobDeletedCount: deadJobResult.count,
       cutoff: cutoff.toISOString(),
       retentionDays: 90,
     },
   });
 
+  const total = auditResult.count + tokenResult.count + idempotencyResult.count + deadJobResult.count;
   return {
-    count: auditResult.count + tokenResult.count,
-    message: `${auditResult.count} audit log entries older than 90 days deleted, ${tokenResult.count} expired password reset tokens deleted`,
+    count: total,
+    message: `Cleanup: ${auditResult.count} audit logs, ${tokenResult.count} tokens, ${idempotencyResult.count} idempotency keys, ${deadJobResult.count} dead jobs deleted`,
   };
 }
 

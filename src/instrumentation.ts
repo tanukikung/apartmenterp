@@ -207,6 +207,41 @@ export async function register() {
       logger.error({ type: 'outbox_worker_failed', error: err instanceof Error ? err.message : String(err) }, '⚠️  Outbox worker failed to start — outbox processing disabled');
     }
 
+    // ── Background job worker ─────────────────────────────────────────────
+    try {
+      const { startJobWorker } = await import('./lib/queue/job-worker');
+      startJobWorker();
+      logger.info('⚙️  Background job worker started');
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Background job worker failed to start — async jobs will not process');
+    }
+
+    // ── Metrics scrape interval (outbox + job queue gauges) ───────────────
+    try {
+      const { collectOutboxMetrics, collectJobMetrics, setGauge } = await import('./lib/metrics/registry');
+      const { checkAlertThresholds } = await import('./lib/alerts/thresholds');
+      // Collect outbox + job queue depths every 30 s
+      intervals.push(setInterval(async () => {
+        await collectOutboxMetrics();
+        collectJobMetrics();
+        // Job queue depth gauge
+        try {
+          const { prisma } = await import('./lib');
+          const pending = await (prisma as any).backgroundJob.count({ where: { status: 'PENDING' } });
+          const running = await (prisma as any).backgroundJob.count({ where: { status: 'RUNNING' } });
+          const dead    = await (prisma as any).backgroundJob.count({ where: { status: 'DEAD' } });
+          setGauge('job_queue_pending', pending);
+          setGauge('job_queue_running', running);
+          setGauge('job_queue_dead', dead);
+        } catch { /* non-fatal */ }
+        // Check alert thresholds after metrics are collected
+        checkAlertThresholds();
+      }, 30_000));
+      logger.info('📊 Metrics collection interval started');
+    } catch (err) {
+      logger.warn({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Metrics collection interval failed to start');
+    }
+
     // ── Legacy cron jobs (runs 3am/4am/8am/9am) ───────────────────────────
     try {
       const { startCronIfEnabled } = await import('./server/cron');

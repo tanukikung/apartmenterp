@@ -209,6 +209,10 @@ model Invoice {
   cancelReason              String?
   cancelReasonCategory      String? // ERROR | CUSTOMER_REQUEST | FRAUD | OTHER
   accessToken               String?                    @unique
+  // Set atomically by the payment-notifier handler when the LINE receipt is dispatched.
+  // Acts as a one-shot idempotency flag: if the outbox event is re-delivered the handler
+  // sees notificationSentAt IS NOT NULL and skips sending a second message to the tenant.
+  notificationSentAt        DateTime? @db.Timestamptz(6)
   createdAt                 DateTime @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime @updatedAt @db.Timestamptz(6)
   documentGenerationTargets DocumentGenerationTarget[]
@@ -680,27 +684,71 @@ model Config {
   @@map("configs")
 }
 
+// ── Background Job Queue ──────────────────────────────────────────────────────
+// Async work that would block HTTP responses (bank import, PDF generation, etc.)
+// is enqueued here and processed by the job worker using FOR UPDATE SKIP LOCKED.
+
+model BackgroundJob {
+  id              String    @id @default(uuid())
+  type            String
+  payload         Json
+  status          String    @default("PENDING") // PENDING | RUNNING | DONE | FAILED | DEAD
+  result          Json?
+  error           String?
+  retryCount      Int       @default(0)
+  priority        Int       @default(0)
+  scheduledAt     DateTime  @default(now()) @db.Timestamptz(6)
+  startedAt       DateTime? @db.Timestamptz(6)
+  finishedAt      DateTime? @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+  idempotencyKey  String?   @unique
+
+  @@index([status, scheduledAt])
+  @@index([type, status])
+  @@index([createdAt])
+  @@map("background_jobs")
+}
+
+// ── Idempotency Keys ──────────────────────────────────────────────────────────
+// Stores the response of write endpoints keyed by (Idempotency-Key header, path).
+// Duplicate requests with the same key get the stored response replayed.
+
+model IdempotencyKey {
+  id             String   @id @default(uuid())
+  key            String
+  path           String
+  responseBody   Json
+  responseStatus Int      @default(200)
+  expiresAt      DateTime @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([key, path], name: "key_path")
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
 model OutboxEvent {
-  id            String    @id @default(uuid())
-  aggregateType String
-  aggregateId   String
-  eventType     String
-  payload       Json
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
-  scheduledAt   DateTime? @db.Timestamptz(6)
-  processedAt   DateTime? @db.Timestamptz(6)
-  lockedAt      DateTime? @db.Timestamptz(6)
-  lockedBy      String?
-  nextAttemptAt DateTime? @db.Timestamptz(6)
-  retryCount    Int       @default(0)
-  lastError     String?
+  id                String    @id @default(uuid())
+  aggregateType     String
+  aggregateId       String
+  eventType         String
+  payload           Json
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+  scheduledAt       DateTime? @db.Timestamptz(6)
+  processedAt       DateTime? @db.Timestamptz(6)
+  retryCount        Int       @default(0)
+  lastError         String?
+  lastAttemptAt     DateTime? @db.Timestamptz(6)
+  deduplicationKey  String?   @unique
 
   @@index([processedAt, scheduledAt])
   @@index([aggregateType, aggregateId])
   @@index([processedAt, createdAt])
-  @@index([processedAt, nextAttemptAt, lockedAt])
+  @@index([processedAt, lastAttemptAt])
   @@index([eventType])
   @@index([retryCount])
+  @@index([lastAttemptAt])
   @@map("outbox_events")
 }
 
