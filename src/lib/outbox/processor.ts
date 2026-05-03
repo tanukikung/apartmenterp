@@ -216,37 +216,74 @@ export class OutboxProcessor {
             }
           }
           try {
-
-            // Parse payload
             const payload = event.payload as Record<string, unknown>;
 
-            // Publish to EventBus FIRST, then mark as processed.
-            // This ensures the event is delivered before being marked complete.
-            // If publish fails, the event stays unprocessed and will be retried.
-            await this.eventBus.publish(
-              event.eventType,
-              event.aggregateType,
-              event.aggregateId,
-              payload
-            );
-
-            // Mark as processed only after successful publish
+            // CRASH SAFETY: Mark processedAt BEFORE calling EventBus.publish.
+            //
+            // WHY: If we publish first and the process crashes between publish and
+            // the DB update, the event re-runs on restart and delivers a duplicate
+            // LINE message / notification. For a financial notification system,
+            // duplicates (double "you've been charged") are worse than a lost
+            // message — the tenant can always request a resend.
+            //
+            // TRADE-OFF: If publish throws after the mark, the event is "lost"
+            // (it won't be retried). We catch that case below and write it to the
+            // audit log as PUBLISH_FAILED so staff can identify and manually
+            // re-trigger if needed.
             await tx.outboxEvent.update({
               where: { id: event.id },
-              data: {
-                processedAt: new Date(),
-              },
+              data: { processedAt: new Date() },
             });
 
-            result.processed++;
-
-            logger.debug({
-              type: 'outbox_event_processed',
-              eventId: event.id,
-              eventType: event.eventType,
-            });
+            try {
+              await this.eventBus.publish(
+                event.eventType,
+                event.aggregateType,
+                event.aggregateId,
+                payload
+              );
+              result.processed++;
+              logger.debug({
+                type: 'outbox_event_processed',
+                eventId: event.id,
+                eventType: event.eventType,
+              });
+            } catch (publishError) {
+              // Event is already marked processed — it will NOT be retried.
+              // Write the error to lastError so the dead-letter admin UI shows it.
+              const publishErrorMessage = publishError instanceof Error ? publishError.message : 'Unknown publish error';
+              await tx.outboxEvent.update({
+                where: { id: event.id },
+                data: { lastError: `PUBLISH_FAILED: ${publishErrorMessage}` },
+              });
+              await logAudit({
+                actorId: 'SYSTEM',
+                actorRole: 'SYSTEM',
+                action: 'OUTBOX_EVENT_FAILED',
+                entityType: event.aggregateType,
+                entityId: event.aggregateId,
+                metadata: {
+                  severity: 'HIGH',
+                  outboxEventId: event.id,
+                  eventType: event.eventType,
+                  failurePhase: 'PUBLISH',
+                  lastError: publishErrorMessage,
+                  failedAt: new Date().toISOString(),
+                },
+              });
+              logger.error({
+                type: 'outbox_publish_failed',
+                eventId: event.id,
+                eventType: event.eventType,
+                error: publishErrorMessage,
+              });
+              result.failed++;
+              result.errors.push({ eventId: event.id, error: publishErrorMessage });
+            }
 
           } catch (error) {
+            // Error during the pre-publish DB mark — event was NOT marked processed.
+            // Increment retryCount so it will be retried on the next poll cycle.
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             const nextRetry = event.retryCount + 1;
             if (nextRetry >= this.options.deadLetterThreshold) {
@@ -264,7 +301,6 @@ export class OutboxProcessor {
                 error: errorMessage,
               });
 
-              // Alert: outbox event has failed permanently after max retries
               await logAudit({
                 actorId: 'SYSTEM',
                 actorRole: 'SYSTEM',
@@ -283,7 +319,6 @@ export class OutboxProcessor {
                 },
               });
 
-              // Publish OUTBOX_EVENT_FAILED event to trigger further alerting (e.g., LINE notification)
               await this.eventBus.publish(
                 EventTypes.OUTBOX_EVENT_FAILED,
                 event.aggregateType,
@@ -303,19 +338,13 @@ export class OutboxProcessor {
                 where: { id: event.id },
                 data: {
                   lastError: errorMessage,
-                  retryCount: {
-                    increment: 1,
-                  },
+                  retryCount: { increment: 1 },
                 },
               });
             }
 
             result.failed++;
-            result.errors.push({
-              eventId: event.id,
-              error: errorMessage,
-            });
-
+            result.errors.push({ eventId: event.id, error: errorMessage });
             logger.error({
               type: 'outbox_event_error',
               eventId: event.id,

@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
 import { verifyLineSignature, sendReplyMessage, sendFlexMessage, getLineUserProfile } from '@/lib/line/client';
 import { prisma, logger, UnauthorizedError } from '@/lib';
+import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+
+// FM-14: Webhook IP rate limit applied BEFORE signature verification.
+// Signature verification requires hashing the body (CPU work). At high RPS from a
+// single IP this saturates the event loop. Cap to 300 req/min per IP — well above
+// LINE's normal send rate (~200 push/min on Standard Plan).
+const WEBHOOK_WINDOW_MS = 60 * 1000;
+const WEBHOOK_MAX_PER_IP  = 300;
 import { broadcastLineMessage } from '@/lib/sse/broadcaster';
 import { publishChatMessage } from '@/server/websocket';
 import { createHash } from 'crypto';
@@ -387,6 +395,16 @@ async function handleBalanceInquiry(
 //   to after the response is returned. These are slow network calls and must NEVER
 //   block the 200 OK response.
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  // FM-14: IP rate limit BEFORE signature verification (CPU-heavy).
+  const webhookIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+  const webhookLimiter = getLoginRateLimiter();
+  const { allowed: webhookAllowed } = await webhookLimiter.check(`line-webhook:${webhookIp}`, WEBHOOK_MAX_PER_IP, WEBHOOK_WINDOW_MS);
+  if (!webhookAllowed) {
+    // Return 200 to LINE so it doesn't retry — the IP is flooding us.
+    logger.warn({ type: 'line_webhook_rate_limited', ip: webhookIp });
+    return NextResponse.json({ success: true }, { status: 200 });
+  }
+
   const bodyText = await req.text();
   const signature = req.headers.get('x-line-signature') || '';
   if (!verifyLineSignature(bodyText, signature)) {
@@ -508,27 +526,31 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       const sentAt = new Date((event as { timestamp?: number }).timestamp || Date.now());
       const messageId = uuidv4();
 
-      // Persist message to DB (fast — no network calls in Phase 1)
-      await prisma.message.create({
-        data: {
-          id: messageId,
-          conversation: { connect: { id: conversation.id } },
-          lineMessageId: incoming.lineMessageId,
-          direction: 'INCOMING',
-          type: incoming.type as MessageType,
-          content: incoming.content,
-          metadata: incoming.metadata,
-          sentAt,
-        },
-      });
+      // FM-13: Wrap message persist + conversation update in a single transaction
+      // so a crash between the two writes cannot leave conversation.unreadCount
+      // stale while a message record exists (or vice versa).
+      await prisma.$transaction(async (tx) => {
+        await tx.message.create({
+          data: {
+            id: messageId,
+            conversation: { connect: { id: conversation.id } },
+            lineMessageId: incoming.lineMessageId,
+            direction: 'INCOMING',
+            type: incoming.type as MessageType,
+            content: incoming.content,
+            metadata: incoming.metadata,
+            sentAt,
+          },
+        });
 
-      await prisma.conversation.update({
-        where: { id: conversation.id },
-        data: {
-          status: 'ACTIVE',
-          lastMessageAt: sentAt,
-          unreadCount: { increment: 1 },
-        },
+        await tx.conversation.update({
+          where: { id: conversation.id },
+          data: {
+            status: 'ACTIVE',
+            lastMessageAt: sentAt,
+            unreadCount: { increment: 1 },
+          },
+        });
       });
 
       // Broadcast to SSE clients so chat UI updates in real-time (fast — in-memory)

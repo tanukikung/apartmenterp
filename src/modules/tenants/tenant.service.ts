@@ -384,9 +384,20 @@ export class TenantService {
       await tx.documentGenerationTarget.updateMany({ where: { tenantId: id }, data: { tenantId: null } });
       await tx.generatedDocument.updateMany({ where: { tenantId: id }, data: { tenantId: null } });
 
+      // FM-12: Cascade soft-delete to any remaining ACTIVE contracts.
+      // Normally the `contracts > 0` guard above prevents reaching this point, but
+      // a future admin bypass or data migration could leave orphaned active contracts.
+      // Setting deletedAt on those contracts prevents them from appearing in reports.
+      const now = new Date();
+      await tx.contract.updateMany({
+        where: { primaryTenantId: id, status: 'ACTIVE', deletedAt: null },
+        data: { deletedAt: now, status: 'TERMINATED', terminationReason: 'Tenant archived' },
+      });
+
       // Soft delete — set deletedAt instead of hard delete
-      await tx.tenant.update({ where: { id }, data: { deletedAt: new Date() } });
+      await tx.tenant.update({ where: { id }, data: { deletedAt: now } });
     });
+    logger.info({ type: 'tenant_archived', id, archivedBy: archivedBy ?? null });
   }
 
   /**

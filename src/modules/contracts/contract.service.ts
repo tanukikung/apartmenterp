@@ -161,11 +161,6 @@ export class ContractService {
         where: { roomNo: input.roomId },
         data: { roomStatus: ROOM_STATUS.OCCUPIED },
       });
-      // Set tenant's hasActiveContract = true since room is now OCCUPIED via this contract
-      await tx.tenant.update({
-        where: { id: created.primaryTenantId },
-        data: { hasActiveContract: true },
-      });
       await tx.outboxEvent.create({
         data: {
           id: uuidv4(),
@@ -496,25 +491,39 @@ export class ContractService {
       throw new BadRequestError('Can only terminate active contracts');
     }
 
-    // Block termination when the tenant still has outstanding debt unless the
-    // caller explicitly acknowledges via forceTerminate=true.
-    if (!input.forceTerminate) {
-      const unpaidCount = await prisma.invoice.count({
-        where: {
-          roomNo: contract.roomNo,
-          status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
-        },
-      });
-      if (unpaidCount > 0) {
-        throw new BadRequestError(
-          `Cannot terminate: ${unpaidCount} unpaid invoice(s) exist for this room. ` +
-          `Collect payment or set forceTerminate=true to override.`,
-          { unpaidCount, roomNo: contract.roomNo }
-        );
-      }
-    }
-
     const updated = await prisma.$transaction(async (tx) => {
+      // Acquire exclusive row lock on the contract FIRST so that a concurrent
+      // invoice-generation job that runs between the pre-flight check and this
+      // transaction cannot create an invoice that we missed (FM-8).
+      type LockRow = { id: string };
+      const [locked] = await (tx as unknown as { $queryRaw: (s: TemplateStringsArray, ...a: unknown[]) => Promise<LockRow[]> })
+        .$queryRaw`SELECT id FROM contracts WHERE id = ${id} FOR UPDATE`;
+      if (!locked) throw new NotFoundError('Contract', id);
+
+      // Re-check status inside transaction after lock (state may have changed)
+      const fresh = await tx.contract.findUnique({ where: { id } });
+      if (!fresh || fresh.status !== 'ACTIVE') {
+        throw new BadRequestError('Can only terminate active contracts');
+      }
+
+      // Unpaid invoice check INSIDE transaction — after lock — so that any invoice
+      // generated concurrently is visible here (they commit before our lock).
+      if (!input.forceTerminate) {
+        const unpaidCount = await tx.invoice.count({
+          where: {
+            roomNo: fresh.roomNo,
+            status: { in: ['GENERATED', 'SENT', 'VIEWED', 'OVERDUE'] },
+          },
+        });
+        if (unpaidCount > 0) {
+          throw new BadRequestError(
+            `Cannot terminate: ${unpaidCount} unpaid invoice(s) exist for this room. ` +
+            `Collect payment or set forceTerminate=true to override.`,
+            { unpaidCount, roomNo: fresh.roomNo }
+          );
+        }
+      }
+
       const result = await tx.contract.update({
         where: { id },
         data: {
@@ -530,11 +539,6 @@ export class ContractService {
       await tx.room.update({
         where: { roomNo: result.roomNo },
         data: { roomStatus: 'VACANT' },
-      });
-      // Clear tenant's hasActiveContract since contract is now terminated
-      await tx.tenant.update({
-        where: { id: result.primaryTenantId },
-        data: { hasActiveContract: false },
       });
       await tx.outboxEvent.create({
         data: {

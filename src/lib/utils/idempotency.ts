@@ -16,6 +16,7 @@
 // retry after a brief delay. This is safer than letting both execute.
 // ============================================================================
 
+import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
@@ -33,6 +34,11 @@ interface StoredResult {
  * Wrap a write handler with idempotency.
  * If `Idempotency-Key` header is absent the request proceeds without caching
  * (non-breaking for existing clients, but clients SHOULD send the header).
+ *
+ * Body-hash safety: on first execution the SHA-256 of the raw request body is
+ * stored. On replay, if the body hash differs from the stored hash the request
+ * is rejected with 422 — the client is reusing the same key for a different
+ * operation, which is a client bug that must not silently return stale data.
  *
  * @param req          Incoming NextRequest
  * @param resourceType Namespace for the key (e.g. 'payment', 'contract_terminate')
@@ -52,10 +58,22 @@ export async function withIdempotency(
 
   const key = `${resourceType}:${idempotencyKey}`;
 
+  // Compute body hash for replay safety.
+  // We clone the body text here so the handler can still read req.json().
+  let requestBodyHash: string | null = null;
+  try {
+    const bodyText = await req.clone().text();
+    if (bodyText) {
+      requestBodyHash = createHash('sha256').update(bodyText).digest('hex');
+    }
+  } catch {
+    // Body unreadable — hash omitted; replay safety degrades gracefully
+  }
+
   // Check for cached result first (fast path for retries)
   const existing = await prisma.idempotencyRecord.findUnique({
     where: { key },
-    select: { result: true, createdAt: true },
+    select: { result: true, requestBodyHash: true, createdAt: true },
   });
 
   if (existing) {
@@ -65,6 +83,27 @@ export async function withIdempotency(
       return NextResponse.json(
         { success: false, error: { message: 'A request with this Idempotency-Key is already in progress. Retry after a moment.', code: 'IDEMPOTENCY_IN_PROGRESS', name: 'ConflictError', statusCode: 409 } },
         { status: 409 },
+      );
+    }
+
+    // Body-hash mismatch: same key, different payload — client bug.
+    if (
+      requestBodyHash !== null &&
+      existing.requestBodyHash !== null &&
+      existing.requestBodyHash !== requestBodyHash
+    ) {
+      logger.warn({ type: 'idempotency_body_mismatch', resourceType, key: idempotencyKey });
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            message: 'Idempotency-Key reused for a different request body. Generate a new key for each distinct operation.',
+            code: 'IDEMPOTENCY_BODY_MISMATCH',
+            name: 'UnprocessableEntityError',
+            statusCode: 422,
+          },
+        },
+        { status: 422 },
       );
     }
 
@@ -81,6 +120,7 @@ export async function withIdempotency(
         id: uuidv4(),
         key,
         resourceType,
+        requestBodyHash,
         // result intentionally omitted — Prisma treats absent Json? as null in DB,
         // acting as an "in-progress" sentinel for concurrent request detection.
       },

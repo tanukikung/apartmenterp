@@ -145,6 +145,12 @@ export const POST = asyncHandler(
     const { id: periodId } = params;
     const session = requireRole(req, ['ADMIN', 'OWNER']);
 
+    // FM-21: Human confirmation guard.
+    // Without ?confirm=true the endpoint returns a dry-run preview so the UI
+    // can show "You are about to generate N invoices for Month/Year — confirm?"
+    const url = new URL(req.url);
+    const confirmed = url.searchParams.get('confirm') === 'true';
+
     // Verify period exists
     const period = await prisma.billingPeriod.findUnique({ where: { id: periodId } });
     if (!period) {
@@ -186,8 +192,54 @@ export const POST = asyncHandler(
       } as ApiResponse<{ generated: number; skipped: number; errors: number; errorDetails: string[] }>);
     }
 
+    // FM-21: Return dry-run preview when ?confirm=true is absent.
+    // The caller (UI) must explicitly pass confirm=true after showing the user
+    // the count so accidental double-clicks or wrong-month generation is prevented.
+    if (!confirmed) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          dryRun: true,
+          wouldGenerate: billings.length,
+          year: period.year,
+          month: period.month,
+          rooms: billings.map(b => b.roomNo),
+        },
+        message: `Dry run: ${billings.length} invoice(s) would be generated for ${period.year}/${String(period.month).padStart(2, '0')}. POST with ?confirm=true to proceed.`,
+      });
+    }
+
+    // FM-7: PostgreSQL advisory lock — prevents two concurrent generation jobs
+    // (e.g., cron + manual click) from processing the same period simultaneously.
+    // pg_try_advisory_lock is session-scoped; we release it after generation.
+    // hashtext() produces a stable int4 from the period UUID string.
+    type AdvisoryRow = { acquired: boolean };
+    const [lockResult] = await prisma.$queryRaw<AdvisoryRow[]>`
+      SELECT pg_try_advisory_lock(hashtext(${periodId})) AS acquired
+    `;
+    if (!lockResult?.acquired) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            message: 'Invoice generation is already in progress for this period. Retry in a moment.',
+            code: 'GENERATION_IN_PROGRESS',
+            name: 'ConflictError',
+            statusCode: 409,
+          },
+        },
+        { status: 409 },
+      );
+    }
+
     // Process in batches with setImmediate yields to avoid blocking the event loop.
-    const result = await processBatches(billings, periodId, period, session);
+    let result: Awaited<ReturnType<typeof processBatches>>;
+    try {
+      result = await processBatches(billings, periodId, period, session);
+    } finally {
+      // Always release the advisory lock, even if processBatches throws
+      await prisma.$queryRaw`SELECT pg_advisory_unlock(hashtext(${periodId}))`.catch(() => {});
+    }
 
     // Update period status to CLOSED (fully invoiced) when no more LOCKED records remain
     const remaining = await prisma.roomBilling.count({

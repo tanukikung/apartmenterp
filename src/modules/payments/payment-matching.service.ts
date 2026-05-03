@@ -633,7 +633,21 @@ export class PaymentMatchingService {
     const txAmount = Number(transaction.amount);
 
     await prisma.$transaction(async (tx) => {
-      // All authoritative checks inside the transaction
+      // Acquire exclusive row locks on BOTH the transaction and the invoice
+      // before any reads. This prevents two concurrent staff confirmations from
+      // both passing the "not yet CONFIRMED" check and creating duplicate payments.
+      //
+      // Lock order: payment_transaction → invoices (consistent order prevents deadlock).
+      type LockRow = { id: string };
+      const [txLock] = await (tx as unknown as { $queryRaw: (s: TemplateStringsArray, ...a: unknown[]) => Promise<LockRow[]> })
+        .$queryRaw`SELECT id FROM payment_transactions WHERE id = ${transactionId} FOR UPDATE`;
+      if (!txLock) return; // row gone — idempotent
+
+      const [invLock] = await (tx as unknown as { $queryRaw: (s: TemplateStringsArray, ...a: unknown[]) => Promise<LockRow[]> })
+        .$queryRaw`SELECT id FROM invoices WHERE id = ${invoiceId} FOR UPDATE`;
+      if (!invLock) throw new NotFoundError('Invoice', invoiceId);
+
+      // Re-read full rows after acquiring locks (authoritative state)
       const [current, invoice] = await Promise.all([
         tx.paymentTransaction.findUnique({ where: { id: transactionId } }),
         tx.invoice.findUnique({ where: { id: invoiceId } }),

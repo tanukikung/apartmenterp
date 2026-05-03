@@ -367,9 +367,6 @@ model Tenant {
   email                     String?
   emergencyContact          String?
   emergencyPhone            String?
-  // Set to true when an ACTIVE contract is created for this tenant; false when contract terminates.
-  // Used to enforce CONTRACT_REQUIRED flow: no invoice generation without active contract.
-  hasActiveContract         Boolean                   @default(false)
   createdAt                 DateTime @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime @updatedAt @db.Timestamptz(6)
   // Soft delete — set to deletion timestamp. All queries MUST filter deletedAt: null.
@@ -384,7 +381,6 @@ model Tenant {
 
   @@index([phone])
   @@index([email])
-  @@index([hasActiveContract])
   @@index([deletedAt])
   @@map("tenants")
 }
@@ -1593,16 +1589,34 @@ model BillingAuditLog {
 }
 
 model IdempotencyRecord {
-  id           String    @id @default(uuid())
-  key          String    @unique
-  resourceType String
-  resourceId   String?
-  result       Json?
-  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  id              String    @id @default(uuid())
+  key             String    @unique
+  resourceType    String
+  resourceId      String?
+  result          Json?
+  // sha256 hex of the canonical request body — used to detect key reuse for different payloads
+  requestBodyHash String?
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([resourceType])
   @@index([createdAt])
   @@map("idempotency_records")
+}
+
+// Crash-recovery log for scheduled jobs.
+// On startup, instrumentation.ts checks this table to re-run any job whose
+// last successful run is older than its expected interval.
+model CronJobRun {
+  id         String   @id @default(uuid())
+  jobId      String
+  ranAt      DateTime @default(now()) @db.Timestamptz(6)
+  success    Boolean  @default(true)
+  durationMs Int?
+  message    String?
+  error      String?
+
+  @@index([jobId, ranAt(sort: Desc)])
+  @@map("cron_job_runs")
 }
 
 model FailedMessage {

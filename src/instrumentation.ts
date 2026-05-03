@@ -11,6 +11,28 @@
 type JobRunner = () => Promise<{ count: number; message: string }>;
 type SetJobStatusFn = (id: string, update: Record<string, unknown>) => void;
 
+// Maximum age (ms) for a job's last successful run before it's considered
+// "missed" on startup and re-executed immediately.
+type CatchUpRule = {
+  jobId: string;
+  maxAgeMs: number; // if last success is older than this, re-run on startup
+};
+
+// Daily jobs must have run in the last 25 hours (1h grace for clock drift).
+// Monthly-1st jobs must have run in the last 32 days.
+// Weekly jobs must have run in the last 8 days.
+const CATCH_UP_RULES: CatchUpRule[] = [
+  { jobId: 'overdue-flag',     maxAgeMs: 25 * 60 * 60 * 1000 },
+  { jobId: 'late-fee',         maxAgeMs: 25 * 60 * 60 * 1000 },
+  { jobId: 'auto-reminder',    maxAgeMs: 25 * 60 * 60 * 1000 },
+  { jobId: 'document-notify',  maxAgeMs: 25 * 60 * 60 * 1000 },
+  { jobId: 'contract-expiry',  maxAgeMs: 25 * 60 * 60 * 1000 },
+  { jobId: 'billing-generate', maxAgeMs: 32 * 24 * 60 * 60 * 1000 },
+  { jobId: 'invoice-send',     maxAgeMs: 32 * 24 * 60 * 60 * 1000 },
+  { jobId: 'db-cleanup',       maxAgeMs: 8  * 24 * 60 * 60 * 1000 },
+  { jobId: 'outbox-cleanup',   maxAgeMs: 8  * 24 * 60 * 60 * 1000 },
+];
+
 // ── Schedule entry ────────────────────────────────────────────────────────────
 type ScheduleEntry = {
   jobId: string;
@@ -94,6 +116,30 @@ export async function register() {
     jobRunners  = runnerModule.JOB_RUNNERS as Record<string, JobRunner>;
     setJobStatus = storeModule.setJobStatus as SetJobStatusFn;
 
+    // Helper: persist a CronJobRun record after each execution
+    const writeCronRun = async (
+      jobId: string,
+      success: boolean,
+      durationMs: number,
+      message?: string,
+      error?: string,
+    ) => {
+      try {
+        await prisma.cronJobRun.create({
+          data: {
+            id: (await import('uuid')).v4(),
+            jobId,
+            success,
+            durationMs,
+            message: message ?? null,
+            error: error ?? null,
+          },
+        });
+      } catch (e) {
+        logger.warn({ type: 'cron_job_run_write_failed', jobId, error: (e as Error).message });
+      }
+    };
+
     // ── Load automation cron config from DB (if any) and merge with SCHEDULES ─────
     // Supports overrides for: reminderCron, overdueCron, billingCron
     function parseCronExpr(expr: string): { hour: number; minute: number; dayOfMonth?: number; dayOfWeek?: number } | null {
@@ -134,6 +180,45 @@ export async function register() {
     );
     logger.info({ overrideCount: Object.keys(overrideMap).length, overrideMap }, 'Scheduler initialized with automation cron overrides');
 
+    // ── Crash-recovery catch-up ────────────────────────────────────────────────
+    // If the process was killed mid-night (OOM, SIGKILL, Docker restart) some
+    // cron jobs may not have run at their scheduled time.  Check each rule and
+    // run the job immediately if its last successful run is stale.
+    ;(async () => {
+      for (const rule of CATCH_UP_RULES) {
+        const runner = jobRunners[rule.jobId];
+        if (!runner) continue;
+        try {
+          const lastRun = await prisma.cronJobRun.findFirst({
+            where: { jobId: rule.jobId, success: true },
+            orderBy: { ranAt: 'desc' },
+            select: { ranAt: true },
+          });
+          const ageMs = lastRun ? Date.now() - lastRun.ranAt.getTime() : Infinity;
+          if (ageMs > rule.maxAgeMs) {
+            logger.warn({ type: 'cron_catch_up', jobId: rule.jobId, ageMs }, '⚡ Running missed cron job on startup');
+            setJobStatus(rule.jobId, { status: 'running' });
+            const startMs = Date.now();
+            try {
+              const result = await runner();
+              const durationMs = Date.now() - startMs;
+              setJobStatus(rule.jobId, { status: 'idle', lastRun: new Date().toISOString(), lastMessage: result.message, durationMs });
+              await writeCronRun(rule.jobId, true, durationMs, result.message);
+              logger.info({ type: 'cron_catch_up_done', jobId: rule.jobId, durationMs }, '✅ Catch-up job completed');
+            } catch (err: unknown) {
+              const durationMs = Date.now() - startMs;
+              const msg = err instanceof Error ? err.message : String(err);
+              setJobStatus(rule.jobId, { status: 'error', lastRun: new Date().toISOString(), lastMessage: msg, durationMs });
+              await writeCronRun(rule.jobId, false, durationMs, undefined, msg);
+              logger.error({ type: 'cron_catch_up_failed', jobId: rule.jobId, error: msg });
+            }
+          }
+        } catch (e) {
+          logger.warn({ type: 'cron_catch_up_check_failed', jobId: rule.jobId, error: (e as Error).message });
+        }
+      }
+    })();
+
     // Start a once-per-minute ticker that checks the schedule
     intervals.push(setInterval(() => {
       (() => {
@@ -156,7 +241,7 @@ export async function register() {
           const startMs = Date.now();
 
           const jobPromise = runner()
-            .then((result) => {
+            .then(async (result) => {
               inFlightJobs.delete(jobPromise);
               const durationMs = Date.now() - startMs;
               setJobStatus(jobId, {
@@ -165,9 +250,10 @@ export async function register() {
                 lastMessage: result.message,
                 durationMs,
               });
+              await writeCronRun(jobId, true, durationMs, result.message);
               logger.info({ jobId, ...result, durationMs }, '✅ Scheduled job completed');
             })
-            .catch((err: unknown) => {
+            .catch(async (err: unknown) => {
               inFlightJobs.delete(jobPromise);
               const durationMs = Date.now() - startMs;
               const message = err instanceof Error ? err.message : String(err);
@@ -177,6 +263,7 @@ export async function register() {
                 lastMessage: message,
                 durationMs,
               });
+              await writeCronRun(jobId, false, durationMs, undefined, message);
               logger.error({ jobId, error: message }, '❌ Scheduled job failed');
             });
           inFlightJobs.add(jobPromise);
