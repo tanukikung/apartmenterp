@@ -9,7 +9,49 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'Sarabun', 'Segoe UI', 'system-ui', 'sans-serif'],
+        serif: ['Fraunces', 'ui-serif', 'Georgia', 'serif'],
+        display: ['Fraunces', 'ui-serif', 'Georgia', 'serif'],
+      },
       colors: {
+        // Brand remap: indigo/purple/violet → Refined Bronze.
+        // Hijacks every indigo/purple/violet utility across the app so all
+        // pages pick up the new palette without per-file edits.
+        indigo: {
+          50:  'hsl(160 30% 96%)',
+          100: 'hsl(160 28% 92%)',
+          200: 'hsl(160 24% 84%)',
+          300: 'hsl(162 24% 68%)',
+          400: 'hsl(164 28% 48%)',
+          500: 'hsl(165 35% 30%)',
+          600: 'hsl(165 38% 24%)',
+          700: 'hsl(165 42% 20%)',
+          800: 'hsl(166 46% 15%)',
+          900: 'hsl(166 50% 11%)',
+          950: 'hsl(166 54% 7%)',
+        },
+        purple: {
+          50:  'hsl(160 22% 95%)',
+          100: 'hsl(160 18% 90%)',
+          200: 'hsl(162 16% 82%)',
+          300: 'hsl(164 16% 62%)',
+          400: 'hsl(165 22% 38%)',
+          500: 'hsl(165 32% 26%)',
+          600: 'hsl(165 38% 20%)',
+          700: 'hsl(166 44% 15%)',
+          800: 'hsl(166 48% 11%)',
+          900: 'hsl(166 52% 8%)',
+          950: 'hsl(166 54% 5%)',
+        },
+        violet: {
+          50:  'hsl(160 22% 95%)',
+          100: 'hsl(160 18% 90%)',
+          500: 'hsl(165 32% 26%)',
+          600: 'hsl(165 38% 20%)',
+          700: 'hsl(166 44% 15%)',
+        },
+
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
