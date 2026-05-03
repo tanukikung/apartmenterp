@@ -285,6 +285,15 @@ export async function register() {
     // be bootstrapped here without a proper request context. Admin can trigger it
     // from /admin/settings/integrations or by calling POST /api/line/rich-menu.
 
+    // ── Inbox worker (zero-loss LINE event processor) ────────────────────
+    try {
+      const { startInboxWorker } = await import('./infrastructure/inbox/inbox.processor');
+      startInboxWorker();
+      logger.info('📥 Inbox worker started');
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Inbox worker failed to start — LINE events will queue in inbox_events but not be processed');
+    }
+
     // ── Outbox worker ────────────────────────────────────────────────────
     try {
       const { startOutboxWorker } = await import('./infrastructure/outbox/outbox.processor');

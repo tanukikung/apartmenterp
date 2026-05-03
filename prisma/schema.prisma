@@ -683,18 +683,48 @@ model OutboxEvent {
   aggregateId   String
   eventType     String
   payload       Json
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
   scheduledAt   DateTime? @db.Timestamptz(6)
   processedAt   DateTime? @db.Timestamptz(6)
   retryCount    Int       @default(0)
+  nextRetryAt   DateTime? @db.Timestamptz(6)
   lastError     String?
 
   @@index([processedAt, scheduledAt])
   @@index([aggregateType, aggregateId])
   @@index([processedAt, createdAt])
+  @@index([processedAt, nextRetryAt])
   @@index([eventType])
   @@index([retryCount])
   @@map("outbox_events")
+}
+
+// ── Zero-loss inbox ──────────────────────────────────────────────────────────
+// Raw LINE webhook events are persisted here before any processing.
+// InboxProcessor polls this table and processes each event exactly once.
+enum InboxEventStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+  DEAD
+}
+
+model InboxEvent {
+  id          String           @id @default(uuid())
+  source      String           @default("LINE")
+  eventId     String           @unique
+  payload     Json
+  receivedAt  DateTime         @default(now()) @db.Timestamptz(6)
+  status      InboxEventStatus @default(PENDING)
+  retryCount  Int              @default(0)
+  nextRetryAt DateTime?        @db.Timestamptz(6)
+  processedAt DateTime?        @db.Timestamptz(6)
+  lastError   String?
+
+  @@index([status, nextRetryAt])
+  @@index([receivedAt])
+  @@map("inbox_events")
 }
 
 model AdminUser {

@@ -112,3 +112,48 @@ export async function getWorkerHeartbeat(): Promise<number | null> {
     return null;
   }
 }
+
+// ── LINE API rate limiter (sliding window, sorted-set) ────────────────────────
+// LINE Standard Plan allows ~1000 push messages/min. This limiter prevents the
+// outbox from bursting past that limit, which would cause 429 errors and retries.
+// Key: apt:line:rpm  — shared across all outbox workers in multi-instance deploy.
+// Falls back to "always allowed" when Redis is not configured (dev/test safety).
+
+const LINE_RPM_KEY = `${REDIS_NS}:line:rpm`;
+const LINE_RPM_DEFAULT = 950; // conservative: 5% below 1000 hard limit
+
+export async function checkLineAPIRateLimit(
+  maxPerMinute: number = LINE_RPM_DEFAULT,
+): Promise<{ allowed: boolean; remaining: number; retryAfterMs: number }> {
+  const c = await ensureRedisConnected();
+  if (!c) return { allowed: true, remaining: maxPerMinute, retryAfterMs: 0 };
+
+  try {
+    const now = Date.now();
+    const windowStart = now - 60_000;
+
+    // Clean entries outside the 1-minute window, then check current count
+    await c.zRemRangeByScore(LINE_RPM_KEY, '-inf', windowStart.toString());
+    const currentCount = await c.zCard(LINE_RPM_KEY);
+
+    if (currentCount >= maxPerMinute) {
+      // Oldest entry tells us when a slot will free up
+      const oldest = await c.zRangeWithScores(LINE_RPM_KEY, 0, 0);
+      const oldestScore = oldest[0]?.score ?? windowStart;
+      const retryAfterMs = Math.max(1_000, oldestScore + 60_000 - now + 50);
+      return { allowed: false, remaining: 0, retryAfterMs };
+    }
+
+    // Claim one slot with a unique member so concurrent workers don't collide
+    await c.zAdd(LINE_RPM_KEY, {
+      score: now,
+      value: `${now}:${Math.random().toString(36).slice(2, 9)}`,
+    });
+    await c.expire(LINE_RPM_KEY, 61);
+
+    return { allowed: true, remaining: maxPerMinute - currentCount - 1, retryAfterMs: 0 };
+  } catch {
+    // Redis error — fail open so messages aren't silently dropped
+    return { allowed: true, remaining: maxPerMinute, retryAfterMs: 0 };
+  }
+}

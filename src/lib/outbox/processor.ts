@@ -178,6 +178,7 @@ export class OutboxProcessor {
           SELECT id FROM outbox_events
           WHERE "processedAt" IS NULL
             AND "retryCount" < ${this.options.maxRetries}
+            AND ("nextRetryAt" IS NULL OR "nextRetryAt" <= now())
           ORDER BY "createdAt" ASC
           LIMIT ${this.options.batchSize}
           FOR UPDATE SKIP LOCKED
@@ -198,23 +199,39 @@ export class OutboxProcessor {
           eventCount: events.length,
         });
 
-        const requiredDelaySinceCreated = (retryCount: number) =>
-          (Math.pow(2, retryCount + 1) - 2) * 1000;
+        // Lazy-load LINE rate limiter (avoids Redis import on cold start if unused)
+        let lineRateLimit: typeof import('../../infrastructure/redis').checkLineAPIRateLimit | null = null;
+        try {
+          const redis = await import('../../infrastructure/redis');
+          lineRateLimit = redis.checkLineAPIRateLimit;
+        } catch { /* Redis unavailable — rate limiting disabled */ }
 
         for (const event of events) {
-          if (event.retryCount > 0) {
-            const elapsed = Date.now() - new Date(event.createdAt).getTime();
-            const required = requiredDelaySinceCreated(event.retryCount);
-            if (elapsed < required) {
-              logger.debug({
-                type: 'outbox_backoff_skip',
-                eventId: event.id,
-                retryCount: event.retryCount,
-                remainingMs: required - elapsed,
-              });
-              continue;
+          try {
+            // LINE API rate limit check — BEFORE marking processedAt so we can
+            // reschedule without consuming the event.
+            if (lineRateLimit) {
+              const rateCheck = await lineRateLimit();
+              if (!rateCheck.allowed) {
+                const retryAfterMs = rateCheck.retryAfterMs || 5_000;
+                await tx.outboxEvent.update({
+                  where: { id: event.id },
+                  data:  { nextRetryAt: new Date(Date.now() + retryAfterMs) },
+                });
+                logger.warn({
+                  type: 'outbox_rate_limited',
+                  eventId: event.id,
+                  eventType: event.eventType,
+                  retryAfterMs,
+                });
+                continue;
+              }
             }
+          } catch (rlErr) {
+            logger.warn({ type: 'outbox_rate_limit_check_error', error: (rlErr as Error).message });
+            // Fail open — proceed without rate limiting
           }
+
           try {
             const payload = event.payload as Record<string, unknown>;
 
@@ -334,11 +351,13 @@ export class OutboxProcessor {
                 }
               );
             } else {
+              const backoffMs = (Math.pow(2, nextRetry + 1) - 2) * 1_000;
               await tx.outboxEvent.update({
                 where: { id: event.id },
                 data: {
                   lastError: errorMessage,
                   retryCount: { increment: 1 },
+                  nextRetryAt: new Date(Date.now() + backoffMs),
                 },
               });
             }
