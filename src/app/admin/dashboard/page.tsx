@@ -159,44 +159,46 @@ function KpiCard({
   prefix?: string;
   suffix?: string;
 }) {
+  // Refined muted tones — all cards feel cohesive with warm premium palette.
+  // Accent still carries semantic meaning but never competes with content.
   const colors = {
     green: {
-      bg: 'from-emerald-50 to-white dark:from-emerald-500/10 dark:to-emerald-500/5',
-      border: 'border-emerald-200/70 dark:border-emerald-500/30',
-      icon: 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-emerald-500/30',
-      text: 'text-emerald-700 dark:text-emerald-300',
-      glow: 'group-hover:shadow-emerald-500/20',
+      bg: 'bg-color-surface',
+      border: 'border-color-border',
+      icon: 'bg-[hsl(150,28%,92%)] text-[hsl(150,36%,32%)] dark:bg-[hsl(150,30%,18%)] dark:text-[hsl(150,30%,72%)]',
+      text: 'text-[hsl(150,36%,32%)] dark:text-[hsl(150,30%,72%)]',
+      glow: 'hover:shadow-md',
     },
     red: {
-      bg: 'from-red-50 to-white dark:from-red-500/10 dark:to-red-500/5',
-      border: 'border-red-200/70 dark:border-red-500/30',
-      icon: 'bg-gradient-to-br from-red-400 to-red-600 text-white shadow-red-500/30',
-      text: 'text-red-700 dark:text-red-300',
-      glow: 'group-hover:shadow-red-500/20',
+      bg: 'bg-color-surface',
+      border: 'border-color-border',
+      icon: 'bg-[hsl(12,50%,93%)] text-[hsl(8,48%,42%)] dark:bg-[hsl(8,35%,18%)] dark:text-[hsl(8,50%,78%)]',
+      text: 'text-[hsl(8,48%,42%)] dark:text-[hsl(8,50%,78%)]',
+      glow: 'hover:shadow-md',
     },
     yellow: {
-      bg: 'from-amber-50 to-white dark:from-amber-500/10 dark:to-amber-500/5',
-      border: 'border-amber-200/70 dark:border-amber-500/30',
-      icon: 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-amber-500/30',
-      text: 'text-amber-700 dark:text-amber-300',
-      glow: 'group-hover:shadow-amber-500/20',
+      bg: 'bg-color-surface',
+      border: 'border-color-border',
+      icon: 'bg-[hsl(38,55%,92%)] text-[hsl(32,50%,36%)] dark:bg-[hsl(32,35%,18%)] dark:text-[hsl(38,55%,75%)]',
+      text: 'text-[hsl(32,50%,36%)] dark:text-[hsl(38,55%,75%)]',
+      glow: 'hover:shadow-md',
     },
     blue: {
-      bg: 'from-blue-50 to-white dark:from-blue-500/10 dark:to-blue-500/5',
-      border: 'border-blue-200/70 dark:border-blue-500/30',
-      icon: 'bg-gradient-to-br from-blue-400 to-blue-600 text-white shadow-blue-500/30',
-      text: 'text-blue-700 dark:text-blue-300',
-      glow: 'group-hover:shadow-blue-500/20',
+      bg: 'bg-color-surface',
+      border: 'border-color-border',
+      icon: 'bg-[hsl(160,28%,92%)] text-[hsl(165,42%,20%)] dark:bg-[hsl(165,32%,16%)] dark:text-[hsl(160,30%,72%)]',
+      text: 'text-[hsl(165,42%,20%)] dark:text-[hsl(160,30%,72%)]',
+      glow: 'hover:shadow-md',
     },
   }[accent];
 
   const card = (
     <MagneticCard tilt={3} lift={3} magnet={0.1} className="h-full">
       <div
-        className={`group relative h-full bg-gradient-to-br ${colors.bg} ${colors.border} border rounded-2xl p-5 transition-all duration-300 hover:shadow-xl ${colors.glow} overflow-hidden`}
+        className={`group relative h-full ${colors.bg} ${colors.border} border rounded-xl p-5 transition-all duration-300 hover:border-color-border-strong ${colors.glow} overflow-hidden`}
       >
-        {/* Subtle radial highlight */}
-        <div className="absolute inset-0 bg-[radial-gradient(120%_60%_at_50%_0%,rgba(255,255,255,0.45),transparent_60%)] dark:bg-[radial-gradient(120%_60%_at_50%_0%,rgba(255,255,255,0.04),transparent_60%)] pointer-events-none" />
+        {/* Subtle warm highlight */}
+        <div className="absolute inset-0 bg-[radial-gradient(140%_70%_at_50%_0%,hsl(38_30%_94%/0.5),transparent_65%)] dark:bg-[radial-gradient(140%_70%_at_50%_0%,hsl(30_20%_16%/0.4),transparent_65%)] pointer-events-none" />
         <div className="relative">
           <div className="flex items-start justify-between gap-2 mb-4">
             <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">{label}</span>
@@ -499,50 +501,42 @@ export default function AdminDashboardPage() {
     sub: `${c.daysLeft} วัน`,
   }));
 
+  const urgentCount = (summary?.overdueInvoices ?? 0) + pendingMaintenanceCount + expiringContracts.length;
+
   return (
-    <main className="relative min-h-screen bg-gradient-to-b from-surface-container-low/50 to-surface">
-      {/* ── Page Hero with Aurora Background ─────────────────────── */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-500 to-purple-600 px-6 py-10 shadow-xl shadow-indigo-600/20">
-        {/* Aurora blobs */}
-        <div className="aurora-bg" />
-        {/* Noise texture */}
-        <div className="noise-overlay absolute inset-0" />
-        {/* Decorative circles */}
-        <div className="absolute top-6 right-8 h-32 w-32 rounded-full bg-white/5 blur-2xl float-slow pointer-events-none" />
-        <div className="absolute -bottom-6 right-40 h-24 w-24 rounded-full bg-white/10 blur-xl pointer-events-none" />
-
-        <FadeIn className="relative z-10 max-w-screen-xl mx-auto">
-          <div className="flex flex-col gap-2">
-            <motion.div
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
-              className="text-[11px] uppercase tracking-[0.2em] font-semibold text-white/70"
-            >
-              Apartment ERP · Console
-            </motion.div>
-            <motion.h1
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.08 }}
-              className="text-3xl md:text-4xl font-extrabold tracking-tight text-white"
-            >
-              {greeting}{' '}
-              <motion.span
-                initial={{ rotate: -20, scale: 0.6, opacity: 0 }}
-                animate={{ rotate: 0, scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 14, delay: 0.25 }}
-                className="inline-block origin-bottom-right"
-              >
-                👋
-              </motion.span>
-            </motion.h1>
-            <p className="text-sm md:text-base text-white/80 font-medium">{date}</p>
+    <div className="space-y-8">
+      {/* ── Premium Header ─────────────────────────────────────── */}
+      <FadeIn y={4} className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.2em] text-color-text-3 mb-2">
+            {date}
           </div>
-        </FadeIn>
-      </div>
+          <h1 className="font-serif text-[32px] sm:text-[40px] leading-[1.1] text-color-text">
+            {greeting}, ยินดีต้อนรับ
+          </h1>
+          <p className="mt-2 text-[14px] text-color-text-2 max-w-xl">
+            {urgentCount > 0
+              ? `มี ${urgentCount} รายการที่ต้องการความสนใจของคุณวันนี้`
+              : 'ทุกอย่างเรียบร้อยดี ไม่มีรายการค้างในวันนี้'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/invoices"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-color-border bg-color-surface px-3.5 py-2 text-[13px] font-medium text-color-text hover:border-color-border-strong transition-colors"
+          >
+            ใบแจ้งหนี้ <ArrowRight size={14} />
+          </Link>
+          <Link
+            href="/admin/payments"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-color-primary px-3.5 py-2 text-[13px] font-medium text-white shadow-sm hover:bg-color-primary-dark transition-colors"
+          >
+            ตรวจชำระเงิน <ArrowRight size={14} />
+          </Link>
+        </div>
+      </FadeIn>
 
-      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <div className="space-y-6">
 
         {/* ── KPI Row ─────────────────────────────────────────────── */}
         <StaggerList stagger={0.07} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -753,6 +747,6 @@ export default function AdminDashboardPage() {
         </section>
 
       </div>
-    </main>
+    </div>
   );
 }

@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { QueryProvider } from '@/components/providers/QueryProvider';
@@ -44,6 +43,9 @@ import {
   Wrench,
   FileSignature,
   Clock,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown as ChevronDownIcon,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -213,152 +215,99 @@ function Tooltip({ label, side = 'right' }: { label: string; side?: 'right' | 'b
   );
 }
 
-// ── Icon-only single nav link ─────────────────────────────────────────────
-function IconNavItem({
+// ── Labeled single nav link ─────────────────────────────────────────────
+function SidebarLink({
   item,
   pathname,
+  collapsed,
 }: {
   item: NavLink;
   pathname: string | null;
+  collapsed: boolean;
 }) {
   const active = isActive(pathname, item);
   return (
     <div className="relative group">
-      <motion.div
-        whileHover={{ scale: 1.06 }}
-        whileTap={{ scale: 0.92 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 26 }}
+      <Link
+        href={item.href}
+        title={collapsed ? item.label : undefined}
+        className={`relative flex items-center gap-3 rounded-lg transition-colors duration-150
+          ${collapsed ? 'justify-center w-11 h-11 mx-auto' : 'px-3 py-2 text-[13.5px] font-medium'}
+          ${active
+            ? 'text-white'
+            : 'text-sidebar-text hover:bg-white/5 hover:text-sidebar-text-active'
+          }`}
       >
-        <Link
-          href={item.href}
-          className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-colors duration-150
-            ${active
-              ? 'text-white'
-              : 'text-color-text-3 hover:bg-white/5 hover:text-color-text-2'
-            }`}
-          title={item.label}
-        >
-          {active && (
-            <motion.span
-              layoutId="sidebar-active-pill"
-              className="absolute inset-0 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/40"
-              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-            />
-          )}
-          <span className="relative z-10">
-            <IconComponent icon={item.icon} size={18} strokeWidth={active ? 2.2 : 1.8} />
-          </span>
-        </Link>
-      </motion.div>
-      <Tooltip label={item.label} />
+        {active && (
+          <motion.span
+            layoutId="sidebar-active-pill"
+            className="absolute inset-0 rounded-lg bg-gradient-to-r from-[hsl(165,38%,24%)] to-[hsl(165,42%,16%)] shadow-md shadow-black/30"
+            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+          />
+        )}
+        <IconComponent icon={item.icon} size={collapsed ? 18 : 16} strokeWidth={active ? 2.1 : 1.75} className="relative z-10 shrink-0" />
+        {!collapsed && <span className="relative z-10 truncate">{item.label}</span>}
+      </Link>
+      {collapsed && <Tooltip label={item.label} />}
     </div>
   );
 }
 
-// ── Icon-only collapsible group ───────────────────────────────────────────
-function IconNavGroup({
+// ── Labeled collapsible group ───────────────────────────────────────────
+function SidebarGroup({
   group,
   pathname,
+  collapsed,
 }: {
   group: Extract<NavItem, { type: 'group' }>;
   pathname: string | null;
+  collapsed: boolean;
 }) {
   const hasActiveChild = group.items.some((item) => isActive(pathname, item));
-  const activeItem = group.items.find((item) => isActive(pathname, item));
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [dropdownPos, setDropdownPos] = useState<{ top: number } | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
-  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => { setIsMounted(true); return () => { if (hideTimer.current) clearTimeout(hideTimer.current); }; }, []);
+  const [open, setOpen] = useState(group.defaultOpen ?? hasActiveChild);
 
-  // Called only from the TRIGGER div — opens dropdown and positions it
-  function openDropdown() {
-    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setDropdownPos({ top: rect.top });
-    }
+  useEffect(() => { if (hasActiveChild) setOpen(true); }, [hasActiveChild]);
+
+  if (collapsed) {
+    // Collapsed: flatten — render every item in the group so nothing is hidden.
+    // A thin divider line separates groups visually.
+    return (
+      <div className="flex flex-col items-center gap-1 pt-2 first:pt-0">
+        <div className="h-px w-6 bg-white/[0.07] mb-1" aria-hidden />
+        {group.items.map((item) => (
+          <SidebarLink key={item.href} item={item} pathname={pathname} collapsed />
+        ))}
+      </div>
+    );
   }
-
-  // Called from DROPDOWN div — just cancel the pending close, don't re-render
-  function keepOpen() {
-    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
-  }
-
-  function hideDropdown() {
-    // 200ms delay — enough to cross the 8px gap AND move between items
-    hideTimer.current = setTimeout(() => setDropdownPos(null), 200);
-  }
-
-  const SIDEBAR_LEFT = 72; // 64px sidebar + 8px gap
-
-  const dropdown = isMounted && dropdownPos
-    ? createPortal(
-        <div
-          style={{ position: 'fixed', top: dropdownPos.top, left: SIDEBAR_LEFT, zIndex: 9999 }}
-          className="bg-sidebar-bg rounded-xl border border-color-border shadow-2xl shadow-black/30 overflow-y-auto max-h-[80vh] min-w-[180px]"
-          onMouseEnter={keepOpen}
-          onMouseLeave={hideDropdown}
-        >
-          <div className="px-3 py-2.5 border-b border-color-border">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-sidebar-text">{group.label}</span>
-          </div>
-          {group.items.map((item) => {
-            const active = isActive(pathname, item);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-2.5 px-3 py-2.5 text-[13px] font-medium transition-colors
-                  ${active
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-sidebar-text hover:bg-white/5 hover:text-white'
-                  }`}
-              >
-                <IconComponent icon={item.icon} size={15} strokeWidth={active ? 2.2 : 1.8} className={active ? 'text-white' : 'text-sidebar-text'} />
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>,
-        document.body
-      )
-    : null;
 
   return (
-    <div
-      className="relative"
-      onMouseEnter={openDropdown}
-      onMouseLeave={hideDropdown}
-    >
-      <motion.button
-        ref={triggerRef}
-        whileHover={{ scale: 1.06 }}
-        whileTap={{ scale: 0.92 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 26 }}
-        className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-colors duration-150
-          ${hasActiveChild ? 'text-white' : 'text-sidebar-text hover:bg-white/5 hover:text-white'}`}
-        title={group.label}
+    <div className="space-y-0.5">
+      <button
+        onClick={() => setOpen(!open)}
+        className={`flex w-full items-center justify-between px-3 py-1.5 text-[10.5px] font-semibold uppercase tracking-[0.12em] transition-colors
+          ${hasActiveChild ? 'text-[hsl(30,30%,72%)]' : 'text-sidebar-text/70 hover:text-sidebar-text'}`}
       >
-        {hasActiveChild && (
-          <motion.span
-            layoutId="sidebar-active-pill"
-            className="absolute inset-0 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/40"
-            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-          />
+        <span>{group.label}</span>
+        <ChevronDownIcon size={12} className={`transition-transform duration-200 ${open ? '' : '-rotate-90'}`} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-0.5">
+              {group.items.map((item) => (
+                <SidebarLink key={item.href} item={item} pathname={pathname} collapsed={false} />
+              ))}
+            </div>
+          </motion.div>
         )}
-        <span className="relative z-10">
-          {activeItem ? (
-            <IconComponent icon={activeItem.icon} size={18} strokeWidth={hasActiveChild ? 2.2 : 1.8} />
-          ) : (
-            <IconComponent icon={group.items[0].icon} size={18} />
-          )}
-        </span>
-        <span className={`absolute z-10 bottom-1 right-1 text-[8px] transition-transform duration-200 ${dropdownPos ? 'rotate-90' : ''} ${hasActiveChild ? 'text-white/80' : 'text-color-text-3'}`}>
-          ▶
-        </span>
-      </motion.button>
-      {dropdown}
+      </AnimatePresence>
     </div>
   );
 }
@@ -395,7 +344,7 @@ function MobileNavGroup({
                 onClick={onClose}
                 className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors
                   ${active
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-color-primary text-white'
                     : 'text-color-text-3 hover:bg-color-surface/5 hover:text-color-text-2'
                   }`}
               >
@@ -410,31 +359,61 @@ function MobileNavGroup({
   );
 }
 
-// ── Icon-only Sidebar ────────────────────────────────────────────────────
-function IconSidebar({ pathname }: { pathname: string | null }) {
+// ── Expandable Sidebar with labels ───────────────────────────────────────
+function Sidebar({
+  pathname,
+  collapsed,
+  onToggle,
+}: {
+  pathname: string | null;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
   return (
-    <div className="w-16 flex flex-col bg-sidebar-bg text-sidebar-text-active h-full">
-      {/* Logo */}
-      <div className="flex items-center justify-center h-16 border-b border-color-border">
-        <motion.div
-          whileHover={{ rotate: -8, scale: 1.08 }}
-          whileTap={{ scale: 0.92 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-          className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 shadow-lg shadow-indigo-500/40 ring-1 ring-white/20"
-        >
-          <Building2 size={18} className="text-white relative z-10" strokeWidth={2.5} />
-          <span className="absolute inset-0 rounded-xl bg-gradient-to-br from-white/20 to-transparent" />
-        </motion.div>
+    <div className={`${collapsed ? 'w-16' : 'w-60'} flex flex-col bg-sidebar-bg text-sidebar-text-active h-full transition-[width] duration-300 ease-out border-r border-black/30`}>
+      {/* Brand + collapse toggle */}
+      <div className={`flex items-center h-16 border-b border-white/[0.06] ${collapsed ? 'justify-center' : 'justify-between px-4'}`}>
+        <Link href="/admin/dashboard" className="flex items-center gap-2.5 min-w-0">
+          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[hsl(162,28%,52%)] via-[hsl(165,38%,28%)] to-[hsl(30,14%,16%)] shadow-lg shadow-black/30 ring-1 ring-white/15">
+            <Building2 size={16} className="text-white relative z-10" strokeWidth={2.4} />
+            <span className="absolute inset-0 rounded-xl bg-gradient-to-br from-white/15 to-transparent" />
+          </div>
+          {!collapsed && (
+            <div className="min-w-0 leading-tight">
+              <div className="font-serif text-[15px] font-medium text-sidebar-text-active tracking-tight truncate">Apartment</div>
+              <div className="text-[9.5px] uppercase tracking-[0.18em] text-sidebar-text/80 truncate">ERP Console</div>
+            </div>
+          )}
+        </Link>
+        {!collapsed && (
+          <button
+            onClick={onToggle}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-sidebar-text hover:text-sidebar-text-active hover:bg-white/5 transition-colors"
+            aria-label="ย่อแถบเมนู"
+          >
+            <ChevronLeft size={15} />
+          </button>
+        )}
       </div>
 
-      <nav className="flex-1 py-4 px-2 flex flex-col items-center space-y-1">
+      <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-4 ${collapsed ? 'px-2 space-y-1' : 'px-2.5 space-y-3'}`}>
         {nav.map((item, idx) => {
           if (item.type === 'link') {
-            return <IconNavItem key={item.href} item={item} pathname={pathname} />;
+            return <SidebarLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} />;
           }
-          return <IconNavGroup key={idx} group={item} pathname={pathname} />;
+          return <SidebarGroup key={idx} group={item} pathname={pathname} collapsed={collapsed} />;
         })}
       </nav>
+
+      {collapsed && (
+        <button
+          onClick={onToggle}
+          className="mx-auto mb-3 flex h-8 w-8 items-center justify-center rounded-md text-sidebar-text hover:text-sidebar-text-active hover:bg-white/5 transition-colors"
+          aria-label="ขยายแถบเมนู"
+        >
+          <ChevronRight size={15} />
+        </button>
+      )}
     </div>
   );
 }
@@ -573,7 +552,7 @@ function TopBar({
             whileHover={{ rotate: -6, scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-            className="hidden sm:flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 shadow-lg shadow-indigo-500/40 ring-1 ring-white/20"
+            className="hidden sm:flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[hsl(162,28%,52%)] via-[hsl(165,38%,28%)] to-[hsl(30,14%,16%)] shadow-lg shadow-black/25 ring-1 ring-white/15"
           >
             <Building2 size={16} className="text-white" strokeWidth={2.5} />
           </motion.div>
@@ -620,7 +599,7 @@ function TopBar({
               }
             }}
             aria-label="ค้นหาทั่วระบบ (กด / เพื่อโฟกัส)"
-            className="w-full h-9 pl-9 pr-12 rounded-xl border border-color-border bg-color-bg text-sm text-color-text placeholder:text-color-text-3 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            className="w-full h-9 pl-9 pr-12 rounded-xl border border-color-border bg-color-bg text-sm text-color-text placeholder:text-color-text-3 focus:outline-none focus:border-color-primary focus:ring-2 focus:ring-color-primary/20 transition-all"
           />
           {/* Keyboard hint */}
           <kbd className="pointer-events-none hidden md:flex absolute right-2.5 top-1/2 -translate-y-1/2 h-5 items-center rounded border border-color-border bg-color-surface px-1.5 text-[10px] font-medium text-color-text-3">
@@ -633,7 +612,7 @@ function TopBar({
           <div className="absolute top-full left-0 right-0 mt-2 bg-color-surface rounded-xl border border-color-border shadow-xl shadow-app-md overflow-hidden z-50">
             {searchLoading ? (
               <div className="flex items-center justify-center py-6">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-color-primary border-t-transparent" />
               </div>
             ) : searchResults ? (
               (searchResults.rooms.length === 0 && searchResults.tenants.length === 0 && searchResults.invoices.length === 0) ? (
@@ -649,7 +628,7 @@ function TopBar({
                           onMouseDown={() => { setSearchQuery(''); setShowSearch(false); router.push(`/admin/rooms?roomNo=${r.roomNo}`); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-color-text hover:bg-color-bg transition-colors border-b border-color-border last:border-0"
                         >
-                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600"><DoorOpen size={14} /></span>
+                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-color-primary-light text-color-primary"><DoorOpen size={14} /></span>
                           <span>ห้อง {r.roomNo}</span>
                           <span className="ml-auto text-xs text-color-text-3">ชั้น {r.floorNo}</span>
                         </button>
@@ -720,12 +699,12 @@ function TopBar({
             <div className="absolute top-full right-0 mt-2 w-80 bg-color-surface rounded-xl border border-color-border shadow-xl shadow-app-md overflow-hidden z-50">
               <div className="flex items-center justify-between px-4 py-3 border-b border-color-border">
                 <span className="text-sm font-semibold text-color-text">การแจ้งเตือน</span>
-                <button className="text-xs text-indigo-600 hover:text-indigo-700">ดูทั้งหมด</button>
+                <button className="text-xs text-color-primary hover:text-color-primary-dark">ดูทั้งหมด</button>
               </div>
               <div className="max-h-64 overflow-y-auto divide-y divide-color-border">
                 {notifLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-color-primary border-t-transparent" />
                   </div>
                 ) : notifications.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 gap-2">
@@ -736,16 +715,16 @@ function TopBar({
                   notifications.map((n) => (
                     <div
                       key={n.id}
-                      className={`flex items-start gap-3 px-4 py-3 hover:bg-color-bg transition-colors cursor-pointer ${n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'bg-indigo-50/40' : ''}`}
+                      className={`flex items-start gap-3 px-4 py-3 hover:bg-color-bg transition-colors cursor-pointer ${n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'bg-color-primary-light/50' : ''}`}
                     >
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0 ${n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'bg-indigo-100' : 'bg-color-bg'}`}>
-                        <BellIcon size={14} className={n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'text-indigo-600' : 'text-color-text-3'} />
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0 ${n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'bg-color-primary-light' : 'bg-color-bg'}`}>
+                        <BellIcon size={14} className={n.status !== 'SENT' && n.status !== 'CANCELLED' ? 'text-color-primary' : 'text-color-text-3'} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-color-text">{n.content}</p>
                         <p className="text-xs text-color-text-3 mt-0.5">{n.roomNo ? `ห้อง ${n.roomNo} · ` : ''}{formatNotifTime(n.createdAt)}</p>
                       </div>
-                      {n.status !== 'SENT' && n.status !== 'CANCELLED' && <div className="h-2 w-2 rounded-full bg-indigo-500 mt-2 flex-shrink-0" />}
+                      {n.status !== 'SENT' && n.status !== 'CANCELLED' && <div className="h-2 w-2 rounded-full bg-color-primary mt-2 flex-shrink-0" />}
                     </div>
                   ))
                 )}
@@ -760,7 +739,7 @@ function TopBar({
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-color-surface transition-colors"
           >
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[hsl(164,32%,38%)] to-[hsl(30,14%,16%)] flex items-center justify-center shadow-sm">
               <span className="text-xs font-semibold text-white">O</span>
             </div>
             <div className="hidden md:block text-left">
@@ -799,6 +778,16 @@ function TopBar({
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Remember collapse preference
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('sidebar-collapsed') : null;
+    if (saved === '1') setCollapsed(true);
+  }, []);
+  useEffect(() => {
+    if (typeof window !== 'undefined') localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+  }, [collapsed]);
 
   // Sync the browser tab title to the current page
   useEffect(() => {
@@ -811,9 +800,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <ThemeProvider>
     <div className="min-h-screen bg-color-bg flex">
-      {/* ── Desktop Icon-only Sidebar (fixed, doesn't push content) ── */}
-      <aside className="hidden md:flex fixed left-0 top-0 bottom-0 z-20 w-16 flex-col bg-sidebar-bg text-sidebar-text-active">
-        <IconSidebar pathname={pathname} />
+      {/* ── Desktop Labeled Sidebar (fixed, doesn't push content) ── */}
+      <aside className={`hidden md:flex fixed left-0 top-0 bottom-0 z-20 ${collapsed ? 'w-16' : 'w-60'} flex-col transition-[width] duration-300 ease-out`}>
+        <Sidebar pathname={pathname} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       </aside>
 
       {/* ── Mobile Sidebar Drawer ── */}
@@ -838,7 +827,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {/* Mobile drawer header */}
               <div className="flex items-center justify-between px-4 h-16 border-b border-color-border">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/30">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[hsl(164,32%,38%)] to-[hsl(165,42%,20%)] shadow-lg shadow-black/20">
                     <Building2 size={18} className="text-white" strokeWidth={2.5} />
                   </div>
                   <div>
@@ -867,7 +856,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         onClick={() => setMobileOpen(false)}
                         className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors
                           ${active
-                            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
+                            ? 'bg-color-primary text-white shadow-sm shadow-black/10'
                             : 'text-color-text-3 hover:bg-color-surface/5 hover:text-color-text-2'
                           }`}
                       >
@@ -893,7 +882,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </AnimatePresence>
 
       {/* ── Main Content Area (flex-1, sidebar doesn't push) ── */}
-      <div className="relative flex min-w-0 flex-col flex-1 md:ml-16">
+      <div className={`relative flex min-w-0 flex-col flex-1 transition-[margin] duration-300 ease-out ${collapsed ? 'md:ml-16' : 'md:ml-60'}`}>
         {/* Top Bar */}
         <TopBar pathname={pathname} onMobileMenuToggle={() => setMobileOpen(true)} />
 
@@ -905,10 +894,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={pathname}
-                    initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
+                    initial={{ opacity: 0, y: 8, filter: 'blur(3px)' }}
                     animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                    exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
-                    transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+                    exit={{ opacity: 0, y: -4, filter: 'blur(3px)' }}
+                    transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                    className="mx-auto w-full max-w-[1600px] px-5 sm:px-8 lg:px-12 xl:px-14 py-6 sm:py-8 lg:py-10"
                   >
                     {children}
                   </motion.div>
