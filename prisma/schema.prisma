@@ -689,6 +689,8 @@ model OutboxEvent {
   retryCount    Int       @default(0)
   nextRetryAt   DateTime? @db.Timestamptz(6)
   lastError     String?
+  errorCode     String?   // machine-readable: LINE_RATE_LIMIT, PERMANENT_4XX, TIMEOUT, etc.
+  lastFailedAt  DateTime? @db.Timestamptz(6)
 
   @@index([processedAt, scheduledAt])
   @@index([aggregateType, aggregateId])
@@ -711,18 +713,21 @@ enum InboxEventStatus {
 }
 
 model InboxEvent {
-  id          String           @id @default(uuid())
-  source      String           @default("LINE")
-  eventId     String           @unique
-  payload     Json
-  receivedAt  DateTime         @default(now()) @db.Timestamptz(6)
-  status      InboxEventStatus @default(PENDING)
-  retryCount  Int              @default(0)
-  nextRetryAt DateTime?        @db.Timestamptz(6)
-  processedAt DateTime?        @db.Timestamptz(6)
-  lastError   String?
+  id           String           @id @default(uuid())
+  source       String           @default("LINE")
+  eventId      String           @unique
+  payload      Json
+  receivedAt   DateTime         @default(now()) @db.Timestamptz(6)
+  status       InboxEventStatus @default(PENDING)
+  retryCount   Int              @default(0)
+  nextRetryAt  DateTime?        @db.Timestamptz(6)
+  processedAt  DateTime?        @db.Timestamptz(6)
+  lastError    String?
+  errorCode    String?          // machine-readable: LINE_RATE_LIMIT, TIMEOUT, etc.
+  lastFailedAt DateTime?        @db.Timestamptz(6)
 
   @@index([status, nextRetryAt])
+  @@index([status, lastFailedAt])
   @@index([receivedAt])
   @@map("inbox_events")
 }

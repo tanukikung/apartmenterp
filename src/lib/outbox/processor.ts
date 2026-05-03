@@ -5,6 +5,42 @@ import { EventBus, getEventBus, EventTypes } from '../events';
 import { prisma } from '../db/client';
 import { Json } from '@/types/prisma-json';
 import { logAudit } from '@/modules/audit/audit.service';
+import { inc, recordOutboxLatency } from '@/lib/metrics/messaging';
+
+// ── Error helpers ─────────────────────────────────────────────────────────────
+
+/** Derive a short machine-readable error code. */
+function toErrorCode(err: unknown): string {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  if (msg.includes('429'))                                        return 'LINE_RATE_LIMIT';
+  if (/\b40[0-8]\b/.test(msg))                                   return 'PERMANENT_4XX';
+  if (/\b5\d{2}\b/.test(msg))                                    return 'LINE_SERVER_ERROR';
+  if (msg.includes('timeout') || msg.includes('etimedout'))      return 'TIMEOUT';
+  if (msg.includes('econnrefused') || msg.includes('econnreset')) return 'CONNECTION_ERROR';
+  return 'UNKNOWN';
+}
+
+/**
+ * 4xx errors (except 429 rate-limit) are PERMANENT — retrying won't help.
+ * 401 Unauthorized: bad token; 403 Forbidden: feature not enabled for plan;
+ * 400 Bad Request: malformed message (won't fix itself).
+ * 429 and 5xx are transient and should be retried.
+ */
+function isPermanentError(err: unknown): boolean {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  if (msg.includes('429')) return false; // rate limit → retry
+  return /\b40[0-8]\b/.test(msg);       // 400–408 → permanent
+}
+
+/** Exponential backoff in ms with ±25 % jitter. */
+function backoffWithJitter(retryCount: number): number {
+  const baseMs   = (Math.pow(2, retryCount + 1) - 2) * 1_000;
+  const jitterMs = Math.floor(Math.random() * baseMs * 0.25);
+  return Math.max(1_000, baseMs + jitterMs);
+}
+
+/** Maximum age of an outbox event before it is forcibly dead-lettered (24 h). */
+const MAX_RETRY_WINDOW_MS = 24 * 60 * 60 * 1_000;
 
 export interface OutboxProcessorOptions {
   batchSize?: number;
@@ -207,6 +243,31 @@ export class OutboxProcessor {
         } catch { /* Redis unavailable — rate limiting disabled */ }
 
         for (const event of events) {
+          const startMs = Date.now();
+
+          // ── Max retry window: dead-letter events older than 24 h ─────────
+          const ageMs = Date.now() - new Date(event.createdAt).getTime();
+          if (ageMs > MAX_RETRY_WINDOW_MS && event.retryCount > 0) {
+            const windowMsg = `Max retry window exceeded (${Math.floor(ageMs / 3_600_000)}h)`;
+            await tx.outboxEvent.update({
+              where: { id: event.id },
+              data:  {
+                lastError:    `DEAD_LETTER: ${windowMsg}`,
+                errorCode:    'MAX_WINDOW_EXCEEDED',
+                lastFailedAt: new Date(),
+                processedAt:  new Date(),
+              },
+            });
+            inc('outbox_failed_total');
+            logger.warn({
+              type: 'outbox_max_window_dead_letter', eventId: event.id,
+              eventType: event.eventType, ageHours: Math.floor(ageMs / 3_600_000),
+            });
+            result.failed++;
+            result.errors.push({ eventId: event.id, error: windowMsg });
+            continue;
+          }
+
           try {
             // LINE API rate limit check — BEFORE marking processedAt so we can
             // reschedule without consuming the event.
@@ -216,13 +277,16 @@ export class OutboxProcessor {
                 const retryAfterMs = rateCheck.retryAfterMs || 5_000;
                 await tx.outboxEvent.update({
                   where: { id: event.id },
-                  data:  { nextRetryAt: new Date(Date.now() + retryAfterMs) },
+                  data:  {
+                    nextRetryAt:  new Date(Date.now() + retryAfterMs),
+                    errorCode:    'LINE_RATE_LIMIT',
+                    lastFailedAt: new Date(),
+                  },
                 });
+                inc('outbox_rate_limited_total');
                 logger.warn({
-                  type: 'outbox_rate_limited',
-                  eventId: event.id,
-                  eventType: event.eventType,
-                  retryAfterMs,
+                  type: 'outbox_rate_limited', eventId: event.id,
+                  eventType: event.eventType, retryAfterMs,
                 });
                 continue;
               }
@@ -259,6 +323,8 @@ export class OutboxProcessor {
                 event.aggregateId,
                 payload
               );
+              recordOutboxLatency(Date.now() - startMs);
+              inc('outbox_sent_total');
               result.processed++;
               logger.debug({
                 type: 'outbox_event_processed',
@@ -269,9 +335,14 @@ export class OutboxProcessor {
               // Event is already marked processed — it will NOT be retried.
               // Write the error to lastError so the dead-letter admin UI shows it.
               const publishErrorMessage = publishError instanceof Error ? publishError.message : 'Unknown publish error';
+              const errCode = toErrorCode(publishError);
               await tx.outboxEvent.update({
                 where: { id: event.id },
-                data: { lastError: `PUBLISH_FAILED: ${publishErrorMessage}` },
+                data:  {
+                  lastError:    `PUBLISH_FAILED: ${publishErrorMessage}`,
+                  errorCode:    errCode,
+                  lastFailedAt: new Date(),
+                },
               });
               await logAudit({
                 actorId: 'SYSTEM',
@@ -284,15 +355,15 @@ export class OutboxProcessor {
                   outboxEventId: event.id,
                   eventType: event.eventType,
                   failurePhase: 'PUBLISH',
+                  errorCode: errCode,
                   lastError: publishErrorMessage,
                   failedAt: new Date().toISOString(),
                 },
               });
+              inc('outbox_failed_total');
               logger.error({
-                type: 'outbox_publish_failed',
-                eventId: event.id,
-                eventType: event.eventType,
-                error: publishErrorMessage,
+                type: 'outbox_publish_failed', eventId: event.id,
+                eventType: event.eventType, errorCode: errCode, error: publishErrorMessage,
               });
               result.failed++;
               result.errors.push({ eventId: event.id, error: publishErrorMessage });
@@ -300,74 +371,74 @@ export class OutboxProcessor {
 
           } catch (error) {
             // Error during the pre-publish DB mark — event was NOT marked processed.
-            // Increment retryCount so it will be retried on the next poll cycle.
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            const errCode  = toErrorCode(error);
             const nextRetry = event.retryCount + 1;
-            if (nextRetry >= this.options.deadLetterThreshold) {
+            const permanent = isPermanentError(error);
+
+            // Permanent errors (4xx except 429) skip retries — dead-letter immediately
+            const shouldDeadLetter = permanent || nextRetry >= this.options.deadLetterThreshold;
+
+            if (shouldDeadLetter) {
+              const dlReason = permanent ? `PERMANENT_ERROR: ${errorMessage}` : `DEAD_LETTER: ${errorMessage}`;
               await tx.outboxEvent.update({
                 where: { id: event.id },
                 data: {
-                  lastError: `DEAD_LETTER: ${errorMessage}`,
-                  processedAt: new Date(),
+                  lastError:    dlReason,
+                  errorCode:    permanent ? 'PERMANENT_4XX' : errCode,
+                  lastFailedAt: new Date(),
+                  processedAt:  new Date(),
                 },
               });
               logger.error({
-                type: 'outbox_dead_letter',
-                eventId: event.id,
-                retryCount: event.retryCount,
-                error: errorMessage,
+                type: permanent ? 'outbox_permanent_error' : 'outbox_dead_letter',
+                eventId: event.id, eventType: event.eventType,
+                errorCode: errCode, retryCount: event.retryCount, error: errorMessage,
               });
+              if (permanent) inc('outbox_permanent_fail_total');
 
               await logAudit({
-                actorId: 'SYSTEM',
-                actorRole: 'SYSTEM',
-                action: 'OUTBOX_EVENT_FAILED',
-                entityType: event.aggregateType,
-                entityId: event.aggregateId,
+                actorId: 'SYSTEM', actorRole: 'SYSTEM', action: 'OUTBOX_EVENT_FAILED',
+                entityType: event.aggregateType, entityId: event.aggregateId,
                 metadata: {
-                  severity: 'HIGH',
-                  outboxEventId: event.id,
-                  eventType: event.eventType,
-                  aggregateType: event.aggregateType,
-                  aggregateId: event.aggregateId,
-                  retryCount: event.retryCount,
-                  lastError: errorMessage,
-                  failedAt: new Date().toISOString(),
+                  severity: 'HIGH', outboxEventId: event.id, eventType: event.eventType,
+                  aggregateType: event.aggregateType, aggregateId: event.aggregateId,
+                  retryCount: event.retryCount, errorCode: errCode, lastError: errorMessage,
+                  permanent, failedAt: new Date().toISOString(),
                 },
               });
 
               await this.eventBus.publish(
                 EventTypes.OUTBOX_EVENT_FAILED,
-                event.aggregateType,
-                event.aggregateId,
+                event.aggregateType, event.aggregateId,
                 {
-                  outboxEventId: event.id,
-                  eventType: event.eventType,
-                  aggregateType: event.aggregateType,
-                  aggregateId: event.aggregateId,
-                  retryCount: event.retryCount,
-                  lastError: errorMessage,
-                  failedAt: new Date(),
+                  outboxEventId: event.id, eventType: event.eventType,
+                  aggregateType: event.aggregateType, aggregateId: event.aggregateId,
+                  retryCount: event.retryCount, errorCode: errCode,
+                  lastError: errorMessage, failedAt: new Date(),
                 }
               );
             } else {
-              const backoffMs = (Math.pow(2, nextRetry + 1) - 2) * 1_000;
+              // Transient error — schedule retry with jitter
+              const backoffMs = backoffWithJitter(nextRetry);
               await tx.outboxEvent.update({
                 where: { id: event.id },
                 data: {
-                  lastError: errorMessage,
-                  retryCount: { increment: 1 },
-                  nextRetryAt: new Date(Date.now() + backoffMs),
+                  lastError:    errorMessage,
+                  errorCode:    errCode,
+                  lastFailedAt: new Date(),
+                  retryCount:   { increment: 1 },
+                  nextRetryAt:  new Date(Date.now() + backoffMs),
                 },
               });
             }
 
+            inc('outbox_failed_total');
             result.failed++;
             result.errors.push({ eventId: event.id, error: errorMessage });
             logger.error({
-              type: 'outbox_event_error',
-              eventId: event.id,
-              error: errorMessage,
+              type: 'outbox_event_error', eventId: event.id,
+              eventType: event.eventType, errorCode: errCode, error: errorMessage,
             });
           }
         }
