@@ -358,7 +358,7 @@ export default function AdminContractsPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+        throw new Error(json.message ?? json.error?.message ?? (typeof json.error === 'string' ? json.error : JSON.stringify(json.error)) ?? `ไม่สำเร็จ: รหัส ${res.status}`);
       }
       closePanel();
       void queryClient.invalidateQueries({ queryKey: ['contracts'] });
@@ -389,7 +389,7 @@ export default function AdminContractsPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+        throw new Error(json.message ?? json.error?.message ?? (typeof json.error === 'string' ? json.error : JSON.stringify(json.error)) ?? `ไม่สำเร็จ: รหัส ${res.status}`);
       }
       setEditSuccess('อัปเดตสัญญาเรียบร้อยแล้ว');
       void queryClient.invalidateQueries({ queryKey: ['contracts'] });
@@ -423,7 +423,7 @@ export default function AdminContractsPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+        throw new Error(json.message ?? json.error?.message ?? (typeof json.error === 'string' ? json.error : JSON.stringify(json.error)) ?? `ไม่สำเร็จ: รหัส ${res.status}`);
       }
       setRenewSuccess('ต่อสัญญาเรียบร้อยแล้ว');
       setShowRenewForm(false);
@@ -454,7 +454,7 @@ export default function AdminContractsPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`);
+        throw new Error(json.message ?? json.error?.message ?? (typeof json.error === 'string' ? json.error : JSON.stringify(json.error)) ?? `ไม่สำเร็จ: รหัส ${res.status}`);
       }
       setShowTerminateDialog(false);
       setTerminateDate('');

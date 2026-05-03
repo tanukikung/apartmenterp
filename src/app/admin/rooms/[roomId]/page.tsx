@@ -225,10 +225,11 @@ function GlassInfoRow({ icon, label, value }: { icon?: React.ReactNode; label: s
 // Tabs
 // ─────────────────────────────────────────────────────────────────────────────
 
-function OverviewTab({ room, editingRoom, setEditingRoom, editForm, setEditForm, editSaving, editError, editSuccess, saveEditRoom, accounts, rules }: {
+function OverviewTab({ room, editingRoom, setEditingRoom, startEdit, editForm, setEditForm, editSaving, editError, editSuccess, saveEditRoom, accounts, rules }: {
   room: Room;
   editingRoom: boolean;
   setEditingRoom: (v: boolean) => void;
+  startEdit: () => void;
   editForm: { defaultRentAmount: string; hasFurniture: boolean; defaultFurnitureAmount: string; defaultRuleCode: string; defaultAccountId: string };
   setEditForm: (f: typeof editForm) => void;
   editSaving: boolean;
@@ -305,7 +306,7 @@ function OverviewTab({ room, editingRoom, setEditingRoom, editForm, setEditForm,
             ข้อมูลห้อง
           </div>
           <button
-            onClick={() => setEditingRoom(true)}
+            onClick={startEdit}
             className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))]/15 px-3 py-1.5 text-[11px] font-semibold text-[hsl(var(--primary))] border border-[hsl(var(--primary))]/25 shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:bg-[hsl(var(--primary))]/25 active:scale-[0.98] transition-all duration-200"
           >
             <Pencil size={12} /> แก้ไขข้อมูลห้อง
@@ -944,7 +945,7 @@ export default function RoomDetailPage() {
               <ArrowLeft className="h-4 w-4" /> กลับ
             </Link>
             <button
-              onClick={() => setEditingRoom(true)}
+              onClick={_startEditRoom}
               className="inline-flex items-center gap-2 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200"
             >
               <Pencil className="h-4 w-4" /> แก้ไข
@@ -982,7 +983,7 @@ export default function RoomDetailPage() {
 
         {/* Tab content */}
         <div className="p-6">
-          {activeTab === 'overview' && <OverviewTab room={room} editingRoom={editingRoom} setEditingRoom={setEditingRoom} editForm={editForm} setEditForm={setEditForm} editSaving={editSaving} editError={editError} editSuccess={editSuccess} saveEditRoom={saveEditRoom} accounts={accounts} rules={rules} />}
+          {activeTab === 'overview' && <OverviewTab room={room} editingRoom={editingRoom} setEditingRoom={setEditingRoom} startEdit={_startEditRoom} editForm={editForm} setEditForm={setEditForm} editSaving={editSaving} editError={editError} editSuccess={editSuccess} saveEditRoom={saveEditRoom} accounts={accounts} rules={rules} />}
           {activeTab === 'tenant' && <TenantTab roomNo={room.roomNo} room={room} assigningTenant={assigningTenant} setAssigningTenant={setAssigningTenant} selectedTenantId={selectedTenantId} setSelectedTenantId={setSelectedTenantId} tenantOptions={tenantOptions} assignLoading={assignLoading} assignError={assignError} assignSuccess={assignSuccess} handleAssignTenant={handleAssignTenant} />}
           {activeTab === 'invoices' && <InvoicesTab roomNo={room.roomNo} />}
           {activeTab === 'maintenance' && <MaintenanceTab roomNo={room.roomNo} />}

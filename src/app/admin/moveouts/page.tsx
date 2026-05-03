@@ -250,7 +250,7 @@ export default function AdminMoveOutsPage() {
       const json = await res.json();
       if (!res.ok || !json.success) {
         throw new Error(
-          json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`,
+          json.message ?? json.error?.message ?? (typeof json.error === 'string' ? json.error : JSON.stringify(json.error)) ?? `ไม่สำเร็จ: รหัส ${res.status}`,
         );
       }
       closePanel();
@@ -286,7 +286,7 @@ export default function AdminMoveOutsPage() {
       const json = await res.json();
       if (!res.ok || !json.success) {
         throw new Error(
-          json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`,
+          json.message ?? json.error?.message ?? (typeof json.error === 'string' ? json.error : JSON.stringify(json.error)) ?? `ไม่สำเร็จ: รหัส ${res.status}`,
         );
       }
       setSelectedMoveOut(json.data);
@@ -320,7 +320,7 @@ export default function AdminMoveOutsPage() {
       const json = await res.json();
       if (!res.ok || !json.success) {
         throw new Error(
-          json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`,
+          json.message ?? json.error?.message ?? (typeof json.error === 'string' ? json.error : JSON.stringify(json.error)) ?? `ไม่สำเร็จ: รหัส ${res.status}`,
         );
       }
       const detailRes = await fetch(`/api/moveouts/${selectedMoveOut.id}`);
@@ -365,7 +365,7 @@ export default function AdminMoveOutsPage() {
           if (!res.ok) {
             const json = await res.json();
             throw new Error(
-              json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`,
+              json.message ?? json.error?.message ?? (typeof json.error === 'string' ? json.error : JSON.stringify(json.error)) ?? `ไม่สำเร็จ: รหัส ${res.status}`,
             );
           }
           const detailRes = await fetch(
@@ -406,7 +406,7 @@ export default function AdminMoveOutsPage() {
           const json = await res.json();
           if (!res.ok || !json.success) {
             throw new Error(
-              json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`,
+              json.message ?? json.error?.message ?? (typeof json.error === 'string' ? json.error : JSON.stringify(json.error)) ?? `ไม่สำเร็จ: รหัส ${res.status}`,
             );
           }
           setSelectedMoveOut(json.data);
@@ -441,7 +441,7 @@ export default function AdminMoveOutsPage() {
           const json = await res.json();
           if (!res.ok || !json.success) {
             throw new Error(
-              json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`,
+              json.message ?? json.error?.message ?? (typeof json.error === 'string' ? json.error : JSON.stringify(json.error)) ?? `ไม่สำเร็จ: รหัส ${res.status}`,
             );
           }
           setSelectedMoveOut(json.data);
@@ -477,7 +477,7 @@ export default function AdminMoveOutsPage() {
           const json = await res.json();
           if (!res.ok || !json.success) {
             throw new Error(
-              json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`,
+              json.message ?? json.error?.message ?? (typeof json.error === 'string' ? json.error : JSON.stringify(json.error)) ?? `ไม่สำเร็จ: รหัส ${res.status}`,
             );
           }
           closePanel();
@@ -506,7 +506,7 @@ export default function AdminMoveOutsPage() {
       const json = await res.json();
       if (!res.ok || !json.success) {
         throw new Error(
-          json.message ?? json.error ?? `ไม่สำเร็จ: รหัส ${res.status}`,
+          json.message ?? json.error?.message ?? (typeof json.error === 'string' ? json.error : JSON.stringify(json.error)) ?? `ไม่สำเร็จ: รหัส ${res.status}`,
         );
       }
       toast('ส่งการแจ้งเตือนไปยัง LINE เรียบร้อยแล้ว', 'success');

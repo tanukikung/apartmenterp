@@ -70,7 +70,7 @@ async function fetchFloors(): Promise<{ data: FloorOption[] }> {
   if (!res.ok) throw new Error('Failed to fetch floors');
   const json = await res.json();
   if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
-  return json.data;
+  return { data: json.data };
 }
 
 async function fetchRooms(): Promise<{ data: Room[] }> {
