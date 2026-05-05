@@ -12,6 +12,17 @@ import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 const CHAT_WINDOW_MS = 60 * 1000;
 const CHAT_MAX_ATTEMPTS = 20;
 
+/**
+ * POST /api/reminders/bulk-send
+ * Sends reminders to tenants for invoices.
+ *
+ * Body schema:
+ * - invoiceIds?: string[]         — specific invoice UUIDs
+ * - floorNumbers?: number[]       — filter by floor numbers
+ * - sendType: 'OVERDUE' | 'DUE_SOON' | 'ALL'  — category of invoices (required)
+ * - message?: string              — custom message (default: reminder template)
+ * - templateId?: string           — message template UUID
+ */
 const schema = z.object({
   invoiceIds: z.array(z.string().uuid()).optional(),
   floorNumbers: z.array(z.number()).optional(),

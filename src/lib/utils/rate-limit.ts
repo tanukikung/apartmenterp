@@ -4,6 +4,7 @@
 // In-memory fallback for single-instance or when Redis is unavailable.
 // ============================================================================
 
+import type { NextRequest } from 'next/server';
 import { redisRateLimit, isRedisConfigured } from '@/infrastructure/redis';
 
 interface BucketEntry {
@@ -15,6 +16,32 @@ export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
   resetAt: Date;
+}
+
+/**
+ * Extract client IP from request headers.
+ *
+ * Supports:
+ * - x-forwarded-for (standard proxy header)
+ * - x-test-ip (ONLY in test/development env — allows test scripts to
+ *   simulate requests from different IPs to verify per-IP rate limiting)
+ *
+ * In production, x-test-ip is ignored entirely.
+ */
+export function getClientIp(req: Request | NextRequest): string {
+  // x-test-ip ONLY allowed in development/test environments.
+  // In production (NODE_ENV=production) this header is always ignored.
+  if (process.env.NODE_ENV !== 'production') {
+    const testIp = (req as NextRequest).headers.get('x-test-ip');
+    if (testIp) return testIp;
+  }
+
+  const forwarded = (req as NextRequest).headers.get('x-forwarded-for');
+  if (forwarded) {
+    return forwarded.split(',')[0]!.trim();
+  }
+
+  return '0.0.0.0';
 }
 
 export class RateLimiter {

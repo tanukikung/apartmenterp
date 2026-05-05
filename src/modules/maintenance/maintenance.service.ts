@@ -54,6 +54,7 @@ export class MaintenanceService {
         create(args: { data: unknown }): Promise<TicketMinimal>;
         update(args: { where: { id: string }; data: unknown }): Promise<TicketMinimal>;
         findMany(args?: unknown): Promise<Array<Record<string, unknown>>>;
+        count(args?: { where?: unknown }): Promise<number>;
       };
       maintenanceAttachment: { create(args: { data: unknown }): Promise<unknown> };
       maintenanceComment: { create(args: { data: unknown }): Promise<{ id: string }> };
@@ -155,6 +156,40 @@ export class MaintenanceService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async listTicketsPaginated(params: {
+    status?: MaintenanceStatus;
+    priority?: MaintenancePriority;
+    floorNo?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const { status, priority, floorNo, page = 1, pageSize = 20 } = params;
+    const m = this.asMaintenance(prisma);
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status;
+    if (priority) where.priority = priority;
+    if (floorNo) where.room = { floorNo };
+
+    const [tickets, total] = await Promise.all([
+      m.maintenanceTicket.findMany({
+        where,
+        include: { room: true, tenant: true },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      m.maintenanceTicket.count({ where }),
+    ]);
+
+    return {
+      tickets,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async assignStaff(input: AssignMaintenanceInput, actorId: string) {

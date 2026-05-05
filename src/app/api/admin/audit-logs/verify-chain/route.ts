@@ -10,6 +10,14 @@ export const POST = asyncHandler(async (_req: NextRequest): Promise<NextResponse
 
   const result = await verifyAuditLogChain();
 
+  // No logs = valid chain (nothing to break)
+  if (result.total === 0) {
+    return NextResponse.json(
+      { success: true, data: { valid: true, message: 'No audit logs to verify' } },
+      { status: 200 },
+    );
+  }
+
   if (result.valid) {
     return NextResponse.json(
       { success: true, data: { valid: true, total: result.total } },
@@ -24,7 +32,8 @@ export const POST = asyncHandler(async (_req: NextRequest): Promise<NextResponse
         valid: false,
         brokenAt: result.brokenAt,
         total: result.total,
-        error: result.error,
+        error: 'AUDIT_CHAIN_BROKEN',
+        message: result.error ?? 'Hash mismatch detected',
       },
     },
     { status: 200 },
