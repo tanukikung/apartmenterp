@@ -196,7 +196,8 @@ export interface VerifyChainResult {
  * Returns { valid: true } if the chain is intact.
  * Returns { valid: false, brokenAt, total, error } on first detected break.
  *
- * Uses cursor-based pagination internally — O(n) time, O(1) extra space.
+ * Uses offset pagination with Prisma ORM — O(n) time, O(1) extra space.
+ * No raw SQL — uses prisma.auditLog.findMany() to avoid P2010 permission issues.
  */
 export async function verifyAuditLogChain(): Promise<VerifyChainResult> {
   let secret: string;
@@ -209,29 +210,30 @@ export async function verifyAuditLogChain(): Promise<VerifyChainResult> {
   const BATCH = 500;
   let prevSignature = GENESIS_SIGNATURE;
   let globalIdx = 0;
+  let skip = 0;
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   while (true) {
-    const rows = await prisma.$queryRawUnsafe<Array<{
-      id: string;
-      action: string;
-      entityType: string;
-      entityId: string;
-      userId: string;
-      userName: string;
-      details: string | null;
-      ipAddress: string | null;
-      createdAt: Date;
-      entityVersion: number;
-      previousSignature: string | null;
-    }>>(
-      `SELECT id, action, entity_type, entity_id, user_id, user_name,
-              details, ip_address, created_at, entity_version, previous_signature
-         FROM audit_logs
-     ORDER BY created_at ASC
-        LIMIT $1`,
-      BATCH,
-    );
+    // Use Prisma ORM — no raw SQL, no P2010 permission issues.
+    // details is Json? in Prisma schema, so it is already deserialized as an object.
+    const rows = await prisma.auditLog.findMany({
+      orderBy: { createdAt: 'asc' },
+      skip,
+      take: BATCH,
+      select: {
+        id: true,
+        action: true,
+        entityType: true,
+        entityId: true,
+        userId: true,
+        userName: true,
+        details: true,
+        ipAddress: true,
+        createdAt: true,
+        entityVersion: true,
+        previousSignature: true,
+      },
+    });
 
     if (rows.length === 0) break;
 
@@ -244,7 +246,7 @@ export async function verifyAuditLogChain(): Promise<VerifyChainResult> {
         entityId: row.entityId,
         userId: row.userId,
         userName: row.userName,
-        details: row.details !== null ? (JSON.parse(row.details) as Record<string, unknown>) : null,
+        details: row.details as Record<string, unknown> | null,
         ipAddress: row.ipAddress,
         createdAt: row.createdAt,
         entityVersion: row.entityVersion,
@@ -265,6 +267,7 @@ export async function verifyAuditLogChain(): Promise<VerifyChainResult> {
     }
 
     if (rows.length < BATCH) break;
+    skip += BATCH;
   }
 
   return { valid: true, total: globalIdx };
