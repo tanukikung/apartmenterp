@@ -20,7 +20,7 @@ export const POST = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
 
   const service = getDeliveryService();
   const result = await service.sendSingleDocument(params.id, session.sub);

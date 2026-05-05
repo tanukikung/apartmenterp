@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/client';
 import { requireAuthSession, getRequestIp } from '@/lib/auth/guards';
 import { hashPassword, verifyPassword } from '@/lib/auth/password';
-import { setAuthCookies } from '@/lib/auth/session';
+import { signSessionToken } from '@/lib/auth/session';
 import { asyncHandler, ApiResponse, BadRequestError, UnauthorizedError } from '@/lib/utils/errors';
 import { logAudit } from '@/modules/audit/audit.service';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
@@ -26,7 +26,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
 
-  const session = requireAuthSession(req);
+  const session = await requireAuthSession(req);
   const body = changePasswordSchema.parse(await req.json());
 
   if (body.password !== body.confirmPassword) {
@@ -68,15 +68,17 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     message: 'Password changed successfully',
   } as ApiResponse<null>);
 
-  setAuthCookies(response, {
+  const token = await signSessionToken({
     sub: updated.id,
     username: updated.username,
     displayName: updated.displayName,
     role: updated.role,
     forcePasswordChange: false,
     buildingId: updated.buildingId,
-    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 12,
   });
-
+  const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 12;
+  const secure = process.env.COOKIE_SECURE === 'true';
+  response.cookies.set('auth_session', token, { httpOnly: true, sameSite: 'lax', secure, path: '/', expires: new Date(expiresAt * 1000) });
+  response.cookies.set('role', updated.role, { httpOnly: true, sameSite: 'lax', secure, path: '/', expires: new Date(expiresAt * 1000) });
   return response;
 });

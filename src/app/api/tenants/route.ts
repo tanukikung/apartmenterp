@@ -8,6 +8,7 @@ import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { requireOperator, requireRole, requireBuildingAccess } from '@/lib/auth/guards';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { requireMutationsAllowed } from '@/lib/guards/system';
 
 const ADMIN_WINDOW_MS = 60 * 1000;
 const ADMIN_MAX_ATTEMPTS = 20;
@@ -19,7 +20,7 @@ export const dynamic = 'force-dynamic';
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireOperator(req);
+  await await requireOperator(req);
   const url = new URL(req.url);
   
   const query = {
@@ -48,6 +49,9 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 // ============================================================================
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  const blocked = await requireMutationsAllowed();
+  if (blocked) return blocked;
+
   const limiter = getLoginRateLimiter();
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
   const { allowed, remaining, resetAt } = await limiter.check(`tenants:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
@@ -57,7 +61,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
   requireBuildingAccess(session, null);
   const body = await req.json();
 

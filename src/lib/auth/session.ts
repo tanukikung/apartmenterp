@@ -1,16 +1,15 @@
-import { createHmac, randomBytes, createHash } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import { SignJWT, jwtVerify, JWTPayload } from 'jose';
 import { AdminRole } from '@prisma/client';
-import { getAuthSecret, resolveAuthSecret } from '@/lib/config/env';
+import { getAuthSecret } from '@/lib/config/env';
 
 export const AUTH_COOKIE_NAME = 'auth_session';
 export const ROLE_COOKIE_NAME = 'role';
 
-// WARNING: The session payload is base64-encoded JSON, NOT encrypted.
-// The token is signed (HMAC-SHA256) to prevent tampering, but the payload is
-// visible to anyone who can read the cookie. DO NOT store sensitive data
-// (passwords, credit card numbers, personal identification numbers, etc.)
-// in the session payload. Treat the payload as publicly visible.
+// WARNING: The session JWT payload is visible to anyone who can read the cookie.
+// DO NOT store sensitive data (passwords, credit card numbers, personal identification
+// numbers, etc.) in the session payload. Treat the payload as publicly visible.
 
 // TODO [security/building-isolation]: Building isolation is NOT yet implemented at the API layer.
 // All ADMIN/STAFF users can access all buildings' data regardless of buildingId.
@@ -19,46 +18,49 @@ export const ROLE_COOKIE_NAME = 'role';
 // 2. Ensure session.buildingId is set on login and checked in every API route.
 // 3. Add buildingId filtering to all list queries (tenants, rooms, invoices, etc.).
 // Currently buildingId in session is informational only - it is NOT enforced by any guard.
-export interface AuthSessionPayload {
+
+export interface AuthSessionPayload extends JWTPayload {
   sub: string;
   username: string;
   displayName: string;
   role: AdminRole;
   forcePasswordChange: boolean;
   buildingId: string | null; // Reserved for multi-building isolation (not yet enforced at API layer)
-  exp: number;
   version?: number;
   lastLoginAt?: string;
 }
 
-function encodeBase64Url(input: string): string {
-  return Buffer.from(input, 'utf8').toString('base64url');
+function getSecretKey(secret: string): Uint8Array {
+  return new TextEncoder().encode(secret);
 }
 
-function decodeBase64Url(input: string): string {
-  return Buffer.from(input, 'base64url').toString('utf8');
+export async function signSessionToken(
+  payload: Omit<AuthSessionPayload, 'iat' | 'exp' | 'iss' | 'sub'>,
+  secret = getAuthSecret()
+): Promise<string> {
+  const token = await new SignJWT(payload as Record<string, unknown>)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .setSubject(payload.sub as string)
+    .sign(getSecretKey(secret));
+  return token;
 }
 
-export function signSessionToken(payload: AuthSessionPayload, secret = getAuthSecret()): string {
-  const encodedPayload = encodeBase64Url(JSON.stringify(payload));
-  const signature = createHmac('sha256', secret).update(encodedPayload).digest('base64url');
-  return `${encodedPayload}.${signature}`;
-}
-
-export function verifySessionToken(token: string, secret: string | null = resolveAuthSecret()): AuthSessionPayload | null {
+export async function verifySessionToken(
+  token: string,
+  secret: string | null = getAuthSecret()
+): Promise<AuthSessionPayload | null> {
   if (!secret) return null;
-  const [encodedPayload, signature] = token.split('.');
-  if (!encodedPayload || !signature) return null;
-
-  const expectedSignature = createHmac('sha256', secret).update(encodedPayload).digest('base64url');
-  if (signature !== expectedSignature) return null;
-
   try {
-    const payload = JSON.parse(decodeBase64Url(encodedPayload)) as AuthSessionPayload;
-    if (!payload?.sub || !payload?.role || !payload?.exp || typeof payload.forcePasswordChange !== 'boolean') return null;
-    if (typeof payload.buildingId !== 'string' && payload.buildingId !== null) return null;
-    if (payload.exp * 1000 <= Date.now()) return null;
-    return payload;
+    const { payload } = await jwtVerify(token, getSecretKey(secret), {
+      algorithms: ['HS256'],
+    });
+    const p = payload as AuthSessionPayload;
+    if (!p?.sub || !p?.role || !p?.exp) return null;
+    if (typeof p.forcePasswordChange !== 'boolean') return null;
+    if (typeof p.buildingId !== 'string' && p.buildingId !== null) return null;
+    return p;
   } catch {
     return null;
   }
@@ -66,52 +68,65 @@ export function verifySessionToken(token: string, secret: string | null = resolv
 
 // Sliding expiration: refresh session if valid and within the early refresh window.
 // Returns the refreshed payload if renewed, otherwise returns null (no refresh needed or session invalid).
-export function refreshSessionIfNeeded(payload: AuthSessionPayload, refreshBeforeSecs = 60 * 5): AuthSessionPayload | null {
+export async function refreshSessionIfNeeded(
+  payload: AuthSessionPayload,
+  secret = getAuthSecret(),
+  refreshBeforeSecs = 60 * 5
+): Promise<{ token: string; payload: AuthSessionPayload } | null> {
   const nowMs = Date.now();
-  const expMs = payload.exp * 1000;
-  // Only refresh if: (a) not yet expired, and (b) expiring within the early refresh window
+  const expMs = (payload.exp as number) * 1000;
   if (expMs <= nowMs) return null;
-  if (expMs - nowMs > refreshBeforeSecs * 1000) return null; // Not yet near expiry
-  // Refresh: bump expiry by another 12 hours from now
-  const refreshed: AuthSessionPayload = { ...payload, exp: Math.floor(nowMs / 1000) + 60 * 60 * 12 };
-  return refreshed;
+  if (expMs - nowMs > refreshBeforeSecs * 1000) return null;
+  // Refresh: re-sign with new expiry (12h from now)
+  const refreshed: Omit<AuthSessionPayload, 'iat' | 'exp' | 'iss' | 'sub'> = {
+    username: payload.username,
+    displayName: payload.displayName,
+    role: payload.role,
+    forcePasswordChange: payload.forcePasswordChange,
+    buildingId: payload.buildingId,
+    version: payload.version,
+    lastLoginAt: payload.lastLoginAt,
+  };
+  const newToken = await signSessionToken(refreshed, secret);
+  return {
+    token: newToken,
+    payload: { ...payload, exp: Math.floor(nowMs / 1000) + 60 * 60 * 12 },
+  };
 }
 
-export function getSessionFromRequest(req: NextRequest): AuthSessionPayload | null {
+export async function getSessionFromRequest(req: NextRequest): Promise<AuthSessionPayload | null> {
   const cookieStore = (req as { cookies?: { get?: (name: string) => { value?: string } | undefined } }).cookies;
-  if (!cookieStore || typeof cookieStore.get !== 'function') {
-    return null;
-  }
+  if (!cookieStore || typeof cookieStore.get !== 'function') return null;
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
   if (!token) return null;
   return verifySessionToken(token);
 }
 
-export function setAuthCookies(res: NextResponse, payload: AuthSessionPayload): void {
-  // SECURITY: COOKIE_SECURE must be explicitly set to 'true' when serving over HTTPS.
-  // Never auto-enable based on NODE_ENV alone, as that can cause silent auth failures.
+export async function setAuthCookies(
+  res: NextResponse,
+  payload: Omit<AuthSessionPayload, 'iat' | 'exp' | 'iss' | 'sub'>
+): Promise<void> {
   const secure = process.env.COOKIE_SECURE === 'true';
-  const token = signSessionToken(payload);
+  const token = await signSessionToken(payload);
 
   res.cookies.set(AUTH_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: 'lax',
     secure,
     path: '/',
-    expires: new Date(payload.exp * 1000),
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   });
 
-  res.cookies.set(ROLE_COOKIE_NAME, payload.role, {
+  res.cookies.set(ROLE_COOKIE_NAME, payload.role as string, {
     httpOnly: true,
     sameSite: 'lax',
     secure,
     path: '/',
-    expires: new Date(payload.exp * 1000),
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   });
 }
 
 export function clearAuthCookies(res: NextResponse): void {
-  // Same secure flag as setAuthCookies — must match to allow clearing the cookie
   const secure = process.env.COOKIE_SECURE === 'true';
   res.cookies.set(AUTH_COOKIE_NAME, '', { httpOnly: true, sameSite: 'lax', secure, path: '/', expires: new Date(0) });
   res.cookies.set(ROLE_COOKIE_NAME, '', { httpOnly: true, sameSite: 'lax', secure, path: '/', expires: new Date(0) });

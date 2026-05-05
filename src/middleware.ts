@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifySessionTokenEdge, refreshSessionEdgeIfNeeded, signSessionTokenEdge } from '@/lib/auth/session-edge';
+import { verifySessionTokenEdge, refreshSessionEdgeIfNeeded } from '@/lib/auth/session-edge';
 import { resolveAuthSecret } from '@/lib/config/env';
 import { isCsrfExemptApiRoute } from '@/lib/auth/api-policy';
 import { logger } from '@/lib/utils/logger';
@@ -9,11 +9,6 @@ import { logger } from '@/lib/utils/logger';
 // ============================================================================
 // Rate Limiting — In-memory store for Edge runtime (single-instance, no Redis)
 // ============================================================================
-
-interface RateLimitEntry {
-  count: number;
-  resetAt: number; // epoch ms
-}
 
 // Auth route: 300 req/min per IP (higher to accommodate NextAuth polling)
 const AUTH_RATE_LIMIT = 300;
@@ -190,17 +185,17 @@ export async function middleware(req: NextRequest) {
       const session = sessionToken && secret ? await verifySessionTokenEdge(sessionToken, secret) : null;
       // Sliding expiration: refresh session if within 5-minute window
       if (session) {
-        const refreshed = refreshSessionEdgeIfNeeded(session, 60 * 5);
+        const refreshed = await refreshSessionEdgeIfNeeded(session, secret!, 60 * 5);
         if (refreshed) {
           // Re-sign the token and set refreshed cookie using edge-compatible signing
-          const newToken = await signSessionTokenEdge(refreshed, secret!);
+          const newToken = refreshed.token;
           const res = NextResponse.next();
           res.cookies.set('auth_session', newToken, {
             httpOnly: true,
             sameSite: 'lax',
             secure: process.env.COOKIE_SECURE === 'true',
             path: '/',
-            expires: new Date(refreshed.exp * 1000),
+            expires: new Date((refreshed.payload.exp as number) * 1000),
           });
           res.headers.set('x-request-id', requestId);
           res.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');

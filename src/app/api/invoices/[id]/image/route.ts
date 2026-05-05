@@ -94,7 +94,7 @@ export const GET = asyncHandler(
       });
 
       const renderedHtml = renderTemplate(templateBody, templateData);
-      const invoiceNumber = preview.invoiceNumber || `INV-${preview.year}${String(preview.month).padStart(2, '0')}-${preview.roomNo}`;
+      const _invoiceNumber = preview.invoiceNumber || `INV-${preview.year}${String(preview.month).padStart(2, '0')}-${preview.roomNo}`;
 
       // A4 at 2x scale = 2480 x 3508 px
       // We use viewport width ~794 (A4 at 96dpi) and let fullPage capture everything

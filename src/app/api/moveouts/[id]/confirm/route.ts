@@ -29,7 +29,7 @@ export const POST = asyncHandler(async (req: NextRequest, { params }: RouteParam
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -39,7 +39,7 @@ export const POST = asyncHandler(async (req: NextRequest, { params }: RouteParam
       { status: 400 }
     );
   }
-  const actor = getVerifiedActor(req);
+  const actor = await await getVerifiedActor(req);
 
   const input = confirmMoveOutSchema.parse(body);
 

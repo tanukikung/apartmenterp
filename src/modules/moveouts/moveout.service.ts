@@ -393,9 +393,10 @@ export class MoveOutService {
 
   /**
    * Delete inspection item
+   * @param reason - optional reason for audit trail (validated at API layer)
    */
-  async deleteItem(itemId: string): Promise<void> {
-    logger.info({ type: 'moveout_item_delete', itemId });
+  async deleteItem(itemId: string, reason?: string): Promise<void> {
+    logger.info({ type: 'moveout_item_delete', itemId, reason });
 
     const item = await prisma.moveOutItem.findUnique({
       where: { id: itemId },

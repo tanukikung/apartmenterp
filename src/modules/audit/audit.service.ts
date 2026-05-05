@@ -293,7 +293,7 @@ async function logAuditAsync(input: LogAuditInput): Promise<void> {
   let ipAddress: string | null;
 
   if (req) {
-    const verified = getVerifiedActor(req);
+    const verified = await getVerifiedActor(req);
     actorId = verified.actorId;
     actorRole = verified.actorRole;
     ipAddress = verified.ipAddress ?? rawIpAddress ?? null;
@@ -359,6 +359,7 @@ async function logAuditAsync(input: LogAuditInput): Promise<void> {
       createdAt,
       entityVersion,
       previousSignature: entrySignature,
+      eventHash: entrySignature, // HMAC chain entrySignature serves as eventHash for schema
     },
   });
 

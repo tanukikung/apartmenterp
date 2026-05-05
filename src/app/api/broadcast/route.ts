@@ -38,7 +38,7 @@ const listSchema = z.object({
 
 // GET /api/broadcast — list broadcasts
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const { searchParams } = new URL(req.url);
   const raw = Object.fromEntries(searchParams.entries());
@@ -81,7 +81,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireRole(req, ['ADMIN', 'OWNER']) as { sub: string; role: string; displayName?: string };
+  const session = await await requireRole(req, ['ADMIN', 'OWNER']) as { sub: string; role: string; displayName?: string };
   const actorId = session.sub;
   const actorName = session.displayName;
 

@@ -25,7 +25,7 @@ export const GET = asyncHandler(
     _req: NextRequest,
     { params }: { params: { id: string } },
   ): Promise<NextResponse> => {
-    requireRole(_req, ['ADMIN']);
+    await await requireRole(_req, ['ADMIN']);
     const { id: paymentId } = params;
 
     const history = await prisma.paymentHistory.findMany({

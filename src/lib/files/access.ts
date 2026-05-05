@@ -74,12 +74,12 @@ export function verifySignedFileAccess(input: {
   }
 }
 
-export function requireOperatorOrSignedFileAccess(
+export async function requireOperatorOrSignedFileAccess(
   req: NextRequest,
   storageKey: string,
   inline: boolean,
-): void {
-  const session = getSessionFromRequest(req);
+): Promise<void> {
+  const session = await getSessionFromRequest(req);
   if (session) {
     if (!['ADMIN', 'STAFF'].includes(session.role)) {
       throw new ForbiddenError('Insufficient permissions');

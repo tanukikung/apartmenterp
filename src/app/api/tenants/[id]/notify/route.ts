@@ -29,7 +29,7 @@ export const POST = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const input = schema.parse(await req.json());
 
     const tenant = await prisma.tenant.findUnique({

@@ -1,23 +1,17 @@
 import { test, expect } from '@playwright/test';
-
-const BASE = 'http://localhost:3001';
+import { BASE_URL } from './config.js';
+import { loginAsAdmin } from './helpers';
 
 test.describe('QA: Invoice & Payment Edge Cases', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE}/login`);
-    await page.waitForLoadState('networkidle');
-    await page.locator('input[name="username"], input[type="text"]').first().fill('owner');
-    await page.locator('input[name="password"], input[type="password"]').first().fill('Owner@12345');
-    await page.locator('button[type="submit"]').first().click();
-    await page.waitForURL('**/admin/**', { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(1000);
+    await loginAsAdmin(page);
   });
 
   test('Invoices: verify auth and list', async ({ page }) => {
-    await page.goto(`${BASE}/admin/invoices`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
+    await page.goto(`${BASE_URL}/admin/invoices`);
+    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('body')).toBeVisible();
 
     const url = page.url();
     const content = await page.locator('body').innerText();
@@ -31,50 +25,57 @@ test.describe('QA: Invoice & Payment Edge Cases', () => {
   });
 
   test('Invoice detail: download PDF button', async ({ page }) => {
-    await page.goto(`${BASE}/admin/invoices`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
+    await page.goto(`${BASE_URL}/admin/invoices`);
+    await expect(page.locator('body')).toBeVisible();
+
+    // Click "All" tab first to ensure table rows are visible
+    const allTab = page.getByRole('tab', { name: /all|ทั้งหมด/i }).first();
+    if (await allTab.isVisible()) await allTab.click();
+    await expect(page.locator('body')).toBeVisible();
 
     const invoiceRows = page.locator('tbody tr').filter({ hasText: /\S/ });
     const rowCount = await invoiceRows.count();
     console.log('Invoice rows:', rowCount);
 
-    if (rowCount > 0) {
-      // Try clicking a row
-      await invoiceRows.first().click();
-      await page.waitForTimeout(2000);
+    if (rowCount === 0) {
+      console.log('No invoice rows found — skipping');
+      return;
+    }
 
-      const url = page.url();
-      console.log('After click URL:', url);
+    // Try clicking a row
+    await invoiceRows.first().click();
+    await expect(page.locator('body')).toBeVisible();
 
-      if (url.includes('/invoices/')) {
-        const content = await page.locator('body').innerText();
-        console.log('Invoice detail text:', content.substring(0, 600));
+    const url = page.url();
+    console.log('After click URL:', url);
 
-        // Look for PDF download button
-        const pdfBtn = page.locator('button:has-text("PDF"), button:has-text("ดาวน์โหลด"), a[href*="pdf"]').first();
-        const pdfBtnVisible = await pdfBtn.isVisible({ timeout: 2000 }).catch(() => false);
-        console.log('PDF download button visible:', pdfBtnVisible);
-      }
+    if (url.includes('/invoices/')) {
+      const content = await page.locator('body').innerText();
+      console.log('Invoice detail text:', content.substring(0, 600));
+
+      // Look for PDF download button
+      const pdfBtn = page.locator('button:has-text("PDF"), a[href*="pdf"]').first();
+      const pdfBtnVisible = await pdfBtn.isVisible({ timeout: 2000 }).catch(() => false);
+      console.log('PDF download button visible:', pdfBtnVisible);
     }
   });
 
   test('Payments: manual entry form', async ({ page }) => {
-    await page.goto(`${BASE}/admin/payments`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
+    await page.goto(`${BASE_URL}/admin/payments`);
+    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('body')).toBeVisible();
 
     const content = await page.locator('body').innerText();
     console.log('Payments page text preview:', content.substring(0, 400));
 
     // Look for manual entry tab
-    const manualTab = page.locator('button:has-text(" Manual "), button:has-text("ป้อนเอง"), button:has-text("กรอก")').first();
+    const manualTab = page.getByRole('tab', { name: /manual/i }).first();
     const manualTabVisible = await manualTab.isVisible({ timeout: 2000 }).catch(() => false);
     console.log('Manual entry tab visible:', manualTabVisible);
 
     if (manualTabVisible) {
       await manualTab.click();
-      await page.waitForTimeout(1000);
+      await expect(page.locator('body')).toBeVisible();
 
       // Look for amount input
       const amountInput = page.locator('input[type="number"], input[placeholder*="จำนวน"]').first();
@@ -84,9 +85,9 @@ test.describe('QA: Invoice & Payment Edge Cases', () => {
   });
 
   test('Dashboard: verify overdue count', async ({ page }) => {
-    await page.goto(`${BASE}/admin/dashboard`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
+    await page.goto(`${BASE_URL}/admin/dashboard`);
+    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('body')).toBeVisible();
 
     const content = await page.locator('body').innerText();
 
@@ -100,9 +101,9 @@ test.describe('QA: Invoice & Payment Edge Cases', () => {
     console.log('Monthly income:', incomeMatch ? incomeMatch[1] : 'not found');
 
     // Navigate to overdue page
-    await page.goto(`${BASE}/admin/overdue`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await page.goto(`${BASE_URL}/admin/overdue`);
+    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('body')).toBeVisible();
 
     const overdueContent = await page.locator('body').innerText();
     console.log('Overdue page text preview:', overdueContent.substring(0, 400));
@@ -112,28 +113,22 @@ test.describe('QA: Invoice & Payment Edge Cases', () => {
 test.describe('QA: Contract Edge Cases', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE}/login`);
-    await page.waitForLoadState('networkidle');
-    await page.locator('input[name="username"], input[type="text"]').first().fill('owner');
-    await page.locator('input[name="password"], input[type="password"]').first().fill('Owner@12345');
-    await page.locator('button[type="submit"]').first().click();
-    await page.waitForURL('**/admin/**', { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(1000);
+    await loginAsAdmin(page);
   });
 
   test('Create contract: invalid overlapping dates', async ({ page }) => {
-    await page.goto(`${BASE}/admin/contracts`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await page.goto(`${BASE_URL}/admin/contracts`);
+    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('body')).toBeVisible();
 
     // Click create button
-    const createBtn = page.locator('button:has-text("สร้างสัญญาใหม่"), button:has-text("สร้างสัญญา"), button:has-text("Create")').first();
+    const createBtn = page.getByRole('button', { name: /create.*contract|new/i }).first();
     const btnVisible = await createBtn.isVisible({ timeout: 3000 }).catch(() => false);
     console.log('Create contract button visible:', btnVisible);
 
     if (btnVisible) {
       await createBtn.click();
-      await page.waitForTimeout(1000);
+      await expect(page.locator('body')).toBeVisible();
 
       const content = await page.locator('body').innerText();
       console.log('Contract form opened, looking for form fields...');
@@ -152,9 +147,9 @@ test.describe('QA: Contract Edge Cases', () => {
 
   test('Room detail page: check occupancy', async ({ page }) => {
     // Go to first occupied room
-    await page.goto(`${BASE}/admin/rooms`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await page.goto(`${BASE_URL}/admin/rooms`);
+    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('body')).toBeVisible();
 
     // Find occupied room
     const occupiedRooms = page.locator('text="มีผู้เช่า"').first();
@@ -169,7 +164,7 @@ test.describe('QA: Contract Edge Cases', () => {
 
       if (roomLinkVisible) {
         await roomLinks.click();
-        await page.waitForTimeout(2000);
+        await expect(page.locator('body')).toBeVisible();
         const url = page.url();
         console.log('Room detail URL:', url);
 

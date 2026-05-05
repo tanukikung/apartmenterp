@@ -36,24 +36,24 @@ model BillingRule {
   electricServiceFeeAmount Decimal        @db.Decimal(10, 2)
   // Water STEP tiers
   waterS1Upto              Decimal?       @db.Decimal(10, 2)
-  waterS1Rate              Decimal?        @db.Decimal(10, 2)
-  waterS2Upto              Decimal?        @db.Decimal(10, 2)
-  waterS2Rate              Decimal?        @db.Decimal(10, 2)
-  waterS3Rate              Decimal?        @db.Decimal(10, 2)
+  waterS1Rate              Decimal?       @db.Decimal(10, 2)
+  waterS2Upto              Decimal?       @db.Decimal(10, 2)
+  waterS2Rate              Decimal?       @db.Decimal(10, 2)
+  waterS3Rate              Decimal?       @db.Decimal(10, 2)
   // Electric STEP tiers
-  electricS1Upto           Decimal?        @db.Decimal(10, 2)
-  electricS1Rate           Decimal?        @db.Decimal(10, 2)
-  electricS2Upto          Decimal?       @db.Decimal(10, 2)
+  electricS1Upto           Decimal?       @db.Decimal(10, 2)
+  electricS1Rate           Decimal?       @db.Decimal(10, 2)
+  electricS2Upto           Decimal?       @db.Decimal(10, 2)
   electricS2Rate           Decimal?       @db.Decimal(10, 2)
   electricS3Rate           Decimal?       @db.Decimal(10, 2)
-  penaltyPerDay            Decimal         @default(0) @db.Decimal(10, 2)
-  maxPenalty               Decimal         @default(0) @db.Decimal(10, 2)
-  gracePeriodDays          Int             @default(0)
+  penaltyPerDay            Decimal        @default(0) @db.Decimal(10, 2)
+  maxPenalty               Decimal        @default(0) @db.Decimal(10, 2)
+  gracePeriodDays          Int            @default(0)
   // Common area (ส่วนกลาง) water allocation — a bulk meter covers shared spaces
   // (lobby, parking, guard room). Monthly cost is distributed across occupied rooms.
-  commonAreaWaterEnabled   Boolean         @default(false)
+  commonAreaWaterEnabled   Boolean        @default(false)
   commonAreaWaterBulkUnits Decimal?       @db.Decimal(10, 2) // total bulk units consumed this month (manual entry)
-  commonAreaWaterRate      Decimal?        @db.Decimal(10, 2) // cost per unit (same as waterUnitPrice or custom)
+  commonAreaWaterRate      Decimal?       @db.Decimal(10, 2) // cost per unit (same as waterUnitPrice or custom)
   roomBillings             RoomBilling[]  @relation("RoomBillingRule")
   rooms                    Room[]         @relation("RoomDefaultRule")
 
@@ -61,16 +61,16 @@ model BillingRule {
 }
 
 model Expense {
-  id          String         @id @default(uuid())
+  id          String          @id @default(uuid())
   category    ExpenseCategory
-  amount      Decimal        @db.Decimal(12, 2)
-  date        DateTime       @db.Date
-  description String         @db.Text
+  amount      Decimal         @db.Decimal(12, 2)
+  date        DateTime        @db.Date
+  description String          @db.Text
   paidTo      String?
   receiptNo   String?
   createdBy   String?
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  createdAt   DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(6)
 
   @@index([category])
   @@index([date])
@@ -108,19 +108,23 @@ model Room {
 }
 
 model BillingPeriod {
-  id            String              @id @default(uuid())
-  year          Int
-  month         Int
-  status        BillingPeriodStatus @default(OPEN)
-  dueDay        Int                 @default(25)
-  note          String?
+  id                    String                    @id @default(uuid())
+  year                  Int
+  month                 Int
+  status                BillingPeriodStatus       @default(OPEN)
+  dueDay                Int                       @default(25)
+  note                  String?
   // Common area water billing — the bulk meter reading for the whole building
-  commonAreaWaterUnits   Decimal? @db.Decimal(10, 2) // bulk units consumed this period
-  commonAreaWaterAmount   Decimal? @db.Decimal(12, 2) // total cost to distribute
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
-  importBatches ImportBatch[]
-  roomBillings  RoomBilling[]
+  commonAreaWaterUnits  Decimal?                  @db.Decimal(10, 2) // bulk units consumed this period
+  commonAreaWaterAmount Decimal?                  @db.Decimal(12, 2) // total cost to distribute
+  // Optimistic locking: incremented on every update to detect concurrent modifications
+  version               Int                       @default(0)
+  createdAt             DateTime                  @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime                  @updatedAt @db.Timestamptz(6)
+  importBatches         ImportBatch[]
+  roomBillings          RoomBilling[]
+  closeEvents           BillingPeriodCloseEvent[]
+  ImportSession         ImportSession[]
 
   @@unique([year, month])
   @@index([status])
@@ -161,13 +165,18 @@ model RoomBilling {
   otherFee                 Decimal           @default(0) @db.Decimal(10, 2)
   totalDue                 Decimal           @default(0) @db.Decimal(10, 2)
   // Common area water share — each room's proportional share of building bulk water
-  commonAreaWaterShare    Decimal?          @db.Decimal(10, 2)
+  commonAreaWaterShare     Decimal?          @db.Decimal(10, 2)
   note                     String?
   checkNotes               String?
   status                   RoomBillingStatus @default(DRAFT)
-  calculatedAt             DateTime? @db.Timestamptz(6)
-  createdAt                DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt                DateTime @updatedAt @db.Timestamptz(6)
+  calculatedAt             DateTime?         @db.Timestamptz(6)
+  // Optimistic locking: incremented on every meaningful update (recalculation, lock, etc.)
+  version                  Int               @default(0)
+  // Soft delete (Phase 8.4)
+  deletedAt                DateTime?         @db.Timestamptz(6)
+  deletedBy                String?
+  createdAt                DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime          @updatedAt @db.Timestamptz(6)
   invoice                  Invoice?
   billingPeriod            BillingPeriod     @relation(fields: [billingPeriodId], references: [id])
   room                     Room              @relation(fields: [roomNo], references: [roomNo])
@@ -192,35 +201,72 @@ model Invoice {
   year                      Int
   month                     Int
   status                    InvoiceStatus              @default(GENERATED)
+  // Version for preventing double-versioning of invoices per billing
+  version                   Int                        @default(1)
   // Persisted computed status — updated daily by sync-invoice-status cron.
   // This is an optimization for queries; display code MUST use getEffectiveInvoiceStatus().
   statusComputed            String?
   totalAmount               Decimal                    @db.Decimal(10, 2)
   lateFeeAmount             Decimal                    @default(0) @db.Decimal(10, 2)
-  lateFeeAppliedAt          DateTime? @db.Timestamptz(6)
-  dueDate                   DateTime @db.Timestamptz(6)
-  issuedAt                  DateTime @default(now()) @db.Timestamptz(6)
-  sentAt                    DateTime? @db.Timestamptz(6)
-  paidAt                    DateTime? @db.Timestamptz(6)
+  lateFeeAppliedAt          DateTime?                  @db.Timestamptz(6)
+  dueDate                   DateTime                   @db.Timestamptz(6)
+  issuedAt                  DateTime                   @default(now()) @db.Timestamptz(6)
+  sentAt                    DateTime?                  @db.Timestamptz(6)
+  paidAt                    DateTime?                  @db.Timestamptz(6)
+  // invoiceSentAt: claim-send-release dedup for LINE invoice notifications
+  invoiceSentAt             DateTime?                  @db.Timestamptz(6)
+  // notificationSentAt: claim-send-release dedup for LINE payment receipt notifications
+  notificationSentAt        DateTime?                  @db.Timestamptz(6)
   note                      String?
   // Cancel audit trail
-  cancelledAt               DateTime? @db.Timestamptz(6)
+  cancelledAt               DateTime?                  @db.Timestamptz(6)
   cancelledBy               String?
   cancelReason              String?
   cancelReasonCategory      String? // ERROR | CUSTOMER_REQUEST | FRAUD | OTHER
+  // Reversible cancel fields (Phase 8.2)
+  reversedAt                DateTime?                  @db.Timestamptz(6)
+  reversedBy                String?
+  reversalReason            String?
+  previousStatus            String? // exact status before cancel (GENERATED or OVERDUE)
+  // Soft delete (Phase 8.4)
+  deletedAt                 DateTime?                  @db.Timestamptz(6)
+  deletedBy                 String?
+  // Legal immutability (Phase 9)
+  documentStatus            DocumentStatus             @default(DRAFT)
+  isLegalSnapshot           Boolean                    @default(false) // true when SENT
+  lockedAt                  DateTime?                  @db.Timestamptz(6)
+  lockedBy                  String?
+  // Gap-2: Financial truth lock — frozen at SENT, used for payment matching
+  snapshotTotal             Decimal?                   @db.Decimal(10, 2)
+  snapshotLateFee           Decimal?                   @db.Decimal(10, 2)
+  snapshotHash              String?
+  snapshotLineItems         Json?
+  snapshotRent              Decimal?                   @db.Decimal(10, 2)
+  snapshotWater             Decimal?                   @db.Decimal(10, 2)
+  snapshotElectric          Decimal?                   @db.Decimal(10, 2)
+  snapshotOther             Decimal?                   @db.Decimal(10, 2)
+  originalInvoiceId         String? // Points to invoice this is adjusting/correcting
+  adjustmentReason          String?
   accessToken               String?                    @unique
-  createdAt                 DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt                 DateTime @updatedAt @db.Timestamptz(6)
+  createdAt                 DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime                   @updatedAt @db.Timestamptz(6)
   documentGenerationTargets DocumentGenerationTarget[]
   generatedDocuments        GeneratedDocument[]
   deliveries                InvoiceDelivery[]
   roomBilling               RoomBilling                @relation(fields: [roomBillingId], references: [id])
   room                      Room                       @relation(fields: [roomNo], references: [roomNo])
+  // Self-reference for adjustment documents
+  originalInvoice           Invoice?                   @relation("InvoiceToAdjustment", fields: [originalInvoiceId], references: [id])
+  adjustments               Invoice[]                  @relation("InvoiceToAdjustment")
   paymentMatches            PaymentMatch[]
   paymentTransactions       PaymentTransaction[]       @relation("InvoicePaymentTransactions")
   payments                  Payment[]                  @relation("InvoiceToPayment")
   deliveryOrderItems        DeliveryOrderItem[]
+  matchReviews              PaymentMatchReview[]       @relation("PaymentMatchReviewInvoice")
+  matchDecisions            PaymentMatchDecision[]     @relation("PaymentMatchDecisionInvoice")
 
+  // Prevent double-versioning: each billing record can only have one invoice per version
+  @@unique([roomBillingId, version], name: "invoice_version_per_billing")
   @@index([roomNo])
   @@index([year, month])
   @@index([roomNo, year, month])
@@ -237,23 +283,55 @@ model InvoiceDelivery {
   channel              InvoiceDeliveryChannel
   status               InvoiceDeliveryStatus  @default(PENDING)
   recipientRef         String?
-  sentAt               DateTime? @db.Timestamptz(6)
-  viewedAt             DateTime? @db.Timestamptz(6)
+  sentAt               DateTime?              @db.Timestamptz(6)
+  viewedAt             DateTime?              @db.Timestamptz(6)
   errorMessage         String?
   createdBy            String?
   documentTemplateId   String?
   documentTemplateHash String?
-  createdAt            DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt            DateTime @updatedAt @db.Timestamptz(6)
+  createdAt            DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime               @updatedAt @db.Timestamptz(6)
   invoice              Invoice                @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
+  @@unique([invoiceId, channel])
   @@index([invoiceId])
   @@index([channel, status])
   @@map("invoice_deliveries")
 }
 
+model ImportSession {
+  id              String              @id @default(uuid())
+  billingPeriodId String
+  filename        String
+  // SHA256 of the raw file content
+  fileHash        String
+  // Order-insensitive hash: sort rows by roomNo, serialize, then hash
+  // This detects "same data, different row order" as duplicates
+  normalizedHash  String
+  status          ImportSessionStatus @default(PROCESSING)
+  totalRows       Int
+  importedRows    Int                 @default(0)
+  skippedRows     Int                 @default(0)
+  errorRows       Int                 @default(0)
+  errorSummary    Json?
+  forceImport     Boolean             @default(false) // explicit override
+  importedBy      String
+  createdAt       DateTime            @default(now()) @db.Timestamptz(6)
+  completedAt     DateTime?
+
+  billingPeriod BillingPeriod @relation(fields: [billingPeriodId], references: [id])
+  ImportBatch   ImportBatch?
+
+  @@unique([billingPeriodId, normalizedHash], name: "import_session_normalized_hash_unique")
+  @@index([status])
+  @@index([billingPeriodId])
+  @@map("import_sessions")
+}
+
 model ImportBatch {
   id              String            @id @default(uuid())
+  importSessionId String?           @unique
+  importSession   ImportSession?    @relation(fields: [importSessionId], references: [id])
   billingPeriodId String
   filename        String
   schemaVersion   String
@@ -264,7 +342,7 @@ model ImportBatch {
   status          ImportBatchStatus
   errorLog        Json?
   importedBy      String
-  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
   billingPeriod   BillingPeriod     @relation(fields: [billingPeriodId], references: [id])
 
   @@index([billingPeriodId])
@@ -273,39 +351,49 @@ model ImportBatch {
 }
 
 model Payment {
-  id               String         @id @default(uuid())
-  transactionId    String?        @unique
-  amount           Decimal        @db.Decimal(12, 2)
-  paidAt           DateTime @db.Timestamptz(6)
+  id               String           @id @default(uuid())
+  transactionId    String?          @unique
+  amount           Decimal          @db.Decimal(12, 2)
+  paidAt           DateTime         @db.Timestamptz(6)
   description      String?
   reference        String?
   sourceFile       String
-  status           PaymentStatus  @default(PENDING)
+  status           PaymentStatus    @default(PENDING)
   matchedInvoiceId String?
-  matchedAt        DateTime? @db.Timestamptz(6)
-  confirmedAt      DateTime? @db.Timestamptz(6)
+  matchedAt        DateTime?        @db.Timestamptz(6)
+  confirmedAt      DateTime?        @db.Timestamptz(6)
   confirmedBy      String?
-  rejectedAt       DateTime? @db.Timestamptz(6)
+  rejectedAt       DateTime?        @db.Timestamptz(6)
   rejectedBy       String?
   rejectReason     String?
-  remark           String?  // admin note, e.g. "Overpayment credit: excess of X THB"
-  createdAt        DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime @updatedAt @db.Timestamptz(6)
+  remark           String? // admin note, e.g. "Overpayment credit: excess of X THB"
+  // Reversible match fields (Phase 8.2)
+  reversedAt       DateTime?        @db.Timestamptz(6)
+  reversedBy       String?
+  reversalReason   String?
+  // Soft delete (Phase 8.4)
+  deletedAt        DateTime?        @db.Timestamptz(6)
+  deletedBy        String?
+  createdAt        DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
   matches          PaymentMatch[]
-  invoices         Invoice[]      @relation("InvoiceToPayment")
+  invoices         Invoice[]        @relation("InvoiceToPayment")
   paymentHistory   PaymentHistory[]
 
   @@index([status])
   @@index([paidAt])
   @@index([amount])
   @@index([matchedInvoiceId])
+  @@index([transactionId])
+  // Phase 5: idempotency key index for deduplication
+  // NOTE: Partial unique index for CONFIRMED payments enforced via raw SQL migration
   @@map("payments")
 }
 
 model PaymentTransaction {
   id              String                   @id @default(uuid())
   amount          Decimal                  @db.Decimal(12, 2)
-  transactionDate DateTime @db.Timestamptz(6)
+  transactionDate DateTime                 @db.Timestamptz(6)
   roomNo          String?
   description     String?
   reference       String?
@@ -313,19 +401,21 @@ model PaymentTransaction {
   status          PaymentTransactionStatus @default(PENDING)
   confidenceScore Decimal?                 @db.Decimal(3, 2)
   invoiceId       String?
-  matchedAt       DateTime? @db.Timestamptz(6)
-  confirmedAt     DateTime? @db.Timestamptz(6)
+  matchedAt       DateTime?                @db.Timestamptz(6)
+  confirmedAt     DateTime?                @db.Timestamptz(6)
   confirmedBy     String?
-  rejectedAt      DateTime? @db.Timestamptz(6)
+  rejectedAt      DateTime?                @db.Timestamptz(6)
   rejectedBy      String?
   rejectReason    String?
   bankAccountId   String?
   matchedAmount   Decimal?                 @db.Decimal(12, 2)
   matchType       PaymentMatchType?
-  createdAt       DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+  createdAt       DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime                 @updatedAt @db.Timestamptz(6)
   bankAccount     BankAccount?             @relation("TransactionBankAccount", fields: [bankAccountId], references: [id])
   invoice         Invoice?                 @relation("InvoicePaymentTransactions", fields: [invoiceId], references: [id])
+  matchReviews    PaymentMatchReview[]     @relation("PaymentMatchReviewTransaction")
+  matchDecisions  PaymentMatchDecision[]   @relation("PaymentMatchDecisionTransaction")
 
   @@unique([transactionDate, amount, roomNo], name: "PaymentTransaction_dedup")
   @@index([status])
@@ -345,9 +435,9 @@ model PaymentMatch {
   matchCriteria Json?
   isAutoMatched Boolean            @default(false)
   status        PaymentMatchStatus @default(PENDING)
-  confirmedAt   DateTime? @db.Timestamptz(6)
+  confirmedAt   DateTime?          @db.Timestamptz(6)
   confirmedBy   String?
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  createdAt     DateTime           @default(now()) @db.Timestamptz(6)
   invoice       Invoice            @relation(fields: [invoiceId], references: [id])
   payment       Payment            @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
@@ -356,6 +446,46 @@ model PaymentMatch {
   @@index([invoiceId])
   @@index([status])
   @@map("payment_matches")
+}
+
+model PaymentMatchReview {
+  id              String                   @id @default(uuid())
+  transactionId   String
+  invoiceId       String
+  score           Int // 0-100 raw score
+  confidenceLevel String // MatchConfidenceLevel: HIGH/MEDIUM/LOW/REJECT
+  status          PaymentMatchReviewStatus @default(PENDING_REVIEW)
+  reviewedBy      String?
+  reviewedAt      DateTime?                @db.Timestamptz(6)
+  reviewedNotes   String?
+  createdAt       DateTime                 @default(now()) @db.Timestamptz(6)
+  transaction     PaymentTransaction       @relation("PaymentMatchReviewTransaction", fields: [transactionId], references: [id])
+  invoice         Invoice                  @relation("PaymentMatchReviewInvoice", fields: [invoiceId], references: [id])
+
+  @@index([status, score])
+  @@map("payment_match_reviews")
+}
+
+model PaymentMatchDecision {
+  id                   String   @id @default(uuid())
+  paymentTransactionId String
+  invoiceId            String
+  confidenceScore      Int // 0-100 score
+  matchFactors         Json // [{type, passed, weight, detail}]
+  manualOverride       Boolean  @default(false)
+  overrideReason       String? // required if manualOverride=true
+  decidedBy            String
+  decidedAt            DateTime @default(now()) @db.Timestamptz(6)
+  transactionSnapshot  Json? // snapshot of tx.description, amount, roomNo at decision time
+  invoiceSnapshot      Json? // snapshot of invoice roomNo, totalAmount at decision time
+
+  paymentTransaction PaymentTransaction @relation("PaymentMatchDecisionTransaction", fields: [paymentTransactionId], references: [id])
+  invoice            Invoice            @relation("PaymentMatchDecisionInvoice", fields: [invoiceId], references: [id])
+
+  @@unique([paymentTransactionId, invoiceId], name: "payment_match_decision_unique")
+  @@index([decidedBy])
+  @@index([invoiceId])
+  @@map("payment_match_decisions")
 }
 
 model Tenant {
@@ -367,8 +497,8 @@ model Tenant {
   email                     String?
   emergencyContact          String?
   emergencyPhone            String?
-  createdAt                 DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt                 DateTime @updatedAt @db.Timestamptz(6)
+  createdAt                 DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime                   @updatedAt @db.Timestamptz(6)
   // Soft delete — set to deletion timestamp. All queries MUST filter deletedAt: null.
   deletedAt                 DateTime?
   contracts                 Contract[]                 @relation("PrimaryTenant")
@@ -390,9 +520,9 @@ model RoomTenant {
   roomNo      String
   tenantId    String
   role        TenantRole
-  moveInDate  DateTime  @db.Date
-  moveOutDate DateTime? @db.Date
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  moveInDate  DateTime   @db.Date
+  moveOutDate DateTime?  @db.Date
+  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
   room        Room       @relation(fields: [roomNo], references: [roomNo], onDelete: Cascade)
   tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -409,18 +539,18 @@ model Contract {
   id                        String                     @id @default(uuid())
   roomNo                    String
   primaryTenantId           String
-  startDate                 DateTime @db.Timestamptz(6)
-  endDate                   DateTime @db.Timestamptz(6)
+  startDate                 DateTime                   @db.Timestamptz(6)
+  endDate                   DateTime                   @db.Timestamptz(6)
   monthlyRent               Decimal                    @db.Decimal(10, 2)
   deposit                   Decimal?                   @db.Decimal(10, 2)
   furnitureFee              Decimal?                   @db.Decimal(10, 2)
   status                    ContractStatus             @default(ACTIVE)
-  terminationDate           DateTime? @db.Timestamptz(6)
+  terminationDate           DateTime?                  @db.Timestamptz(6)
   terminationReason         String?
   // Soft delete — set to deletion timestamp. All queries MUST filter deletedAt: null.
   deletedAt                 DateTime?
-  createdAt                 DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt                 DateTime @updatedAt @db.Timestamptz(6)
+  createdAt                 DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime                   @updatedAt @db.Timestamptz(6)
   primaryTenant             Tenant                     @relation("PrimaryTenant", fields: [primaryTenantId], references: [id])
   room                      Room                       @relation(fields: [roomNo], references: [roomNo], onDelete: Cascade)
   documentGenerationTargets DocumentGenerationTarget[]
@@ -433,6 +563,9 @@ model Contract {
   @@index([endDate])
   // HIGH-68: composite index for expiring contracts query (status + endDate filter)
   @@index([status, endDate])
+  // Phase 5: composite indexes for tenant and room scoped queries
+  @@index([roomNo, status])
+  @@index([primaryTenantId, status])
   // Partial unique index for active contracts only — replaces @@unique([roomNo, status])
   // to allow multiple PENDING/EXPIRED contracts per room while enforcing one ACTIVE per room.
   // Created via migration 20260430000002_add_contract_active_partial_unique_idx.
@@ -440,28 +573,28 @@ model Contract {
 }
 
 model LineUser {
-  id            String        @id @default(uuid())
-  lineUserId    String        @unique
-  displayName   String
-  pictureUrl    String?
-  statusMessage String?
-  lastFetchedAt DateTime? @db.Timestamptz(6)
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
-  conversations Conversation?
+  id               String                @id @default(uuid())
+  lineUserId       String                @unique
+  displayName      String
+  pictureUrl       String?
+  statusMessage    String?
+  lastFetchedAt    DateTime?             @db.Timestamptz(6)
+  createdAt        DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime              @updatedAt @db.Timestamptz(6)
+  conversations    Conversation?
   maintenanceState LineMaintenanceState?
 
   @@map("line_users")
 }
 
 model LineMaintenanceState {
-  id            String   @id @default(uuid())
-  lineUserId    String   @unique
-  currentStep  String
-  requestData  Json
-  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+  id          String   @id @default(uuid())
+  lineUserId  String   @unique
+  currentStep String
+  requestData Json
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
-  lineUser      LineUser @relation(fields: [lineUserId], references: [lineUserId], onDelete: Cascade)
+  lineUser LineUser @relation(fields: [lineUserId], references: [lineUserId], onDelete: Cascade)
 
   @@map("line_maintenance_states")
 }
@@ -471,11 +604,11 @@ model Conversation {
   lineUserId    String             @unique
   tenantId      String?
   roomNo        String?
-  lastMessageAt DateTime @db.Timestamptz(6)
+  lastMessageAt DateTime           @db.Timestamptz(6)
   unreadCount   Int                @default(0)
   status        ConversationStatus @default(ACTIVE)
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+  createdAt     DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime           @updatedAt @db.Timestamptz(6)
   lineUser      LineUser           @relation(fields: [lineUserId], references: [lineUserId], onDelete: Cascade)
   room          Room?              @relation(fields: [roomNo], references: [roomNo])
   tenant        Tenant?            @relation(fields: [tenantId], references: [id])
@@ -497,9 +630,9 @@ model Message {
   content        String
   metadata       Json?
   isRead         Boolean          @default(false)
-  readAt         DateTime? @db.Timestamptz(6)
-  sentAt         DateTime @db.Timestamptz(6)
-  receivedAt     DateTime @default(now()) @db.Timestamptz(6)
+  readAt         DateTime?        @db.Timestamptz(6)
+  sentAt         DateTime         @db.Timestamptz(6)
+  receivedAt     DateTime         @default(now()) @db.Timestamptz(6)
   conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
@@ -516,13 +649,13 @@ model Notification {
   tenantId      String?
   adminId       String?
   contractId    String?
-  scheduledAt   DateTime @db.Timestamptz(6)
-  sentAt        DateTime? @db.Timestamptz(6)
+  scheduledAt   DateTime           @db.Timestamptz(6)
+  sentAt        DateTime?          @db.Timestamptz(6)
   status        NotificationStatus @default(PENDING)
   content       String
   lineMessageId String?
   errorMessage  String?
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  createdAt     DateTime           @default(now()) @db.Timestamptz(6)
 
   @@index([roomNo])
   @@index([tenantId])
@@ -540,38 +673,38 @@ model MessageTemplate {
   type      MessageTemplateType @default(CUSTOM)
   body      String
   variables String[]
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  createdAt DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime            @updatedAt @db.Timestamptz(6)
 
   @@index([type])
   @@map("message_templates")
 }
 
 model MessageSequence {
-  id          String   @id @default(uuid())
+  id          String                 @id @default(uuid())
   name        String
   trigger     MessageSequenceTrigger
   description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  isActive    Boolean                @default(true)
+  createdAt   DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime               @updatedAt @db.Timestamptz(6)
   steps       MessageSequenceStep[]
 
   @@map("message_sequences")
 }
 
 model MessageSequenceStep {
-  id           String   @id @default(uuid())
+  id           String                      @id @default(uuid())
   sequenceId   String
   stepOrder    Int
-  delayDays    Int      @default(0)
+  delayDays    Int                         @default(0)
   subject      String?
   contentTh    String
   contentEn    String?
-  messageType  MessageType  @default(TEXT)
+  messageType  MessageType                 @default(TEXT)
   responseType MessageSequenceResponseType @default(NONE)
   invalidReply String?
-  sequence     MessageSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  sequence     MessageSequence             @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
 
   @@index([sequenceId])
   @@map("message_sequence_steps")
@@ -585,13 +718,13 @@ model UploadedFile {
   storageKey                   String                    @unique
   url                          String
   status                       UploadedFileStatus        @default(ACTIVE)
-  archivedAt                   DateTime? @db.Timestamptz(6)
+  archivedAt                   DateTime?                 @db.Timestamptz(6)
   uploadedBy                   String?
-  createdAt                    DateTime @default(now()) @db.Timestamptz(6)
+  createdAt                    DateTime                  @default(now()) @db.Timestamptz(6)
   documentGenerationJobBundles DocumentGenerationJob[]   @relation("GenerationJobBundleFile")
   templateVersions             DocumentTemplateVersion[] @relation("TemplateVersionSourceFile")
   generatedDocumentFiles       GeneratedDocumentFile[]
-  templateVersionImages       TemplateVersionImage[]
+  templateVersionImages        TemplateVersionImage[]
 
   @@index([mimeType])
   @@index([createdAt])
@@ -608,8 +741,8 @@ model MaintenanceTicket {
   priority        MaintenancePriority     @default(MEDIUM)
   status          MaintenanceStatus       @default(OPEN)
   assignedStaffId String?
-  createdAt       DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+  createdAt       DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime                @updatedAt @db.Timestamptz(6)
   attachments     MaintenanceAttachment[]
   comments        MaintenanceComment[]
   room            Room                    @relation(fields: [roomNo], references: [roomNo], onDelete: Cascade)
@@ -627,7 +760,7 @@ model MaintenanceComment {
   ticketId  String
   authorId  String
   message   String
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  createdAt DateTime          @default(now()) @db.Timestamptz(6)
   ticket    MaintenanceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
@@ -639,7 +772,7 @@ model MaintenanceAttachment {
   ticketId  String
   fileUrl   String
   fileType  String
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  createdAt DateTime          @default(now()) @db.Timestamptz(6)
   ticket    MaintenanceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
@@ -647,17 +780,20 @@ model MaintenanceAttachment {
 }
 
 model AuditLog {
-  id               String   @id @default(uuid())
-  action           String
-  entityType       String
-  entityId         String
-  userId           String
-  userName         String
-  details          Json?
-  ipAddress        String?
-  createdAt        DateTime @default(now())
-  entityVersion    Int      @default(0)
-  previousSignature String?
+  id                String   @id @default(uuid())
+  sequenceNum       BigInt   @unique @default(autoincrement())
+  action            String
+  entityType        String
+  entityId          String
+  userId            String
+  userName          String
+  details           Json?
+  ipAddress         String?
+  createdAt         DateTime @default(now())
+  entityVersion     Int      @default(0)
+  previousSignature String? // HMAC chain (legacy)
+  prevHash          String? // SHA256 hash of previous event (null for genesis)
+  eventHash         String // SHA256 hash of this event for chain verification
 
   @@index([action])
   @@index([entityType, entityId])
@@ -678,27 +814,56 @@ model Config {
 }
 
 model OutboxEvent {
-  id            String    @id @default(uuid())
-  aggregateType String
-  aggregateId   String
-  eventType     String
-  payload       Json
-  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
-  scheduledAt   DateTime? @db.Timestamptz(6)
-  processedAt   DateTime? @db.Timestamptz(6)
-  retryCount    Int       @default(0)
-  nextRetryAt   DateTime? @db.Timestamptz(6)
-  lastError     String?
-  errorCode     String?   // machine-readable: LINE_RATE_LIMIT, PERMANENT_4XX, TIMEOUT, etc.
-  lastFailedAt  DateTime? @db.Timestamptz(6)
+  id               String            @id @default(uuid())
+  aggregateType    String
+  aggregateId      String
+  eventType        String
+  payload          Json
+  status           OutboxEventStatus @default(PENDING)
+  createdAt        DateTime          @default(now()) @db.Timestamptz(6)
+  scheduledAt      DateTime?         @db.Timestamptz(6)
+  processingAt     DateTime?         @db.Timestamptz(6) // visibility timeout — reset if stuck > VISIBILITY_TIMEOUT_MS
+  processedAt      DateTime?         @db.Timestamptz(6)
+  retryCount       Int               @default(0)
+  nextRetryAt      DateTime?         @db.Timestamptz(6)
+  lastError        String?
+  errorCode        String? // machine-readable: LINE_RATE_LIMIT, PERMANENT_4XX, TIMEOUT, etc.
+  lastFailedAt     DateTime?         @db.Timestamptz(6)
+  deduplicationKey String?           @unique // prevent duplicate downstream delivery
+  messageHash      String?           @unique // SHA256(eventType+aggregateId+payload) for exactly-once dedup
 
-  @@index([processedAt, scheduledAt])
+  // Identifies the external entity that triggered this event (e.g., LINE messageId).
+  // Allows distinguishing events from different external sources for the same (eventType, aggregateId).
+  externalId String?
+
+  // Caller-provided idempotency key — propagated from the API route handler that initiated
+  // the operation. The caller knows if a retry should be skipped.
+  // Example: "chat-confirm:invoice-123" from the chat quick-reply route
+  callerIdempotencyKey String?
+
+  // Composite unique: prevents duplicate (eventType, aggregateId, externalId) combinations.
+  // externalId is nullable — partial unique index allows multiple NULLs (correct behavior:
+  // can't dedupe events with unknown external IDs).
+  @@unique([eventType, aggregateId, externalId], name: "outbox_event_composite_unique")
+  @@index([status, nextRetryAt])
   @@index([aggregateType, aggregateId])
   @@index([processedAt, createdAt])
-  @@index([processedAt, nextRetryAt])
+  @@index([status, processingAt]) // visibility timeout — find stuck PROCESSING rows
   @@index([eventType])
   @@index([retryCount])
+  @@index([deduplicationKey])
+  @@index([messageHash])
+  @@index([eventType, aggregateId, externalId])
   @@map("outbox_events")
+}
+
+enum OutboxEventStatus {
+  PENDING // not yet picked up
+  PROCESSING // picked up by a worker — visibility timeout starts
+  COMPLETED // successfully sent (exactly-once: LINE delivery confirmed)
+  PROCESSED // legacy alias for COMPLETED (Phase 8 and earlier)
+  FAILED // exhausted retries or permanent error
+  CANCELLED // cancelled by source (e.g., invoice cancelled before send)
 }
 
 // ── Zero-loss inbox ──────────────────────────────────────────────────────────
@@ -723,7 +888,7 @@ model InboxEvent {
   nextRetryAt  DateTime?        @db.Timestamptz(6)
   processedAt  DateTime?        @db.Timestamptz(6)
   lastError    String?
-  errorCode    String?          // machine-readable: LINE_RATE_LIMIT, TIMEOUT, etc.
+  errorCode    String? // machine-readable: LINE_RATE_LIMIT, TIMEOUT, etc.
   lastFailedAt DateTime?        @db.Timestamptz(6)
 
   @@index([status, nextRetryAt])
@@ -751,8 +916,8 @@ model AdminUser {
   // layer is implemented, do not add code that assumes buildingId provides
   // isolation — it does not.
   buildingId          String?
-  createdAt           DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt           DateTime @updatedAt @db.Timestamptz(6)
+  createdAt           DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
   resetTokens         PasswordResetToken[]
 
   @@index([role])
@@ -765,9 +930,9 @@ model PasswordResetToken {
   id        String    @id @default(uuid())
   userId    String
   tokenHash String    @unique
-  expiresAt DateTime @db.Timestamptz(6)
+  expiresAt DateTime  @db.Timestamptz(6)
   usedAt    DateTime? @db.Timestamptz(6)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
   user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -783,10 +948,10 @@ model StaffRegistrationRequest {
   passwordHash String
   status       StaffRegistrationStatus @default(PENDING)
   reviewedById String?
-  reviewedAt   DateTime? @db.Timestamptz(6)
+  reviewedAt   DateTime?               @db.Timestamptz(6)
   rejectReason String?
-  createdAt    DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+  createdAt    DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime                @updatedAt @db.Timestamptz(6)
 
   @@unique([username, status])
   @@unique([email, status])
@@ -808,9 +973,9 @@ model TenantRegistration {
   resolvedRoomNo   String?
   resolvedTenantId String?
   reviewedById     String?
-  reviewedAt       DateTime? @db.Timestamptz(6)
-  createdAt        DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime @updatedAt @db.Timestamptz(6)
+  reviewedAt       DateTime?                @db.Timestamptz(6)
+  createdAt        DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime                 @updatedAt @db.Timestamptz(6)
 
   @@index([status])
   @@index([lineUserId])
@@ -828,9 +993,9 @@ model DocumentTemplate {
   activeVersionId    String?
   createdById        String?
   updatedById        String?
-  archivedAt         DateTime? @db.Timestamptz(6)
-  createdAt          DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt          DateTime @updatedAt @db.Timestamptz(6)
+  archivedAt         DateTime?                         @db.Timestamptz(6)
+  createdAt          DateTime                          @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime                          @updatedAt @db.Timestamptz(6)
   generationJobs     DocumentGenerationJob[]
   fieldDefinitions   DocumentTemplateFieldDefinition[]
   versions           DocumentTemplateVersion[]         @relation("TemplateVersions")
@@ -858,11 +1023,11 @@ model DocumentTemplateVersion {
   sourceFileId       String?
   createdById        String?
   activatedById      String?
-  activatedAt        DateTime? @db.Timestamptz(6)
-  archivedAt         DateTime? @db.Timestamptz(6)
+  activatedAt        DateTime?                     @db.Timestamptz(6)
+  archivedAt         DateTime?                     @db.Timestamptz(6)
   meta               Json?
-  createdAt          DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt          DateTime @updatedAt @db.Timestamptz(6)
+  createdAt          DateTime                      @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime                      @updatedAt @db.Timestamptz(6)
   generationJobs     DocumentGenerationJob[]
   sourceFile         UploadedFile?                 @relation("TemplateVersionSourceFile", fields: [sourceFileId], references: [id])
   template           DocumentTemplate              @relation("TemplateVersions", fields: [templateId], references: [id], onDelete: Cascade)
@@ -877,29 +1042,29 @@ model DocumentTemplateVersion {
 }
 
 model DocumentTemplateComment {
-  id          String    @id @default(uuid())
-  templateId  String
-  versionId   String?
-  anchorText  String   // selected text when comment was created
-  content     String
-  authorId    String
-  authorName  String
-  resolved    Boolean  @default(false)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  id         String   @id @default(uuid())
+  templateId String
+  versionId  String?
+  anchorText String // selected text when comment was created
+  content    String
+  authorId   String
+  authorName String
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
 
   @@index([templateId])
   @@map("document_template_comments")
 }
 
 model TemplateVersionImage {
-  id           String    @id @default(uuid())
-  versionId    String
+  id             String                  @id @default(uuid())
+  versionId      String
   uploadedFileId String
-  imageUrl     String    // URL stored in HTML body (used to track by URL)
-  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
-  version      DocumentTemplateVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  uploadedFile UploadedFile @relation(fields: [uploadedFileId], references: [id])
+  imageUrl       String // URL stored in HTML body (used to track by URL)
+  createdAt      DateTime                @default(now()) @db.Timestamptz(6)
+  version        DocumentTemplateVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  uploadedFile   UploadedFile            @relation(fields: [uploadedFileId], references: [id])
 
   @@index([versionId])
   @@index([uploadedFileId])
@@ -921,8 +1086,8 @@ model DocumentTemplateFieldDefinition {
   isCollection Boolean                @default(false)
   sortOrder    Int                    @default(0)
   metadata     Json?
-  createdAt    DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+  createdAt    DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime               @updatedAt @db.Timestamptz(6)
   template     DocumentTemplate       @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@unique([templateId, key])
@@ -948,10 +1113,10 @@ model DocumentGenerationJob {
   failedCount        Int                         @default(0)
   errorMessage       String?
   bundleFileId       String?
-  createdAt          DateTime @default(now()) @db.Timestamptz(6)
-  startedAt          DateTime? @db.Timestamptz(6)
-  completedAt        DateTime? @db.Timestamptz(6)
-  updatedAt          DateTime @updatedAt @db.Timestamptz(6)
+  createdAt          DateTime                    @default(now()) @db.Timestamptz(6)
+  startedAt          DateTime?                   @db.Timestamptz(6)
+  completedAt        DateTime?                   @db.Timestamptz(6)
+  updatedAt          DateTime                    @updatedAt @db.Timestamptz(6)
   bundleFile         UploadedFile?               @relation("GenerationJobBundleFile", fields: [bundleFileId], references: [id])
   template           DocumentTemplate            @relation(fields: [templateId], references: [id], onDelete: Cascade)
   templateVersion    DocumentTemplateVersion     @relation(fields: [templateVersionId], references: [id])
@@ -977,8 +1142,8 @@ model DocumentGenerationTarget {
   generatedDocumentId String?
   reason              String?
   renderSummary       Json?
-  createdAt           DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt           DateTime @updatedAt @db.Timestamptz(6)
+  createdAt           DateTime                       @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime                       @updatedAt @db.Timestamptz(6)
   contract            Contract?                      @relation(fields: [contractId], references: [id])
   invoice             Invoice?                       @relation(fields: [invoiceId], references: [id])
   job                 DocumentGenerationJob          @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -992,41 +1157,42 @@ model DocumentGenerationTarget {
 }
 
 model GeneratedDocument {
-  id                String                  @id @default(uuid())
-  templateId        String
-  templateVersionId String
-  generationJobId   String?
-  documentType      DocumentTemplateType
-  status            GeneratedDocumentStatus @default(GENERATED)
-  title             String
-  subject           String?
-  sourceScope       DocumentSourceScope
-  roomNo            String
-  billingPeriodId   String?
-  roomBillingId     String?
-  invoiceId         String?
-  contractId        String?
-  tenantId          String?
-  year              Int?
-  month             Int?
-  documentVersion   Int                     @default(1)
-  generatedById     String?
-  renderContext     Json?
-  validation        Json?
-  generatedAt       DateTime @default(now()) @db.Timestamptz(6)
-  archivedAt        DateTime? @db.Timestamptz(6)
-  createdAt         DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime @updatedAt @db.Timestamptz(6)
-  files             GeneratedDocumentFile[]
-  contract          Contract?               @relation(fields: [contractId], references: [id])
-  generationJob     DocumentGenerationJob?  @relation(fields: [generationJobId], references: [id])
-  invoice           Invoice?                @relation(fields: [invoiceId], references: [id])
-  room              Room                    @relation(fields: [roomNo], references: [roomNo], onDelete: Cascade)
-  template          DocumentTemplate        @relation(fields: [templateId], references: [id])
-  templateVersion   DocumentTemplateVersion @relation(fields: [templateVersionId], references: [id])
-  tenant            Tenant?                 @relation(fields: [tenantId], references: [id])
+  id                 String                  @id @default(uuid())
+  templateId         String
+  templateVersionId  String
+  generationJobId    String?
+  documentType       DocumentTemplateType
+  status             GeneratedDocumentStatus @default(GENERATED)
+  title              String
+  subject            String?
+  sourceScope        DocumentSourceScope
+  roomNo             String
+  billingPeriodId    String?
+  roomBillingId      String?
+  invoiceId          String?
+  contractId         String?
+  tenantId           String?
+  year               Int?
+  month              Int?
+  documentVersion    Int                     @default(1)
+  generatedById      String?
+  renderContext      Json?
+  validation         Json?
+  generatedAt        DateTime                @default(now()) @db.Timestamptz(6)
+  archivedAt         DateTime?               @db.Timestamptz(6)
+  createdAt          DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime                @updatedAt @db.Timestamptz(6)
+  files              GeneratedDocumentFile[]
+  contract           Contract?               @relation(fields: [contractId], references: [id])
+  generationJob      DocumentGenerationJob?  @relation(fields: [generationJobId], references: [id])
+  invoice            Invoice?                @relation(fields: [invoiceId], references: [id])
+  room               Room                    @relation(fields: [roomNo], references: [roomNo], onDelete: Cascade)
+  template           DocumentTemplate        @relation(fields: [templateId], references: [id])
+  templateVersion    DocumentTemplateVersion @relation(fields: [templateVersionId], references: [id])
+  tenant             Tenant?                 @relation(fields: [tenantId], references: [id])
   deliveryOrderItems DeliveryOrderItem[]
 
+  @@unique([templateId, roomNo, year, month, documentVersion])
   @@index([templateId, generatedAt])
   @@index([templateVersionId])
   @@index([roomNo, year, month])
@@ -1043,7 +1209,7 @@ model GeneratedDocumentFile {
   role                GeneratedDocumentFileRole
   format              String
   isPrimary           Boolean                   @default(false)
-  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+  createdAt           DateTime                  @default(now()) @db.Timestamptz(6)
   generatedDocument   GeneratedDocument         @relation(fields: [generatedDocumentId], references: [id], onDelete: Cascade)
   uploadedFile        UploadedFile              @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)
 
@@ -1053,22 +1219,22 @@ model GeneratedDocumentFile {
 }
 
 model DeliveryOrder {
-  id            String              @id @default(uuid())
-  channel       DeliveryChannel     @default(LINE)
-  documentType  DocumentTemplateType
-  description   String?
-  year          Int?
-  month         Int?
-  floorNumber   Int?
-  scopeRoomNos  String[]
-  status        DeliveryOrderStatus @default(DRAFT)
-  totalCount    Int                 @default(0)
-  sentCount     Int                 @default(0)
-  failedCount   Int                 @default(0)
-  createdBy     String?
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
-  items         DeliveryOrderItem[]
+  id           String               @id @default(uuid())
+  channel      DeliveryChannel      @default(LINE)
+  documentType DocumentTemplateType
+  description  String?
+  year         Int?
+  month        Int?
+  floorNumber  Int?
+  scopeRoomNos String[]
+  status       DeliveryOrderStatus  @default(DRAFT)
+  totalCount   Int                  @default(0)
+  sentCount    Int                  @default(0)
+  failedCount  Int                  @default(0)
+  createdBy    String?
+  createdAt    DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime             @updatedAt @db.Timestamptz(6)
+  items        DeliveryOrderItem[]
 
   @@index([status])
   @@index([year, month])
@@ -1077,23 +1243,23 @@ model DeliveryOrder {
 }
 
 model DeliveryOrderItem {
-  id                  String                @id @default(uuid())
+  id                  String             @id @default(uuid())
   deliveryOrderId     String
   roomNo              String
   tenantId            String?
   generatedDocumentId String?
   invoiceId           String?
   recipientRef        String?
-  status              DeliveryItemStatus    @default(PENDING)
-  sentAt              DateTime? @db.Timestamptz(6)
+  status              DeliveryItemStatus @default(PENDING)
+  sentAt              DateTime?          @db.Timestamptz(6)
   errorMessage        String?
-  createdAt           DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt           DateTime @updatedAt @db.Timestamptz(6)
-  deliveryOrder       DeliveryOrder         @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
-  room                Room                  @relation(fields: [roomNo], references: [roomNo], onDelete: Cascade)
-  tenant              Tenant?               @relation(fields: [tenantId], references: [id])
-  generatedDocument   GeneratedDocument?    @relation(fields: [generatedDocumentId], references: [id])
-  invoice             Invoice?              @relation(fields: [invoiceId], references: [id])
+  createdAt           DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime           @updatedAt @db.Timestamptz(6)
+  deliveryOrder       DeliveryOrder      @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
+  room                Room               @relation(fields: [roomNo], references: [roomNo], onDelete: Cascade)
+  tenant              Tenant?            @relation(fields: [tenantId], references: [id])
+  generatedDocument   GeneratedDocument? @relation(fields: [generatedDocumentId], references: [id])
+  invoice             Invoice?           @relation(fields: [invoiceId], references: [id])
 
   @@index([deliveryOrderId])
   @@index([roomNo])
@@ -1103,6 +1269,7 @@ model DeliveryOrderItem {
 
 enum DeliveryChannel {
   LINE
+
   @@map("delivery_channel")
 }
 
@@ -1112,6 +1279,7 @@ enum DeliveryOrderStatus {
   COMPLETED
   PARTIAL
   FAILED
+
   @@map("delivery_order_status")
 }
 
@@ -1120,6 +1288,7 @@ enum DeliveryItemStatus {
   SENT
   FAILED
   SKIPPED
+
   @@map("delivery_item_status")
 }
 
@@ -1128,6 +1297,7 @@ enum RegistrationStep {
   AWAITING_NAME
   AWAITING_PHONE
   COMPLETED
+
   @@map("registration_step")
 }
 
@@ -1164,9 +1334,15 @@ enum ServiceFeeMode {
 }
 
 enum BillingPeriodStatus {
-  OPEN
-  LOCKED
-  CLOSED
+  DRAFT // Period is set up but not yet accepting billing data
+  OPEN // Period is active — billing data can be entered and modified
+  CLOSED // All invoices generated; period is closed for new billings
+  // SENT/PAID invoices remain editable (adjustments allowed)
+  LOCKED // Accounting finalized — all invoices become immutable
+  // No further changes allowed except via adjustment documents
+  ARCHIVED // Period is read-only — kept for historical reference
+
+  @@map("billing_period_status")
 }
 
 enum RoomBillingStatus {
@@ -1175,11 +1351,27 @@ enum RoomBillingStatus {
   INVOICED
 }
 
+enum ImportSessionStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
 enum ImportBatchStatus {
   PENDING
   PROCESSING
   COMPLETED
   FAILED
+}
+
+enum DocumentStatus {
+  DRAFT // Not yet finalized
+  SENT // Sent to tenant — IMMUTABLE
+  LOCKED // After CLOSED billing period — immutable + archived
+  CANCELLED // Cancelled by admin (reversible with adjustment)
+  VOID // System error void (permanent record)
+  ADJUSTMENT // Correction document linked to original
 }
 
 enum InvoiceStatus {
@@ -1210,6 +1402,12 @@ enum PaymentTransactionStatus {
 enum PaymentMatchStatus {
   PENDING
   CONFIRMED
+  REJECTED
+}
+
+enum PaymentMatchReviewStatus {
+  PENDING_REVIEW
+  APPROVED
   REJECTED
 }
 
@@ -1380,20 +1578,20 @@ enum GeneratedDocumentFileRole {
 }
 
 model Broadcast {
-  id            String          @id @default(uuid())
-  message       String
-  target        BroadcastTarget @default(ALL)
-  targetFloors  Int[]
-  targetRooms   String[]
-  sentBy        String
-  sentByName    String?
-  sentAt        DateTime @default(now()) @db.Timestamptz(6)
-  lineMessageId String?
-  totalCount    Int             @default(0)
-  sentCount     Int             @default(0)
-  failedCount   Int             @default(0)
-  status        BroadcastStatus @default(PENDING)
-  idempotencyKey String?        @unique
+  id             String          @id @default(uuid())
+  message        String
+  target         BroadcastTarget @default(ALL)
+  targetFloors   Int[]
+  targetRooms    String[]
+  sentBy         String
+  sentByName     String?
+  sentAt         DateTime        @default(now()) @db.Timestamptz(6)
+  lineMessageId  String?
+  totalCount     Int             @default(0)
+  sentCount      Int             @default(0)
+  failedCount    Int             @default(0)
+  status         BroadcastStatus @default(PENDING)
+  idempotencyKey String?         @unique
 
   @@index([sentAt])
   @@index([target])
@@ -1403,15 +1601,15 @@ model Broadcast {
 }
 
 model ReminderConfig {
-  id            String              @id @default(uuid())
-  periodDays    Int                 // negative = overdue, positive = before due
-  messageTh     String              @db.Text
-  messageEn     String              @db.Text
-  isActive      Boolean             @default(true)
-  priority      ReminderPriority     @default(NORMAL)
-  appliesTo     ReminderAppliesTo   @default(ALL)
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+  id         String            @id @default(uuid())
+  periodDays Int // negative = overdue, positive = before due
+  messageTh  String            @db.Text
+  messageEn  String            @db.Text
+  isActive   Boolean           @default(true)
+  priority   ReminderPriority  @default(NORMAL)
+  appliesTo  ReminderAppliesTo @default(ALL)
+  createdAt  DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime          @updatedAt @db.Timestamptz(6)
 
   @@unique([periodDays])
   @@index([isActive])
@@ -1518,29 +1716,29 @@ enum MoveOutItemCondition {
 }
 
 model MoveOut {
-  id                String           @id @default(uuid())
-  contractId        String           @unique
-  moveOutDate       DateTime       @db.Date
-  depositAmount     Decimal          @db.Decimal(12, 2)
-  totalDeduction   Decimal          @default(0) @db.Decimal(12, 2)
-  finalRefund       Decimal          @default(0) @db.Decimal(12, 2)
+  id                     String        @id @default(uuid())
+  contractId             String        @unique
+  moveOutDate            DateTime      @db.Date
+  depositAmount          Decimal       @db.Decimal(12, 2)
+  totalDeduction         Decimal       @default(0) @db.Decimal(12, 2)
+  finalRefund            Decimal       @default(0) @db.Decimal(12, 2)
   // Move-out meter readings captured at the time of tenant departure.
   // Used to compute the final settlement bill (prorated rent + utilities).
   // If the reading is lower than the last billed value, it indicates a meter
   // replacement and the difference is waived (meterReset).
-  moveOutWaterReading   Decimal? @db.Decimal(10, 2)
-  moveOutElectricReading Decimal? @db.Decimal(10, 2)
-  status            MoveOutStatus    @default(PENDING)
-  notes             String?
-  lineNoticeSentAt  DateTime? @db.Timestamptz(6)
-  confirmedAt       DateTime? @db.Timestamptz(6)
-  confirmedBy       String?
-  refundAt          DateTime? @db.Timestamptz(6)
-  refundBy          String?
-  createdAt         DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime @updatedAt @db.Timestamptz(6)
-  contract          Contract         @relation(fields: [contractId], references: [id])
-  items             MoveOutItem[]
+  moveOutWaterReading    Decimal?      @db.Decimal(10, 2)
+  moveOutElectricReading Decimal?      @db.Decimal(10, 2)
+  status                 MoveOutStatus @default(PENDING)
+  notes                  String?
+  lineNoticeSentAt       DateTime?     @db.Timestamptz(6)
+  confirmedAt            DateTime?     @db.Timestamptz(6)
+  confirmedBy            String?
+  refundAt               DateTime?     @db.Timestamptz(6)
+  refundBy               String?
+  createdAt              DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime      @updatedAt @db.Timestamptz(6)
+  contract               Contract      @relation(fields: [contractId], references: [id])
+  items                  MoveOutItem[]
 
   @@index([status])
   @@index([moveOutDate])
@@ -1549,16 +1747,16 @@ model MoveOut {
 }
 
 model MoveOutItem {
-  id            String               @id @default(uuid())
-  moveOutId     String
-  category      String               // wall, floor, bathroom, kitchen, furniture, other
-  item          String               // paint, tiles, faucet, bed, wardrobe, etc.
-  condition     MoveOutItemCondition
-  cost          Decimal              @default(0) @db.Decimal(12, 2)
-  notes         String?
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
-  moveOut       MoveOut              @relation(fields: [moveOutId], references: [id], onDelete: Cascade)
+  id        String               @id @default(uuid())
+  moveOutId String
+  category  String // wall, floor, bathroom, kitchen, furniture, other
+  item      String // paint, tiles, faucet, bed, wardrobe, etc.
+  condition MoveOutItemCondition
+  cost      Decimal              @default(0) @db.Decimal(12, 2)
+  notes     String?
+  createdAt DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime             @updatedAt @db.Timestamptz(6)
+  moveOut   MoveOut              @relation(fields: [moveOutId], references: [id], onDelete: Cascade)
 
   @@index([moveOutId])
   @@map("move_out_items")
@@ -1574,17 +1772,18 @@ enum PaymentHistoryAction {
   UNMATCHED
   RECONFIRMED
   REVERSED
+
   @@map("payment_history_action")
 }
 
 model PaymentHistory {
   id        String               @id @default(uuid())
-  paymentId String?              // null for REJECTED actions where no Payment was created
+  paymentId String? // null for REJECTED actions where no Payment was created
   action    PaymentHistoryAction
   actorId   String
   actorRole String
   metadata  Json?
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  createdAt DateTime             @default(now()) @db.Timestamptz(6)
   payment   Payment?             @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   @@index([paymentId])
@@ -1604,17 +1803,21 @@ enum BillingAuditAction {
   INVOICE_REQUESTED
   INVOICE_CREATED
   INVOICE_CANCELLED
+
   @@map("billing_audit_action")
 }
 
 model BillingAuditLog {
   id              String             @id @default(uuid())
+  sequenceNum     BigInt             @unique @default(autoincrement())
   billingRecordId String
   action          BillingAuditAction
   actorId         String
   actorRole       String
   metadata        Json?
-  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  createdAt       DateTime           @default(now()) @db.Timestamptz(6)
+  prevHash        String?
+  eventHash       String
   roomBilling     RoomBilling        @relation(fields: [billingRecordId], references: [id], onDelete: Cascade)
 
   @@index([billingRecordId])
@@ -1628,13 +1831,14 @@ model IdempotencyRecord {
   key             String    @unique
   resourceType    String
   resourceId      String?
-  result          Json?
-  // sha256 hex of the canonical request body — used to detect key reuse for different payloads
-  requestBodyHash String?
+  response        Json? // full response returned to client
+  requestBodyHash String? // sha256 of request body for payload deduplication
+  expiresAt       DateTime? @db.Timestamptz(6) // TTL — auto-cleanup via cron
   createdAt       DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([resourceType])
   @@index([createdAt])
+  @@index([expiresAt]) // for TTL cleanup query
   @@map("idempotency_records")
 }
 
@@ -1654,16 +1858,143 @@ model CronJobRun {
   @@map("cron_job_runs")
 }
 
+// ─── Phase 8.1: Financial Audit Log ──────────────────────────────────────────
+// Append-only (no soft-delete) — financial-grade before/after/diff audit trail.
+// No foreign keys to transactional tables to avoid blocking deletions.
+
+model FinancialAuditLog {
+  id              String   @id @default(uuid())
+  entityType      String // "Invoice" | "Payment" | "RoomBilling"
+  entityId        String
+  action          String // "INVOICE_CANCELLED" | "PAYMENT_CONFIRMED" | "INVOICE_CANCEL_UNDONE" | etc.
+  before          Json? // full entity snapshot before change (null for CREATE)
+  after           Json? // full entity snapshot after change (null for DELETE)
+  diff            Json? // computed field-level diff
+  performedBy     String // admin user id
+  performedByName String?
+  correlationId   String? // request-scoped id linking all ops in one user action
+  timestamp       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([entityType, entityId, timestamp(sort: Desc)])
+  @@index([performedBy])
+  @@index([correlationId])
+  @@map("financial_audit_logs")
+}
+
+// ─── Agent 5: Financial Period Closure ───────────────────────────────────────
+// Audit trail for billing period state transitions (close/lock/archive).
+// Each transition is recorded here so there is a full history of WHO closed
+// a period, WHEN, and what the period state looked like at that moment.
+
+model BillingPeriodCloseEvent {
+  id                  String              @id @default(uuid())
+  periodId            String
+  fromStatus          BillingPeriodStatus
+  toStatus            BillingPeriodStatus
+  closedBy            String // admin user id
+  reason              String? // optional admin-supplied reason
+  // Snapshot of key billing totals at close time for reconciliation
+  totalRoomsBilled    Int
+  totalAmountBilled   Decimal             @db.Decimal(14, 2)
+  totalInvoiced       Int
+  totalAmountInvoiced Decimal             @db.Decimal(14, 2)
+  totalPaid           Int
+  totalAmountPaid     Decimal             @db.Decimal(14, 2)
+  totalUnpaid         Int
+  totalAmountUnpaid   Decimal             @db.Decimal(14, 2)
+  createdAt           DateTime            @default(now()) @db.Timestamptz(6)
+
+  billingPeriod BillingPeriod @relation(fields: [periodId], references: [id])
+
+  @@index([periodId])
+  @@index([closedBy])
+  @@index([createdAt])
+  @@map("billing_period_close_events")
+}
+
+// ─── Phase 8.3: Reconciliation Issues ─────────────────────────────────────────
+
+enum ReconciliationIssueType {
+  INVOICE_PAYMENT_MISMATCH // sum(confirmed payments) != invoice.totalAmount for PAID invoice
+  PAID_INVOICE_NO_PAYMENT // invoice status=PAID but no CONFIRMED payment row exists
+  NEGATIVE_BALANCE // sum(payments) > invoice.totalAmount (overpayment)
+  DUPLICATE_PAYMENT_MATCH // same payment matched to same invoice twice via PaymentMatch
+}
+
+enum IssueSeverity {
+  CRITICAL // blocks financial reporting — must investigate immediately
+  WARNING // should be investigated
+  INFO // housekeeping
+}
+
+model ReconciliationIssue {
+  id          String                  @id @default(uuid())
+  type        ReconciliationIssueType
+  entityType  String // "Invoice" | "Payment"
+  entityId    String
+  severity    IssueSeverity
+  description String
+  metadata    Json? // extra context: { invoiceTotal, sumPayments, overpayAmount }
+  detectedAt  DateTime                @default(now()) @db.Timestamptz(6)
+  resolvedAt  DateTime?               @db.Timestamptz(6)
+  resolvedBy  String?
+  resolution  String? // "FIXED" | "IGNORED" | "AUTO_FIXED"
+
+  @@index([type, severity])
+  @@index([entityType, entityId])
+  @@index([detectedAt])
+  @@map("reconciliation_issues")
+}
+
 model FailedMessage {
-  id            String    @id @default(uuid())
+  id            String   @id @default(uuid())
   channel       String
   payload       Json
   failureReason String
-  attemptCount  Int       @default(0)
-  lastAttemptAt DateTime  @default(now()) @db.Timestamptz(6)
-  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+  attemptCount  Int      @default(0)
+  lastAttemptAt DateTime @default(now()) @db.Timestamptz(6)
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([channel])
   @@index([createdAt])
   @@map("failed_messages")
+}
+
+// ─── Webhook Security: Replay-Proof LINE Event Processing ─────────────────────
+//
+// LineEvent: records every LINE webhook event we've received.
+// The id field is LINE's webhookEventId (v2.8+) or a stable derived key
+// (message.id for messages, hash for postbacks). Upsert means LINE retries
+// are silent no-ops — we return 200 and simply ignore duplicates.
+//
+// LineReplyToken: tracks LINE reply tokens so we can detect if a replyToken
+// is reused (LINE says each token can only be used once, but in rare edge
+// cases a token might be replayed along with an event replay).
+
+model LineEvent {
+  id               String   @id // LINE's webhookEventId or derived deduplication key
+  replyToken       String?
+  eventType        String // follow, unfollow, message, postback, etc.
+  sourceType       String // user, group, room
+  sourceId         String // LINE user ID (or group/room ID)
+  // Timestamp from LINE event — used for out-of-order detection
+  eventTimestamp   BigInt // LINE event timestamp (milliseconds since epoch)
+  processedAt      DateTime @default(now()) @db.Timestamptz(6)
+  result           String // SUCCESS | FAILED | DUPLICATE_REJECTED | OUT_OF_ORDER_REJECTED
+  errorMsg         String?
+  // Out-of-order protection: set to eventTimestamp after successful processing
+  sourceSequenceAt BigInt?
+
+  @@index([sourceId, eventTimestamp])
+  @@index([sourceId, sourceSequenceAt])
+  @@map("line_events")
+}
+
+model LineReplyToken {
+  token  String   @id // LINE replyToken — can only be used once
+  usedAt DateTime @default(now()) @db.Timestamptz(6)
+  usedBy String // eventId that consumed this token
+
+  @@index([usedAt])
+  @@map("line_reply_tokens")
 }

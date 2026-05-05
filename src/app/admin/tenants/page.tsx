@@ -176,10 +176,10 @@ export default function AdminTenantsPage() {
       }
       const data = await res.json();
       if (!data.success) throw new Error(data.error?.message || 'ไม่สามารถเพิ่มผู้เช่าได้');
-      setMessage('เพิ่มผู้เช่าสำเร็จ');
       setCreateForm({ firstName: '', lastName: '', email: '', phone: '', emergencyContact: '', emergencyPhone: '' });
-      closeDrawer();
       await load();
+      closeDrawer();
+      setMessage('เพิ่มผู้เช่าสำเร็จ');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
     } finally {
@@ -209,9 +209,9 @@ export default function AdminTenantsPage() {
       }
       const data = await res.json();
       if (!data.success) throw new Error(data.error?.message || 'ไม่สามารถอัพเดทได้');
-      setMessage('อัพเดทผู้เช่าสำเร็จ');
-      closeDrawer();
       await load();
+      closeDrawer();
+      setMessage('อัพเดทผู้เช่าสำเร็จ');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
     } finally {
@@ -245,9 +245,9 @@ export default function AdminTenantsPage() {
       }
       const data = await res.json();
       if (!data.success) throw new Error(data.error?.message || 'ไม่สามารถลิงก์ LINE ได้');
-      setMessage('ลิงก์ LINE สำเร็จ');
-      closeDrawer();
       await load();
+      closeDrawer();
+      setMessage('ลิงก์ LINE สำเร็จ');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
     } finally {
@@ -281,10 +281,10 @@ export default function AdminTenantsPage() {
       }
       const data = await res.json();
       if (!data.success) throw new Error(data.error?.message || 'ไม่สามารถจัดสรรห้องได้');
-      setMessage(`จัดสรรห้อง ${assignRoom} สำเร็จ`);
       setAssignRoom('');
-      closeDrawer();
       await load();
+      closeDrawer();
+      setMessage(`จัดสรรห้อง ${assignRoom} สำเร็จ`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
     } finally {
@@ -317,9 +317,9 @@ export default function AdminTenantsPage() {
           }
           const data = await res.json();
           if (!data.success) throw new Error(data.error?.message || 'ไม่สามารถถอนห้องได้');
-          setMessage(`ถอนห้อง ${roomNo} สำเร็จ`);
-          closeDrawer();
           await load();
+          closeDrawer();
+          setMessage(`ถอนห้อง ${roomNo} สำเร็จ`);
         } catch (err) {
           setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
         } finally {
@@ -540,7 +540,7 @@ export default function AdminTenantsPage() {
       {/* Drawer */}
       {drawerOpen && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40 pointer-events-none" onClick={closeDrawer} style={{ animation: 'fade-in 200ms ease' }} />
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={closeDrawer} style={{ animation: 'fade-in 200ms ease' }} />
           <div className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-[hsl(var(--color-surface))] border-l border-[hsl(var(--color-border))] z-50 overflow-y-auto shadow-[-8px_0_32px_rgba(0,0,0,0.12)]" style={{ animation: 'slide-in-right 250ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
             <div className="sticky top-0 bg-[hsl(var(--color-surface))] border-b border-[hsl(var(--color-border))] px-6 py-4 flex items-center justify-between z-10">
               <h2 className="text-lg font-bold text-[hsl(var(--primary))]">
@@ -580,7 +580,7 @@ export default function AdminTenantsPage() {
                     <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">โทรศัพท์ฉุกเฉิน</label>
                     <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200" value={createForm.emergencyPhone} placeholder="0xx-xxx-xxxx" onChange={e => setCreateForm(p => ({ ...p, emergencyPhone: e.target.value }))} />
                   </div>
-                  <button className="w-full py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50" disabled={working === 'create'}>
+                  <button type="submit" className="w-full py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50" disabled={working === 'create'}>
                     {working === 'create' ? 'กำลังเพิ่ม...' : 'เพิ่มผู้เช่า'}
                   </button>
                 </form>
@@ -627,7 +627,7 @@ export default function AdminTenantsPage() {
                         <label className="block text-[11px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] mb-2">โทรศัพท์ฉุกเฉิน</label>
                         <input className="w-full px-4 py-2.5 bg-[hsl(var(--color-surface))]/[0.05] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200" value={editForm.emergencyPhone} onChange={e => setEditForm(p => ({ ...p, emergencyPhone: e.target.value }))} />
                       </div>
-                      <button className="w-full py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50" disabled={working === `edit:${selectedTenant.id}`}>
+                      <button type="submit" className="w-full py-2.5 bg-[hsl(var(--primary))] text-white text-sm font-bold rounded-lg shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50" disabled={working === `edit:${selectedTenant.id}`}>
                         {working === `edit:${selectedTenant.id}` ? 'กำลังบันทึก...' : 'บันทึก'}
                       </button>
                     </form>

@@ -33,10 +33,11 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
 
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const form = await req.formData();
   const file = form.get('file');
+  const forceImport = form.get('forceImport') === 'true';
   if (!(file instanceof File)) {
     return NextResponse.json({ success: false, error: { name: 'BadRequest', message: 'Missing file', code: 'BAD_REQUEST', statusCode: 400 } }, { status: 400 });
   }
@@ -90,6 +91,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       fileBuffer: new Uint8Array(arrayBuffer),
       uploadedFileId,
       storageKey,
+      forceImport,
     });
 
     return NextResponse.json({

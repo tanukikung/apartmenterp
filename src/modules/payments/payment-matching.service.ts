@@ -1,10 +1,75 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
 import { BadRequestError, ConflictError, NotFoundError } from '@/lib/utils/errors';
 import { syncInvoicePaymentState } from './invoice-payment-state';
+import { assertMatchDecisionAllowed, createPaymentMatchDecision } from './payment-match-decision.service';
+
+// ============================================================================
+// Multi-Factor Match Scoring (Agent-3: Zero False Positive Specialist)
+// ============================================================================
+
+/**
+ * Match confidence levels (replaces simple HIGH/MEDIUM/LOW).
+ * Score range 0-100:
+ *   95-100: AUTO-CONFIRM (requires strict criteria)
+ *   70-94:  MANUAL REVIEW (admin must verify)
+ *   0-69:   REJECT (left as NEED_REVIEW)
+ */
+export type MatchConfidenceLevel = 'HIGH' | 'MEDIUM' | 'LOW' | 'REJECT';
+
+/**
+ * A single contributing factor in a match score.
+ */
+export interface MatchFactor {
+  type:
+    | 'AMOUNT_EXACT'
+    | 'AMOUNT_CLOSE'
+    | 'INVOICE_REF'
+    | 'ROOM_MATCH'
+    | 'DATE_WINDOW'
+    | 'TENANT_NAME';
+  weight: number;
+  passed: boolean;
+  detail: string;
+}
+
+/**
+ * Complete multi-factor match score for a transaction-invoice pair.
+ */
+export interface MatchScore {
+  invoiceId: string;
+  totalScore: number;
+  confidence: MatchConfidenceLevel;
+  factors: MatchFactor[];
+  reasons: string[];
+}
+
+export const MATCH_THRESHOLDS = {
+  AUTO_CONFIRM: 95,
+  MANUAL_REVIEW: 70,
+} as const;
+
+/**
+ * Determines if a match score qualifies for auto-confirm.
+ * STRICT: requires ALL of (amount exact + invoice/room ref + date window).
+ * Score must also be >= AUTO_CONFIRM threshold.
+ */
+function canAutoConfirm(score: MatchScore): boolean {
+  if (score.totalScore < MATCH_THRESHOLDS.AUTO_CONFIRM) return false;
+  const hasAmountExact = score.factors.some(
+    (f) => f.type === 'AMOUNT_EXACT' && f.passed,
+  );
+  const hasStrongRef =
+    score.factors.some((f) => f.type === 'INVOICE_REF' && f.passed) ||
+    score.factors.some((f) => f.type === 'ROOM_MATCH' && f.passed);
+  const hasDateWindow = score.factors.some(
+    (f) => f.type === 'DATE_WINDOW' && f.passed,
+  );
+  return hasAmountExact && hasStrongRef && hasDateWindow;
+}
 
 export interface BankStatementEntry {
   date: Date;
@@ -172,7 +237,8 @@ export class PaymentMatchingService {
     transactionId: string,
     tx?: Prisma.TransactionClient,
     options: { autoConfirmHighConfidence?: boolean } = {},
-  ): Promise<MatchCandidate | 'CONFIRMED' | null> {
+  // Type the return properly — MatchScore now carries invoiceId
+  ): Promise<MatchScore | 'CONFIRMED' | null> {
     const { autoConfirmHighConfidence = false } = options;
     const db = tx ?? prisma;
     const transaction = await db.paymentTransaction.findUnique({
@@ -204,21 +270,22 @@ export class PaymentMatchingService {
       },
     });
 
-    const candidates: MatchCandidate[] = [];
+    const candidates: MatchScore[] = [];
 
     for (const inv of unpaidInvoices) {
-      const candidate = this.evaluateMatch(
+      const score = this.computeMatchScore(
         {
           amount: Number(transaction.amount),
           description: transaction.description ?? undefined,
           reference: transaction.reference ?? undefined,
+          transactionDate: transaction.transactionDate,
         },
         {
           id: inv.id,
-          total: Number(inv.totalAmount),
+          total: Number(inv.snapshotTotal ?? inv.totalAmount),
+          dueDate: inv.dueDate,
           room: {
             roomNumber: inv.roomNo,
-            // inv.room shape: Room & { tenants: (RoomTenant & { tenant: Tenant })[] }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             roomTenants: (((inv.room as any) as { tenants?: Array<{ tenant?: { firstName?: string; lastName?: string } | null }> }).tenants ?? []).map((rt) => ({
               tenant: {
@@ -227,18 +294,16 @@ export class PaymentMatchingService {
               },
             })),
           },
-        }
+        },
       );
-      if (candidate) {
-        candidates.push(candidate);
+      // Only include candidates with score >= MANUAL_REVIEW threshold (not immediately rejected)
+      if (score.totalScore >= MATCH_THRESHOLDS.MANUAL_REVIEW) {
+        candidates.push(score);
       }
     }
 
-    // Sort by confidence (HIGH -> MEDIUM -> LOW)
-    candidates.sort((a, b) => {
-      const confidenceOrder = { HIGH: 3, MEDIUM: 2, LOW: 1 };
-      return confidenceOrder[b.confidence] - confidenceOrder[a.confidence];
-    });
+    // Sort by totalScore descending (highest score = best match)
+    candidates.sort((a, b) => b.totalScore - a.totalScore);
 
     const bestMatch = candidates[0];
 
@@ -249,14 +314,16 @@ export class PaymentMatchingService {
       const { matchedAmount: computedMatchedAmount, matchType: computedMatchType } =
         computeMatchResult(txAmount, invoiceTotal);
 
-      // Auto-confirm HIGH confidence matches when autoConfirmHighConfidence is true
-      if (autoConfirmHighConfidence && bestMatch.confidence === 'HIGH') {
+      // AGENT-3 STRICT AUTO-CONFIRM: Only if score >= 95 AND all must-pass factors present
+      // MEDIUM confidence (70-94) is NEVER auto-confirmed — requires manual review
+      if (autoConfirmHighConfidence && canAutoConfirm(bestMatch)) {
         await this.autoConfirmMatch(db, transaction.id, bestMatch.invoiceId, txAmount, invoiceTotal, computedMatchedAmount, computedMatchType);
         logger.info({
           type: 'payment_auto_confirmed',
           transactionId: transaction.id,
           invoiceId: bestMatch.invoiceId,
           confidence: bestMatch.confidence,
+          score: bestMatch.totalScore,
         });
         return 'CONFIRMED';
       }
@@ -266,7 +333,7 @@ export class PaymentMatchingService {
         where: { id: transaction.id },
         data: {
           invoiceId: bestMatch.invoiceId,
-          confidenceScore: this.getConfidenceScore(bestMatch.confidence),
+          confidenceScore: bestMatch.totalScore / 100,
           status: bestMatch.confidence === 'LOW' ? 'NEED_REVIEW' : 'AUTO_MATCHED',
           matchedAt: new Date(),
           matchedAmount: computedMatchedAmount,
@@ -279,7 +346,8 @@ export class PaymentMatchingService {
         transactionId: transaction.id,
         invoiceId: bestMatch.invoiceId,
         confidence: bestMatch.confidence,
-        criteria: bestMatch.criteria,
+        score: bestMatch.totalScore,
+        reasons: bestMatch.reasons,
       });
     }
 
@@ -347,7 +415,7 @@ export class PaymentMatchingService {
       data: {
         invoiceId,
         status: 'CONFIRMED',
-        confidenceScore: this.getConfidenceScore('HIGH'),
+        confidenceScore: 1.0, // 'HIGH' equivalent in 0-1 scale
         confirmedAt: new Date(),
         confirmedBy: 'SYSTEM',
         matchedAmount,
@@ -382,7 +450,7 @@ export class PaymentMatchingService {
         },
       });
     } catch (error) {
-      if (error instanceof Error && error.message.includes('P2002')) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         // Idempotent: Payment already created by a concurrent call — no-op
         logger.info({
           type: 'payment_auto_confirm_idempotent',
@@ -401,19 +469,30 @@ export class PaymentMatchingService {
       paidAt: currentTx.transactionDate,
     });
 
-    // Create PaymentMatch record
-    await db.paymentMatch.create({
-      data: {
-        id: uuidv4(),
-        paymentId: payment.id,
-        invoiceId,
-        confidence: 'HIGH',
-        isAutoMatched: true,
-        status: 'CONFIRMED',
-        confirmedAt: new Date(),
-        confirmedBy: 'SYSTEM',
-      },
-    });
+    // Create PaymentMatch record — @@unique([paymentId, invoiceId]) guard prevents
+    // duplicates if two concurrent calls both passed the status re-check above.
+    // Catch P2002 to handle the rare case where the record was created between
+    // the re-check and the insert — treat as idempotent no-op.
+    try {
+      await db.paymentMatch.create({
+        data: {
+          id: uuidv4(),
+          paymentId: payment.id,
+          invoiceId,
+          confidence: 'HIGH',
+          isAutoMatched: true,
+          status: 'CONFIRMED',
+          confirmedAt: new Date(),
+          confirmedBy: 'SYSTEM',
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        logger.info({ type: 'payment_match_idempotent', paymentId: payment.id, invoiceId });
+        return; // already matched — idempotent no-op
+      }
+      throw error;
+    }
 
     // P3-02: Write PaymentHistory audit trail for auto-confirmed match
     await db.paymentHistory.create({
@@ -443,15 +522,36 @@ export class PaymentMatchingService {
     });
   }
 
-  private evaluateMatch(
+  /**
+   * AGENT-3 REPLACEMENT: Multi-factor scoring instead of priority-based evaluateMatch.
+   *
+   * Computes a weighted MatchScore (0-100) for a transaction-invoice pair.
+   * All factors are evaluated independently; scores are additive.
+   *
+   * Factor weights:
+   *   AMOUNT_EXACT  — exact match (diff < ฿1):      +30 pts
+   *   AMOUNT_CLOSE  — match within ฿10:             +20 pts
+   *   INVOICE_REF   — invoice number in desc:      +35 pts  ← STRONGEST signal
+   *   ROOM_MATCH    — room number in desc:          +20 pts
+   *   DATE_WINDOW   — tx date within ±7d of due:   +10 pts
+   *   TENANT_NAME   — tenant name in desc:          +5 pts
+   *
+   * Confidence classification:
+   *   95-100 → HIGH  (auto-confirm eligible — requires all must-pass factors)
+   *   70-94  → MEDIUM (manual review required)
+   *   0-69   → LOW   (reject — left as NEED_REVIEW)
+   */
+  private computeMatchScore(
     transaction: {
       amount: number;
       description?: string | null;
       reference?: string | null;
+      transactionDate: Date;
     },
     invoice: {
       id: string;
       total: number;
+      dueDate: Date;
       room: {
         roomNumber: string;
         roomTenants: Array<{
@@ -461,96 +561,124 @@ export class PaymentMatchingService {
           };
         }>;
       };
-    }
-  ): MatchCandidate | null {
+    },
+  ): MatchScore {
+    const factors: MatchFactor[] = [];
+    const reasons: string[] = [];
+    let totalScore = 0;
+
     const invoiceTotal = Number(invoice.total);
     const amountDiff = Math.abs(transaction.amount - invoiceTotal);
-    const amountMatch = amountDiff < AMOUNT_TOLERANCE; // Allow for small rounding differences
+    const textFields = [
+      transaction.description ?? '',
+      transaction.reference ?? '',
+    ]
+      .join(' ')
+      .toLowerCase()
+      .trim();
 
-    if (!amountMatch) {
-      return null;
+    // ── Factor 1: Amount exact match (diff < ฿1) ─────────────────────────────────
+    const AMOUNT_EXACT_TOLERANCE = 1.0;
+    if (amountDiff < AMOUNT_EXACT_TOLERANCE) {
+      totalScore += 30;
+      factors.push({
+        type: 'AMOUNT_EXACT',
+        weight: 30,
+        passed: true,
+        detail: `Amount ฿${transaction.amount.toFixed(2)} matches invoice ฿${invoiceTotal.toFixed(2)} (diff ฿${amountDiff.toFixed(2)} < ฿${AMOUNT_EXACT_TOLERANCE})`,
+      });
+    } else if (amountDiff <= 10) {
+      // Close but not exact — partial credit
+      totalScore += 20;
+      factors.push({
+        type: 'AMOUNT_CLOSE',
+        weight: 20,
+        passed: true,
+        detail: `Amount ฿${transaction.amount.toFixed(2)} close to invoice ฿${invoiceTotal.toFixed(2)} (diff ฿${amountDiff.toFixed(2)} ≤ ฿10)`,
+      });
+      reasons.push(`Amount within ฿10 tolerance (diff ฿${amountDiff.toFixed(2)})`);
     }
 
-    // Priority 1: Invoice number in reference/description
-    if (transaction.reference || transaction.description) {
-      const text = `${transaction.reference || ''} ${transaction.description || ''}`.toLowerCase();
-      const invoiceNumber = this.extractInvoiceNumber(text);
-      if (invoiceNumber) {
-        // Try to find invoice by number pattern
-        return {
-          invoiceId: invoice.id,
-          confidence: 'HIGH',
-          criteria: {
-            type: 'invoice_number',
-            matchedField: 'reference/description',
-            expectedValue: invoiceNumber,
-            actualValue: text,
-          },
-        };
-      }
+    // ── Factor 2: Invoice number reference in description ────────────────────────
+    const invoiceNumber = this.extractInvoiceNumber(textFields);
+    if (invoiceNumber) {
+      totalScore += 35;
+      factors.push({
+        type: 'INVOICE_REF',
+        weight: 35,
+        passed: true,
+        detail: `Invoice number '${invoiceNumber}' found in description/reference`,
+      });
+      reasons.push(`Invoice reference detected: ${invoiceNumber}`);
     }
 
-    // Priority 2: Reference code match
-    if (transaction.reference) {
-      return {
-        invoiceId: invoice.id,
-        confidence: 'MEDIUM',
-        criteria: {
-          type: 'reference',
-          matchedField: 'reference',
-          expectedValue: transaction.reference,
-          actualValue: transaction.reference,
-        },
-      };
-    }
-
-    // Priority 3: Amount + Room number
+    // ── Factor 3: Room number in description ─────────────────────────────────────
     const roomNumber = invoice.room.roomNumber;
-    const textFields = [transaction.description, transaction.reference].filter(Boolean).join(' ').toLowerCase();
     if (textFields.includes(roomNumber.toLowerCase())) {
-      return {
-        invoiceId: invoice.id,
-        confidence: 'MEDIUM',
-        criteria: {
-          type: 'amount_room',
-          matchedField: 'description/reference',
-          expectedValue: roomNumber,
-          actualValue: textFields,
-        },
-      };
+      totalScore += 20;
+      factors.push({
+        type: 'ROOM_MATCH',
+        weight: 20,
+        passed: true,
+        detail: `Room number '${roomNumber}' found in description`,
+      });
+      reasons.push(`Room number ${roomNumber} matched`);
     }
 
-    // Priority 4: Amount + Resident name
+    // ── Factor 4: Transaction date within ±7 days of due date ───────────────────
+    const DATE_WINDOW_DAYS = 7;
+    const dueDate = new Date(invoice.dueDate);
+    const txDate = new Date(transaction.transactionDate);
+    const daysDiff = Math.abs(
+      (txDate.getTime() - dueDate.getTime()) / (24 * 60 * 60 * 1000),
+    );
+    if (daysDiff <= DATE_WINDOW_DAYS) {
+      totalScore += 10;
+      factors.push({
+        type: 'DATE_WINDOW',
+        weight: 10,
+        passed: true,
+        detail: `Transaction date ${txDate.toISOString().slice(0, 10)} within ${DATE_WINDOW_DAYS} days of due date ${dueDate.toISOString().slice(0, 10)} (${daysDiff.toFixed(1)} days)`,
+      });
+      reasons.push(`Transaction date within ±${DATE_WINDOW_DAYS} days of due date`);
+    }
+
+    // ── Factor 5: Tenant name in description ─────────────────────────────────────
     const primaryTenant = invoice.room.roomTenants[0]?.tenant;
     if (primaryTenant) {
-      const tenantName = `${primaryTenant.firstName} ${primaryTenant.lastName}`.toLowerCase();
-      if (textFields.includes(primaryTenant.firstName.toLowerCase()) ||
-          textFields.includes(primaryTenant.lastName.toLowerCase())) {
-        return {
-          invoiceId: invoice.id,
-          confidence: 'LOW',
-          criteria: {
-            type: 'amount_resident',
-            matchedField: 'description/reference',
-            expectedValue: tenantName,
-            actualValue: textFields,
-          },
-        };
+      const firstName = primaryTenant.firstName.toLowerCase();
+      const lastName = primaryTenant.lastName.toLowerCase();
+      const fullName = `${firstName} ${lastName}`;
+      if (
+        textFields.includes(firstName) ||
+        textFields.includes(lastName) ||
+        textFields.includes(fullName)
+      ) {
+        totalScore += 5;
+        factors.push({
+          type: 'TENANT_NAME',
+          weight: 5,
+          passed: true,
+          detail: `Tenant name '${primaryTenant.firstName} ${primaryTenant.lastName}' found in description`,
+        });
+        reasons.push(`Tenant name matched`);
       }
     }
 
-    // Amount-only match with no supporting room/invoice/resident evidence: require human review
-    // Label honestly so reviewers know this is unverified
+    // ── Classify confidence level ─────────────────────────────────────────────────
+    const confidence: MatchConfidenceLevel =
+      totalScore >= MATCH_THRESHOLDS.AUTO_CONFIRM
+        ? 'HIGH'
+        : totalScore >= MATCH_THRESHOLDS.MANUAL_REVIEW
+          ? 'MEDIUM'
+          : 'LOW';
+
     return {
       invoiceId: invoice.id,
-      confidence: 'LOW',
-      criteria: {
-        type: 'amount_only',
-        matchedField: 'amount',
-        expectedValue: invoiceTotal.toString(),
-        actualValue: transaction.amount.toString(),
-        warning: 'No room number, invoice number, or resident name detected',
-      },
+      totalScore,
+      confidence,
+      factors,
+      reasons,
     };
   }
 
@@ -604,8 +732,9 @@ export class PaymentMatchingService {
     invoiceId: string,
     confirmedBy: string,
     requestId?: string,
+    options?: { manualOverride?: boolean; overrideReason?: string },
   ): Promise<void> {
-    logger.info({ type: 'payment_match_confirm_start', requestId: requestId ?? null, transactionId, invoiceId, confirmedBy });
+    logger.info({ type: 'payment_match_confirm_start', requestId: requestId ?? null, transactionId, invoiceId, confirmedBy, manualOverride: options?.manualOverride ?? false });
     // Pre-flight: fetch full transaction state for early-exit and error messaging.
     // All authoritative validation and writes happen inside the $transaction.
     const transaction = await prisma.paymentTransaction.findUnique({
@@ -662,9 +791,22 @@ export class PaymentMatchingService {
         throw new BadRequestError('Invoice is already paid');
       }
 
-      const invoiceTotal = Number(invoice.totalAmount);
+      // Gap-2: Use snapshot total so payment matching uses sent-time values, not mutable billing
+      const invoiceTotal = Number(invoice.snapshotTotal ?? invoice.totalAmount);
       const { matchedAmount: confirmedMatchedAmount, matchType: confirmedMatchType } =
         computeMatchResult(txAmount, invoiceTotal);
+
+      // Gap-3 Guard: block low-confidence or high-diff matches unless explicit override
+      const guardResult = await assertMatchDecisionAllowed(tx, {
+        paymentTransactionId: transactionId,
+        invoiceId,
+        decidedBy: confirmedBy,
+        manualOverride: options?.manualOverride,
+        overrideReason: options?.overrideReason,
+      });
+      if (!guardResult.allowed) {
+        throw new BadRequestError(guardResult.reason ?? 'Match not allowed');
+      }
 
       // Flag overpayment: excess amount over invoice total requires manual review
       if (confirmedMatchType === 'OVERPAY') {
@@ -745,19 +887,40 @@ export class PaymentMatchingService {
         paidAt: transaction.transactionDate,
       });
 
-      // Create payment match record
-      await tx.paymentMatch.create({
-        data: {
-          id: uuidv4(),
-          paymentId: payment.id,
-          invoiceId,
-          confidence: 'HIGH',
-          isAutoMatched: false,
-          status: 'CONFIRMED',
-          confirmedAt: new Date(),
-          confirmedBy,
-        },
+      // Gap-3: Record decision audit trail with snapshot
+      await createPaymentMatchDecision(tx, {
+        paymentTransactionId: transactionId,
+        invoiceId,
+        confidenceScore: Math.round((current.confidenceScore ? Number(current.confidenceScore) * 100 : 0)),
+        matchFactors: [], // scoring factors not re-computed on manual confirm
+        decidedBy: confirmedBy,
+        manualOverride: options?.manualOverride ?? false,
+        overrideReason: options?.overrideReason,
       });
+
+      // Create payment match record — @@unique([paymentId, invoiceId]) guard prevents
+      // duplicates within the serialized transaction. P2002 catch as belt-and-suspenders.
+      try {
+        await tx.paymentMatch.create({
+          data: {
+            id: uuidv4(),
+            paymentId: payment.id,
+            invoiceId,
+            confidence: 'HIGH',
+            isAutoMatched: false,
+            status: 'CONFIRMED',
+            confirmedAt: new Date(),
+            confirmedBy,
+          },
+        });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          // Already matched — idempotent no-op within this transaction
+          logger.info({ type: 'payment_match_confirm_idempotent', paymentId: payment.id, invoiceId });
+        } else {
+          throw error;
+        }
+      }
 
       // P3-02: Write PaymentHistory audit trail
       await tx.paymentHistory.create({

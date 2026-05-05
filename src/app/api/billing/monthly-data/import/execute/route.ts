@@ -24,7 +24,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
 
-  const session = requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  const session = await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   let body: Record<string, unknown>;
   try {

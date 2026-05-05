@@ -15,7 +15,7 @@ function getBackupStatus(): { lastAttempt: string | null; lastSuccess: string | 
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   // Operator-only: deep health exposes sensitive internal state
-  requireRole(req, ['ADMIN', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'OWNER']);
   let database: 'connected' | 'error' = 'connected';
   let dbLatencyMs: number | null = null;
   try {

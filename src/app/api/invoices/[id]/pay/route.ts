@@ -5,6 +5,8 @@ import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { getServiceContainer } from '@/lib/service-container';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { requireMutationsAllowed } from '@/lib/guards/system';
+import { withIdempotency } from '@/lib/utils/idempotency';
 
 const PAYMENT_WINDOW_MS = 60 * 1000;
 const PAYMENT_MAX_ATTEMPTS = 10;
@@ -15,6 +17,10 @@ const PAYMENT_MAX_ATTEMPTS = 10;
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
+    return withIdempotency(req, 'invoice_pay', async () => {
+      const blocked = await requireMutationsAllowed();
+      if (blocked) return blocked;
+
     const limiter = getLoginRateLimiter();
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
     const { allowed, remaining, resetAt } = await limiter.check(`invoice-pay:${ip}`, PAYMENT_MAX_ATTEMPTS, PAYMENT_WINDOW_MS);
@@ -24,7 +30,7 @@ export const POST = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    const session = requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    const session = await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const { id } = params;
     let body: Record<string, unknown>;
     try {
@@ -59,5 +65,6 @@ export const POST = asyncHandler(
       data: result.invoice,
       message: result.settled ? 'Payment recorded and invoice settled' : 'Payment recorded',
     } as ApiResponse<typeof result.invoice>);
+    }); // end withIdempotency
   }
 );

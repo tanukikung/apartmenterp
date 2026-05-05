@@ -105,12 +105,12 @@ export const GET = asyncHandler(
         } : undefined,
       });
 
-      const invoiceNumber = normalizedPreview.invoiceNumber || `INV-${normalizedPreview.year}${String(normalizedPreview.month).padStart(2, '0')}-${normalizedPreview.roomNo}`;
+      const _invoiceNumber = normalizedPreview.invoiceNumber || `INV-${normalizedPreview.year}${String(normalizedPreview.month).padStart(2, '0')}-${normalizedPreview.roomNo}`;
 
       if (templateBody.trim()) {
         const renderedHtml = renderTemplate(templateBody, templateData);
         pdfBytes = await htmlToPdfBuffer(renderedHtml, {
-          title: invoiceNumber,
+          title: _invoiceNumber,
           pageSize: 'A4',
           orientation: 'portrait',
           marginTop: '0',

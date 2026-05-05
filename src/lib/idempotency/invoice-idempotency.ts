@@ -4,7 +4,6 @@
  */
 
 import { prisma } from '@/lib/db/client';
-import { withIdempotency } from '@/lib/idempotency';
 
 interface GenerateInvoicesResult {
   periodId: string;
@@ -24,8 +23,8 @@ export async function generateInvoicesIdempotent(
   }
 
   const cached = await prisma.idempotencyRecord.findUnique({ where: { key: idempotencyKey } });
-  if (cached?.result) {
-    const parsed = cached.result as unknown as GenerateInvoicesResult;
+  if (cached?.response) {
+    const parsed = cached.response as unknown as GenerateInvoicesResult;
     return { ...parsed, cached: true };
   }
 
@@ -33,8 +32,8 @@ export async function generateInvoicesIdempotent(
 
   await prisma.idempotencyRecord.upsert({
     where: { key: idempotencyKey },
-    create: { key: idempotencyKey, resourceType: 'invoice_generation', result: result as never },
-    update: { result: result as never },
+    create: { key: idempotencyKey, resourceType: 'invoice_generation', response: result as never },
+    update: { response: result as never },
   });
 
   return { ...result, cached: false };

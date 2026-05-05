@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createMoveOutService } from '@/modules/moveouts';
 import { updateMoveOutItemSchema } from '@/modules/moveouts/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
@@ -10,6 +11,10 @@ const ADMIN_WINDOW_MS = 60 * 1000;
 const ADMIN_MAX_ATTEMPTS = 20;
 const DELETE_WINDOW_MS = 60 * 1000;
 const DELETE_MAX_ATTEMPTS = 5;
+
+const deleteItemSchema = z.object({
+  reason: z.string().min(5, 'ต้องระบุเหตุผลอย่างน้อย 5 ตัวอักษร'),
+});
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +36,7 @@ export const PATCH = asyncHandler(async (req: NextRequest, { params }: RoutePara
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const body = await req.json();
 
   const input = updateMoveOutItemSchema.parse(body);
@@ -66,10 +71,14 @@ export const DELETE = asyncHandler(async (req: NextRequest, { params }: RoutePar
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+
+  let body: Record<string, unknown> = {};
+  try { body = await req.json(); } catch { /* empty body */ }
+  const { reason } = deleteItemSchema.parse(body);
 
   const moveOutService = createMoveOutService();
-  await moveOutService.deleteItem(params.itemId);
+  await moveOutService.deleteItem(params.itemId, reason);
 
   logger.info({
     type: 'moveout_item_deleted_api',

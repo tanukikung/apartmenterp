@@ -5,7 +5,7 @@ import { getBackupPrerequisiteFailure, runBackup } from '@/lib/ops/backup';
 import { logger } from '@/lib/utils/logger';
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  getVerifiedActor(req, { allowSystem: true });
+  await await getVerifiedActor(req, { allowSystem: true });
   const prerequisiteFailure = getBackupPrerequisiteFailure();
   if (prerequisiteFailure) {
     throw new AppError(

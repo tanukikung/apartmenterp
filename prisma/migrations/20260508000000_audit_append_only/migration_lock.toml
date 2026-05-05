@@ -1,0 +1,2 @@
+-- Prevent concurrent migrations
+SELECT 1;

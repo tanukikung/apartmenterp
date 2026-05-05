@@ -33,6 +33,56 @@ import {
   inc,
   recordInboxLatency,
 } from '@/lib/metrics/messaging';
+import { Prisma } from '@prisma/client';
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Mark a LineEvent record with its processing result.
+ * Called by InboxProcessor after attempting to process an event.
+ * - On success: result=SUCCESS, sourceSequenceAt=eventTimestamp (for out-of-order guard)
+ * - On permanent failure (DEAD): result=FAILED with errorMsg
+ *
+ * Uses eventId from the InboxEvent payload to look up the LineEvent.
+ * This is called at the end of processing (success or failure) so that the
+ * LineEvent table always reflects the final state of each event.
+ *
+ * If the LineEvent doesn't exist (shouldn't happen in normal operation,
+ * but could if the webhook was bypassed), we skip silently.
+ */
+async function markLineEventResult(
+  inboxEventId: string,
+  eventId: string,
+  result: 'SUCCESS' | 'FAILED',
+  errorMsg?: string,
+  eventTimestamp?: bigint
+): Promise<void> {
+  try {
+    await prisma.lineEvent.update({
+      where:  { id: eventId },
+      data: {
+        result,
+        errorMsg: errorMsg ?? null,
+        // Set sourceSequenceAt on success so the out-of-order guard can
+        // use this event's timestamp as the baseline for future events.
+        sourceSequenceAt: result === 'SUCCESS' && eventTimestamp != null ? eventTimestamp : undefined,
+      },
+    });
+  } catch (err) {
+    // P2025 = record not found — webhook may have been bypassed; skip silently
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+      logger.debug({ type: 'line_event_not_found_for_update', inboxEventId, eventId });
+      return;
+    }
+    // Log but don't rethrow — failure to update LineEvent must not derail processor
+    logger.error({
+      type: 'line_event_update_failed',
+      inboxEventId,
+      eventId,
+      error: (err as Error).message,
+    });
+  }
+}
 
 // ── Error classification ──────────────────────────────────────────────────────
 
@@ -195,8 +245,11 @@ export class InboxProcessor {
 
     for (const inboxEvent of events) {
       const startMs = Date.now();
+      const lineEvent = inboxEvent.payload as unknown as WebhookEvent;
+      const rawTs     = (lineEvent as { timestamp?: number }).timestamp ?? 0;
+      const eventTimestamp = BigInt(rawTs);
+
       try {
-        const lineEvent = inboxEvent.payload as unknown as WebhookEvent;
         await processLineWebhookEvent(lineEvent, {
           webhookReceivedAt: inboxEvent.receivedAt.getTime(),
         });
@@ -210,6 +263,11 @@ export class InboxProcessor {
             errorCode:   null,
           },
         });
+
+        // Mark the LineEvent as SUCCESS (result confirmed by InboxProcessor)
+        // and set sourceSequenceAt so the out-of-order guard can use this
+        // event's timestamp as the baseline for future events from this source.
+        await markLineEventResult(inboxEvent.id, inboxEvent.eventId, 'SUCCESS', undefined, eventTimestamp);
 
         const latencyMs = Date.now() - startMs;
         recordInboxLatency(latencyMs);
@@ -234,6 +292,10 @@ export class InboxProcessor {
               processedAt:  new Date(),
             },
           });
+
+          // Mark the LineEvent as FAILED (exhausted retries — permanent failure)
+          await markLineEventResult(inboxEvent.id, inboxEvent.eventId, 'FAILED', errMsg, eventTimestamp);
+
           inc('inbox_dead_total');
           logger.error({
             type:       'inbox_event_dead',

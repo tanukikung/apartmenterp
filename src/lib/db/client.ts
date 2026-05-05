@@ -1,19 +1,137 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// NOTE: Direct prisma access bypasses pool guard. All database operations MUST go through
+// withTransaction(), withReadTransaction(), or rawQuery() to benefit from:
+//   - MAX_CONCURRENT_QUERIES limit (fail-fast on pool exhaustion)
+//   - Pool exhaustion error detection (P2037, P2024 → DB_POOL_EXHAUSTED)
+//   - DB_QUERY_TOTAL and DB_POOL_EXHAUSTED metrics
+
 import { PrismaClient, Prisma } from '@prisma/client';
 import { logger } from '../utils/logger';
+import { incrementCounter } from '@/lib/metrics/registry';
+
+/**
+ * Pool exhaustion error code — thrown when the concurrent query guard
+ * detects that the pending request counter has exceeded MAX_CONCURRENT_QUERIES.
+ */
+export const DB_POOL_EXHAUSTED = 'DB_POOL_EXHAUSTED';
+
+// ── Pool Guard ─────────────────────────────────────────────────────────────────
+
+/**
+ * Maximum concurrent `$transaction()` calls allowed before the guard
+ * starts rejecting requests with `DB_POOL_EXHAUSTED`.
+ *
+ * Configure via `MAX_CONCURRENT_DB_QUERIES` env (default: 80).
+ * The fail-fast threshold should be set below Prisma's pool limit to
+ * give the guard time to reject before the underlying pool truly exhausts.
+ */
+const MAX_CONCURRENT_QUERIES = parseInt(
+  process.env.MAX_CONCURRENT_DB_QUERIES ?? '80',
+  10,
+);
+
+/**
+ * Module-level counter tracking in-flight `$transaction()` calls.
+ * Incremented before query execution, decremented after (success or failure).
+ */
+let pendingConnectionRequests = 0;
+
+/**
+ * Throws DB_POOL_EXHAUSTED if the guard detects pool saturation.
+ * Used as a fail-fast mechanism — it does NOT queue or wait.
+ */
+function checkPoolGuard(): void {
+  if (pendingConnectionRequests >= MAX_CONCURRENT_QUERIES) {
+    incrementCounter('db_pool_exhausted_total');
+    const err = new Error('Connection pool exhausted');
+    (err as any).code = DB_POOL_EXHAUSTED;
+    throw err;
+  }
+}
+
+/**
+ * Wraps an async operation with pool guard entry/exit instrumentation.
+ * Ensures the counter is always decremented, even on thrown errors.
+ */
+async function withPoolGuard<T>(fn: () => Promise<T>): Promise<T> {
+  checkPoolGuard();
+  pendingConnectionRequests++;
+  try {
+    return await fn();
+  } finally {
+    pendingConnectionRequests--;
+  }
+}
+
+// ── Unguarded query detection ───────────────────────────────────────────────────
+
+/**
+ * Set of stack traces for detected unguarded queries.
+ * Used for runtime auditing of code that bypasses the pool guard.
+ */
+const detectedUnguardedQueries = new Set<string>();
+
+/**
+ * Wraps a Prisma client in a Proxy that emits a warning log and increments
+ * the `db_unguarded_query_total` metric whenever any model method is called
+ * directly (i.e. outside of withTransaction / withReadTransaction / rawQuery).
+ *
+ * This is a detection mechanism, NOT a prevention — it does not block queries.
+ * The wrapped client is used internally so that existing code paths continue
+ * to work while administrators can observe which call sites bypass the guard.
+ */
+function createProxiedPrisma(client: PrismaClient): PrismaClient {
+  return new Proxy(client, {
+    get(target, prop, receiver) {
+      if (prop === 'then' || prop === 'catch' || prop === 'finally') {
+        // Guard against "await prisma" — the prisma client itself is thenable
+        return Reflect.get(target, prop, receiver);
+      }
+
+      const value = Reflect.get(target, prop, receiver);
+
+      if (typeof value !== 'function') {
+        return value;
+      }
+
+      // Wrap every method call with an unguarded-query warning
+      return function (...args: unknown[]) {
+        // Capture stack trace for auditing — only store first 3 to avoid memory bloat
+        const stack = new Error().stack ?? '';
+        const shortStack = stack.split('\n').slice(0, 4).join('\n');
+
+        if (!detectedUnguardedQueries.has(shortStack)) {
+          detectedUnguardedQueries.add(shortStack);
+          logger.warn({
+            type: 'unguarded_db_query',
+            // Log a short excerpt of the call site
+            stack: shortStack,
+          });
+          incrementCounter('db_unguarded_query_total');
+        }
+
+        return Reflect.apply(value, target, args);
+      };
+    },
+  }) as unknown as PrismaClient;
+}
+
+// ── Soft-delete middleware ─────────────────────────────────────────────────────
 
 /**
  * Soft-delete middleware
  *
- * Automatically adds `deletedAt: null` to all findFirst/findMany queries on
- * Tenant and Contract models. This ensures deleted records are always
- * excluded without requiring callers to remember the filter.
+ * Automatically adds `deletedAt: null` to all findFirst/findMany/findUnique queries
+ * on Tenant, Contract, Invoice, Payment, and RoomBilling models. This ensures
+ * deleted records are always excluded without requiring callers to remember the filter.
  *
  * Hard deletes on these models are blocked by the model-level @ignore annotation
- * in schema.prisma — use archiveTenant() / archiveContract() instead.
+ * in schema.prisma. Use soft-delete (set deletedAt) and restore instead.
+ *
+ * Phase 8.4: Extended to Invoice, Payment, RoomBilling
  */
 function softDeleteMiddleware(prisma: PrismaClient): void {
-  const modelPrefix = 'model.';
-  const modelsWithSoftDelete = ['Tenant', 'Contract'];
+  const modelsWithSoftDelete = ['Tenant', 'Contract', 'Invoice', 'Payment', 'RoomBilling'];
 
   prisma.$use(async (params, next) => {
     // Only intercept findFirst/findMany on soft-delete models
@@ -46,25 +164,39 @@ const globalForPrisma = globalThis as unknown as {
   readPrisma: PrismaClient | undefined;
 };
 
-// Query logging function
+// ── Query logging ─────────────────────────────────────────────────────────────
+
 interface QueryEventLike {
   duration: number;
   query: string;
 }
+
+// ── Performance instrumentation ─────────────────────────────────────────────────
+
+let _trackSlowQuery: ((duration: number, query: string, source: 'write' | 'read') => void) | null = null;
+
+export function registerSlowQueryTracker(fn: (duration: number, query: string, source: 'write' | 'read') => void): void {
+  _trackSlowQuery = fn;
+}
+
 function logQuery(event: QueryEventLike, source: 'write' | 'read' = 'write'): void {
   const duration = event.duration;
   const query = event.query.replace(/\s+/g, ' ').trim();
 
-  // Emit slow-query metric for observability
+  // Track slow queries for diagnostics (100ms threshold for load test profiling)
+  _trackSlowQuery?.(duration, query, source);
+
+  // Emit slow-query metric for observability (500ms = P95 target boundary)
   if (duration > 500) {
     try {
-      const { observeHistogram, incrementCounter } = require('@/lib/metrics/registry');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { observeHistogram } = require('@/lib/metrics/registry');
       observeHistogram('db_query_duration_seconds', duration / 1000, { source });
       if (duration > 1000) incrementCounter('db_slow_queries_total', { source });
     } catch { /* metrics optional */ }
   }
 
-  if (duration > 1000) {
+  if (duration > 100) {
     logger.warn({
       type: 'slow_query',
       source,
@@ -81,7 +213,8 @@ function logQuery(event: QueryEventLike, source: 'write' | 'read' = 'write'): vo
   }
 }
 
-// Error logging function
+// ── Error logging ─────────────────────────────────────────────────────────────
+
 function logError(event: 'warn' | 'error', message: string): void {
   logger.error({
     type: 'prisma_error',
@@ -89,6 +222,8 @@ function logError(event: 'warn' | 'error', message: string): void {
     message,
   });
 }
+
+// ── Prisma client factory ──────────────────────────────────────────────────────
 
 function makePrismaClient(url?: string): PrismaClient {
   const client = new PrismaClient({
@@ -104,45 +239,87 @@ function makePrismaClient(url?: string): PrismaClient {
 }
 
 // ── Write DB (primary) ─────────────────────────────────────────────────────────
-export const prisma: PrismaClient =
+
+// NOTE: Direct prisma access is DEPRECATED. Use withTransaction() for all DB operations.
+// The proxied client is used internally so that existing code paths continue working.
+// When code calls prisma.invoice.findUnique() directly (bypassing withTransaction),
+// the proxy emits a warning and increments db_unguarded_query_total.
+const _prismaInternal: PrismaClient =
   globalForPrisma.prisma ?? makePrismaClient();
 
+export const prisma = createProxiedPrisma(_prismaInternal);
+
 // ── Read DB (replica if DATABASE_REPLICA_URL is set, otherwise same as write) ─
-// Route read-heavy endpoints (balance queries, list views) here.
-// In single-DB deployments this is identical to `prisma`.
-// In scaled deployments set DATABASE_REPLICA_URL to the replica connection string.
-export const readDb: PrismaClient =
+
+const _readDbInternal: PrismaClient =
   globalForPrisma.readPrisma ??
   (process.env.DATABASE_REPLICA_URL
     ? makePrismaClient(process.env.DATABASE_REPLICA_URL)
-    : prisma);
+    : _prismaInternal);
 
-// Set up query logging
-(prisma as unknown as PrismaEventListener).$on(
+export const readDb =
+  _readDbInternal === _prismaInternal
+    ? prisma
+    : createProxiedPrisma(_readDbInternal);
+
+// Set up query logging on the underlying (un-proxied) clients so the proxy
+// does not interfere with event listener registration.
+(_prismaInternal as unknown as PrismaEventListener).$on(
   'query',
   (e: unknown) => logQuery(e as QueryEventLike, 'write')
 );
-if (readDb !== prisma) {
-  (readDb as unknown as PrismaEventListener).$on(
+if (_readDbInternal !== _prismaInternal) {
+  (_readDbInternal as unknown as PrismaEventListener).$on(
     'query',
     (e: unknown) => logQuery(e as QueryEventLike, 'read')
   );
 }
 
-(prisma as unknown as PrismaEventListener).$on(
+(_prismaInternal as unknown as PrismaEventListener).$on(
   'warn',
   (e: unknown) => logError('warn', (e as { message: string }).message)
 );
-(prisma as unknown as PrismaEventListener).$on(
+(_prismaInternal as unknown as PrismaEventListener).$on(
   'error',
   (e: unknown) => logError('error', (e as { message: string }).message)
 );
 
+// Register slow-query tracker for diagnostics
+try {
+  const diag = require('@/lib/diagnostics/performance');
+  if (diag?.trackSlowQuery) registerSlowQueryTracker(diag.trackSlowQuery);
+} catch { /* diagnostics optional */ }
+
 // Prevent multiple instances in development
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma     = prisma;
-  globalForPrisma.readPrisma = readDb;
+  globalForPrisma.prisma     = _prismaInternal;
+  globalForPrisma.readPrisma = _readDbInternal;
 }
+
+// ── Pool exhaustion detection ──────────────────────────────────────────────────
+
+/**
+ * Detects Prisma pool exhaustion errors (P2037, P2024) and re-throws
+ * as DB_POOL_EXHAUSTED so callers can handle them distinctly.
+ */
+function detectPoolExhaustion(error: unknown): never {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === 'P2037' || error.code === 'P2024')
+  ) {
+    incrementCounter('db_pool_exhausted_total');
+    const err = new Error('DB connection pool exhausted');
+    (err as any).code = DB_POOL_EXHAUSTED;
+    // Fire alerting — lazy import to avoid circular deps
+    import('@/lib/alerting/alerts').then(({ alertDbPoolExhausted }) => {
+      alertDbPoolExhausted('prisma-pool', 0).catch(() => {});
+    });
+    throw err;
+  }
+  throw error;
+}
+
+// ── Public API ─────────────────────────────────────────────────────────────────
 
 /**
  * Graceful shutdown handler
@@ -150,8 +327,8 @@ if (process.env.NODE_ENV !== 'production') {
  */
 export async function disconnectPrisma(): Promise<void> {
   logger.info('Closing Prisma connection...');
-  await prisma.$disconnect();
-  if (readDb !== prisma) await readDb.$disconnect();
+  await _prismaInternal.$disconnect();
+  if (_readDbInternal !== _prismaInternal) await _readDbInternal.$disconnect();
   logger.info('Prisma connection closed');
 }
 
@@ -164,7 +341,7 @@ export async function connectPrisma(): Promise<void> {
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await prisma.$connect();
+      await _prismaInternal.$connect();
       logger.info('Prisma connected successfully');
       return;
     } catch (error) {
@@ -185,19 +362,60 @@ export async function connectPrisma(): Promise<void> {
 }
 
 /**
- * Transaction helper with automatic rollback on error
+ * Transaction helper with automatic rollback on error.
+ *
+ * Guards against pool exhaustion:
+ * - Increments pendingConnectionRequests before the query
+ * - Decrements it after (success or failure)
+ * - Checks MAX_CONCURRENT_QUERIES limit and throws DB_POOL_EXHAUSTED if exceeded
+ * - Catches Prisma pool errors (P2037, P2024) and re-throws as DB_POOL_EXHAUSTED
+ *
+ * This is a fail-fast mechanism — it does NOT queue or wait for a slot.
  */
 export async function withTransaction<T>(
   fn: (tx: Prisma.TransactionClient) => Promise<T>
 ): Promise<T> {
-  return prisma.$transaction(fn);
+  return withPoolGuard(async () => {
+    try {
+      incrementCounter('db_query_total');
+      return await _prismaInternal.$transaction(fn);
+    } catch (error: unknown) {
+      detectPoolExhaustion(error);
+    }
+  });
 }
 
 /**
- * Raw query helper
+ * Read-only transaction helper (uses readDb replica when available).
+ * Same pool guard applies.
+ */
+export async function withReadTransaction<T>(
+  fn: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+  return withPoolGuard(async () => {
+    try {
+      incrementCounter('db_query_total');
+      return await (_readDbInternal === _prismaInternal
+        ? _prismaInternal
+        : _readDbInternal).$transaction(fn);
+    } catch (error: unknown) {
+      detectPoolExhaustion(error);
+    }
+  });
+}
+
+/**
+ * Raw query helper with pool guard + metrics.
  */
 export async function rawQuery<T>(query: string, ...args: unknown[]): Promise<T> {
-  return prisma.$queryRawUnsafe(query, ...args) as unknown as T;
+  return withPoolGuard(async () => {
+    try {
+      incrementCounter('db_query_total');
+      return await _prismaInternal.$queryRawUnsafe(query, ...args) as unknown as T;
+    } catch (error: unknown) {
+      detectPoolExhaustion(error);
+    }
+  });
 }
 
 // Re-export all Prisma types for convenience

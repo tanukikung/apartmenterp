@@ -48,15 +48,16 @@ function registerMetric(name: string, type: MetricType, help: string): void {
  */
 export function incrementCounter(
   name: string,
-  labels: Record<string, string> = {}
+  labels: Record<string, string> = {},
+  value = 1
 ): void {
   registerMetric(name, 'counter', '');
   const key = labelKey(labels);
   const nameMap = counters.get(name);
   if (nameMap) {
-    nameMap.set(key, (nameMap.get(key) ?? 0) + 1);
+    nameMap.set(key, (nameMap.get(key) ?? 0) + value);
   } else {
-    counters.set(name, new Map([[key, 1]]));
+    counters.set(name, new Map([[key, value]]));
   }
 }
 
@@ -295,4 +296,51 @@ export function collectJobMetrics(): void {
       observeHistogram('jobs_last_run_duration_seconds', durationSeconds, { job_id: entry.id });
     }
   }
+}
+
+// ── Backup / DR Metrics ───────────────────────────────────────────────────────
+
+/**
+ * Set backup health metrics. Called by the backup job after each run.
+ *
+ * Metrics exposed:
+ *   backup_last_success_timestamp  — Unix timestamp of last successful backup
+ *   backup_size_bytes             — Size of most recent backup in bytes
+ *   backup_oldest_wal_age_seconds  — Age of oldest WAL segment (0 if none)
+ *   restore_test_last_success      — Unix timestamp of last successful DR drill
+ */
+export function recordBackupMetrics(options: {
+  lastSuccessTimestamp: number;       // Unix seconds (0 = never)
+  lastBackupSizeBytes: number;         // 0 = unknown
+  oldestWalAgeSeconds?: number;        // 0 = WAL archiving not configured
+}): void {
+  const { lastSuccessTimestamp, lastBackupSizeBytes, oldestWalAgeSeconds = 0 } = options;
+  setGauge('backup_last_success_timestamp', lastSuccessTimestamp);
+  setGauge('backup_size_bytes', lastBackupSizeBytes);
+  setGauge('backup_oldest_wal_age_seconds', oldestWalAgeSeconds);
+}
+
+/**
+ * Record the outcome of a DR drill / restore test.
+ * Call with timestamp of last success, or 0 if never run.
+ */
+export function recordRestoreTestResult(lastSuccessTimestamp: number): void {
+  setGauge('restore_test_last_success', lastSuccessTimestamp);
+}
+
+/**
+ * Check if backup is stale (last successful backup > 26 hours ago).
+ * Returns true when backup_last_success_timestamp < now - 26h.
+ */
+export function isBackupStale(): boolean {
+  // We read from the live gauge map — snapshot gives us current values
+  const snapshot = getSnapshot();
+  const backupEntry = snapshot.gauges.find(
+    (g) => g.name === 'backup_last_success_timestamp'
+  );
+  if (!backupEntry) return false;
+  const lastSuccess = backupEntry.value;
+  if (lastSuccess === 0) return true; // never run
+  const STALE_SECONDS = 26 * 60 * 60;
+  return Date.now() / 1000 - lastSuccess > STALE_SECONDS;
 }

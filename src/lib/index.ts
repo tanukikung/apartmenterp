@@ -40,30 +40,8 @@ export type {
   ProcessedResult,
 } from './outbox';
 
-// LINE
-export {
-  getLineClient,
-  getLineConfig,
-  sendLineMessage,
-  sendFlexMessage,
-  sendInvoiceMessage,
-  sendReminderMessage,
-  sendOverdueNotice,
-  sendWelcomeMessage,
-  sendTemplateMessage,
-  sendReplyMessage,
-  sendLineImageMessage,
-  sendLineFileMessage,
-  sendTextWithQuickReply,
-  getLineUserProfile,
-  verifyLineSignature,
-  parseWebhookEvent,
-  isLineConfigured,
-  type LineConfig,
-  type LineMessageOptions,
-  type LineUserProfile,
-  type QuickReplyItem,
-} from './line';
+// LINE — server-only, NOT re-exported to clients
+// Import directly from '@/lib/line' in server-side code only
 
 // Utils
 export {
@@ -89,8 +67,6 @@ export {
   ExternalServiceError,
   formatError,
   safeJSONParse,
-  asyncHandler,
-  isOperationalError,
   type ApiResponse,
   type ErrorResponse,
   type SuccessResponse,

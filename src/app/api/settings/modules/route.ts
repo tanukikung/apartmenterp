@@ -33,7 +33,7 @@ function mergeWithDefaults(stored: Partial<ModuleFlags>): ModuleFlags {
 }
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const config = await prisma.config.findUnique({ where: { key: MODULES_KEY } });
 
@@ -45,7 +45,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 });
 
 export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const body = updateModulesSchema.parse(await req.json());
 

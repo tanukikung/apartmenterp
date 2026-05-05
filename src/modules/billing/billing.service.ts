@@ -5,6 +5,9 @@ import { prisma, EventBus, logger, EventTypes } from '@/lib';
 const sql = Prisma.sql;
 const join = Prisma.join;
 import { BILLING_STATUS, BILLING_PERIOD_STATUS, INVOICE_STATUS, IMPORT_BATCH_STATUS } from '@/lib/constants';
+import {
+  assertBillingPeriodAllowsBillingEdit,
+} from './period-lock.service';
 
 import {
   CreateBillingRecordInput,
@@ -192,6 +195,9 @@ export class BillingService {
     let roomBilling: Awaited<ReturnType<typeof prisma.roomBilling.create>>;
     try {
       roomBilling = await prisma.$transaction(async (tx) => {
+        // Gap 5: block billing creation on finalized periods
+        await assertBillingPeriodAllowsBillingEdit(tx, period.id);
+
         const existing = await tx.roomBilling.findUnique({
           where: { billingPeriodId_roomNo: { billingPeriodId: period.id, roomNo: input.roomNo } },
         });
@@ -238,7 +244,7 @@ export class BillingService {
     } catch (err) {
       // Prisma throws P2002 (unique constraint) if the application check missed
       // a concurrent insert — convert to ConflictError so the API returns 409.
-      if (err instanceof Error && err.message.includes('P2002')) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         throw new ConflictError(
           `Billing record for ${input.year}-${input.month} already exists for room ${input.roomNo}`
         );
@@ -766,17 +772,19 @@ export class BillingService {
             'Cancel the existing invoice first before re-locking.'
           );
         }
+        // Optimistic lock: include version to detect concurrent modifications
         const lockResult = await tx.roomBilling.updateMany({
-          where: { id: billingRecordId, status: roomBilling.status },
-          data: { status: BILLING_STATUS.LOCKED },
+          where: { id: billingRecordId, status: roomBilling.status, version: roomBilling.version },
+          data: { status: BILLING_STATUS.LOCKED, version: roomBilling.version + 1 },
         });
         if (lockResult.count !== 1) {
           throw new ConflictError('Billing record lock state changed. Refresh and retry.');
         }
       } else {
+        // Optimistic lock: include version to detect concurrent modifications
         const lockResult = await tx.roomBilling.updateMany({
-          where: { id: billingRecordId, status: roomBilling.status },
-          data: { status: BILLING_STATUS.LOCKED },
+          where: { id: billingRecordId, status: roomBilling.status, version: roomBilling.version },
+          data: { status: BILLING_STATUS.LOCKED, version: roomBilling.version + 1 },
         });
         if (lockResult.count !== 1) {
           throw new ConflictError('Billing record lock state changed. Refresh and retry.');
@@ -844,6 +852,7 @@ export class BillingService {
             month: locked.billingPeriod.month,
             totalAmount: Number(locked.totalDue),
           } as Prisma.InputJsonValue,
+          eventHash: 'LOCKED', // placeholder — not using hash chain for billing audit
         },
       });
 
@@ -894,9 +903,10 @@ export class BillingService {
         throw new BadRequestError(`Cannot unlock record with status: ${record.status}`);
       }
 
+      // Optimistic lock: include version to detect concurrent modifications
       const updatedBilling = await tx.roomBilling.update({
-        where: { id: billingRecordId },
-        data: { status: BILLING_STATUS.DRAFT },
+        where: { id: billingRecordId, version: record.version },
+        data: { status: BILLING_STATUS.DRAFT, version: record.version + 1 },
       });
 
       // P3-05: Write BillingAuditLog for UNLOCKED action
@@ -911,6 +921,7 @@ export class BillingService {
             year: record.billingPeriod.year,
             month: record.billingPeriod.month,
           } as Prisma.InputJsonValue,
+          eventHash: 'UNLOCKED', // placeholder — not using hash chain for billing audit
         },
       });
 

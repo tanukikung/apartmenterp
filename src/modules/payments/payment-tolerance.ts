@@ -28,6 +28,9 @@ export const TOLERANCE_AMOUNT = 1.0;
 /**
  * Determines if a payment is considered settled (sufficient) for the given mode.
  *
+ * OVERPAYMENT IS VALID: If totalPaid >= totalOwed, the invoice is considered settled.
+ * Any excess is flagged for manual review, not treated as insufficient payment.
+ *
  * @param totalPaid   - Sum of confirmed payment amounts
  * @param totalOwed   - Invoice totalAmount + lateFeeAmount
  * @param mode        - Tolerance mode to apply
@@ -38,15 +41,21 @@ export function isPaymentSettled(
   totalOwed: number,
   mode: PaymentMatchMode = PaymentMatchMode.ALLOW_SMALL_DIFF,
 ): boolean {
-  const diff = Math.abs(totalPaid - totalOwed);
+  // Overpayment or exact payment is always settled — excess is flagged, not blocking
+  if (totalPaid >= totalOwed) {
+    return true;
+  }
+
+  // Underpayment: check against tolerance
+  const shortfall = totalOwed - totalPaid;
 
   if (mode === PaymentMatchMode.STRICT) {
     // Only floating-point rounding safety — essentially exact match
-    return diff < 0.001;
+    return shortfall < 0.001;
   }
 
-  // ALLOW_SMALL_DIFF: tolerance up to TOLERANCE_AMOUNT (1 THB)
-  return diff <= TOLERANCE_AMOUNT;
+  // ALLOW_SMALL_DIFF: shortfall tolerance up to TOLERANCE_AMOUNT (1 THB)
+  return shortfall <= TOLERANCE_AMOUNT;
 }
 
 /**
@@ -57,14 +66,13 @@ export function paymentSettlementReason(
   totalOwed: number,
   mode: PaymentMatchMode = PaymentMatchMode.ALLOW_SMALL_DIFF,
 ): string {
-  const diff = Math.abs(totalPaid - totalOwed);
+  if (totalPaid >= totalOwed) {
+    return `Paid ฿${totalPaid.toFixed(2)} >= owed ฿${totalOwed.toFixed(2)}: settled`;
+  }
   const shortfall = totalOwed - totalPaid;
 
   if (mode === PaymentMatchMode.STRICT) {
-    return `STRICT mode: paid ฿${totalPaid.toFixed(2)}, owed ฿${totalOwed.toFixed(2)}, diff ฿${diff.toFixed(2)} (must be < ฿0.001)`;
+    return `STRICT mode: paid ฿${totalPaid.toFixed(2)}, owed ฿${totalOwed.toFixed(2)}, shortfall ฿${shortfall.toFixed(2)} (must be < ฿0.001)`;
   }
-  if (shortfall > TOLERANCE_AMOUNT) {
-    return `ALLOW_SMALL_DIFF mode: paid ฿${totalPaid.toFixed(2)}, owed ฿${totalOwed.toFixed(2)}, shortfall ฿${shortfall.toFixed(2)} (max allowed: ฿${TOLERANCE_AMOUNT})`;
-  }
-  return `ALLOW_SMALL_DIFF mode: diff ฿${diff.toFixed(2)} within ฿${TOLERANCE_AMOUNT} tolerance`;
+  return `ALLOW_SMALL_DIFF mode: paid ฿${totalPaid.toFixed(2)}, owed ฿${totalOwed.toFixed(2)}, shortfall ฿${shortfall.toFixed(2)} (max allowed: ฿${TOLERANCE_AMOUNT})`;
 }

@@ -13,25 +13,69 @@
 // ── Counters ──────────────────────────────────────────────────────────────────
 
 interface Counters {
-  inbox_received_total:    number;
-  inbox_processed_total:   number;
-  inbox_failed_total:      number;
-  inbox_dead_total:        number;
-  outbox_sent_total:       number;
-  outbox_failed_total:     number;
-  outbox_rate_limited_total: number;
-  outbox_permanent_fail_total: number;
+  inbox_received_total:                number;
+  inbox_processed_total:              number;
+  inbox_failed_total:                  number;
+  inbox_dead_total:                    number;
+  outbox_sent_total:                   number;
+  outbox_failed_total:                number;
+  outbox_rate_limited_total:          number;
+  outbox_permanent_fail_total:        number;
+  outbox_duplicates_skipped_total:    number;
+  outbox_dead_letter_total:           number;
+  outbox_cancelled_total:            number; // events skipped because source was cancelled
+  eventbus_dedup_skipped_total:        number;
+  line_circuit_open_total:            number;
+  line_circuit_reject_total:          number;
+  rate_limit_block_total:              number;
+  db_pool_exhausted_total:            number;
+  redis_down_total:                    number;
+  distributed_circuit_open_total:     number;
+  distributed_circuit_reject_total:   number;
+  distributed_circuit_recovery_total: number;
+  idempotency_conflict_total:         number;
+  system_readonly_activations_total:  number;
+  db_unguarded_query_total:            number;
+  // Phase 5: critical business path metrics
+  payment_success_total:               number;
+  payment_failure_total:               number;
+  invoice_generated_total:             number;
+  invoice_sent_total:                  number;
+  auth_login_success_total:            number;
+  auth_login_failure_total:            number;
 }
 
 const counters: Counters = {
-  inbox_received_total:       0,
-  inbox_processed_total:      0,
-  inbox_failed_total:         0,
-  inbox_dead_total:           0,
-  outbox_sent_total:          0,
-  outbox_failed_total:        0,
-  outbox_rate_limited_total:  0,
-  outbox_permanent_fail_total: 0,
+  inbox_received_total:                 0,
+  inbox_processed_total:                0,
+  inbox_failed_total:                   0,
+  inbox_dead_total:                     0,
+  outbox_sent_total:                    0,
+  outbox_failed_total:                  0,
+  outbox_rate_limited_total:            0,
+  outbox_permanent_fail_total:          0,
+  outbox_duplicates_skipped_total:      0,
+  outbox_dead_letter_total:             0,
+  outbox_cancelled_total:              0,
+  eventbus_dedup_skipped_total:         0,
+  line_circuit_open_total:              0,
+  line_circuit_reject_total:            0,
+  rate_limit_block_total:               0,
+  db_pool_exhausted_total:              0,
+  redis_down_total:                     0,
+  distributed_circuit_open_total:       0,
+  distributed_circuit_reject_total:      0,
+  distributed_circuit_recovery_total:   0,
+  idempotency_conflict_total:           0,
+  system_readonly_activations_total:    0,
+  db_unguarded_query_total:              0,
+  // Phase 5: critical business path metrics
+  payment_success_total:                 0,
+  payment_failure_total:                 0,
+  invoice_generated_total:               0,
+  invoice_sent_total:                    0,
+  auth_login_success_total:              0,
+  auth_login_failure_total:              0,
 };
 
 export function inc(key: keyof Counters, by = 1): void {
@@ -81,11 +125,19 @@ export interface MetricsSnapshot {
     outbox: ReturnType<typeof histogramSnapshot>;
   };
   uptimeSecs: number;
+  // Outbox processor gauge-like fields (reset each snapshot)
+  outboxQueueDepth:      number;
+  outboxProcessingLagMs: number;
+  currentBatchSize:      number;
 }
 
 const startedAt = Date.now();
 
-export function getSnapshot(): MetricsSnapshot {
+export function getSnapshot(overrides?: {
+  outboxQueueDepth?:      number;
+  outboxProcessingLagMs?: number;
+  currentBatchSize?:     number;
+}): MetricsSnapshot {
   return {
     counters:   { ...counters },
     latency: {
@@ -93,5 +145,14 @@ export function getSnapshot(): MetricsSnapshot {
       outbox: histogramSnapshot(outboxLatencies),
     },
     uptimeSecs: Math.floor((Date.now() - startedAt) / 1000),
+    outboxQueueDepth:      overrides?.outboxQueueDepth      ?? 0,
+    outboxProcessingLagMs: overrides?.outboxProcessingLagMs ?? 0,
+    currentBatchSize:     overrides?.currentBatchSize     ?? 0,
   };
+}
+
+// ── Test helper ────────────────────────────────────────────────────────────────
+
+export function getCounterValue(key: keyof Counters): number {
+  return counters[key];
 }

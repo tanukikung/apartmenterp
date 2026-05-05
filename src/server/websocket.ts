@@ -58,7 +58,7 @@ export function conversationRoom(conversationId: string): string {
 
 // ─── Auth middleware ───────────────────────────────────────────────────────────
 
-function authMiddleware(socket: AuthenticatedSocket, next: (err?: Error) => void): void {
+async function authMiddleware(socket: AuthenticatedSocket, next: (err?: Error) => void): Promise<void> {
   const cookieHeader = socket.handshake.headers.cookie ?? '';
   const cookies = Object.fromEntries(
     cookieHeader.split(';').map((pair) => {
@@ -74,7 +74,7 @@ function authMiddleware(socket: AuthenticatedSocket, next: (err?: Error) => void
 
   if (token) {
     try {
-      const session = verifySessionToken(token, resolveAuthSecret());
+      const session = await verifySessionToken(token, resolveAuthSecret());
       if (session) {
         socket.userId = session.sub;
         socket.sessionId = session.sub;

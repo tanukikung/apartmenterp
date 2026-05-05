@@ -16,7 +16,7 @@ interface RouteParams {
 }
 
 const cancelSchema = z.object({
-  reason: z.string().optional(),
+  reason: z.string().min(5, 'ต้องระบุเหตุผลอย่างน้อย 5 ตัวอักษร'),
 });
 
 // ============================================================================
@@ -33,7 +33,7 @@ export const POST = asyncHandler(async (req: NextRequest, { params }: RouteParam
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const body = cancelSchema.parse(await req.json());
   const reason = body.reason;
 

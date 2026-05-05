@@ -27,7 +27,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   // ── Idempotency key ──────────────────────────────────────────────────────
   const idempotencyKey = req.headers.get('Idempotency-Key');
@@ -35,7 +35,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     const existing = await prisma.idempotencyRecord.findUnique({
       where: { key: idempotencyKey },
     });
-    if (existing && existing.result !== null) {
+    if (existing && existing.response !== null) {
       logger.info({
         type: 'invoice_generate_idempotent_hit',
         idempotencyKey,
@@ -43,9 +43,9 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       });
       return NextResponse.json({
         success: true,
-        data: existing.result,
+        data: existing.response,
         message: 'Invoice already generated (idempotent response)',
-      } as ApiResponse<typeof existing.result>, { status: 200 });
+      } as ApiResponse<typeof existing.response>, { status: 200 });
     }
   }
 
@@ -77,11 +77,11 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         key: idempotencyKey,
         resourceType: IDEMPOTENCY_RECORD_RESOURCE_TYPE,
         resourceId: invoice.id,
-        result: invoice as unknown as Prisma.InputJsonValue,
+        response: invoice as unknown as Prisma.InputJsonValue,
       },
       update: {
         resourceId: invoice.id,
-        result: invoice as unknown as Prisma.InputJsonValue,
+        response: invoice as unknown as Prisma.InputJsonValue,
       },
     });
   }

@@ -6,7 +6,7 @@ import { requireRole } from '@/lib/auth/guards';
 import { logger } from '@/lib';
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const env = getEnv();
 

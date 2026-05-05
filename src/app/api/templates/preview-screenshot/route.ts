@@ -45,7 +45,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const input = previewSchema.parse(await req.json());
   const {

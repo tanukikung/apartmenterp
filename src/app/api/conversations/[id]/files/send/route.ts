@@ -24,7 +24,7 @@ export const POST = asyncHandler(async (req: NextRequest, { params }: { params: 
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const { id: conversationId } = params;
   let body: Record<string, unknown>;
   try {

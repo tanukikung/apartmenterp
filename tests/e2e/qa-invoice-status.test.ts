@@ -1,17 +1,11 @@
 import { test, expect } from '@playwright/test';
-
-const BASE = 'http://localhost:3001';
+import { BASE_URL } from './config.js';
+import { loginAsAdmin } from './helpers';
 
 test.describe('QA: Invoice Status Count Bug', () => {
 
   test('Debug status totals API responses', async ({ page }) => {
-    await page.goto(`${BASE}/login`);
-    await page.waitForLoadState('networkidle');
-    await page.locator('input[name="username"], input[type="text"]').first().fill('owner');
-    await page.locator('input[name="password"], input[type="password"]').first().fill('Owner@12345');
-    await page.locator('button[type="submit"]').first().click();
-    await page.waitForURL('**/admin/**', { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await loginAsAdmin(page);
 
     const statuses = ['GENERATED', 'SENT', 'VIEWED', 'PAID', 'OVERDUE'];
     const results: Record<string, any> = {};
@@ -34,13 +28,7 @@ test.describe('QA: Invoice Status Count Bug', () => {
   });
 
   test('Direct DB: count each status', async ({ page }) => {
-    await page.goto(`${BASE}/login`);
-    await page.waitForLoadState('networkidle');
-    await page.locator('input[name="username"], input[type="text"]').first().fill('owner');
-    await page.locator('input[name="password"], input[type="password"]').first().fill('Owner@12345');
-    await page.locator('button[type="submit"]').first().click();
-    await page.waitForURL('**/admin/**', { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await loginAsAdmin(page);
 
     // Use the analytics summary which has the correct counts
     const summary = await page.evaluate(() =>
@@ -74,18 +62,12 @@ test.describe('QA: Invoice Status Count Bug', () => {
   });
 
   test('Invoices page: check status totals object', async ({ page }) => {
-    await page.goto(`${BASE}/login`);
-    await page.waitForLoadState('networkidle');
-    await page.locator('input[name="username"], input[type="text"]').first().fill('owner');
-    await page.locator('input[name="password"], input[type="password"]').first().fill('Owner@12345');
-    await page.locator('button[type="submit"]').first().click();
-    await page.waitForURL('**/admin/**', { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    await loginAsAdmin(page);
 
     // Go to invoices page
-    await page.goto(`${BASE}/admin/invoices`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(4000);
+    await page.goto(`${BASE_URL}/admin/invoices`);
+    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('body')).toBeVisible();
 
     // Extract visible tab counts
     const content = await page.locator('body').innerText();

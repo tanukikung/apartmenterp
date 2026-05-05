@@ -15,7 +15,7 @@ const createSchema = z.object({
 });
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const input = createSchema.parse(await req.json());
 

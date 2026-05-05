@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse, NotFoundError } from '@/lib/utils/errors';
-import { prisma, sendFlexMessage, sendTextWithQuickReply, type QuickReplyItem } from '@/lib';
+import { prisma } from '@/lib';
+import { sendFlexMessage, sendTextWithQuickReply, type QuickReplyItem } from '@/lib/line/client';
 import { logger } from '@/lib/utils/logger';
 import {
   buildInvoiceFlex,
@@ -12,6 +13,8 @@ import {
 } from '@/modules/messaging/lineTemplates';
 import { isPaymentSettled, PaymentMatchMode } from '@/modules/payments/payment-tolerance';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { syncInvoicePaymentState } from '@/modules/payments/invoice-payment-state';
+import { withIdempotency } from '@/lib/utils/idempotency';
 
 const CHAT_WINDOW_MS = 60 * 1000;
 const CHAT_MAX_ATTEMPTS = 20;
@@ -60,7 +63,7 @@ export const POST = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     let body: Record<string, unknown>;
     try {
       body = await req.json();
@@ -112,62 +115,101 @@ export const POST = asyncHandler(
         await sendTextWithQuickReply(lineUserId, `❌ ไม่พบใบแจ้งหนี้ที่รอชำระ กรุณาติดต่อเจ้าหน้าที่`, []);
         return NextResponse.json({ success: true, data: { sent: false, reason: 'no_invoice' } } as ApiResponse<unknown>);
       }
-      const invoice = await prisma.invoice.findUnique({ where: { id: resolvedInvoiceId } });
-      if (!invoice) {
-        await sendTextWithQuickReply(lineUserId, `❌ ไม่พบใบแจ้งหนี้ กรุณาติดต่อเจ้าหน้าที่`, []);
-        return NextResponse.json({ success: true, data: { sent: false, reason: 'invoice_not_found' } } as ApiResponse<unknown>);
-      }
-      if (invoice.status === 'PAID') {
-        await sendTextWithQuickReply(lineUserId, `ℹ️ ห้อง ${invoice.roomNo} ชำระเงินแล้วเรียบร้อยค่ะ`, []);
-        return NextResponse.json({ success: true, data: { sent: false, reason: 'already_paid' } } as ApiResponse<unknown>);
-      }
 
-      // Verify CONFIRMED payments actually exist and cover the full amount
-      const confirmedPayments = await prisma.payment.findMany({
-        where: { matchedInvoiceId: resolvedInvoiceId, status: 'CONFIRMED' },
-      });
-      if (confirmedPayments.length === 0) {
-        await sendTextWithQuickReply(lineUserId, `❌ ไม่พบการชำระเงินสำหรับ invoice นี้ กรุณาติดต่อเจ้าหน้าที่`, []);
-        return NextResponse.json({ success: true, data: { sent: false, reason: 'no_payment' } } as ApiResponse<unknown>);
-      }
+      // Use idempotency key so concurrent LINE postback retries (same user taps twice)
+      // do not cause duplicate processing. Key is scoped to invoiceId.
+      return withIdempotency(
+        req,
+        `chat-confirm:${resolvedInvoiceId}`,
+        async () => {
+          // Fast-path: pre-flight check before acquiring locks
+          const invoice = await prisma.invoice.findUnique({ where: { id: resolvedInvoiceId } });
+          if (!invoice) {
+            await sendTextWithQuickReply(lineUserId, `❌ ไม่พบใบแจ้งหนี้ กรุณาติดต่อเจ้าหน้าที่`, []);
+            return NextResponse.json({ success: true, data: { sent: false, reason: 'invoice_not_found' } } as ApiResponse<unknown>);
+          }
+          if (invoice.status === 'PAID') {
+            await sendTextWithQuickReply(lineUserId, `ℹ️ ห้อง ${invoice.roomNo} ชำระเงินแล้วเรียบร้อยค่ะ`, []);
+            return NextResponse.json({ success: true, data: { sent: false, reason: 'already_paid' } } as ApiResponse<unknown>);
+          }
 
-      const invoiceTotal = Number(invoice.totalAmount);
-      const lateFeeAmount = Number(invoice.lateFeeAmount ?? 0);
-      const totalOwed = invoiceTotal + lateFeeAmount;
-      const totalPaid = confirmedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-      const settled = isPaymentSettled(totalPaid, totalOwed, PaymentMatchMode.ALLOW_SMALL_DIFF);
+          // Verify CONFIRMED payments exist and cover the full amount (outside transaction for fast-fail)
+          const confirmedPayments = await prisma.payment.findMany({
+            where: { matchedInvoiceId: resolvedInvoiceId, status: 'CONFIRMED' },
+          });
+          if (confirmedPayments.length === 0) {
+            await sendTextWithQuickReply(lineUserId, `❌ ไม่พบการชำระเงินสำหรับ invoice นี้ กรุณาติดต่อเจ้าหน้าที่`, []);
+            return NextResponse.json({ success: true, data: { sent: false, reason: 'no_payment' } } as ApiResponse<unknown>);
+          }
 
-      if (!settled) {
-        const paidAmount = `฿${totalPaid.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
-        const expectedAmount = `฿${totalOwed.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
-        await sendTextWithQuickReply(
-          lineUserId,
-          `❌ ยอดชำระไม่เพียงพอค่ะ\nจ่ายแล้ว: ${paidAmount}\nต้องชำระ: ${expectedAmount}\n\nกรุณาติดต่อเจ้าหน้าที่หากมีข้อสงสัยค่ะ`,
-          []
-        );
-        return NextResponse.json({ success: true, data: { sent: false, reason: 'insufficient_payment' } } as ApiResponse<unknown>);
-      }
+          const invoiceTotal = Number(invoice.totalAmount);
+          const lateFeeAmount = Number(invoice.lateFeeAmount ?? 0);
+          const totalOwed = invoiceTotal + lateFeeAmount;
+          const totalPaid = confirmedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+          const settled = isPaymentSettled(totalPaid, totalOwed, PaymentMatchMode.ALLOW_SMALL_DIFF);
 
-      // Use syncInvoicePaymentState pattern — do NOT set PAID directly without verified payment
-      await prisma.$transaction(async (tx) => {
-        const payment = await tx.payment.findFirst({
-          where: { matchedInvoiceId: resolvedInvoiceId, status: 'CONFIRMED' },
-          orderBy: { confirmedAt: 'desc' },
-        });
-        await tx.invoice.update({
-          where: { id: resolvedInvoiceId },
-          data: {
-            status: 'PAID',
-            paidAt: payment?.confirmedAt ?? new Date(),
-          },
-        });
-      });
-      await sendTextWithQuickReply(
-        lineUserId,
-        `✅ ยืนยันการชำระเงินเรียบร้อยแล้วสำหรับห้อง ${invoice.roomNo} ใบเสร็จจะถูกส่งให้เร็วๆ นี้`,
-        [{ label: 'ส่งใบเสร็จทันที', action: 'postback', data: `action=send_receipt&invoiceId=${resolvedInvoiceId}` }]
+          if (!settled) {
+            const paidAmount = `฿${totalPaid.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+            const expectedAmount = `฿${totalOwed.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+            await sendTextWithQuickReply(
+              lineUserId,
+              `❌ ยอดชำระไม่เพียงพอค่ะ\nจ่ายแล้ว: ${paidAmount}\nต้องชำระ: ${expectedAmount}\n\nกรุณาติดต่อเจ้าหน้าที่หากมีข้อสงสัยค่ะ`,
+              []
+            );
+            return NextResponse.json({ success: true, data: { sent: false, reason: 'insufficient_payment' } } as ApiResponse<unknown>);
+          }
+
+          // Canonical path: use syncInvoicePaymentState with FOR UPDATE lock.
+          // syncInvoicePaymentState re-aggregates ALL CONFIRMED payments and
+          // transitions invoice to PAID if total covers the invoice. It is the
+          // ONLY allowed path for invoice → PAID transitions.
+          // Idempotency: if already PAID, syncInvoicePaymentState returns
+          // transitionedToPaid=false (no-op).
+          await prisma.$transaction(async (tx) => {
+            // Lock invoice row — prevents concurrent quick-reply calls
+            type InvoiceRow = { id: string; status: string; totalAmount: unknown; paidAt: Date | null; lateFeeAmount: unknown };
+            const [lockedInvoice] = await (tx as unknown as { $queryRaw: (s: TemplateStringsArray, ...a: unknown[]) => Promise<InvoiceRow[]> })
+              .$queryRaw`SELECT id, status, "totalAmount", "paidAt", "lateFeeAmount" FROM invoices WHERE id = ${resolvedInvoiceId} FOR UPDATE`;
+
+            if (!lockedInvoice || lockedInvoice.status === 'PAID') {
+              // Already settled by a concurrent call — idempotent no-op
+              return;
+            }
+
+            // Find most recent CONFIRMED payment to pass to syncInvoicePaymentState.
+            // syncInvoicePaymentState re-aggregates all CONFIRMED payments internally,
+            // so the specific paymentId is only used for outbox event metadata.
+            const latestPayment = await tx.payment.findFirst({
+              where: { matchedInvoiceId: resolvedInvoiceId, status: 'CONFIRMED' },
+              orderBy: { confirmedAt: 'desc' },
+            });
+
+            if (!latestPayment) {
+              // No confirmed payment found inside tx — concurrent call must have reverted
+              return;
+            }
+
+            // syncInvoicePaymentState handles: FOR UPDATE re-lock, aggregation,
+            // updateMany guard, assertInvoiceHasSufficientPayment,
+            // assertInvoicePaidHasPaidAt, and outbox INVOICE_PAID event.
+            await syncInvoicePaymentState(tx, {
+              invoiceId: resolvedInvoiceId,
+              paymentId: latestPayment.id,
+              paymentAmount: Number(latestPayment.amount),
+              paidAt: latestPayment.confirmedAt ?? new Date(),
+            });
+          });
+
+          await sendTextWithQuickReply(
+            lineUserId,
+            `✅ ยืนยันการชำระเงินเรียบร้อยแล้วสำหรับห้อง ${invoice.roomNo} ใบเสร็จจะถูกส่งให้เร็วๆ นี้`,
+            [{ label: 'ส่งใบเสร็จทันที', action: 'postback', data: `action=send_receipt&invoiceId=${resolvedInvoiceId}` }]
+          );
+          logger.info({ type: 'payment_confirmed_via_quick_reply', invoiceId: resolvedInvoiceId, conversationId });
+
+          return NextResponse.json({ success: true, data: { sent: true } } as ApiResponse<unknown>);
+        }
       );
-      logger.info({ type: 'payment_confirmed_via_quick_reply', invoiceId: resolvedInvoiceId, conversationId });
 
     } else if (action === 'postback:send_receipt') {
       if (!resolvedInvoiceId) {

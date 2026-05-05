@@ -1,5 +1,6 @@
-import { EventTypes, getEventBus, logger, prisma, sendLineMessage, type QuickReplyItem } from '@/lib';
-import { sendReminderMessage, sendTextWithQuickReply } from '@/modules/messaging';
+import { EventTypes, getEventBus, logger, prisma } from '@/lib';
+import { sendLineMessage } from '@/lib/line/client';
+import { sendReminderMessage, sendTextWithQuickReply, type QuickReplyItem } from '@/modules/messaging';
 import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
 
 const bus = getEventBus();

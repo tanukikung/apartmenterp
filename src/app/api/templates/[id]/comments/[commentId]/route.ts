@@ -29,7 +29,7 @@ export const PATCH = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const body = updateCommentSchema.parse(await req.json());
 
   // Build update data using a column-name allowlist — no Prisma.raw needed
@@ -66,7 +66,7 @@ export const DELETE = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   await prisma.$executeRaw`DELETE FROM document_template_comments WHERE id = ${params.commentId}`;
   return NextResponse.json({ success: true, data: null } as ApiResponse<null>);
 });

@@ -35,7 +35,7 @@ const listSchema = z.object({
 
 // GET /api/reminders/config
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const { searchParams } = new URL(req.url);
   const raw = Object.fromEntries(searchParams.entries());
@@ -78,7 +78,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
   const actorId = session.sub;
 
   const input = createSchema.parse(await req.json());
@@ -127,7 +127,7 @@ export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
   const actorId = session.sub;
 
   const body = await req.json();
@@ -167,7 +167,7 @@ export const DELETE = asyncHandler(async (req: NextRequest): Promise<NextRespons
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
   const actorId = session.sub;
 
   const { id } = z.object({ id: z.string().uuid() }).parse(await req.json());

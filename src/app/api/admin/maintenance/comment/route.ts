@@ -33,8 +33,8 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
   const input = schema.parse(body);
-  const actor = getVerifiedActor(req);
-  requireRole(req, ['ADMIN', 'OWNER']);
+  const actor = await await getVerifiedActor(req);
+  await await requireRole(req, ['ADMIN', 'OWNER']);
 
   const { maintenanceService: service } = getServiceContainer();
   const comment = await service.addComment(

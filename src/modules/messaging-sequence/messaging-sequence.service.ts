@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { NotFoundError, BadRequestError } from '@/lib/utils/errors';
 import { EventBus } from '@/lib/events/event-bus';
 import { EventTypes } from '@/lib/events/types';
-import { Prisma } from '@prisma/client';
 import { Outbox } from '@/lib/outbox/outbox';
 
 const SequenceCreateSchema = z.object({

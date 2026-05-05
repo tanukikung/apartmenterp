@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { asyncHandler, ApiResponse, BadRequestError, ConflictError } from '@/lib/utils/errors';
 import { prisma } from '@/lib/db/client';
 import { hashPassword } from '@/lib/auth/password';
@@ -99,7 +100,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       },
     });
   } catch (error: unknown) {
-    if ((error as { code?: string }).code === 'P2002') {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       throw new ConflictError('Initial admin already created');
     }
     throw error;

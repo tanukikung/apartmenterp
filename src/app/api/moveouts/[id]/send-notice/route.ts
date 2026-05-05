@@ -4,7 +4,8 @@ import { createMoveOutService } from '@/modules/moveouts';
 import { sendMoveOutNoticeSchema } from '@/modules/moveouts/types';
 import { asyncHandler, ApiResponse, ConflictError } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
-import { logger, prisma, isLineConfigured } from '@/lib';
+import { logger, prisma } from '@/lib';
+import { isLineConfigured } from '@/lib/line/client';
 import { getOutboxProcessor } from '@/lib/outbox';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
@@ -32,7 +33,7 @@ export const POST = asyncHandler(async (req: NextRequest, { params }: RouteParam
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   let body: Record<string, unknown>;
   try {
     body = await req.json();

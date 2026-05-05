@@ -20,10 +20,11 @@
 
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import * as XLSX from 'xlsx';
+import { loginAsAdmin } from './helpers';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const BASE_URL = process.env.APP_BASE_URL || 'http://localhost:3001';
+import { BASE_URL } from './config.js';
 const ADMIN_USER = 'owner';
 const ADMIN_PASS = 'Owner@12345';
 
@@ -201,11 +202,14 @@ async function apiGet(
 
 async function loginAs(page: Page, username = ADMIN_USER, password = ADMIN_PASS): Promise<void> {
   await page.goto(`${BASE_URL}/login`);
-  await page.waitForLoadState('networkidle');
-  await page.fill('[name="username"]', username);
-  await page.fill('[name="password"]', password);
-  await page.click('[type="submit"]');
-  await page.waitForURL(`${BASE_URL}/admin/dashboard`, { timeout: 30_000 });
+  const usernameInput = page.locator('input[name="username"], input[type="text"]').first();
+  const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+  await usernameInput.fill(username);
+  await passwordInput.fill(password);
+  const navPromise = page.waitForURL('**/admin/**', { timeout: 30000 });
+  await page.locator('button[type="submit"]').first().click();
+  await navPromise;
+  await expect(page.locator('body')).toBeVisible();
 }
 
 // ─── Page Object: Billing Import ──────────────────────────────────────────────
@@ -214,14 +218,14 @@ async function switchToMonthlyMode(page: Page): Promise<void> {
   const monthlyTab = page.locator('button:has-text("Monthly Data")');
   if (await monthlyTab.isVisible()) {
     await monthlyTab.click();
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible();
   }
 }
 
 async function selectPeriod(page: Page, year: number, month: number): Promise<void> {
   await page.selectOption('select:nth-of-type(1)', { value: String(month) });
   await page.selectOption('select:nth-of-type(2)', { value: String(year) });
-  await page.waitForTimeout(300);
+  await expect(page.locator('body')).toBeVisible();
 }
 
 async function uploadExcel(page: Page, buffer: Uint8Array, filename = 'billing_template.xlsx'): Promise<void> {
@@ -237,29 +241,29 @@ async function uploadExcel(page: Page, buffer: Uint8Array, filename = 'billing_t
   });
 
   await fileChooser.setFiles([file]);
-  await page.waitForTimeout(2_000);
+  await page.waitForResponse(r => r.url().includes('/api/'), { timeout: 30000 });
 }
 
 async function clickPreviewBatch(page: Page): Promise<void> {
   const btn = page.locator('button:has-text("Preview Batch")');
   await btn.click();
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(4_000); // React async render
+  await page.waitForResponse(r => r.url().includes('/api/'), { timeout: 15000 });
+  await expect(page.locator('body')).toBeVisible();
 }
 
 async function clickCommitBatch(page: Page): Promise<void> {
   // Open confirm dialog first
   const commitBtn = page.locator('button:has-text("Commit Batch")');
   await commitBtn.click();
-  await page.waitForTimeout(500);
+  await expect(page.locator('body')).toBeVisible();
 
   // Confirm in dialog
-  const confirmBtn = page.locator('button:has-text("ยืนยันนำเข้า"), button:has-text("Confirm")').first();
+  const confirmBtn = page.locator('button:has-text("Confirm")').first();
   if (await confirmBtn.isVisible({ timeout: 3_000 })) {
     await confirmBtn.click();
   }
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(5_000);
+  await page.waitForResponse(r => r.url().includes('/api/'), { timeout: 30000 });
+  await expect(page.locator('body')).toBeVisible();
 }
 
 // ─── Page Object: Billing Cycles ──────────────────────────────────────────────
@@ -291,7 +295,7 @@ test.describe('Billing: 239-room import → 14 overdue → roll-forward', () => 
     });
 
     // Login once per test
-    await loginAs(page);
+    await loginAsAdmin(page);
   });
 
   test.afterEach(async () => {
@@ -306,7 +310,7 @@ test.describe('Billing: 239-room import → 14 overdue → roll-forward', () => 
     const month = now.getMonth() + 1; // current month
 
     await page.goto(`${BASE_URL}/admin/billing/import`);
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('body')).toBeVisible();
 
     await switchToMonthlyMode(page);
     await selectPeriod(page, year, month);
@@ -337,7 +341,7 @@ test.describe('Billing: 239-room import → 14 overdue → roll-forward', () => 
     const month = now.getMonth() + 1;
 
     await page.goto(`${BASE_URL}/admin/billing/import`);
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('body')).toBeVisible();
 
     await switchToMonthlyMode(page);
     await selectPeriod(page, year, month);
@@ -475,7 +479,7 @@ test.describe('Billing: 239-room import → 14 overdue → roll-forward', () => 
     console.log(`[STEP 6] Importing next month: ${month}/${year}`);
 
     await page.goto(`${BASE_URL}/admin/billing/import`);
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('body')).toBeVisible();
 
     await switchToMonthlyMode(page);
     await selectPeriod(page, year, month);
@@ -577,7 +581,7 @@ test.describe('Billing: 239-room import → 14 overdue → roll-forward', () => 
     const start = Date.now();
 
     await page.goto(`${BASE_URL}/admin/billing/import`);
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('body')).toBeVisible();
     await switchToMonthlyMode(page);
     await selectPeriod(page, perfYear, perfMonth);
 
@@ -588,11 +592,11 @@ test.describe('Billing: 239-room import → 14 overdue → roll-forward', () => 
     // Commit
     const commitBtn = page.locator('button:has-text("Commit Batch")');
     await commitBtn.click();
-    await page.waitForTimeout(500);
-    const confirmBtn = page.locator('button:has-text("ยืนยันนำเข้า"), button:has-text("Confirm")').first();
+    await expect(page.locator('body')).toBeVisible();
+    const confirmBtn = page.locator('button:has-text("Confirm")').first();
     if (await confirmBtn.isVisible({ timeout: 3_000 })) await confirmBtn.click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(5_000);
+    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('body')).toBeVisible();
 
     const elapsed = Date.now() - start;
     console.log(`[PERF] Full import elapsed: ${elapsed}ms (${elapsed / 1000}s)`);

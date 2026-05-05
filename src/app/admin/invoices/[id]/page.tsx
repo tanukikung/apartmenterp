@@ -14,12 +14,14 @@ import {
   MessageSquare,
   RefreshCw,
   RotateCw,
+  RotateCcw,
   XCircle,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { isLineConfigured } from '@/lib/line/is-configured';
 import { statusBadgeClass } from '@/lib/status-colors';
+import { FinancialAuditTimeline } from '@/components/admin/audit/FinancialAuditTimeline';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,6 +51,7 @@ type InvoiceResponse = {
   sentAt: string | Date | null;
   paidAt: string | Date | null;
   createdAt: string | Date;
+  previousStatus: string | null;
   room?: {
     roomNo?: string;
     roomNumber?: string;
@@ -274,20 +277,27 @@ function RecordPaymentForm({
 
 function CancelInvoiceButton({
   invoiceId,
+  currentStatus,
   onCancelled,
 }: {
   invoiceId: string;
+  currentStatus: InvoiceStatus;
   onCancelled: () => void;
 }) {
   const [cancelling, setCancelling] = useState(false);
   const [cancelMessage, setCancelMessage] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [reason, setReason] = useState('');
 
   async function handleCancel() {
     setCancelling(true);
     setCancelMessage(null);
     try {
-      const res = await fetch(`/api/invoices/${invoiceId}/cancel`, { method: 'POST' }).then(r => r.json());
+      const res = await fetch(`/api/invoices/${invoiceId}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, cancelReasonCategory: 'OTHER' }),
+      }).then(r => r.json());
       if (res.success) {
         setCancelMessage('ยกเลิกใบแจ้งหนี้แล้ว');
         onCancelled();
@@ -317,12 +327,95 @@ function CancelInvoiceButton({
         confirmLabel={cancelling ? 'กำลังยกเลิก...' : 'ยกเลิกใบแจ้งหนี้'}
         cancelLabel="ปิด"
         dangerous
-        onConfirm={() => { setConfirmOpen(false); void handleCancel(); }}
+        loading={cancelling}
+        preview={{
+          before: { status: currentStatus },
+          after: { status: 'CANCELLED' },
+          labels: { status: 'สถานะ' },
+        }}
+        reasonRequired
+        reasonLabel="เหตุผลการยกเลิก"
+        reasonPlaceholder="ระบุเหตุผล (เช่น พิมพ์ผิด, ลูกค้าขอยกเลิก)"
+        onConfirm={(r) => { setReason(r ?? ''); void handleCancel(); }}
         onCancel={() => setConfirmOpen(false)}
       />
       {cancelMessage && (
         <div className={`mt-3 rounded-lg px-4 py-2 text-sm ${cancelMessage.includes('แล้ว') ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border border-red-500/20 bg-red-500/10 text-red-400'}`}>
           {cancelMessage}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Undo Cancel Invoice Button
+// ---------------------------------------------------------------------------
+
+function UndoCancelButton({
+  invoiceId,
+  onUndone,
+}: {
+  invoiceId: string;
+  onUndone: () => void;
+}) {
+  const [undoing, setUndoing] = useState(false);
+  const [undoMessage, setUndoMessage] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [reason, setReason] = useState('');
+
+  async function handleUndo() {
+    setUndoing(true);
+    setUndoMessage(null);
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}/undo-cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      }).then(r => r.json());
+      if (res.success) {
+        setUndoMessage('ย้อนกลับการยกเลิกแล้ว');
+        onUndone();
+      } else {
+        setUndoMessage(res.error?.message || 'ไม่สามารถย้อนกลับการยกเลิก');
+      }
+    } catch {
+      setUndoMessage('เกิดข้อผิดพลาดเครือข่าย');
+    } finally {
+      setUndoing(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setConfirmOpen(true)}
+        className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-400 transition-all hover:bg-amber-500/20 active:scale-[0.98]"
+      >
+        <RotateCcw className="h-4 w-4" />
+        ย้อนกลับการยกเลิก
+      </button>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="ย้อนกลับการยกเลิก?"
+        description="ใบแจ้งหนี้จะกลับไปสู่สถานะเดิม และ RoomBilling จะถูกล็อกอีกครั้ง"
+        confirmLabel={undoing ? 'กำลังย้อนกลับ...' : 'ย้อนกลับ'}
+        cancelLabel="ปิด"
+        loading={undoing}
+        preview={{
+          before: { status: 'CANCELLED' },
+          after: { status: 'GENERATED' },
+          labels: { status: 'สถานะ' },
+        }}
+        reasonRequired
+        reasonLabel="เหตุผล"
+        reasonPlaceholder="ระบุเหตุผลที่ย้อนกลับ"
+        onConfirm={(r) => { setReason(r ?? ''); void handleUndo(); }}
+        onCancel={() => setConfirmOpen(false)}
+      />
+      {undoMessage && (
+        <div className={`mt-3 rounded-lg px-4 py-2 text-sm ${undoMessage.includes('แล้ว') ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border border-red-500/20 bg-red-500/10 text-red-400'}`}>
+          {undoMessage}
         </div>
       )}
     </>
@@ -348,6 +441,7 @@ export default function InvoiceDetailPage() {
   const [regenerateSuccess, setRegenerateSuccess] = useState(false);
   const [regenerateConfirmOpen, setRegenerateConfirmOpen] = useState(false);
   const [copyLinkMessage, setCopyLinkMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'details' | 'audit'>('details');
 
   const { data: invoice, isLoading: loading, error } = useQuery<InvoiceResponse>({
     queryKey: ['invoices', invoiceId],
@@ -581,8 +675,11 @@ export default function InvoiceDetailPage() {
               สร้างใบแจ้งหนี้ใหม่
             </button>
           )}
-          {inv.status === 'GENERATED' || inv.status === 'SENT' || inv.status === 'VIEWED' ? (
-            <CancelInvoiceButton invoiceId={invoiceId} onCancelled={() => queryClient.invalidateQueries({ queryKey: ['invoices', invoiceId] })} />
+          {inv.status === 'SENT' || inv.status === 'VIEWED' ? (
+            <CancelInvoiceButton invoiceId={invoiceId} currentStatus={inv.status} onCancelled={() => queryClient.invalidateQueries({ queryKey: ['invoices', invoiceId] })} />
+          ) : null}
+          {inv.status === 'CANCELLED' && inv.previousStatus ? (
+            <UndoCancelButton invoiceId={invoiceId} onUndone={() => queryClient.invalidateQueries({ queryKey: ['invoices', invoiceId] })} />
           ) : null}
         </div>
         {copyLinkMessage && (
@@ -731,7 +828,31 @@ export default function InvoiceDetailPage() {
           )}
         </div>
       </section>
-      {/* Send Invoice Dialog */}
+      {/* Tabs: Details + Audit History */}
+      <div className="border-b border-[hsl(var(--color-border))]">
+        <nav className="flex gap-1">
+          {(['details', 'audit'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === tab
+                  ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]'
+                  : 'border-transparent text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--on-surface))]'
+              }`}
+            >
+              {tab === 'details' ? 'รายละเอียด' : 'ประวัติแก้ไข'}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {activeTab === 'audit' ? (
+        <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-5">
+          <FinancialAuditTimeline entityType="Invoice" entityId={invoiceId} />
+        </section>
+      ) : null}
+
       <ConfirmDialog
         open={sendConfirmOpen}
         title="ส่งใบแจ้งหนี้ LINE?"

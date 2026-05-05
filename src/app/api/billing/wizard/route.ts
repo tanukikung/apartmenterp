@@ -130,7 +130,7 @@ async function getLatestBatch(periodId: string | null): Promise<{ id: string; fi
 // ─── GET: Get current wizard state ────────────────────────────────────────────
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireOperator(req);
+  await await requireOperator(req);
 
   const period = await getCurrentPeriod();
   const periodExists = period !== null;
@@ -178,7 +178,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
 
-  requireOperator(req);
+  await await requireOperator(req);
 
   const body = await req.json();
   const input = wizardActionSchema.parse(body);

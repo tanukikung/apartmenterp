@@ -26,7 +26,7 @@ export interface OutboxHealthData {
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'OWNER', 'STAFF']);
+  await await requireRole(req, ['ADMIN', 'OWNER', 'STAFF']);
 
   const [queueDepth, deadLetterCount, oldest] = await Promise.all([
     // Unprocessed events that are still within retry budget

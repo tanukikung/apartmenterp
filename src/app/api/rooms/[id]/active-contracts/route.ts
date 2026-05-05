@@ -5,7 +5,7 @@ import { requireRole } from '@/lib/auth/guards';
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const roomNo = params.id;
 
     const room = await prisma.room.findUnique({ where: { roomNo } });

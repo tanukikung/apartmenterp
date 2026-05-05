@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-  requireRole(req, ['OWNER', 'ADMIN']);
+  await await requireRole(req, ['OWNER', 'ADMIN']);
   const sequence = await messagingSequenceService.getSequenceById(params.id);
   return NextResponse.json({ success: true, data: sequence } as ApiResponse<typeof sequence>);
 });
@@ -20,7 +20,7 @@ export const GET = asyncHandler(async (req: NextRequest, { params }: { params: {
 // ============================================================================
 
 export const PUT = asyncHandler(async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-  requireRole(req, ['OWNER', 'ADMIN']);
+  await await requireRole(req, ['OWNER', 'ADMIN']);
   const body = await req.json();
   const sequence = await messagingSequenceService.updateSequence(params.id, body);
   return NextResponse.json({ success: true, data: sequence } as ApiResponse<typeof sequence>);
@@ -31,7 +31,7 @@ export const PUT = asyncHandler(async (req: NextRequest, { params }: { params: {
 // ============================================================================
 
 export const DELETE = asyncHandler(async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-  requireRole(req, ['OWNER', 'ADMIN']);
+  await await requireRole(req, ['OWNER', 'ADMIN']);
   await messagingSequenceService.deleteSequence(params.id);
   return NextResponse.json({ success: true, data: null } as ApiResponse<null>);
 });

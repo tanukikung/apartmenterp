@@ -38,7 +38,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireAuthSession(req);
+  const session = await requireAuthSession(req);
   const body = await req.json();
   const input = createDeliveryOrderSchema.parse(body);
 

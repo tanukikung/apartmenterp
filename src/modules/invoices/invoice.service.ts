@@ -7,8 +7,12 @@ import { isLineConfigured } from '@/lib/line';
 import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
+import { logFinancialAudit } from '@/modules/financial-audit';
+import { assertInvoiceStatusTransitionValid } from '@/lib/invariants/financial-guards';
 import { INVOICE_STATUS } from '@/lib/constants';
 import { getEffectiveInvoiceStatus } from './status';
+import { inc } from '@/lib/metrics/messaging';
+import { freezeInvoiceAsLegalSnapshot, freezeInvoiceFinancialSnapshot } from './invoice-legal.service';
 
 import {
   GenerateInvoiceInput,
@@ -28,6 +32,7 @@ import {
   ConflictError,
   ValidationError,
 } from '@/lib/utils/errors';
+import { versionedUpdate } from '@/lib/concurrency/version-guard';
 
 // ============================================================================
 // Invoice Service
@@ -258,6 +263,7 @@ export class InvoiceService {
             generatedBy,
           },
           retryCount: 0,
+          callerIdempotencyKey: `invoice-generated:${inv.id}`,
         },
       });
 
@@ -280,6 +286,7 @@ export class InvoiceService {
       },
     });
 
+    inc('invoice_generated_total');
     return response;
   }
 
@@ -486,18 +493,43 @@ export class InvoiceService {
 
     const invoices = await prisma.invoice.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        roomNo: true,
+        year: true,
+        month: true,
+        status: true,
+        totalAmount: true,
+        dueDate: true,
+        paidAt: true,
+        sentAt: true,
+        issuedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        roomBillingId: true,
         room: {
-          include: {
+          select: {
+            roomNo: true,
             tenants: {
               where: { role: 'PRIMARY', moveOutDate: null },
-              include: { tenant: true },
+              select: { tenant: { select: { id: true, firstName: true, lastName: true, phone: true, lineUserId: true } } },
               take: 1,
             },
           },
         },
-        deliveries: { orderBy: { createdAt: 'desc' } },
-        roomBilling: true,
+        deliveries: {
+          select: {
+            id: true,
+            channel: true,
+            status: true,
+            recipientRef: true,
+            sentAt: true,
+            viewedAt: true,
+            errorMessage: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
       orderBy: { [prismaOrderField]: sortOrder },
       skip: (page - 1) * pageSize,
@@ -505,7 +537,7 @@ export class InvoiceService {
     });
 
     return {
-      data: invoices.map((inv) => this.formatInvoiceResponse(inv)),
+      data: invoices.map((inv) => this.formatInvoiceResponse(inv as Parameters<typeof this.formatInvoiceResponse>[0])),
       total,
       page,
       pageSize,
@@ -639,6 +671,7 @@ export class InvoiceService {
           aggregateType: 'Invoice',
           aggregateId: id,
           eventType: 'InvoiceSendRequested',
+          deduplicationKey: `invoice_send:${id}`,
           payload: {
             invoiceId: id,
             deliveryId,
@@ -675,6 +708,7 @@ export class InvoiceService {
             },
           },
           retryCount: 0,
+          callerIdempotencyKey: `send-invoice:${id}`,
         },
       });
 
@@ -687,6 +721,11 @@ export class InvoiceService {
       if (updatedCount.count !== 1) {
         throw new ConflictError('Invoice send state changed before delivery could be queued');
       }
+
+      // Phase 9: Freeze invoice as legal snapshot — no more modifications allowed
+      await freezeInvoiceAsLegalSnapshot(tx, id, sentBy ?? 'system');
+      // Gap-2: Freeze financial snapshot so payment matching uses sent-time values, not mutable billing
+      await freezeInvoiceFinancialSnapshot(tx, id);
 
       const updatedInvoice = await tx.invoice.findUnique({
         where: { id },
@@ -724,6 +763,8 @@ export class InvoiceService {
           aggregateType: 'Invoice',
           aggregateId: updatedInvoice.id,
           eventType: EventTypes.INVOICE_SENT,
+          deduplicationKey: `invoice_sent:${updatedInvoice.id}`,
+          callerIdempotencyKey: `invoice-sent:${updatedInvoice.id}`,
           payload: {
             invoiceId: updatedInvoice.id,
             tenantId: primaryTenant?.tenantId || '',
@@ -766,6 +807,7 @@ export class InvoiceService {
       { userId: sentBy }
     );
 
+    inc('invoice_sent_total');
     return {
       ...txResult,
       invoice: this.formatInvoiceResponse(updatedInvoiceRecord),
@@ -838,43 +880,55 @@ export class InvoiceService {
     if (!exists) throw new NotFoundError('Invoice', id);
 
     const updated = await prisma.$transaction(async (tx) => {
-      // SELECT FOR UPDATE — acquires a row-level lock so concurrent cancel
-      // requests are serialised. Without this, two requests can both read
-      // status=GENERATED and both proceed to cancel the same invoice.
-      await tx.$queryRaw`SELECT id FROM "invoices" WHERE id = ${id} FOR UPDATE`;
+      // ── Phase 8.1: Capture BEFORE state for financial audit ─────────────────
+      const beforeInvoice = await tx.invoice.findUnique({ where: { id } });
+      if (!beforeInvoice) throw new NotFoundError('Invoice', id);
+      const previousStatus = beforeInvoice.status;
 
-      // Re-read inside the transaction after the lock is held
-      const invoice = await tx.invoice.findUnique({ where: { id } });
-      if (!invoice) throw new NotFoundError('Invoice', id);
+      // ── Phase 8.7: Status machine validation ─────────────────────────────────
+      assertInvoiceStatusTransitionValid(previousStatus, INVOICE_STATUS.CANCELLED);
 
-      if (invoice.status === INVOICE_STATUS.CANCELLED) {
-        // Idempotent: already cancelled — return current state without error
-        return { cancelled: invoice, snapshot: invoice };
-      }
-      if (invoice.status === INVOICE_STATUS.PAID) {
-        throw new BadRequestError('Cannot cancel a paid invoice');
-      }
-      if (invoice.status === INVOICE_STATUS.SENT) {
-        throw new BadRequestError('Cannot cancel a sent invoice');
-      }
-
-      logger.info({ type: 'invoice_cancel', requestId: requestId ?? null, invoiceId: id, cancelledBy });
-
-      // Cancel the invoice — write all audit fields
-      const cancelled = await tx.invoice.update({
-        where: { id },
+      // ── Atomic UPDATE with status guard + conflict detection ─────────────────
+      const result = await tx.invoice.updateMany({
+        where: {
+          id,
+          // Only GENERATED or OVERDUE invoices can be cancelled.
+          status: { in: [INVOICE_STATUS.GENERATED, INVOICE_STATUS.OVERDUE] },
+        },
         data: {
           status: INVOICE_STATUS.CANCELLED,
           cancelledAt: new Date(),
           cancelledBy,
           cancelReason: reason,
           cancelReasonCategory: cancelReasonCategory ?? null,
+          previousStatus,
         },
       });
 
+      if (result.count === 0) {
+        const invoice = await tx.invoice.findUnique({ where: { id } });
+        if (!invoice) throw new NotFoundError('Invoice', id);
+        if (invoice.status === INVOICE_STATUS.CANCELLED) {
+          return { cancelled: invoice, snapshot: invoice, previousStatus };
+        }
+        if (invoice.status === INVOICE_STATUS.PAID) {
+          throw new BadRequestError('Cannot cancel a paid invoice');
+        }
+        if (invoice.status === INVOICE_STATUS.SENT) {
+          throw new BadRequestError('Cannot cancel a sent invoice');
+        }
+        throw new ConflictError('Invoice status was modified by a concurrent operation. Please retry.');
+      }
+
+      // ── Phase 8.1: Fetch AFTER state ─────────────────────────────────────────
+      const afterInvoice = await tx.invoice.findUnique({ where: { id } });
+      if (!afterInvoice) throw new NotFoundError('Invoice', id);
+
+      logger.info({ type: 'invoice_cancel', requestId: requestId ?? null, invoiceId: id, cancelledBy });
+
       // Revert RoomBilling to LOCKED so it can be re-invoiced
       await tx.roomBilling.update({
-        where: { id: invoice.roomBillingId },
+        where: { id: afterInvoice.roomBillingId },
         data: { status: 'LOCKED' },
       });
 
@@ -884,7 +938,30 @@ export class InvoiceService {
         data: { status: 'CANCELLED' as const },
       });
 
-      return { cancelled, snapshot: invoice };
+      // Cancel pending InvoiceSendRequested outbox events so they are not
+      // delivered to the tenant after the invoice has been cancelled.
+      await tx.outboxEvent.updateMany({
+        where: {
+          aggregateId: id,
+          eventType: { in: ['InvoiceSendRequested', 'INVOICE_SEND_REQUESTED'] },
+          status: { in: ['PENDING', 'PROCESSING'] },
+        },
+        data: { status: 'CANCELLED' },
+      });
+
+      // ── Phase 8.1: Financial audit log (inside same transaction) ────────────
+      await logFinancialAudit({
+        tx,
+        entityType: 'Invoice',
+        entityId: id,
+        action: 'INVOICE_CANCELLED',
+        before: beforeInvoice as unknown as Record<string, unknown>,
+        after: afterInvoice as unknown as Record<string, unknown>,
+        performedBy: cancelledBy,
+        correlationId: requestId,
+      });
+
+      return { cancelled: afterInvoice, snapshot: afterInvoice, previousStatus };
     });
 
     await logAudit({
@@ -898,7 +975,7 @@ export class InvoiceService {
         reason,
         cancelReasonCategory: cancelReasonCategory ?? null,
         totalAmount: Number(updated.snapshot.totalAmount),
-        beforeStatus: updated.snapshot.status,
+        beforeStatus: updated.previousStatus,
         afterStatus: 'CANCELLED',
       },
     });
@@ -906,6 +983,114 @@ export class InvoiceService {
     logger.info({ type: 'invoice_cancelled', requestId: requestId ?? null, invoiceId: id, cancelledBy, reason });
 
     return this.formatInvoiceResponse(updated.cancelled);
+  }
+
+  /**
+   * Phase 8.2: Reversible cancel — restores a CANCELLED invoice to its previous status.
+   * Idempotent: if not cancelled, returns success without doing anything.
+   * If already undone (reversedAt != null), throws ConflictError.
+   */
+  async undoCancelInvoice(
+    id: string,
+    restoredBy: string,
+    reason: string,
+    requestId?: string,
+  ): Promise<InvoiceResponse> {
+    const exists = await prisma.invoice.findUnique({ where: { id }, select: { id: true, status: true } });
+    if (!exists) throw new NotFoundError('Invoice', id);
+
+    if (exists.status !== INVOICE_STATUS.CANCELLED) {
+      // Idempotent — not cancelled, nothing to undo
+      return this.formatInvoiceResponse(exists as unknown as Parameters<typeof this.formatInvoiceResponse>[0]);
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // ── Phase 8.5 FIX: Use SELECT ... FOR UPDATE as atomic guard
+      // This prevents TOCTOU races in undo operations.
+      // The SELECT acquires a row lock; if no row matches, the invoice is either
+      // already undone OR the status changed concurrently.
+      const [row] = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM invoices
+        WHERE id = ${id}
+          AND status = ${INVOICE_STATUS.CANCELLED}
+          AND "reversedAt" IS NULL
+        FOR UPDATE
+      `;
+
+      if (!row) {
+        // Check WHY the lock failed — must determine correct error
+        const current = await tx.invoice.findUnique({ where: { id } });
+        if (!current) throw new NotFoundError('Invoice', id);
+        if (current.reversedAt) throw new ConflictError('Invoice cancel already undone');
+        // Status changed — could be PAID by a concurrent payment, or other concurrent undo
+        throw new ConflictError('Invoice status was modified by a concurrent operation. Please retry.');
+      }
+
+      // Row is locked — fetch for audit log (within lock, no race possible)
+      const beforeInvoice = await tx.invoice.findUnique({ where: { id } });
+      if (!beforeInvoice) throw new NotFoundError('Invoice', id);
+
+      // Determine target status
+      const targetStatus = (beforeInvoice.previousStatus as typeof INVOICE_STATUS[keyof typeof INVOICE_STATUS]) ?? INVOICE_STATUS.GENERATED;
+
+      // Apply the restore with version check (strict concurrency enforcement)
+      const restored = await versionedUpdate(tx, tx.invoice,
+        { id, version: beforeInvoice.version },
+        {
+          status: targetStatus,
+          cancelledAt: null,
+          cancelledBy: null,
+          cancelReason: null,
+          cancelReasonCategory: null,
+          reversedAt: new Date(),
+          reversedBy: restoredBy,
+          reversalReason: reason,
+          previousStatus: null,
+        },
+      );
+
+      // Restore RoomBilling to INVOICED (it was LOCKED before cancel)
+      await tx.roomBilling.update({
+        where: { id: beforeInvoice.roomBillingId },
+        data: { status: 'INVOICED' },
+      });
+
+      // Restore any CANCELLED deliveries to PENDING
+      await tx.invoiceDelivery.updateMany({
+        where: { invoiceId: id, status: 'CANCELLED' },
+        data: { status: 'PENDING' },
+      });
+
+      // versionedUpdate returns the updated record — use it as afterInvoice
+      const afterInvoice = restored;
+
+      // Financial audit (Phase 8.1)
+      await logFinancialAudit({
+        tx,
+        entityType: 'Invoice',
+        entityId: id,
+        action: 'INVOICE_CANCEL_UNDONE',
+        before: beforeInvoice as unknown as Record<string, unknown>,
+        after: afterInvoice as unknown as Record<string, unknown>,
+        performedBy: restoredBy,
+        correlationId: requestId,
+      });
+
+      return { restored, previousInvoice: beforeInvoice };
+    });
+
+    await logAudit({
+      actorId: restoredBy,
+      actorRole: 'ADMIN',
+      action: 'INVOICE_CANCEL_UNDONE',
+      entityType: 'INVOICE',
+      entityId: id,
+      metadata: { reason, beforeStatus: updated.previousInvoice.status, afterStatus: updated.restored.status },
+    });
+
+    logger.info({ type: 'invoice_undo_cancel', requestId: requestId ?? null, invoiceId: id, restoredBy, reason });
+
+    return this.formatInvoiceResponse(updated.restored as unknown as InvoiceResponseRecord);
   }
 
   /**
@@ -945,7 +1130,17 @@ export class InvoiceService {
               AND "dueDate" = ${invoice.dueDate}
             FOR UPDATE
           `;
-          if (rows.length === 0) return; // already processed by another caller
+          if (rows.length === 0) {
+            // Concurrent caller already processed this invoice — signal conflict
+            // so this event is NOT silently swallowed. Re-throw so the outbox
+            // processor retries on next poll cycle.
+            logger.warn({
+              type: 'overdue_concurrent_processed',
+              invoiceId: invoice.id,
+              reason: 'FOR UPDATE returned 0 rows — invoice was already processed',
+            });
+            throw new ConflictError(`Invoice ${invoice.id} was already processed by a concurrent overdue check`);
+          }
 
           const daysOverdue = Math.floor(
             (today.getTime() - invoice.dueDate.getTime()) / (1000 * 60 * 60 * 24)
@@ -967,8 +1162,14 @@ export class InvoiceService {
             totalAmount: Number(invoice.totalAmount),
           };
 
-          await tx.invoice.update({
-            where: { id: invoice.id },
+          // HARD INVARIANT: Use updateMany with status guard so concurrent
+          // payment settlement (PAID transition) is detected. If a payment
+          // already locked the invoice, count === 0 and we throw ConflictError.
+          const markResult = await tx.invoice.updateMany({
+            where: {
+              id: invoice.id,
+              status: invoice.status, // must match what FOR UPDATE read
+            },
             data: {
               status: INVOICE_STATUS.OVERDUE,
               ...(lateFeeAmount > 0
@@ -976,6 +1177,17 @@ export class InvoiceService {
                 : {}),
             },
           });
+
+          if (markResult.count === 0) {
+            logger.warn({
+              type: 'overdue_status_conflict',
+              invoiceId: invoice.id,
+              currentStatus: invoice.status,
+              reason: 'updateMany count === 0 — concurrent status change detected',
+            });
+            throw new ConflictError(`Invoice ${invoice.id} status changed during overdue marking. Retry.`);
+          }
+
           await this.eventBus.publish(
             EventTypes.INVOICE_MARKED_OVERDUE,
             'Invoice',
@@ -1096,6 +1308,11 @@ export class InvoiceService {
       if (updatedCount.count !== 1) {
         throw new ConflictError('Invoice send state changed before delivery could be recorded');
       }
+
+      // Phase 9: Freeze invoice as legal snapshot — no more modifications allowed
+      await freezeInvoiceAsLegalSnapshot(tx, id, sentBy ?? 'system');
+      // Gap-2: Freeze financial snapshot so payment matching uses sent-time values, not mutable billing
+      await freezeInvoiceFinancialSnapshot(tx, id);
 
       const updatedInvoice = await tx.invoice.findUnique({
         where: { id },

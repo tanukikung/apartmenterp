@@ -1,6 +1,7 @@
 import { Client, ClientConfig, WebhookEvent, MessageAPIResponseBase } from '@line/bot-sdk';
 import crypto from 'crypto';
 import { logger } from '../utils/logger';
+import { inc as incMessaging } from '../metrics/messaging';
 
 // ============================================================================
 // Types
@@ -31,6 +32,116 @@ export interface LineUserProfile {
 
 const LINE_TOKEN_REFRESH_MAX_RETRIES = 3;
 const LINE_TOKEN_REFRESH_BASE_DELAY_MS = 1000;
+
+// ============================================================================
+// Circuit Breaker
+// ============================================================================
+
+type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+
+const DEFAULT_FAILURE_THRESHOLD = 5;
+const DEFAULT_RECOVERY_TIMEOUT_MS = 30_000;
+
+/**
+ * LINE API circuit breaker.
+ *
+ * State transitions:
+ *   CLOSED     → OPEN    (failureThreshold consecutive failures)
+ *   OPEN       → HALF_OPEN (recoveryTimeout elapsed)
+ *   HALF_OPEN  → CLOSED  (probe request succeeds)
+ *   HALF_OPEN  → OPEN    (probe request fails)
+ *
+ * 4xx errors do NOT open the circuit — they are permanent rejections from LINE
+ * and do not indicate a cascading failure condition.
+ */
+class LineCircuitBreaker {
+  private state: CircuitState = 'CLOSED';
+  private failureCount = 0;
+  private lastFailureTime = 0;
+  private readonly failureThreshold: number;
+  private readonly recoveryTimeoutMs: number;
+
+  constructor(
+    failureThreshold = DEFAULT_FAILURE_THRESHOLD,
+    recoveryTimeoutMs = DEFAULT_RECOVERY_TIMEOUT_MS
+  ) {
+    this.failureThreshold =
+      Number(process.env.LINE_CB_FAILURE_THRESHOLD) || failureThreshold;
+    this.recoveryTimeoutMs =
+      Number(process.env.LINE_CB_RECOVERY_TIMEOUT_MS) || recoveryTimeoutMs;
+  }
+
+  /** True when the circuit is OPEN and probe requests should be rejected. */
+  isOpen(): boolean {
+    if (this.state !== 'OPEN') return false;
+    const elapsed = Date.now() - this.lastFailureTime;
+    if (elapsed >= this.recoveryTimeoutMs) {
+      this.state = 'HALF_OPEN';
+      logger.info({
+        type: 'line_circuit_half_open',
+        message: 'LINE circuit breaker entering HALF_OPEN state',
+      });
+      return false;
+    }
+    return true;
+  }
+
+  /** Record a successful LINE API call. Resets failure count in CLOSED, closes circuit in HALF_OPEN. */
+  recordSuccess(): void {
+    if (this.state === 'HALF_OPEN') {
+      this.state = 'CLOSED';
+      this.failureCount = 0;
+      logger.info({
+        type: 'line_circuit_closed',
+        message: 'LINE circuit breaker CLOSED after successful probe',
+      });
+    } else if (this.state === 'CLOSED') {
+      this.failureCount = 0;
+    }
+  }
+
+  /**
+   * Record a failed LINE API call.
+   * Opens the circuit after failureThreshold consecutive failures.
+   * Called only for network errors, 5xx, or timeouts — NOT for 4xx.
+   */
+  recordFailure(): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+
+    if (this.state === 'HALF_OPEN') {
+      this.state = 'OPEN';
+      logger.warn({
+        type: 'line_circuit_open',
+        message: 'LINE circuit breaker OPEN — probe request failed',
+      });
+      incMessaging('line_circuit_open_total');
+    } else if (this.state === 'CLOSED' && this.failureCount >= this.failureThreshold) {
+      this.state = 'OPEN';
+      logger.warn({
+        type: 'line_circuit_open',
+        message: `LINE circuit breaker OPEN after ${this.failureCount} consecutive failures`,
+        failureCount: this.failureCount,
+        threshold: this.failureThreshold,
+      });
+      incMessaging('line_circuit_open_total');
+    }
+  }
+
+  getState(): CircuitState {
+    return this.state;
+  }
+
+  /** Reset to CLOSED — for testing only. */
+  reset(): void {
+    this.state = 'CLOSED';
+    this.failureCount = 0;
+    this.lastFailureTime = 0;
+  }
+}
+
+// Singleton instance
+const lineCircuitBreaker = new LineCircuitBreaker();
 
 // ============================================================================
 // LINE Client Wrapper
@@ -311,8 +422,21 @@ async function withRetry<T>(
   const baseDelay = options.retryDelay ?? 1000;
   let lastError: Error | null = null;
 
+  // 429-specific cap: LINE rate limit retries are capped separately from regular
+  // retries to prevent unbounded wait on a single event in the outbox.
+  const max429Retries = 5;
+  let rateLimitedRetries = 0;
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      // Circuit-open check before attempting — reject immediately so the outbox
+      // can handle retry later instead of burning a retry attempt on a known-dead circuit.
+      if (lineCircuitBreaker.isOpen()) {
+        logger.warn({ type: 'line_circuit_reject', message: 'LINE circuit is OPEN — rejecting request' });
+        incMessaging('line_circuit_reject_total');
+        throw Object.assign(new Error('LINE circuit open'), { retryable: true });
+      }
+
       // Ensure token is fresh before each attempt (handles proactive refresh)
       await lineClientWrapper.ensureTokenFresh();
 
@@ -323,27 +447,78 @@ async function withRetry<T>(
           setTimeout(() => reject(new Error('LINE request timeout')), timeoutMs)
         ),
       ]);
+      lineCircuitBreaker.recordSuccess();
       return result as T;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Unknown error');
 
-      // Don't retry on certain errors
-      if (lastError.message.includes('Invalid token') ||
+      // Determine whether this is a transient LINE API failure or a permanent error.
+      const isRetryable = isLineRetryableError(lastError);
+      const rateLimitInfo = getRateLimitInfo(lastError);
+
+      if (isRetryable) {
+        lineCircuitBreaker.recordFailure();
+      }
+
+      // Don't retry on permanent errors (4xx non-429 from LINE, known bad token, etc.)
+      if (!isRetryable ||
+          lastError.message.includes('Invalid token') ||
           lastError.message.includes('Signature validation failed') ||
           lastError.message.includes('Quota exceeded')) {
         throw lastError;
       }
 
-      // Calculate delay with exponential backoff
-      const delay = baseDelay * Math.pow(2, attempt - 1);
-
-      logger.warn({
-        type: 'line_retry',
-        attempt,
-        maxRetries,
-        delay,
-        error: lastError.message,
-      });
+      // ── LINE 429: use Retry-After header if available, else exponential backoff ──
+      let delay: number;
+      if (rateLimitInfo.isRateLimit) {
+        rateLimitedRetries++;
+        if (rateLimitedRetries > max429Retries) {
+          logger.error({
+            type: 'line_rate_limit_exhausted',
+            rateLimitedRetries,
+            max429Retries,
+            error: lastError.message,
+          });
+          throw lastError;
+        }
+        if (rateLimitInfo.retryAfterMs != null) {
+          delay = rateLimitInfo.retryAfterMs;
+          logger.warn({
+            type: 'line_retry_rate_limited',
+            attempt,
+            rateLimitedRetries,
+            max429Retries,
+            retryAfterMs: delay,
+            error: lastError.message,
+          });
+        } else {
+          const backoffMs = baseDelay * Math.pow(2, rateLimitedRetries - 1);
+          const jitterMs = Math.floor(Math.random() * backoffMs * 0.25);
+          delay = Math.min(backoffMs + jitterMs, 30_000);
+          logger.warn({
+            type: 'line_retry_rate_limited_backoff',
+            attempt,
+            rateLimitedRetries,
+            max429Retries,
+            delay,
+            error: lastError.message,
+          });
+        }
+      } else {
+        // Non-429 retryable error: exponential backoff with ±25% jitter to prevent
+        // synchronized retry storms when multiple workers recover simultaneously.
+        const backoffMs = baseDelay * Math.pow(2, attempt - 1);
+        const jitterMs = Math.floor(Math.random() * backoffMs * 0.25);
+        delay = Math.min(backoffMs + jitterMs, 30_000);
+        logger.warn({
+          type: 'line_retry',
+          attempt,
+          maxRetries,
+          delay,
+          error: lastError.message,
+          isRetryable,
+        });
+      }
 
       if (attempt < maxRetries) {
         await new Promise((resolve) => setTimeout(resolve, delay));
@@ -360,6 +535,91 @@ async function withRetry<T>(
   }
 
   throw lastError;
+}
+
+/**
+ * Returns true for errors that indicate a transient LINE API failure
+ * (network issue, 5xx server error, timeout) — these should trip the circuit breaker.
+ * Returns false for 4xx client errors (permanent — LINE will keep rejecting them).
+ * Exported for testing.
+ */
+export function isLineRetryableError(error: Error): boolean {
+  // Timeout has no status code — treat as retryable
+  if (error.message === 'LINE request timeout') return true;
+
+  // Check for LINE SDK error — supports both HTTPError (statusCode) and
+  // HTTPFetchError (status) property names used by the SDK's two HTTP clients.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const status = (error as any).statusCode ?? (error as any).status;
+  if (typeof status === 'number') {
+    // 429 Rate Limit — LINE's messaging API has per-channel and per-user limits.
+    // This is transient (not a client error) and MUST be retried via the outbox
+    // backoff mechanism, not dead-lettered.
+    if (status === 429) return true;
+    // 5xx — LINE server-side failure, retryable
+    if (status >= 500) return true;
+    // 4xx — client error, NOT retryable (permanent)
+    if (status >= 400) return false;
+  }
+
+  // Network-level errors (fetch failed, DNS, etc.) — retryable
+  if (
+    error.message.includes('fetch') ||
+    error.message.includes('ECONNREFUSED') ||
+    error.message.includes('ENOTFOUND') ||
+    error.message.includes('ETIMEDOUT') ||
+    error.message.includes('socket hang up')
+  ) {
+    return true;
+  }
+
+  // Unknown errors — default to retryable to be safe
+  return true;
+}
+
+/**
+ * Extract LINE rate limit information from a thrown error.
+ *
+ * Supports both LINE SDK error shapes:
+ * - HTTPError (Axios path):  statusCode + originalError.response.headers
+ * - HTTPFetchError (Fetch path): status + headers (Web Headers object)
+ *
+ * Returns isRateLimit=true when the status is 429.
+ * Returns retryAfterMs from the Retry-After header if present.
+ * Exported for testing.
+ */
+export function getRateLimitInfo(error: Error): { isRateLimit: boolean; retryAfterMs: number | null } {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const e = error as any;
+
+  // Determine status — try both SDK error shapes
+  const status = e.statusCode ?? e.status;
+  if (status !== 429) return { isRateLimit: false, retryAfterMs: null };
+
+  // Extract Retry-After header
+  let retryAfterMs: number | null = null;
+
+  // Axios path: headers are nested under originalError.response.headers
+  const axiosHeaders: Record<string, string> | undefined =
+    e.originalError?.response?.headers;
+  if (axiosHeaders) {
+    const raw = axiosHeaders['retry-after'] ?? axiosHeaders['Retry-After'];
+    if (raw) {
+      const seconds = parseInt(raw, 10);
+      if (!isNaN(seconds)) retryAfterMs = seconds * 1000;
+    }
+  }
+
+  // Fetch path: headers is a Web Headers object with .get() method
+  if (retryAfterMs === null && e.headers != null && typeof e.headers.get === 'function') {
+    const raw = e.headers.get('retry-after') ?? e.headers.get('Retry-After');
+    if (raw) {
+      const seconds = parseInt(raw, 10);
+      if (!isNaN(seconds)) retryAfterMs = seconds * 1000;
+    }
+  }
+
+  return { isRateLimit: true, retryAfterMs };
 }
 
 // ============================================================================

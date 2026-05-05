@@ -37,7 +37,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   // This is a PUBLIC endpoint — accessible without login.
   // The actor is always 'anonymous'; the tenantId in the body is the ticket owner
   // (it is NOT treated as a trusted audit actor).
-  const session = getSessionFromRequest(req);
+  const session = await getSessionFromRequest(req);
   const actor = session
     ? { actorId: session.sub, actorRole: session.role }
     : { actorId: 'anonymous', actorRole: 'ANONYMOUS' };

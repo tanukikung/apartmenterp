@@ -6,7 +6,7 @@ import { asyncHandler } from '@/lib/utils/errors';
 export const dynamic = 'force-dynamic';
 
 export const POST = asyncHandler(async (_req: NextRequest): Promise<NextResponse> => {
-  requireOwnerOrAdmin(_req);
+  await await requireOwnerOrAdmin(_req);
 
   const result = await verifyAuditLogChain();
 

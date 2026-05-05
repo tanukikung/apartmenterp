@@ -1,32 +1,23 @@
-import { test, expect, Page } from '@playwright/test';
-
-const BASE = 'http://localhost:3001';
-const ADMIN_USER = 'owner';
-const ADMIN_PASS = 'Owner@12345';
-
-async function login(page: Page) {
-  await page.goto(BASE + '/login');
-  await page.waitForTimeout(1000);
-  await page.fill('input[name="username"]', ADMIN_USER);
-  await page.fill('input[name="password"]', ADMIN_PASS);
-  await page.click('button[type="submit"]');
-  await page.waitForURL('**/admin/**', { timeout: 15000 });
-  await page.waitForTimeout(1000);
-}
+import { test, Page, expect } from '@playwright/test';
+import { BASE_URL } from './config.js';
+import { loginAsAdmin } from './helpers';
 
 // ──────────────────────────────────────────────
 // EDGE CASES - Run first (fast failures)
 // ──────────────────────────────────────────────
 
 test('E1: XSS vulnerability in tenant name field', async ({ page }) => {
-  await login(page);
-  await page.goto(BASE + '/admin/tenants');
-  await page.waitForTimeout(2000);
+  await loginAsAdmin(page);
+  await page.goto(BASE_URL + '/admin/tenants');
+  await expect(page.locator('body')).toBeVisible();
 
   // Open create modal - try multiple button approaches
-  const createBtn = page.locator('button').filter({ hasText: /เพิ่ม|สร้าง|new/i }).first();
+  const createBtn = page.getByRole('button', { name: /add|create|new/i }).first();
+  const responsePromise = page.waitForResponse(
+    r => r.url().includes('/api/') && r.status() < 500,
+  ).catch(() => null);
   await createBtn.click();
-  await page.waitForTimeout(2000);
+  await expect(page.locator('body')).toBeVisible();
 
   const nameInput = page.locator('input[name*="name"], input[placeholder*="ชื่อ"]').first();
   const isInputVisible = await nameInput.isVisible({ timeout: 5000 }).catch(() => false);
@@ -34,7 +25,7 @@ test('E1: XSS vulnerability in tenant name field', async ({ page }) => {
 
   if (isInputVisible) {
     await nameInput.fill('<script>alert("XSS")</script>');
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible();
 
     // Find submit button - be more flexible
     const submitBtn = page.locator('button[type="submit"]').first();
@@ -42,8 +33,12 @@ test('E1: XSS vulnerability in tenant name field', async ({ page }) => {
     console.log('[E1] Submit button visible:', isSubmitVisible);
 
     if (isSubmitVisible) {
+      const submitResponse = page.waitForResponse(
+        r => r.url().includes('/api/') && r.status() < 500,
+      ).catch(() => null);
       await submitBtn.click();
-      await page.waitForTimeout(2000);
+      await submitResponse;
+      await expect(page.locator('body')).toBeVisible();
 
       const pageText = await page.locator('body').innerText();
       const xssExecuted = pageText.includes('alert') && await page.locator('script').count() > 0;
@@ -55,20 +50,25 @@ test('E1: XSS vulnerability in tenant name field', async ({ page }) => {
 });
 
 test('E2: Zero amount invoice validation', async ({ page }) => {
-  await login(page);
-  await page.goto(BASE + '/admin/invoices');
-  await page.waitForTimeout(2000);
+  await loginAsAdmin(page);
+  await page.goto(BASE_URL + '/admin/invoices');
+  await expect(page.locator('body')).toBeVisible();
 
-  const createBtn = page.locator('button').filter({ hasText: /สร้าง|Generate/i }).first();
+  // Activate the GENERATED tab so the create button targets the right form context
+  const generatedTab = page.getByRole('tab', { name: /generated|สร้าง/i }).first();
+  if (await generatedTab.isVisible()) await generatedTab.click();
+  await expect(page.locator('body')).toBeVisible();
+
+  const createBtn = page.getByRole('button', { name: /create|generate/i }).first();
   await createBtn.click();
-  await page.waitForTimeout(1500);
+  await expect(page.locator('body')).toBeVisible();
 
   const amountInput = page.locator('input[name*="amount"], input[type="number"]').first();
   if (await amountInput.isVisible()) {
     await amountInput.fill('0');
     const submitBtn = page.locator('button[type="submit"]').first();
     await submitBtn.click();
-    await page.waitForTimeout(1500);
+    await expect(page.locator('body')).toBeVisible();
 
     const text = await page.locator('body').innerText();
     const blocked = text.includes('ไม่') || text.includes('0') || text.includes('invalid') || text.includes('必');
@@ -77,12 +77,13 @@ test('E2: Zero amount invoice validation', async ({ page }) => {
 });
 
 test('E3: Date validation - end before start', async ({ page }) => {
-  await login(page);
-  await page.goto(BASE + '/admin/contracts');
+  await loginAsAdmin(page);
+  await page.goto(BASE_URL + '/admin/contracts');
+  await expect(page.locator('body')).toBeVisible();
 
-  const createBtn = page.locator('button').filter({ hasText: /สร้าง|เพิ่ม/ }).first();
+  const createBtn = page.getByRole('button', { name: /create|add/i }).first();
   await createBtn.click();
-  await page.waitForTimeout(1500);
+  await expect(page.locator('body')).toBeVisible();
 
   const inputs = page.locator('input[type="date"], input[name*="start"], input[name*="end"]');
   const count = await inputs.count();
@@ -94,7 +95,7 @@ test('E3: Date validation - end before start', async ({ page }) => {
     await allInputs[1].fill('2026-01-01'); // End before start
     const submitBtn = page.locator('button[type="submit"]').first();
     await submitBtn.click();
-    await page.waitForTimeout(1500);
+    await expect(page.locator('body')).toBeVisible();
 
     const text = await page.locator('body').innerText();
     const validated = text.includes('ก่อน') || text.includes('ไม่ถูกต้อง') || text.includes('invalid') || text.includes('Validation');
@@ -107,9 +108,14 @@ test('E3: Date validation - end before start', async ({ page }) => {
 // ──────────────────────────────────────────────
 
 test('F1: Invoice totals add up correctly', async ({ page }) => {
-  await login(page);
-  await page.goto(BASE + '/admin/invoices');
-  await page.waitForTimeout(2000);
+  await loginAsAdmin(page);
+  await page.goto(BASE_URL + '/admin/invoices');
+  await expect(page.locator('body')).toBeVisible();
+
+  // Activate the ALL tab so all invoice rows are visible
+  const allTab = page.getByRole('tab', { name: /all|ทั้งหมด/i }).first();
+  if (await allTab.isVisible()) await allTab.click();
+  await expect(page.locator('body')).toBeVisible();
 
   // Sum all visible invoice amounts
   let calculatedTotal = 0;
@@ -130,8 +136,8 @@ test('F1: Invoice totals add up correctly', async ({ page }) => {
   console.log('[F1] Calculated total: ฿', calculatedTotal.toLocaleString());
 
   // Check dashboard for comparison
-  await page.goto(BASE + '/admin');
-  await page.waitForTimeout(2000);
+  await page.goto(BASE_URL + '/admin');
+  await expect(page.locator('body')).toBeVisible();
   const dashText = await page.locator('body').innerText();
   const dashTotal = dashText.match(/฿\s*([\d,]+)/)?.[1] || 'not found';
   console.log('[F1] Dashboard total: ฿', dashTotal);
@@ -141,10 +147,10 @@ test('F1: Invoice totals add up correctly', async ({ page }) => {
 });
 
 test('F2: Overpayment detection', async ({ page }) => {
-  await login(page);
+  await loginAsAdmin(page);
   // Use overdue page since it showed 97 rows reliably
-  await page.goto(BASE + '/admin/overdue');
-  await page.waitForTimeout(3000);
+  await page.goto(BASE_URL + '/admin/overdue');
+  await expect(page.locator('body')).toBeVisible();
 
   const firstRow = page.locator('table tbody tr').first();
   const isTableVisible = await firstRow.isVisible({ timeout: 5000 }).catch(() => false);
@@ -152,24 +158,28 @@ test('F2: Overpayment detection', async ({ page }) => {
     console.log('[F2] No invoice rows visible (rate limited or empty)');
     return;
   }
+  const responsePromise = page.waitForResponse(
+    r => r.url().includes('/api/') && r.status() < 500,
+  ).catch(() => null);
   await firstRow.click();
-  await page.waitForTimeout(2000);
+  await expect(page.locator('body')).toBeVisible();
 
-  const payBtn = page.locator('button').filter({ hasText: /ชำระ|Payment/i }).first();
+  const payBtn = page.getByRole('button', { name: /pay|payment/i }).first();
   const isPayBtnVisible = await payBtn.isVisible({ timeout: 3000 }).catch(() => false);
   if (!isPayBtnVisible) {
     console.log('[F2] Pay button not visible');
     return;
   }
   await payBtn.click();
-  await page.waitForTimeout(1500);
+  await expect(page.locator('body')).toBeVisible();
 
   const amountInput = page.locator('input[name*="amount"], input[type="number"]').first();
   if (await amountInput.isVisible()) {
     await amountInput.fill('999999999');
     const submitBtn = page.locator('button[type="submit"]').first();
     await submitBtn.click();
-    await page.waitForTimeout(2000);
+    await responsePromise;
+    await expect(page.locator('body')).toBeVisible();
 
     const text = await page.locator('body').innerText();
     const hasValidation = text.includes('เกิน') || text.includes('over') || text.includes('มากกว่า') || text.includes('overpayment');
@@ -179,9 +189,9 @@ test('F2: Overpayment detection', async ({ page }) => {
 
 test('F3: Partial payment leaves correct balance', async ({ page }) => {
   // Use overdue page directly since it has reliable data
-  await login(page);
-  await page.goto(BASE + '/admin/overdue');
-  await page.waitForTimeout(3000);
+  await loginAsAdmin(page);
+  await page.goto(BASE_URL + '/admin/overdue');
+  await expect(page.locator('body')).toBeVisible();
 
   const rows = await page.locator('table tbody tr').all();
   if (rows.length === 0) { console.log('[F3] No overdue invoices'); return; }
@@ -195,13 +205,16 @@ test('F3: Partial payment leaves correct balance', async ({ page }) => {
   const isRowVisible = await firstRow.isVisible({ timeout: 3000 }).catch(() => false);
   if (!isRowVisible) { console.log('[F3] Row not visible'); return; }
 
+  const responsePromise = page.waitForResponse(
+    r => r.url().includes('/api/') && r.status() < 500,
+  ).catch(() => null);
   await firstRow.click();
-  await page.waitForTimeout(2000);
+  await expect(page.locator('body')).toBeVisible();
 
-  const payBtn = page.locator('button').filter({ hasText: /ชำระ|Payment/i }).first();
+  const payBtn = page.getByRole('button', { name: /pay|payment/i }).first();
   if (await payBtn.isVisible()) {
     await payBtn.click();
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible();
 
     const amountInput = page.locator('input[name*="amount"], input[type="number"]').first();
     const partialAmount = Math.floor(fullAmount / 2);
@@ -210,7 +223,8 @@ test('F3: Partial payment leaves correct balance', async ({ page }) => {
 
     const submitBtn = page.locator('button[type="submit"]').first();
     await submitBtn.click();
-    await page.waitForTimeout(2000);
+    await responsePromise;
+    await expect(page.locator('body')).toBeVisible();
 
     const text = await page.locator('body').innerText();
     const remainingMatch = text.match(/ค้าง\s*[฿]?\s*([\d,]+)|คงเหลือ\s*[฿]?\s*([\d,]+)/i);
@@ -228,26 +242,27 @@ test('F3: Partial payment leaves correct balance', async ({ page }) => {
 // ──────────────────────────────────────────────
 
 test('DC1: Overdue count matches across pages', async ({ page }) => {
-  await login(page);
+  await loginAsAdmin(page);
 
   // Count from overdue page
-  await page.goto(BASE + '/admin/overdue');
-  await page.waitForTimeout(2500);
+  await page.goto(BASE_URL + '/admin/overdue');
+  await expect(page.locator('body')).toBeVisible();
   const overdueRows = await page.locator('table tbody tr').count();
   console.log('[DC1] Overdue page count:', overdueRows);
 
-  // Count from invoices page
-  await page.goto(BASE + '/admin/invoices');
-  await page.waitForTimeout(2500);
-
-  const filterCombo = page.locator('[role="combobox"], button:has-text("สถานะ"), button:has-text("ตัวกรอง")').first();
-  if (await filterCombo.isVisible()) {
-    await filterCombo.click();
-    await page.waitForTimeout(1000);
-    const overdueOpt = page.locator('text=ค้างชำระ, text=OVERDUE').first();
-    if (await overdueOpt.isVisible()) await overdueOpt.click();
-    await page.waitForTimeout(1500);
+  if (overdueRows === 0) {
+    test.skip('No overdue invoices found — skipping');
+    return;
   }
+
+  // Count from invoices page
+  await page.goto(BASE_URL + '/admin/invoices');
+  await expect(page.locator('body')).toBeVisible();
+
+  // Click "Overdue" tab to activate the overdue filter
+  const overdueTab = page.locator('button:has-text("เกินกำหนด")').first();
+  if (await overdueTab.isVisible()) await overdueTab.click();
+  await expect(page.locator('body')).toBeVisible();
 
   const invoiceRows = await page.locator('table tbody tr').count();
   console.log('[DC1] Invoices page filtered count:', invoiceRows);
@@ -255,11 +270,11 @@ test('DC1: Overdue count matches across pages', async ({ page }) => {
 });
 
 test('DC2: Dashboard vs real data', async ({ page }) => {
-  await login(page);
+  await loginAsAdmin(page);
 
   // Get dashboard stats
-  await page.goto(BASE + '/admin');
-  await page.waitForTimeout(2500);
+  await page.goto(BASE_URL + '/admin');
+  await expect(page.locator('body')).toBeVisible();
   const dashText = await page.locator('body').innerText();
 
   // Extract key numbers from dashboard
@@ -274,8 +289,8 @@ test('DC2: Dashboard vs real data', async ({ page }) => {
   console.log('[DC2] Dashboard - Overdue:', overdueMatch?.[1] || 'unknown');
 
   // Verify against rooms page
-  await page.goto(BASE + '/admin/rooms');
-  await page.waitForTimeout(2000);
+  await page.goto(BASE_URL + '/admin/rooms');
+  await expect(page.locator('body')).toBeVisible();
   const totalRoomRows = await page.locator('table tbody tr').count();
   console.log('[DC2] Rooms page total:', totalRoomRows);
 
@@ -291,14 +306,14 @@ test('DC2: Dashboard vs real data', async ({ page }) => {
 });
 
 test('DC3: [object Object] errors on all admin pages', async ({ page }) => {
-  await login(page);
+  await loginAsAdmin(page);
 
   const pages = ['/admin/tenants', '/admin/contracts', '/admin/invoices', '/admin/rooms', '/admin/overdue', '/admin'];
   const results: string[] = [];
 
   for (const path of pages) {
-    await page.goto(BASE + path);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL + path);
+    await expect(page.locator('body')).toBeVisible();
     const text = await page.locator('body').innerText();
     const hasObject = text.includes('[object Object]');
     const hasUndefined = text.includes('undefined');
@@ -323,7 +338,7 @@ test('CONSOLE: No console errors across core flows', async ({ page }) => {
     if (msg.type() === 'error') errors.push(`[${msg.location().url}] ${msg.text()}`);
   });
 
-  await login(page);
+  await loginAsAdmin(page);
 
   const flows = [
     '/admin/tenants',
@@ -334,16 +349,20 @@ test('CONSOLE: No console errors across core flows', async ({ page }) => {
   ];
 
   for (const path of flows) {
-    await page.goto(BASE + path);
-    await page.waitForTimeout(2000);
+    await page.goto(BASE_URL + path);
+    await expect(page.locator('body')).toBeVisible();
     // Trigger some interaction
     const rows = await page.locator('table tbody tr').count();
     if (rows > 0) {
+      const responsePromise = page.waitForResponse(
+        r => r.url().includes('/api/') && r.status() < 500,
+      ).catch(() => null);
       await page.locator('table tbody tr').first().click();
-      await page.waitForTimeout(1000);
+      await responsePromise;
+      await expect(page.locator('body')).toBeVisible();
     }
     await page.goBack();
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible();
   }
 
   console.log('\n=== CONSOLE ERRORS ===');

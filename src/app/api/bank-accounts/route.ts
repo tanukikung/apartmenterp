@@ -6,7 +6,7 @@ import { requireOperator } from '@/lib/auth/guards';
 export const dynamic = 'force-dynamic';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireOperator(req);
+  await await requireOperator(req);
   const accounts = await prisma.bankAccount.findMany({
     orderBy: { id: 'asc' },
     select: { id: true, name: true, bankName: true, bankAccountNo: true },

@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { logger, eventLogger } from '../utils/logger';
+import { inc } from '../metrics/messaging';
 import type {
   DomainEvent,
   EventHandler,
@@ -10,7 +11,14 @@ export interface EventBusOptions {
   correlationId?: string;
   causationId?: string;
   userId?: string;
+  deduplicationKey?: string;
 }
+
+/**
+ * Module-level in-memory deduplication cache.
+ * Key = deduplicationKey, Value = event ID that was published.
+ */
+const deduplicationCache = new Map<string, DomainEvent>();
 
 export interface EventMetadata {
   correlationId: string;
@@ -68,10 +76,10 @@ export class EventBus {
     if (!this.handlers.has(eventType)) {
       this.handlers.set(eventType, []);
     }
-    
+
     const handlers = this.handlers.get(eventType) as EventHandler[];
     handlers.push(handler as EventHandler);
-    
+
     logger.debug({
       type: 'event_subscription',
       eventType,
@@ -116,6 +124,19 @@ export class EventBus {
     payload: unknown,
     options: EventBusOptions = {}
   ): Promise<T> {
+    // Step 1: Deduplication check — second layer defense (first is in outbox processor)
+    const dedupKey = options.deduplicationKey;
+    if (dedupKey && deduplicationCache.has(dedupKey)) {
+      const existingEvent = deduplicationCache.get(dedupKey)!;
+      logger.debug({
+        type: 'eventbus_dedup_skipped',
+        deduplicationKey: dedupKey,
+        existingEventId: existingEvent.id,
+      });
+      inc('eventbus_dedup_skipped_total');
+      return existingEvent as T;
+    }
+
     const event = {
       id: uuidv4(),
       type: eventType,
@@ -131,7 +152,12 @@ export class EventBus {
       },
     } as T;
 
-    // Store in history
+    // Step 2: Store in deduplication cache if key provided
+    if (dedupKey) {
+      deduplicationCache.set(dedupKey, event);
+    }
+
+    // Step 3: Store in history
     this.eventHistory.push(event);
 
     eventLogger.published(eventType, aggregateId);
@@ -190,7 +216,7 @@ export class EventBus {
     }>
   ): Promise<T[]> {
     const results: T[] = [];
-    
+
     for (const event of events) {
       const published = await this.publish<T>(
         event.eventType,
@@ -280,6 +306,26 @@ export class EventBus {
   getSubscribedEvents(): string[] {
     return Array.from(this.handlers.keys());
   }
+}
+
+// ============================================================================
+// Module-level deduplication cache management
+// ============================================================================
+
+/**
+ * Clear the module-level deduplication cache.
+ * Use this in tests to ensure isolation between test cases.
+ */
+export function clearDeduplicationCache(): void {
+  deduplicationCache.clear();
+}
+
+/**
+ * Get the current size of the deduplication cache.
+ * Useful for observability and testing assertions.
+ */
+export function getDeduplicationCacheSize(): number {
+  return deduplicationCache.size;
 }
 
 // ============================================================================

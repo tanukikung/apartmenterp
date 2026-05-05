@@ -108,12 +108,12 @@ export function buildInvoiceAccessUrl(
   return `${url.pathname}${url.search}`;
 }
 
-export function requireOperatorOrSignedInvoiceAccess(
+export async function requireOperatorOrSignedInvoiceAccess(
   req: NextRequest,
   invoiceId: string,
   action: InvoiceAccessAction,
-): void {
-  const session = getSessionFromRequest(req);
+): Promise<void> {
+  const session = await getSessionFromRequest(req);
   if (session) {
     if (!['ADMIN', 'STAFF'].includes(session.role)) {
       throw new ForbiddenError('Insufficient permissions');

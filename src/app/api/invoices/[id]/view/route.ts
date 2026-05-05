@@ -24,7 +24,7 @@ export const POST = asyncHandler(
       );
     }
     const { id } = params;
-    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
     const { invoiceService } = getServiceContainer();
     const invoice = await invoiceService.markInvoiceViewed(id);

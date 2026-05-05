@@ -30,7 +30,7 @@ const cancelSchema = z.object({
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    const session = requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
     return withIdempotency(req, 'invoice_cancel', async () => {
 
     const limiter = getLoginRateLimiter();

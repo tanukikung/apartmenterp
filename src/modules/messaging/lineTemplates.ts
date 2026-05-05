@@ -1,5 +1,6 @@
-import { sendFlexMessage, type LineMessageOptions } from '@/lib';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { MessageAPIResponseBase } from '@line/bot-sdk';
+import { sendFlexMessage, type LineMessageOptions } from '@/lib/line/client';
 
 export interface InvoiceTemplateData {
   roomNumber: string;

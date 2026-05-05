@@ -3,7 +3,7 @@ import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { getSessionFromRequest } from '@/lib/auth/session';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const session = getSessionFromRequest(req);
+  const session = await getSessionFromRequest(req);
 
   return NextResponse.json({
     success: true,

@@ -1,75 +1,72 @@
-export interface EdgeSessionPayload {
+import { jwtVerify, SignJWT, JWTPayload } from 'jose';
+
+export interface EdgeSessionPayload extends JWTPayload {
   sub: string;
   username: string;
   displayName: string;
   role: 'OWNER' | 'ADMIN' | 'STAFF';
   forcePasswordChange: boolean;
   buildingId: string | null; // Reserved for multi-building isolation (not yet enforced at API layer)
-  exp: number;
+  version?: number;
+  lastLoginAt?: string;
 }
 
-function decodeBase64Url(input: string): string {
-  const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
-  return atob(padded);
+function getSecretKey(secret: string): Uint8Array {
+  return new TextEncoder().encode(secret);
 }
 
-function encodeBase64Url(input: ArrayBuffer): string {
-  const bytes = new Uint8Array(input);
-  let str = '';
-  bytes.forEach((byte) => {
-    str += String.fromCharCode(byte);
-  });
-  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-export async function verifySessionTokenEdge(token: string, secret: string): Promise<EdgeSessionPayload | null> {
-  const [encodedPayload, signature] = token.split('.');
-  if (!encodedPayload || !signature) return null;
-
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-
-  const signatureBuffer = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(encodedPayload));
-  const expected = encodeBase64Url(signatureBuffer);
-  if (expected !== signature) return null;
-
+export async function verifySessionTokenEdge(
+  token: string,
+  secret: string
+): Promise<EdgeSessionPayload | null> {
   try {
-    const payload = JSON.parse(decodeBase64Url(encodedPayload)) as EdgeSessionPayload;
-    if (!payload?.sub || !payload?.role || !payload?.exp || typeof payload.forcePasswordChange !== 'boolean') return null;
-    if (payload.exp * 1000 <= Date.now()) return null;
-    return payload;
+    const { payload } = await jwtVerify(token, getSecretKey(secret), {
+      algorithms: ['HS256'],
+    });
+    const p = payload as EdgeSessionPayload;
+    if (!p?.sub || !p?.role || !p?.exp) return null;
+    if (typeof p.forcePasswordChange !== 'boolean') return null;
+    if (p.exp * 1000 <= Date.now()) return null;
+    return p;
   } catch {
     return null;
   }
 }
 
-export function refreshSessionEdgeIfNeeded(payload: EdgeSessionPayload, refreshBeforeSecs = 60 * 5): EdgeSessionPayload | null {
-  const nowMs = Date.now();
-  const expMs = payload.exp * 1000;
-  if (expMs <= nowMs) return null;
-  if (expMs - nowMs > refreshBeforeSecs * 1000) return null;
-  return { ...payload, exp: Math.floor(nowMs / 1000) + 60 * 60 * 12 };
+export async function signSessionTokenEdge(
+  payload: Omit<EdgeSessionPayload, 'iat' | 'exp' | 'iss' | 'sub'>,
+  secret: string
+): Promise<string> {
+  const token = await new SignJWT(payload as Record<string, unknown>)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .setSubject(payload.sub as string)
+    .sign(getSecretKey(secret));
+  return token;
 }
 
-// Edge-compatible session token signing using Web Crypto API
-export function signSessionTokenEdge(payload: EdgeSessionPayload, secret: string): Promise<string> {
-  const encodedPayload = encodeBase64Url(new Uint8Array(new TextEncoder().encode(JSON.stringify(payload))).buffer as ArrayBuffer);
-  return crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  ).then((key) =>
-    crypto.subtle.sign('HMAC', key, new TextEncoder().encode(encodedPayload))
-  ).then((signatureBuffer) => {
-    const signature = encodeBase64Url(signatureBuffer as ArrayBuffer);
-    return `${encodedPayload}.${signature}`;
-  });
+export async function refreshSessionEdgeIfNeeded(
+  payload: EdgeSessionPayload,
+  secret: string,
+  refreshBeforeSecs = 60 * 5
+): Promise<{ token: string; payload: EdgeSessionPayload } | null> {
+  const nowMs = Date.now();
+  const expMs = (payload.exp as number) * 1000;
+  if (expMs <= nowMs) return null;
+  if (expMs - nowMs > refreshBeforeSecs * 1000) return null;
+  const refreshed: Omit<EdgeSessionPayload, 'iat' | 'exp' | 'iss' | 'sub'> = {
+    username: payload.username,
+    displayName: payload.displayName,
+    role: payload.role,
+    forcePasswordChange: payload.forcePasswordChange,
+    buildingId: payload.buildingId,
+    version: payload.version,
+    lastLoginAt: payload.lastLoginAt,
+  };
+  const newToken = await signSessionTokenEdge(refreshed, secret);
+  return {
+    token: newToken,
+    payload: { ...payload, exp: Math.floor(nowMs / 1000) + 60 * 60 * 12 },
+  };
 }

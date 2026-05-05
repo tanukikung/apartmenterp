@@ -58,6 +58,16 @@ type ExpiringContract = {
   daysLeft: number;
 };
 
+type DashboardAlert = {
+  type: 'billing_missing' | 'contract_expiring' | 'overdue_invoices' | 'unmatched_payments' | 'unsent_invoices';
+  priority: 'urgent' | 'normal';
+  label: string;
+  description: string;
+  count: number;
+  actionLabel: string;
+  actionHref: string;
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function _money(amount: number): string {
@@ -395,6 +405,7 @@ export default function AdminDashboardPage() {
   const [overdueCount, setOverdueCount] = useState(0);
   const [expiringContracts, setExpiringContracts] = useState<ExpiringContract[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditRow[]>([]);
+  const [alerts, setAlerts] = useState<DashboardAlert[]>([]);
   const [loading, setLoading] = useState(true);
 
   const { greeting, date } = todayThai();
@@ -461,6 +472,7 @@ export default function AdminDashboardPage() {
 
         if (alertsRes?.success) {
           const alerts = alertsRes.data?.alerts ?? [];
+          setAlerts(alerts as DashboardAlert[]);
           const expiring = alerts.filter((a: { type: string }) => a.type === 'contract_expiring');
           if (expiring.length > 0) {
             setExpiringContracts(
@@ -622,6 +634,49 @@ export default function AdminDashboardPage() {
             />
           </StaggerItem>
         </StaggerList>
+
+        {/* ── Alerts Panel ─────────────────────────────────────────── */}
+        {!loading && alerts.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <h2 className="text-sm font-semibold text-on-surface">แจ้งเตือน</h2>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {alerts.map((alert) => (
+                <Link
+                  key={alert.type}
+                  href={alert.actionHref}
+                  className={`group relative flex flex-col gap-2 rounded-xl border p-4 transition-all hover:shadow-md hover:-translate-y-0.5 ${
+                    alert.priority === 'urgent'
+                      ? 'border-red-500/30 bg-red-500/5 hover:border-red-500/50'
+                      : 'border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      alert.priority === 'urgent'
+                        ? 'bg-red-500/20 text-red-600 border border-red-500/30'
+                        : 'bg-amber-500/20 text-amber-600 border border-amber-500/30'
+                    }`}>
+                      {alert.label}
+                    </span>
+                    <span className="text-lg font-bold tabular-nums text-on-surface">
+                      {alert.count > 0 ? alert.count : ''}
+                    </span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    {alert.description}
+                  </p>
+                  <div className="flex items-center gap-1 text-xs font-medium text-primary group-hover:underline">
+                    {alert.actionLabel}
+                    <ArrowRight size={10} />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ── Task Cards + Recent Activity ─────────────────────────── */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">

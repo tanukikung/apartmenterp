@@ -8,7 +8,7 @@ export const GET = asyncHandler(async (
   req: NextRequest,
   { params }: { params: { id: string } },
 ): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const service = getDocumentGenerationService();
   const document = await service.getDocumentById(params.id);
   const format = (new URL(req.url).searchParams.get('format') || 'pdf').toLowerCase();

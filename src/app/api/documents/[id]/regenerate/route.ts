@@ -20,7 +20,7 @@ export const POST = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  const session = await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const service = getDocumentGenerationService();
   const result = await service.regenerateDocument(params.id, session.sub);
 

@@ -27,7 +27,7 @@ function guessWorkbookMimeType(name: string, fallback: string): string {
 
 // GET — list monthly data import batches
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') ?? '1', 10);
@@ -58,7 +58,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
 
-  const session = requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  const session = await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   // Support both JSON (year, month) and FormData (year, month, file)
   const contentType = req.headers.get('content-type') ?? '';

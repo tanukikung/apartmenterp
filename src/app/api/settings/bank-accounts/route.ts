@@ -21,7 +21,7 @@ const createBankAccountSchema = z.object({
 });
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const accounts = await prisma.bankAccount.findMany({
     orderBy: [{ active: 'desc' }, { name: 'asc' }],
@@ -43,7 +43,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'OWNER']);
   const body = createBankAccountSchema.parse(await req.json());
 
   const account = await prisma.bankAccount.create({

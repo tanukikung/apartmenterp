@@ -23,7 +23,7 @@ export const POST = asyncHandler(async (req: NextRequest, context?: { params: { 
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
   const requestId = context?.params.id;
   if (!requestId) {
     throw new NotFoundError('StaffRegistrationRequest');

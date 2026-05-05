@@ -37,6 +37,59 @@ import {
   getMaintenanceRequestState,
 } from '@/modules/line-maintenance';
 
+// ─── Reply Token Guard ─────────────────────────────────────────────────────────
+//
+// LINE's replyToken can only be used once. Before sending any reply, we check
+// the LineReplyToken table. If the token was already used, we skip the reply
+// (can't reply anyway) and log a warning. This prevents wasted API calls on
+// stale tokens and provides replay attack detection.
+//
+// Note: This guard is advisory — LINE returns an error if you try to reply with
+// an already-used token, but checking first avoids the API call entirely.
+//
+
+async function isReplyTokenUsed(token: string): Promise<boolean> {
+  const existing = await prisma.lineReplyToken.findUnique({ where: { token } });
+  return existing !== null;
+}
+
+async function markReplyTokenUsed(token: string, eventId: string): Promise<boolean> {
+  // Returns true if successfully marked (token was free), false if already used
+  try {
+    await prisma.lineReplyToken.create({ data: { token, usedBy: eventId } });
+    return true;
+  } catch (err) {
+    // P2002 = unique constraint violation — token was already used (replay or duplicate)
+    if (err instanceof Error && 'code' in err && (err as { code?: string }).code === 'P2002') {
+      logger.warn({ type: 'reply_token_replay_detected', token, eventId });
+      return false;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Guard wrapper for sendReplyMessage — checks and marks replyToken before sending.
+ * If the token was already used, logs and skips the reply.
+ */
+async function guardedSendReply(
+  replyToken: string,
+  text: string,
+  eventId: string
+): Promise<void> {
+  const isUsed = await isReplyTokenUsed(replyToken);
+  if (isUsed) {
+    logger.warn({ type: 'reply_token_already_used', replyToken, eventId });
+    return;
+  }
+  const marked = await markReplyTokenUsed(replyToken, eventId);
+  if (!marked) {
+    logger.warn({ type: 'reply_token_concurrent_use', replyToken, eventId });
+    return;
+  }
+  await sendReplyMessage(replyToken, text);
+}
+
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 function extractUserId(event: WebhookEvent): string | null {
@@ -136,6 +189,7 @@ async function handlePostback(
   data: string,
   replyToken: string,
   conversationId: string,
+  eventId: string, // lineMessageId — used for replyToken guard
 ): Promise<void> {
   const params = new URLSearchParams(data);
   const action = params.get('action');
@@ -143,16 +197,16 @@ async function handlePostback(
   if (action === 'confirm_payment') {
     const invoiceId = params.get('invoiceId');
     if (!invoiceId) {
-      await sendReplyMessage(replyToken, '❌ ไม่พบใบแจ้งหนี้ที่เกี่ยวข้อง กรุณาติดต่อเจ้าหน้าที่');
+      await guardedSendReply(replyToken, '❌ ไม่พบใบแจ้งหนี้ที่เกี่ยวข้อง กรุณาติดต่อเจ้าหน้าที่', eventId);
       return;
     }
     const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
     if (!invoice) {
-      await sendReplyMessage(replyToken, '❌ ไม่พบใบแจ้งหนี้ กรุณาติดต่อเจ้าหน้าที่');
+      await guardedSendReply(replyToken, '❌ ไม่พบใบแจ้งหนี้ กรุณาติดต่อเจ้าหน้าที่', eventId);
       return;
     }
     if (invoice.status === 'PAID') {
-      await sendReplyMessage(replyToken, `ℹ️ ห้อง ${invoice.roomNo} ชำระเงินแล้วเรียบร้อยค่ะ`);
+      await guardedSendReply(replyToken, `ℹ️ ห้อง ${invoice.roomNo} ชำระเงินแล้วเรียบร้อยค่ะ`, eventId);
       return;
     }
 
@@ -160,7 +214,7 @@ async function handlePostback(
       where: { matchedInvoiceId: invoiceId, status: 'CONFIRMED' },
     });
     if (confirmedPayments.length === 0) {
-      await sendReplyMessage(replyToken, '❌ ไม่พบการชำระเงินสำหรับ invoice นี้ กรุณาติดต่อเจ้าหน้าที่');
+      await guardedSendReply(replyToken, '❌ ไม่พบการชำระเงินสำหรับ invoice นี้ กรุณาติดต่อเจ้าหน้าที่', eventId);
       return;
     }
 
@@ -169,7 +223,7 @@ async function handlePostback(
     if (!isPaymentSettled(totalPaid, totalOwed, PaymentMatchMode.ALLOW_SMALL_DIFF)) {
       const paid = `฿${totalPaid.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
       const owed = `฿${totalOwed.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
-      await sendReplyMessage(replyToken, `❌ ยอดชำระไม่เพียงพอค่ะ\nจ่ายแล้ว: ${paid}\nต้องชำระ: ${owed}\n\nกรุณาติดต่อเจ้าหน้าที่หากมีข้อสงสัยค่ะ`);
+      await guardedSendReply(replyToken, `❌ ยอดชำระไม่เพียงพอค่ะ\nจ่ายแล้ว: ${paid}\nต้องชำระ: ${owed}\n\nกรุณาติดต่อเจ้าหน้าที่หากมีข้อสงสัยค่ะ`, eventId);
       return;
     }
 
@@ -183,7 +237,7 @@ async function handlePostback(
         data: { status: 'PAID', paidAt: payment?.confirmedAt ?? new Date() },
       });
     });
-    await sendReplyMessage(replyToken, `✅ ยืนยันการชำระเงินเรียบร้อยแล้วสำหรับห้อง ${invoice.roomNo} ใบเสร็จจะถูกส่งให้ท่านเร็วๆ นี้ค่ะ 😊`);
+    await guardedSendReply(replyToken, `✅ ยืนยันการชำระเงินเรียบร้อยแล้วสำหรับห้อง ${invoice.roomNo} ใบเสร็จจะถูกส่งให้ท่านเร็วๆ นี้ค่ะ 😊`, eventId);
     logger.info({ type: 'postback_confirm_payment', invoiceId, conversationId });
 
   } else if (
@@ -193,28 +247,28 @@ async function handlePostback(
   ) {
     const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
     const userId = conv?.lineUserId ?? '';
-    await handleBalanceInquiry(userId, replyToken, conversationId);
+    await handleBalanceInquiry(userId, replyToken, conversationId, eventId);
 
   } else if (action === 'view_invoice') {
     const invoiceId = params.get('invoiceId');
     if (!invoiceId) {
-      await sendReplyMessage(replyToken, '❌ ไม่พบใบแจ้งหนี้ กรุณาติดต่อเจ้าหน้าที่');
+      await guardedSendReply(replyToken, '❌ ไม่พบใบแจ้งหนี้ กรุณาติดต่อเจ้าหน้าที่', eventId);
       return;
     }
     const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
     if (!invoice) {
-      await sendReplyMessage(replyToken, '❌ ไม่พบใบแจ้งหนี้ กรุณาติดต่อเจ้าหน้าที่');
+      await guardedSendReply(replyToken, '❌ ไม่พบใบแจ้งหนี้ กรุณาติดต่อเจ้าหน้าที่', eventId);
       return;
     }
     const baseUrl = process.env.APP_BASE_URL || '';
     const pdfUrl = `${baseUrl}/api/invoices/${encodeURIComponent(invoiceId)}/pdf`;
-    await sendReplyMessage(replyToken, `🔗 ดูใบแจ้งหนี้: ${pdfUrl}`);
+    await guardedSendReply(replyToken, `🔗 ดูใบแจ้งหนี้: ${pdfUrl}`, eventId);
     logger.info({ type: 'postback_view_invoice', invoiceId, conversationId });
 
   } else if (action === 'send_receipt') {
     const invoiceId = params.get('invoiceId');
     if (!invoiceId) {
-      await sendReplyMessage(replyToken, '❌ ไม่พบใบเสร็จที่จะส่ง กรุณาติดต่อเจ้าหน้าที่');
+      await guardedSendReply(replyToken, '❌ ไม่พบใบเสร็จที่จะส่ง กรุณาติดต่อเจ้าหน้าที่', eventId);
       return;
     }
 
@@ -238,13 +292,13 @@ async function handlePostback(
       },
     });
     if (!invoice?.room) {
-      await sendReplyMessage(replyToken, '❌ ไม่พบใบเสร็จ กรุณาติดต่อเจ้าหน้าที่');
+      await guardedSendReply(replyToken, '❌ ไม่พบใบเสร็จ กรุณาติดต่อเจ้าหน้าที่', eventId);
       return;
     }
 
     const lineUserId = invoice.room.tenants?.[0]?.tenant?.lineUserId;
     if (!lineUserId) {
-      await sendReplyMessage(replyToken, '❌ ผู้เช่าไม่ได้ลงทะเบียน LINE กรุณาติดต่อเจ้าหน้าที่');
+      await guardedSendReply(replyToken, '❌ ผู้เช่าไม่ได้ลงทะเบียน LINE กรุณาติดต่อเจ้าหน้าที่', eventId);
       return;
     }
 
@@ -260,7 +314,7 @@ async function handlePostback(
       invoiceNumber: invoice.id.slice(-8).toUpperCase(),
       downloadLink: signedUrl,
     });
-    await sendReplyMessage(replyToken, `📋 ส่งใบเสร็จให้ท่านแล้วค่ะ กรุณาตรวจสอบที่หน้าต่าง LINE ของท่านได้เลยค่ะ 😊`);
+    await guardedSendReply(replyToken, `📋 ส่งใบเสร็จให้ท่านแล้วค่ะ กรุณาตรวจสอบที่หน้าต่าง LINE ของท่านได้เลยค่ะ 😊`, eventId);
     logger.info({ type: 'postback_send_receipt', invoiceId, conversationId });
 
   } else {
@@ -276,15 +330,16 @@ async function handleBalanceInquiry(
   userId: string,
   replyToken: string,
   conversationId: string,
+  eventId: string,
 ): Promise<void> {
   const result = await getLatestUnpaidInvoiceForLineUser(userId);
 
   if (result.notLinked) {
-    await sendReplyMessage(replyToken, '❌ บัญชี LINE นี้ยังไม่ได้ลงทะเบียนกับห้องพัก กรุณาติดต่อเจ้าหน้าที่เพื่อลงทะเบียนค่ะ');
+    await guardedSendReply(replyToken, '❌ บัญชี LINE นี้ยังไม่ได้ลงทะเบียนกับห้องพัก กรุณาติดต่อเจ้าหน้าที่เพื่อลงทะเบียนค่ะ', eventId);
     return;
   }
   if (!result.hasOutstanding) {
-    await sendReplyMessage(replyToken, `✅ ห้อง ${result.roomNo} — ไม่มียอดค้างชำระ ณ ขณะนี้ค่ะ\n\nขอบคุณที่ใช้บริการค่ะ 😊`);
+    await guardedSendReply(replyToken, `✅ ห้อง ${result.roomNo} — ไม่มียอดค้างชำระ ณ ขณะนี้ค่ะ\n\nขอบคุณที่ใช้บริการค่ะ 😊`, eventId);
     return;
   }
 
@@ -294,7 +349,7 @@ async function handleBalanceInquiry(
   };
   const statusText = statusLabel[result.status!] ?? result.status ?? '';
 
-  await sendReplyMessage(replyToken, [
+  await guardedSendReply(replyToken, [
     `📊 สรุปยอดค้าง — ห้อง ${result.roomNo}`,
     ``,
     `🔖 เลขที่ใบแจ้งหนี้: ${result.invoiceNumber}`,
@@ -303,7 +358,7 @@ async function handleBalanceInquiry(
     `📌 สถานะ: ${statusText}`,
     ``,
     `📋 ระยะเวลา: ${result.periodLabel}`,
-  ].join('\n'));
+  ].join('\n'), eventId);
 
   if (result.pdfUrl) {
     const flexContents = {
@@ -443,7 +498,7 @@ export async function processLineWebhookEvent(
 
   // ── Postback ────────────────────────────────────────────────────────────────
   if (incoming.type === 'POSTBACK' && incoming.replyToken) {
-    await handlePostback(incoming.content, incoming.replyToken, conversation.id);
+    await handlePostback(incoming.content, incoming.replyToken, conversation.id, incoming.lineMessageId);
     return;
   }
 
@@ -451,7 +506,7 @@ export async function processLineWebhookEvent(
   if (incoming.type === 'TEXT' && incoming.replyToken) {
     const text = incoming.content.trim();
     if (INQUIRY_TRIGGERS.some((t) => text === t || text.includes(t))) {
-      await handleBalanceInquiry(userId, incoming.replyToken, conversation.id);
+      await handleBalanceInquiry(userId, incoming.replyToken, conversation.id, incoming.lineMessageId);
       return;
     }
   }
@@ -463,19 +518,19 @@ export async function processLineWebhookEvent(
     const text = incoming.content.trim();
     if (text === 'แจ้งซ่อม') {
       const { replyText } = await startMaintenanceRequest(userId);
-      await sendReplyMessage(incoming.replyToken, replyText);
+      await guardedSendReply(incoming.replyToken, replyText, incoming.lineMessageId);
       return;
     }
     if (hasMaintenanceRequest) {
       const result = await handleMaintenanceRequestMessage(userId, text);
-      if (result) await sendReplyMessage(incoming.replyToken, result.replyText);
+      if (result) await guardedSendReply(incoming.replyToken, result.replyText, incoming.lineMessageId);
       return;
     }
   }
 
   if (incoming.type === 'IMAGE' && incoming.replyToken && hasMaintenanceRequest) {
     const result = await handleMaintenanceRequestImage(userId, incoming.lineMessageId);
-    if (result) await sendReplyMessage(incoming.replyToken, result.replyText);
+    if (result) await guardedSendReply(incoming.replyToken, result.replyText, incoming.lineMessageId);
     return;
   }
 

@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
 import { prisma, EventBus, logger, EventTypes } from '@/lib';
-import { ROOM_STATUS } from '@/lib/constants';
 
 import {
   CreateTenantInput,
@@ -403,7 +402,7 @@ export class TenantService {
   /**
    * @deprecated Use archiveTenant() — hard delete is no longer permitted.
    */
-  async deleteTenant(id: string, deletedBy?: string): Promise<void> {
+  async deleteTenant(_id: string, _deletedBy?: string): Promise<void> {
     throw new ConflictError(
       'Hard delete is not permitted. Use archiveTenant() to soft-delete instead.'
     );

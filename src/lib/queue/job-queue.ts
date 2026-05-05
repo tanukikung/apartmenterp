@@ -182,7 +182,9 @@ export async function markJobDone(jobId: string, result: Record<string, unknown>
 export async function markJobFailed(jobId: string, error: string, retryCount: number): Promise<void> {
   const nextRetry = retryCount + 1;
   const isDead = nextRetry >= JOB_MAX_RETRIES;
-  const backoffMs = Math.min(Math.pow(2, nextRetry) * 5_000, 300_000); // 10s, 20s, 40s … cap 5min
+  const baseBackoffMs = Math.pow(2, nextRetry) * 5_000; // 10s, 20s, 40s …
+  const jitterMs = Math.floor(Math.random() * baseBackoffMs * 0.25); // ±25% jitter
+  const backoffMs = Math.min(baseBackoffMs + jitterMs, 300_000); // cap 5min
   await (prisma as any).backgroundJob.update({
     where: { id: jobId },
     data: {

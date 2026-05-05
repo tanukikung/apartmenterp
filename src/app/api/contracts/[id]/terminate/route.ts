@@ -17,7 +17,7 @@ const ADMIN_MAX_ATTEMPTS = 20;
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    const session = requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
     return withIdempotency(req, 'contract_terminate', async () => {
 
     const limiter = getLoginRateLimiter();

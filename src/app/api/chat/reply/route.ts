@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse, NotFoundError, ExternalServiceError } from '@/lib/utils/errors';
-import { prisma, sendLineMessage, logger } from '@/lib';
+import { prisma, logger } from '@/lib';
+import { sendLineMessage } from '@/lib/line/client';
 import { logAudit } from '@/modules/audit';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
@@ -27,7 +28,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   let body: Record<string, unknown>;
   try {
     body = await req.json();

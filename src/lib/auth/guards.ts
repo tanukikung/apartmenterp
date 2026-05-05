@@ -5,15 +5,15 @@ import { ForbiddenError, UnauthorizedError } from '@/lib/utils/errors';
 import { hasValidCronSecret, isForcePasswordChangeExemptRoute } from '@/lib/auth/api-policy';
 
 // Refresh threshold: if session expires within 5 minutes, refresh it
-const REFRESH_THRESHOLD_SECS = 60 * 5;
+const _REFRESH_THRESHOLD_SECS = 60 * 5;
 
-export function requireAuthSession(req: NextRequest): AuthSessionPayload {
-  const session = getSessionFromRequest(req);
+export async function requireAuthSession(req: NextRequest): Promise<AuthSessionPayload> {
+  const session = await getSessionFromRequest(req);
   if (!session) {
     throw new UnauthorizedError('Authentication required');
   }
   // Sliding expiration: extend session if within 5-minute refresh window
-  const refreshed = refreshSessionIfNeeded(session, REFRESH_THRESHOLD_SECS);
+  const refreshed = await refreshSessionIfNeeded(session);
   if (refreshed) {
     // Cookie-setting requires a Response object — mark for refresh on the response side.
     // Guards do not have direct NextResponse access here; callers must handle the
@@ -32,12 +32,12 @@ export function requireAuthSession(req: NextRequest): AuthSessionPayload {
   return session;
 }
 
-export function requireRole(
+export async function requireRole(
   req: NextRequest,
   roles: AdminRole[] = ['ADMIN', 'STAFF'],
   options?: { buildingId?: string | null }
-): AuthSessionPayload {
-  const session = requireAuthSession(req);
+): Promise<AuthSessionPayload> {
+  const session = await requireAuthSession(req);
   if (!roles.includes(session.role)) {
     throw new ForbiddenError('Insufficient permissions');
   }
@@ -49,15 +49,15 @@ export function requireRole(
   return session;
 }
 
-export function requireOperator(req: NextRequest): AuthSessionPayload {
+export async function requireOperator(req: NextRequest): Promise<AuthSessionPayload> {
   return requireRole(req, ['OWNER', 'ADMIN', 'STAFF']);
 }
 
-export function requireOwner(req: NextRequest): AuthSessionPayload {
+export async function requireOwner(req: NextRequest): Promise<AuthSessionPayload> {
   return requireRole(req, ['OWNER']);
 }
 
-export function requireOwnerOrAdmin(req: NextRequest): AuthSessionPayload {
+export async function requireOwnerOrAdmin(req: NextRequest): Promise<AuthSessionPayload> {
   return requireRole(req, ['OWNER', 'ADMIN']);
 }
 
@@ -118,14 +118,14 @@ export interface VerifiedActor {
   session: AuthSessionPayload | null;
 }
 
-export function getVerifiedActor(
+export async function getVerifiedActor(
   req: NextRequest,
   options?: {
     roles?: AdminRole[];
     allowSystem?: boolean;
     systemActorId?: string;
   }
-): VerifiedActor {
+): Promise<VerifiedActor> {
   if (options?.allowSystem && hasValidCronSecret(req)) {
     return {
       actorId: options.systemActorId || 'system',
@@ -136,7 +136,7 @@ export function getVerifiedActor(
     };
   }
 
-  const session = options?.roles ? requireRole(req, options.roles) : requireOperator(req);
+  const session = options?.roles ? await requireRole(req, options.roles) : await requireOperator(req);
   return {
     actorId: session.sub,
     actorRole: session.role,

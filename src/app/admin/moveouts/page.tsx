@@ -70,13 +70,15 @@ export default function AdminMoveOutsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Confirm dialog state
+  // Confirm dialog state — extended type for Phase 5 financial safety
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     title: string;
     description?: string;
     dangerous?: boolean;
-    onConfirm: () => void;
+    reasonRequired?: boolean;
+    preview?: { before: Record<string, string>; after: Record<string, string>; labels?: Record<string, string> };
+    onConfirm: (reason?: string) => void;
   }>({ open: false, title: '', onConfirm: () => {} });
 
   // Filter / search state
@@ -350,16 +352,19 @@ export default function AdminMoveOutsPage() {
     if (!selectedMoveOut) return;
     setConfirmDialog({
       open: true,
-      title: 'ลบรายการ',
-      description: 'ต้องการลบรายการนี้?',
+      title: 'ลบรายการหัก',
+      description: 'ต้องการลบรายการหักนี้?',
       dangerous: true,
-      onConfirm: async () => {
+      reasonRequired: true,
+      onConfirm: async (reason) => {
         setConfirmDialog((p) => ({ ...p, open: false }));
         try {
           const res = await fetch(
             `/api/moveouts/${selectedMoveOut!.id}/items/${itemId}`,
             {
               method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reason }),
             },
           );
           if (!res.ok) {
@@ -391,8 +396,10 @@ export default function AdminMoveOutsPage() {
     setConfirmDialog({
       open: true,
       title: 'ยืนยันการย้ายออก',
-      description: 'ยืนยันการย้ายออก?',
-      onConfirm: async () => {
+      description: 'ยืนยันการย้ายออก? การดำเนิการนี้ไม่สามารถย้อนกลับได้',
+      dangerous: true,
+      reasonRequired: true,
+      onConfirm: async (reason) => {
         setConfirmDialog((p) => ({ ...p, open: false }));
         try {
           const res = await fetch(
@@ -400,7 +407,7 @@ export default function AdminMoveOutsPage() {
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({}),
+              body: JSON.stringify({ reason }),
             },
           );
           const json = await res.json();
@@ -426,8 +433,10 @@ export default function AdminMoveOutsPage() {
     setConfirmDialog({
       open: true,
       title: 'ยืนยันการคืนเงินมัดจำ',
-      description: 'ยืนยันการคืนเงินมัดจำ?',
-      onConfirm: async () => {
+      description: 'ยืนยันการคืนเงินมัดจำ? การดำเนิการนี้ไม่สามารถย้อนกลับได้',
+      dangerous: true,
+      reasonRequired: true,
+      onConfirm: async (reason) => {
         setConfirmDialog((p) => ({ ...p, open: false }));
         try {
           const res = await fetch(
@@ -435,7 +444,7 @@ export default function AdminMoveOutsPage() {
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({}),
+              body: JSON.stringify({ reason }),
             },
           );
           const json = await res.json();
@@ -463,7 +472,8 @@ export default function AdminMoveOutsPage() {
       title: 'ยกเลิกการย้ายออก',
       description: 'ต้องการยกเลิกการย้ายออก?',
       dangerous: true,
-      onConfirm: async () => {
+      reasonRequired: true,
+      onConfirm: async (reason) => {
         setConfirmDialog((p) => ({ ...p, open: false }));
         try {
           const res = await fetch(
@@ -471,7 +481,7 @@ export default function AdminMoveOutsPage() {
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({}),
+              body: JSON.stringify({ reason }),
             },
           );
           const json = await res.json();

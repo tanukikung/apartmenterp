@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-
-const BASE = 'http://localhost:3001';
+import { BASE_URL } from './config.js';
+import { loginAsAdmin } from './helpers';
 
 /**
  * Contract Flow QA - test contract creation and management
@@ -8,20 +8,13 @@ const BASE = 'http://localhost:3001';
 test.describe('QA: Contract Flow', () => {
 
   test.beforeEach(async ({ page }) => {
-    // Login first
-    await page.goto(`${BASE}/login`);
-    await page.waitForLoadState('networkidle');
-    await page.locator('input[name="username"], input[type="text"]').first().fill('owner');
-    await page.locator('input[name="password"], input[type="password"]').first().fill('Owner@12345');
-    await page.locator('button[type="submit"]').first().click();
-    await page.waitForURL('**/admin/**', { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(1000);
+    await loginAsAdmin(page);
   });
 
   test('Contract list page loads with KPIs', async ({ page }) => {
-    await page.goto(`${BASE}/admin/contracts`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await page.goto(`${BASE_URL}/admin/contracts`);
+    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('body')).toBeVisible();
 
     // Should see contract KPIs (Active, Expiring Soon, etc.)
     const body = page.locator('body');
@@ -33,15 +26,15 @@ test.describe('QA: Contract Flow', () => {
   });
 
   test('Open create contract panel', async ({ page }) => {
-    await page.goto(`${BASE}/admin/contracts`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await page.goto(`${BASE_URL}/admin/contracts`);
+    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('body')).toBeVisible();
 
     // Look for a create button
     const createBtn = page.locator('button:has-text("สร้าง"), button:has-text("สัญญา"), button:has-text("Create")').first();
     if (await createBtn.isVisible({ timeout: 3000 })) {
       await createBtn.click();
-      await page.waitForTimeout(1000);
+      await expect(page.locator('body')).toBeVisible();
 
       // Check if a form/drawer appeared
       const drawer = page.locator('[role="dialog"], [aria-modal="true"], .fixed, .absolute').filter({ hasText: /สัญญา|contract|ห้อง|tenant/i }).first();
@@ -53,9 +46,9 @@ test.describe('QA: Contract Flow', () => {
   });
 
   test('Contract KPIs visible', async ({ page }) => {
-    await page.goto(`${BASE}/admin/contracts`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
+    await page.goto(`${BASE_URL}/admin/contracts`);
+    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('body')).toBeVisible();
 
     // Count cards or KPI elements - properly await
     const kpiCards = await page.locator('.card, [class*="card"], [class*="kpi"]').count();

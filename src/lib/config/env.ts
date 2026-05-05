@@ -20,7 +20,13 @@ export type Env = z.infer<typeof envSchema>;
 export function getEnv(): Env {
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
-    // Never throw at import time; return best-effort with defaults
+    // In production, any parse failure means missing or malformed critical env vars.
+    // Fail fast — do not silently continue with partial/broken configuration.
+    if (process.env.NODE_ENV === 'production') {
+      const errors = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
+      throw new Error(`Production environment validation failed: ${errors}. Fix .env before deploying.`);
+    }
+    // Development/test: best-effort fallback
     const partial: Env = {
       NODE_ENV: (process.env.NODE_ENV as Env['NODE_ENV']) ?? 'development',
       DATABASE_URL: process.env.DATABASE_URL,

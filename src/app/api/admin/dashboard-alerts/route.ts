@@ -37,7 +37,7 @@ export interface DashboardAlertsData {
 }
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireOperator(req);
+  await await requireOperator(req);
 
   const now = new Date();
   const currentYear = now.getFullYear();

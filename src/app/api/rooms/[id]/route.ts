@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getServiceContainer } from '@/lib/service-container';
 import {
   updateRoomSchema,
@@ -15,13 +16,17 @@ const ADMIN_MAX_ATTEMPTS = 20;
 const DELETE_WINDOW_MS = 60 * 1000;
 const DELETE_MAX_ATTEMPTS = 5;
 
+const deleteRoomSchema = z.object({
+  reason: z.string().min(5, 'ต้องระบุเหตุผลอย่างน้อย 5 ตัวอักษร'),
+});
+
 // ============================================================================
 // GET /api/rooms/[id] - Get room by ID
 // ============================================================================
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const { id } = params;
 
     const { roomService } = getServiceContainer();
@@ -80,7 +85,7 @@ export const PATCH = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    const session = requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
     const { id } = params;
     const body = await req.json();
 
@@ -127,8 +132,13 @@ export const DELETE = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    const session = requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
     const { id } = params;
+
+    // Parse and require reason for audit trail
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch { /* empty body */ }
+    const { reason } = deleteRoomSchema.parse(body);
 
     // Look up room before deleting (deleteRoom returns void)
     const roomToDelete = await prisma.room.findUnique({ where: { roomNo: id } });
@@ -148,7 +158,7 @@ export const DELETE = asyncHandler(
       action: 'ROOM_DELETED',
       entityType: 'Room',
       entityId: id,
-      metadata: { roomNo: roomToDelete.roomNo },
+      metadata: { roomNo: roomToDelete.roomNo, reason },
     });
 
     logger.info({

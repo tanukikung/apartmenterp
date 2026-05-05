@@ -28,7 +28,7 @@ export const GET = asyncHandler(
       const contentType = guessContentTypeFromKey(storageKey);
       const url = new URL(req.url);
       const inline = url.searchParams.get('inline') === '1';
-      const session = getSessionFromRequest(req);
+      const session = await getSessionFromRequest(req);
       if (session && !['ADMIN', 'STAFF'].includes(session.role)) {
         throw new ForbiddenError('Insufficient permissions');
       }

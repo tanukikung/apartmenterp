@@ -1,13 +1,13 @@
 import { NextRequest } from 'next/server';
 import { requireRole } from '@/lib/auth/guards';
-import { addSseClient, removeSseClient, clearAllSseClients } from '@/lib/sse/broadcaster';
+import { addSseClient, removeSseClient } from '@/lib/sse/broadcaster';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest): Promise<Response> {
   try {
-    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   } catch {
     return new Response('Unauthorized', { status: 401 });
   }

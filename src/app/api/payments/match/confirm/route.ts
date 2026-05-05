@@ -3,7 +3,8 @@ import { asyncHandler } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
 import { withIdempotency } from '@/lib/utils/idempotency';
 import { getServiceContainer } from '@/lib/service-container';
-import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { rateLimitCritical } from '@/lib/rate-limit/dual-layer-rate-limiter';
+import { requireMutationsAllowed } from '@/lib/guards/system';
 import { z } from 'zod';
 
 const PAYMENT_WINDOW_MS = 60 * 1000;
@@ -12,15 +13,18 @@ const PAYMENT_MAX_ATTEMPTS = 10;
 const confirmMatchSchema = z.object({
   transactionId: z.string(),
   invoiceId: z.string(),
+  manualOverride: z.boolean().optional(),
+  overrideReason: z.string().optional(),
 });
 
 export const POST = asyncHandler(async (request: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(request, ['ADMIN', 'OWNER']);
+  const session = await await requireRole(request, ['ADMIN', 'OWNER']);
   return withIdempotency(request, 'payment_match_confirm', async () => {
+  const blocked = await requireMutationsAllowed();
+  if (blocked) return blocked;
 
-  const limiter = getLoginRateLimiter();
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-  const { allowed, remaining, resetAt } = await limiter.check(`payments-match-confirm:${session.sub}:${ip}`, PAYMENT_MAX_ATTEMPTS, PAYMENT_WINDOW_MS);
+  const { allowed, remaining, resetAt } = await rateLimitCritical(`payments-match-confirm:${session.sub}:${ip}`, PAYMENT_MAX_ATTEMPTS, PAYMENT_WINDOW_MS);
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: { message: `Too many payment requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
@@ -37,13 +41,16 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
     );
   }
 
-  const { transactionId, invoiceId } = validation.data;
+  const { transactionId, invoiceId, manualOverride, overrideReason } = validation.data;
   const userId = session.sub;
   const requestId = request.headers.get('x-request-id') ?? undefined;
 
   try {
     const service = getServiceContainer().paymentMatchingService;
-    await service.confirmMatch(transactionId, invoiceId, userId, requestId);
+    await service.confirmMatch(transactionId, invoiceId, userId, requestId, {
+      manualOverride,
+      overrideReason,
+    });
 
     return NextResponse.json({
       success: true,

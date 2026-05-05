@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'crypto';
-import { asyncHandler, ValidationError } from '@/lib/utils/errors';
+import { asyncHandler } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
 import { bankStatementParser } from '@/modules/payments/bank-statement-parser';
 import { logAudit } from '@/modules/audit/audit.service';
@@ -28,7 +28,7 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireRole(request, ['ADMIN', 'STAFF', 'OWNER']);
+  const session = await await requireRole(request, ['ADMIN', 'STAFF', 'OWNER']);
 
   const formData = await request.formData();
   const file = formData.get('file') as File | null;

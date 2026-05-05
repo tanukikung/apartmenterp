@@ -219,6 +219,97 @@ export function startCronIfEnabled(): void {
       });
     }
   });
+
+  // ── Reconciliation Engine (Phase 8.3) ───────────────────────────────────
+  // Run daily at 5am — after overnight batch processing completes
+  cron.schedule('0 5 * * *', async () => {
+    try {
+      const { ReconciliationService } = await import('@/modules/reconciliation');
+      const svc = new ReconciliationService();
+      const result = await svc.runDailyReconciliation();
+      logger.info({
+        type: 'cron_reconciliation_done',
+        issuesFound: result.issues.length,
+        fixed: result.fixed,
+        checked: result.checked,
+      });
+    } catch (e) {
+      logger.error({
+        type: 'cron_reconciliation_error',
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  });
+
+  // ── Audit Chain Integrity Verification ─────────────────────────────────
+  // Run daily at 03:00 AM — verifies the full hash chain is intact.
+  // Alerts on any broken chain link or sequence gap so admins can act fast.
+  cron.schedule('0 3 * * *', async () => {
+    logger.info({ type: 'audit_chain_verification_start' });
+    try {
+      const { verifyAuditChainIntegrity } = await import('@/modules/audit/audit-integrity.service');
+      const { recordAuditIntegrityResult } = await import('@/lib/metrics/audit');
+      const result = await verifyAuditChainIntegrity();
+
+      recordAuditIntegrityResult(result, 'cron');
+
+      if (!result.valid) {
+        logger.error({
+          type: 'audit_chain_integrity_failure',
+          brokenEvents: result.brokenEvents,
+          gaps: result.gaps,
+          eventsChecked: result.eventsChecked,
+        });
+      } else {
+        logger.info({
+          type: 'audit_chain_verification_complete',
+          eventsChecked: result.eventsChecked,
+          durationMs: result.durationMs,
+        });
+      }
+    } catch (err) {
+      logger.error({
+        type: 'audit_chain_verification_error',
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }, { timezone: 'Asia/Bangkok' });
+
+  // ── Automated Restore Test (Gap 9: DR Real Validation) ────────────────────
+  // Run every Sunday at 04:00 AM — validates that backups are actually restorable
+  cron.schedule('0 4 * * 0', async () => {
+    try {
+      const { runAutomatedRestoreTest } = await import('@/lib/dr/restore-validator');
+      const { recordRestoreTestResult } = await import('@/lib/metrics/registry');
+      logger.info({ type: 'restore_test_cron_start' });
+      const result = await runAutomatedRestoreTest();
+
+      // Record metrics from cron context (not from restore-validator to keep it testable)
+      recordRestoreTestResult(result.success ? Math.floor(Date.now() / 1000) : 0);
+
+      if (result.success) {
+        logger.info({
+          type: 'restore_test_cron_success',
+          backupFile: result.backupFile,
+          restoredRowCount: result.restoredRowCount,
+          checksumValid: result.checksumValid,
+          durationMs: result.durationMs,
+        });
+      } else {
+        logger.error({
+          type: 'restore_test_cron_failed',
+          error: result.errorMessage,
+          backupFile: result.backupFile,
+        });
+        // In production integrate with alerting here (email, PagerDuty, etc.)
+      }
+    } catch (e) {
+      logger.error({
+        type: 'restore_test_cron_unhandled_error',
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }, { timezone: 'Asia/Bangkok' });
 }
 
 export function isCronInitialized(): boolean {

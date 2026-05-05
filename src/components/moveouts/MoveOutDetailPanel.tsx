@@ -43,7 +43,9 @@ interface MoveOutDetailPanelProps {
     title: string;
     description?: string;
     dangerous?: boolean;
-    onConfirm: () => void;
+    reasonRequired?: boolean;
+    preview?: { before: Record<string, string>; after: Record<string, string>; labels?: Record<string, string> };
+    onConfirm: (reason?: string) => void;
   };
   setConfirmDialog: React.Dispatch<
     React.SetStateAction<{
@@ -51,7 +53,9 @@ interface MoveOutDetailPanelProps {
       title: string;
       description?: string;
       dangerous?: boolean;
-      onConfirm: () => void;
+      reasonRequired?: boolean;
+      preview?: { before: Record<string, string>; after: Record<string, string>; labels?: Record<string, string> };
+      onConfirm: (reason?: string) => void;
     }>
   >;
 }
@@ -444,6 +448,8 @@ export function MoveOutDetailPanel({
         title={confirmDialog.title}
         description={confirmDialog.description}
         dangerous={confirmDialog.dangerous}
+        reasonRequired={confirmDialog.reasonRequired}
+        preview={confirmDialog.preview}
         onConfirm={confirmDialog.onConfirm}
         onCancel={() => setConfirmDialog((p) => ({ ...p, open: false }))}
       />

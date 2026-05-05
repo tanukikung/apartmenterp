@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { DataIssuesPanel } from '@/components/admin/DataIssuesPanel';
 import {
   Activity,
   AlertTriangle,
@@ -327,6 +328,9 @@ export default function SystemHealthPage() {
           </div>
         </section>
       )}
+
+      {/* Phase 8.3: Data Issues / Reconciliation */}
+      <DataIssuesPanel />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         {/* Service status */}

@@ -1,4 +1,5 @@
-import { getEventBus, logger, sendLineImageMessage, sendLineMessage, sendLineFileMessage, prisma } from '@/lib';
+import { getEventBus, logger, prisma } from '@/lib';
+import { sendLineImageMessage, sendLineMessage, sendLineFileMessage } from '@/lib/line/client';
 import { applyPlainTextTemplateVariables } from '@/lib/templates/document-template';
 import type { Prisma } from '@prisma/client';
 

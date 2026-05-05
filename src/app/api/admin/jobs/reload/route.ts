@@ -20,7 +20,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'OWNER']);
 
   // The scheduler re-reads automation cron configs from DB once per minute
   // via the setInterval in instrumentation.ts. A manual reload here forces

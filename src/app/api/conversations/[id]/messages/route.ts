@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { requireRole } from '@/lib/auth/guards';
 import { asyncHandler, type ApiResponse, NotFoundError, ExternalServiceError } from '@/lib/utils/errors';
-import { prisma, sendLineMessage } from '@/lib';
+import { prisma } from '@/lib';
+import { sendLineMessage } from '@/lib/line/client';
 import { logAudit } from '@/modules/audit';
 import { logger } from '@/lib/utils/logger';
 import { withTiming } from '@/lib/performance/timingMiddleware';
@@ -16,7 +17,7 @@ const CHAT_MAX_ATTEMPTS = 20;
 export const dynamic = 'force-dynamic';
 
 const getMessages = asyncHandler(async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const { id } = params;
   const url = new URL(req.url);
   const limitParam = url.searchParams.get('limit');
@@ -86,7 +87,7 @@ export const POST = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const { id } = params;
     const body = await req.json();
     const input = sendMessageSchema.parse(body);

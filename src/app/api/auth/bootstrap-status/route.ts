@@ -13,7 +13,7 @@ type BootstrapData = {
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   // Allow unauthenticated access for setup flow, but if a valid session exists
   // (e.g. reloading the page after initial setup), prefer the authenticated response.
-  const session = getSessionFromRequest(req);
+  const session = await getSessionFromRequest(req);
   if (session) {
     return NextResponse.json({
       success: true,

@@ -22,7 +22,7 @@ export const POST = asyncHandler(async (req: NextRequest, context?: { params: { 
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'OWNER']);
   const userId = context?.params.id;
   if (!userId) {
     throw new NotFoundError('AdminUser');
@@ -95,7 +95,7 @@ export const DELETE = asyncHandler(async (req: NextRequest, context?: { params: 
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'OWNER']);
   const userId = context?.params.id;
   if (!userId) {
     throw new NotFoundError('AdminUser');

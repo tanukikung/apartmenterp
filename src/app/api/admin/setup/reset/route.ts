@@ -65,7 +65,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
   // Only ADMIN or OWNER can reset the system (STAFF excluded)
-  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
 
   const body = await resetSchema.parse(await req.json());
 

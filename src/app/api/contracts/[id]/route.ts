@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
     const { id } = params;
 
@@ -40,7 +40,7 @@ export const GET = asyncHandler(
 
 export const PATCH = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    const session = requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
 
     const limiter = getLoginRateLimiter();
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
@@ -91,7 +91,7 @@ export const PATCH = asyncHandler(
 
 export const DELETE = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    const session = requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
 
     const limiter = getLoginRateLimiter();
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';

@@ -20,7 +20,7 @@ export const POST = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireAuthSession(req);
+  const session = await requireAuthSession(req);
 
   const service = getDeliveryService();
   const result = await service.executeOrder(params.id, session.sub);

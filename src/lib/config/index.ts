@@ -16,7 +16,7 @@ export type ConfigKey =
   | 'invoice.strictStatusSource'
   | 'system.maintenanceMode';
 
-const CONFIG_DEFAULTS: Record<ConfigKey, unknown> = {
+const _CONFIG_DEFAULTS: Record<ConfigKey, unknown> = {
   'payment.matchMode': PaymentMatchMode.ALLOW_SMALL_DIFF,
   'payment.toleranceAmount': 1.0,
   'invoice.cancelRoles': ['ADMIN', 'OWNER'],

@@ -6,7 +6,7 @@ import { requireOperator } from '@/lib/auth/guards';
 export const dynamic = 'force-dynamic';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireOperator(req);
+  await await requireOperator(req);
   // Floor model removed; derive distinct floors from Room.floorNo
   const rooms = await prisma.room.findMany({
     select: { floorNo: true },

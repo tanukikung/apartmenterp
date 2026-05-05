@@ -39,7 +39,7 @@ type BillingRule = {
 // ---------------------------------------------------------------------------
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireOperator(req);
+  await await requireOperator(req);
   const rules = await prisma.billingRule.findMany({
     orderBy: { code: 'asc' },
     select: {
@@ -81,7 +81,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
   const body = await req.json() as Partial<BillingRule> & { code: string; descriptionTh: string };
 
   if (!body.code?.trim()) {

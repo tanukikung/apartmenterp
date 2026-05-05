@@ -110,7 +110,7 @@ export default function AdminOverduePage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [overdueInvoices, setOverdueInvoices] = useState<OverdueInvoice[]>([]);
-  const [overdueTotal, setOverdueTotal] = useState(0);
+  const [_overdueTotal, setOverdueTotal] = useState(0);
 
   useEffect(() => {
     let cancelled = false;

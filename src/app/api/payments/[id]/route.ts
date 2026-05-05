@@ -18,7 +18,7 @@ export const GET = asyncHandler(
     _req: NextRequest,
     { params }: { params: { id: string } },
   ): Promise<NextResponse> => {
-    const session = requireRole(_req, ['ADMIN', 'STAFF']);
+    const session = await await requireRole(_req, ['ADMIN', 'STAFF']);
     const { id } = params;
 
     // IDOR guard: verify the payment belongs to the user's building scope.

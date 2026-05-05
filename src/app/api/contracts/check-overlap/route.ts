@@ -20,7 +20,7 @@ interface OverlapCheckResult {
  *   endDate    - ISO date string for the range end
  */
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const { searchParams } = new URL(req.url);
   const roomNo = searchParams.get('roomNo');

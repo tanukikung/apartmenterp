@@ -7,6 +7,7 @@ import { logger } from '@/lib/utils/logger';
 import { prisma } from '@/lib';
 import { PaymentStatus } from '@prisma/client';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { requireMutationsAllowed } from '@/lib/guards/system';
 
 const VALID_PAYMENT_STATUSES: string[] = Object.values(PaymentStatus);
 
@@ -63,6 +64,9 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 });
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
+  const blocked = await requireMutationsAllowed();
+  if (blocked) return blocked;
+
   const limiter = getLoginRateLimiter();
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
   const { allowed, remaining, resetAt } = await limiter.check(`payments:${ip}`, PAYMENT_MAX_ATTEMPTS, PAYMENT_WINDOW_MS);
@@ -82,8 +86,8 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 400 }
     );
   }
-  const actor = getVerifiedActor(req);
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  const actor = await await getVerifiedActor(req);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const input = createPaymentSchema.parse(body) as CreatePaymentInput;
 

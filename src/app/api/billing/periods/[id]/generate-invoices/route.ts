@@ -3,9 +3,10 @@ import { requireRole } from '@/lib/auth/guards';
 import { prisma } from '@/lib/db/client';
 import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
-import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler, ApiResponse, ConflictError } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { lockSentInvoicesInPeriod } from '@/modules/invoices/invoice-legal.service';
 import type { BillingAuditAction } from '@prisma/client';
 
 // Admin write operations: 20/min
@@ -114,6 +115,7 @@ async function processBatches(
               totalAmount: Number(inv.totalAmount),
               dueDate:     dueDate.toISOString().split('T')[0],
             } as Prisma.InputJsonValue,
+            eventHash: 'INVOICE_CREATED', // placeholder — not using hash chain
           },
         });
       });
@@ -143,7 +145,7 @@ export const POST = asyncHandler(
     }
 
     const { id: periodId } = params;
-    const session = requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
 
     // FM-21: Human confirmation guard.
     // Without ?confirm=true the endpoint returns a dry-run preview so the UI
@@ -157,16 +159,16 @@ export const POST = asyncHandler(
       return NextResponse.json({ success: false, error: 'Billing period not found' }, { status: 404 });
     }
 
-    // Idempotency guard: if the period is already CLOSED, invoices were
-    // previously generated and this request is a duplicate. Return a
-    // no-op success so clicking the button twice doesn't regenerate or
+    // Idempotency guard: if the period is already CLOSED/LOCKED/ARCHIVED,
+    // invoices were previously generated and this request is a duplicate.
+    // Return a no-op success so clicking the button twice doesn't regenerate or
     // error out. (The inner unique-key on invoice.roomBillingId would
     // catch it anyway, but we can skip the wasted work entirely.)
-    if (period.status === 'CLOSED') {
+    if (['CLOSED', 'LOCKED', 'ARCHIVED'].includes(period.status)) {
       return NextResponse.json({
         success: true,
         data: { generated: 0, skipped: 0, errors: 0, errorDetails: [] },
-        message: 'Period already CLOSED — invoices were previously generated.',
+        message: `Period already ${period.status} — invoices were previously generated.`,
       } as ApiResponse<{ generated: number; skipped: number; errors: number; errorDetails: string[] }>);
     }
 
@@ -241,14 +243,33 @@ export const POST = asyncHandler(
       await prisma.$queryRaw`SELECT pg_advisory_unlock(hashtext(${periodId}))`.catch(() => {});
     }
 
-    // Update period status to CLOSED (fully invoiced) when no more LOCKED records remain
+    // Update period status to CLOSED (fully invoiced) when no more LOCKED records remain.
+    // Phase 9: Also lock all SENT invoices at this point — they are now legally final.
     const remaining = await prisma.roomBilling.count({
       where: { billingPeriodId: periodId, status: 'LOCKED' },
     });
     if (remaining === 0 && result.generated > 0) {
-      await prisma.billingPeriod.update({
-        where: { id: periodId },
-        data:  { status: 'CLOSED' },
+      await prisma.$transaction(async (tx) => {
+        // Re-fetch period inside transaction to get current version for optimistic lock
+        const periodForClose = await tx.billingPeriod.findUnique({ where: { id: periodId } });
+        if (!periodForClose) {
+          logger.warn({ type: 'billing_period_not_found_on_close', periodId });
+          return;
+        }
+        if (periodForClose.status === 'CLOSED') {
+          // Already closed by concurrent request
+          return;
+        }
+        // Optimistic lock: close only if status and version match
+        const closeResult = await tx.billingPeriod.updateMany({
+          where: { id: periodId, status: periodForClose.status, version: periodForClose.version },
+          data: { status: 'CLOSED', version: periodForClose.version + 1 },
+        });
+        if (closeResult.count === 0) {
+          throw new ConflictError('Billing period was modified by a concurrent operation. Please retry.');
+        }
+        // Phase 9: Lock all SENT invoices for this period as legal snapshots
+        await lockSentInvoicesInPeriod(tx, periodId, session.sub);
       });
     }
 

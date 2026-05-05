@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Banknote, Calendar, CheckCircle2, ChevronRight, CreditCard, FileText, Hash, Link2, RefreshCw, Upload } from 'lucide-react';
+import { ArrowLeft, Banknote, Calendar, CheckCircle2, ChevronRight, CreditCard, FileText, Hash, Link2, RefreshCw, RotateCcw, Upload } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { getPaymentInvoiceHref } from '../payment-detail-links';
 
 // ---------------------------------------------------------------------------
@@ -183,8 +185,36 @@ export default function PaymentDetailPage() {
     enabled: !!paymentId,
   });
 
+  const [undoConfirmOpen, setUndoConfirmOpen] = useState(false);
+  const [undoReason, setUndoReason] = useState('');
+  const [undoing, setUndoing] = useState(false);
+  const [undoMessage, setUndoMessage] = useState<string | null>(null);
+
   const payment: PaymentDetail | null = paymentData?.data ?? null;
   const fetchError = error; // rename for clarity
+
+  async function handleUndoMatch() {
+    setUndoing(true);
+    setUndoMessage(null);
+    try {
+      const res = await fetch(`/api/payments/${paymentId}/undo-match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: undoReason }),
+      }).then(r => r.json());
+      if (res.success) {
+        setUndoMessage('ย้อนกลับการจับคู่แล้ว');
+        setUndoConfirmOpen(false);
+        queryClient.invalidateQueries({ queryKey: ['payments', paymentId] });
+      } else {
+        setUndoMessage(res.error?.message || 'ไม่สามารถย้อนกลับ');
+      }
+    } catch {
+      setUndoMessage('เกิดข้อผิดพลาดเครือข่าย');
+    } finally {
+      setUndoing(false);
+    }
+  }
 
   // ------ Loading state ------
   if (loading) {
@@ -295,6 +325,15 @@ export default function PaymentDetailPage() {
             {payment.matchType ? (
               <span className={matchTypeBadgeClass(payment.matchType)}>{payment.matchType}</span>
             ) : null}
+            {payment.status === 'CONFIRMED' && (
+              <button
+                onClick={() => setUndoConfirmOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400 transition-all hover:bg-amber-500/20 active:scale-[0.98]"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                ย้อนกลับ
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -467,6 +506,30 @@ export default function PaymentDetailPage() {
           </section>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={undoConfirmOpen}
+        title="ย้อนกลับการจับคู่?"
+        description="การชำระจะถูกตั้งคืนเป็นสถานะ PENDING และใบแจ้งหนี้จะถูกปลดล็อก"
+        confirmLabel={undoing ? 'กำลังย้อนกลับ...' : 'ย้อนกลับ'}
+        cancelLabel="ปิด"
+        loading={undoing}
+        preview={{
+          before: { status: 'CONFIRMED' },
+          after: { status: 'PENDING' },
+          labels: { status: 'สถานะ' },
+        }}
+        reasonRequired
+        reasonLabel="เหตุผล"
+        reasonPlaceholder="ระบุเหตุผลที่ย้อนกลับ"
+        onConfirm={(r) => { setUndoReason(r ?? ''); void handleUndoMatch(); }}
+        onCancel={() => setUndoConfirmOpen(false)}
+      />
+      {undoMessage && (
+        <div className={`rounded-lg px-4 py-2 text-sm ${undoMessage.includes('แล้ว') ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border border-red-500/20 bg-red-500/10 text-red-400'}`}>
+          {undoMessage}
+        </div>
+      )}
     </main>
   );
 }

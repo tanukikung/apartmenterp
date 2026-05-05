@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic';
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN', 'OWNER']);
+    await await requireRole(req, ['ADMIN', 'OWNER']);
 
     const { id } = params;
     const body = await req.json() as {

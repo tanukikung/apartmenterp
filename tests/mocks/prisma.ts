@@ -30,6 +30,7 @@ export function mockPrismaClient() {
     invoice:             model(),
     invoiceDelivery:     model(),
     billingPeriod:       model(),
+    billingPeriodCloseEvent: model(),
     roomBilling:         model(),
     importBatch:         model(),
     payment:             model(),
@@ -38,6 +39,7 @@ export function mockPrismaClient() {
     paymentHistory:      model(),
     failedMessage:       model(),
     idempotencyRecord:   model(),
+    paymentMatchDecision: model(),
 
     // Legacy model aliases (kept for backward compatibility in tests)
     billingRecord:       model(),
@@ -101,7 +103,12 @@ export function mockPrismaClient() {
     // Raw SQL (used by outbox processor and raw queries)
     $queryRaw:       vi.fn().mockResolvedValue([]),
     $executeRaw:       vi.fn().mockResolvedValue(0),
-    $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+    $executeRawUnsafe: vi.fn((...args: unknown[]) => {
+      // Forward to real $queryRawUnsafe if realPrisma is available
+      const real = (globalThis as any).__REAL_PRISMA__;
+      if (real) return real.$queryRawUnsafe(...args);
+      return [];
+    }),
     findRaw:         vi.fn().mockResolvedValue([]),
     aggregateRaw:   vi.fn().mockResolvedValue([]),
 
@@ -111,6 +118,7 @@ export function mockPrismaClient() {
         invoice:            prisma.invoice,
         invoiceDelivery:    prisma.invoiceDelivery,
         billingPeriod:      prisma.billingPeriod,
+        billingPeriodCloseEvent: prisma.billingPeriodCloseEvent,
         roomBilling:        prisma.roomBilling,
         importBatch:        prisma.importBatch,
         payment:            prisma.payment,
@@ -120,6 +128,7 @@ export function mockPrismaClient() {
         paymentHistory:     prisma.paymentHistory,
         failedMessage:      prisma.failedMessage,
         idempotencyRecord:  prisma.idempotencyRecord,
+        paymentMatchDecision: prisma.paymentMatchDecision,
         billingRecord:      prisma.billingRecord,
         billingItem:        prisma.billingItem,
         billingItemType:    prisma.billingItemType,

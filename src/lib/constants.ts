@@ -138,15 +138,40 @@ export type ImportBatchStatus = (typeof IMPORT_BATCH_STATUS)[keyof typeof IMPORT
 // ============================================================================
 // Billing Period Status — tracks the state of a billing cycle
 // Corresponds to the Prisma BillingPeriodStatus enum
+//
+// State machine:
+//   DRAFT → OPEN → CLOSED → LOCKED → ARCHIVED
+//              ↓        ↓
+//          (can gen) (no edits)
+//                  ↓
+//              LOCKED (accounting finalized, no changes allowed)
+//                  ↓
+//              ARCHIVED (read-only, for historical reference)
 // ============================================================================
 
 export const BILLING_PERIOD_STATUS = {
-  OPEN: 'OPEN',
-  LOCKED: 'LOCKED',
-  CLOSED: 'CLOSED',
+  DRAFT:   'DRAFT',   // Period is set up but not yet accepting billing data
+  OPEN:    'OPEN',    // Period is active — billing data can be entered and modified
+  CLOSED:  'CLOSED',  // All invoices generated; period is closed for new billings
+                      // SENT/PAID invoices remain editable (adjustments allowed)
+  LOCKED:  'LOCKED',  // Accounting finalized — all invoices become immutable
+                      // No further changes allowed except via adjustment documents
+  ARCHIVED: 'ARCHIVED', // Period is read-only — kept for historical reference
 } as const;
 
 export type BillingPeriodStatus = (typeof BILLING_PERIOD_STATUS)[keyof typeof BILLING_PERIOD_STATUS];
+
+/**
+ * Valid status transitions for billing periods.
+ * Any transition not listed here is forbidden.
+ */
+export const BILLING_PERIOD_TRANSITIONS: Record<BillingPeriodStatus, BillingPeriodStatus[]> = {
+  [BILLING_PERIOD_STATUS.DRAFT]:   [BILLING_PERIOD_STATUS.OPEN],
+  [BILLING_PERIOD_STATUS.OPEN]:    [BILLING_PERIOD_STATUS.CLOSED, BILLING_PERIOD_STATUS.LOCKED],
+  [BILLING_PERIOD_STATUS.CLOSED]:  [BILLING_PERIOD_STATUS.LOCKED],
+  [BILLING_PERIOD_STATUS.LOCKED]:  [],   // LOCKED is terminal — irreversible
+  [BILLING_PERIOD_STATUS.ARCHIVED]: [],   // ARCHIVED is terminal — read-only
+};
 
 // ============================================================================
 // Meter Mode — how a utility (water/electric) reading is processed

@@ -9,7 +9,7 @@ import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 
 export const GET = asyncHandler(
   async (req: NextRequest): Promise<NextResponse> => {
-    requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
     const { searchParams } = new URL(req.url);
     const billingRecordId = searchParams.get('billingRecordId');

@@ -56,7 +56,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
 
-  const session = getSessionFromRequest(req);
+  const session = await getSessionFromRequest(req);
   if (!session) {
     throw new UnauthorizedError('No session');
   }
@@ -116,7 +116,16 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   });
 
   const secure = process.env.COOKIE_SECURE === 'true';
-  const token = signSessionToken(refreshedPayload);
+  const token = await signSessionToken({
+    sub: session.sub,
+    username: session.username,
+    displayName: session.displayName,
+    role: session.role,
+    forcePasswordChange: session.forcePasswordChange,
+    buildingId: session.buildingId,
+    version: newVersion,
+    lastLoginAt: session.lastLoginAt,
+  });
 
   res.cookies.set('auth_session', token, {
     httpOnly: true,

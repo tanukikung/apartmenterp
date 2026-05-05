@@ -33,7 +33,7 @@ export const POST = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    requireRole(req, ['ADMIN', 'OWNER']);
+    await await requireRole(req, ['ADMIN', 'OWNER']);
     const { jobId } = params;
 
     if (!isValidJobId(jobId)) {

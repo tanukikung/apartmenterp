@@ -34,7 +34,7 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(request, ['ADMIN']);
+  await await requireRole(request, ['ADMIN']);
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { requireRole } from '@/lib/auth/guards';
 import { prisma } from '@/lib/db/client';
-import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler, ApiResponse, ConflictError } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { ROOM_STATUS } from '@/lib/constants';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
@@ -31,7 +31,7 @@ export const POST = asyncHandler(
     }
 
     const { id: periodId } = params;
-    requireRole(req, ['ADMIN', 'OWNER']);
+    await await requireRole(req, ['ADMIN', 'OWNER']);
 
     // Verify period exists
     const period = await prisma.billingPeriod.findUnique({ where: { id: periodId } });
@@ -56,6 +56,12 @@ export const POST = asyncHandler(
 
     // Atomic: compute common-area share per room + lock records + update period status
     const result = await prisma.$transaction(async (tx) => {
+      // Re-fetch period inside transaction to get current version for optimistic lock
+      const periodForUpdate = await tx.billingPeriod.findUnique({ where: { id: periodId } });
+      if (!periodForUpdate) {
+        throw new Error('Billing period not found inside transaction');
+      }
+
       // Compute per-room common-area water share only when bulk units are configured
       if (periodWithWater.commonAreaWaterUnits && periodWithWater.commonAreaWaterAmount) {
         const bulkUnits = Number(periodWithWater.commonAreaWaterUnits);
@@ -67,16 +73,16 @@ export const POST = asyncHandler(
         if (bulkUnits > 0 && occupiedCount > 0) {
           const costPerRoom = bulkCost / occupiedCount;
 
-          // Update each room's commonAreaWaterShare
-          // commonAreaWaterShare is Decimal? in Prisma schema — use Decimal.js via Prisma's driver
+          // Update each room's commonAreaWaterShare (with version check to detect concurrent changes)
           await Promise.all(
             draftBillings
               .filter((b) => b.room && b.room.roomStatus !== ROOM_STATUS.MAINTENANCE && b.room.roomStatus !== ROOM_STATUS.OWNER_USE)
               .map((b) =>
-                tx.roomBilling.update({
-                  where: { id: b.id },
+                tx.roomBilling.updateMany({
+                  where: { id: b.id, version: b.version },
                   data: {
                     commonAreaWaterShare: new Prisma.Decimal(costPerRoom),
+                    version: b.version + 1,
                   },
                 })
               )
@@ -93,17 +99,24 @@ export const POST = asyncHandler(
         }
       }
 
+      // Optimistic lock: include version to detect concurrent lock-all operations
+      // Also include status check to ensure period is still OPEN
       const r = await tx.roomBilling.updateMany({
-        where: { billingPeriodId: periodId, status: 'DRAFT' },
-        data: { status: 'LOCKED' },
+        where: { billingPeriodId: periodId, status: 'DRAFT', version: 0 },
+        data: { status: 'LOCKED', version: 1 },
       });
 
       // Only promote period to LOCKED if at least one record was locked
       if (r.count > 0) {
-        await tx.billingPeriod.update({
-          where: { id: periodId },
-          data: { status: 'LOCKED' },
+        // Optimistic lock on period status
+        const updateResult = await tx.billingPeriod.updateMany({
+          where: { id: periodId, status: periodForUpdate.status, version: periodForUpdate.version },
+          data: { status: 'LOCKED', version: periodForUpdate.version + 1 },
         });
+        if (updateResult.count === 0) {
+          // Period status or version changed - concurrent operation
+          throw new ConflictError('Billing period was modified by a concurrent operation. Please retry.');
+        }
       }
 
       return r;

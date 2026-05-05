@@ -15,9 +15,17 @@ import { v4 as uuidv4 } from 'uuid';
 import type { ImportBatchStatus, MeterMode, Prisma } from '@prisma/client';
 import { BadRequestError, NotFoundError } from '@/lib/utils/errors';
 import { prisma } from '@/lib/db/client';
-import { parseFullWorkbook } from './import-parser';
+import { logger } from '@/lib';
+import { parseFullWorkbook, type RoomBillingRow } from './import-parser';
 import { createBillingService, DEFAULT_DUE_DAY } from './billing.service';
 import { getStorage } from '@/infrastructure/storage';
+import { checkBillingImportCanModify } from '@/modules/invoices/invoice-legal.service';
+import { assertBillingPeriodAllowsBulkUpdate } from './period-lock.service';
+import {
+  computeFileHash,
+  computeNormalizedHash,
+  createImportSession,
+} from './import-session.service';
 
 // sql and join are runtime utilities in Prisma 5.x not in all TS declarations.
 const sql = (prisma as unknown as Record<string, unknown>).sql as (s: TemplateStringsArray, ...v: unknown[]) => unknown;
@@ -62,6 +70,7 @@ export type BillingImportPreviewResult = {
 
 export type BillingImportBatchListItem = {
   id: string;
+  importSessionId: string | null;
   filename: string;
   status: ImportBatchStatus;
   rowsTotal: number;
@@ -84,6 +93,7 @@ export type BillingImportBatchDetail = BillingImportBatchListItem & {
   validRows: number;
   invalidRows: number;
   warningRows: number;
+  importSessionId: string | null;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -96,7 +106,8 @@ export async function createBillingImportPreviewBatch(input: {
   uploadedFileId?: string | null;
   storageKey?: string | null;
   importedBy?: string;
-}): Promise<BillingImportPreviewResult> {
+  forceImport?: boolean;
+}): Promise<BillingImportPreviewResult & { importSessionId?: string; isDuplicate?: boolean }> {
   // Parse the workbook — throws on format errors
   const parsed = parseFullWorkbook(input.fileBuffer);
   const { config, accounts, rules } = parsed;
@@ -121,6 +132,10 @@ export async function createBillingImportPreviewBatch(input: {
     );
   }
 
+  // Compute file hash and normalized hash for idempotency
+  const fileHash = computeFileHash(input.fileBuffer);
+  const normalizedHash = computeNormalizedHash(allRows as RoomBillingRow[]);
+
   // Get or create BillingPeriod for this year/month
   let period = await prisma.billingPeriod.findUnique({
     where: { year_month: { year, month } },
@@ -130,6 +145,19 @@ export async function createBillingImportPreviewBatch(input: {
       data: { year, month, status: 'OPEN', dueDay: DEFAULT_DUE_DAY },
     });
   }
+
+  // Create ImportSession (checks for duplicates unless forceImport=true)
+  const sessionResult = await prisma.$transaction(async (tx) =>
+    createImportSession(tx, {
+      billingPeriodId: period!.id,
+      filename: input.filename,
+      fileHash,
+      normalizedHash,
+      totalRows: allRows.length,
+      importedBy: input.importedBy ?? 'system',
+      forceImport: input.forceImport ?? false,
+    }),
+  );
 
   // Build preview groups (one entry per unique room)
   const roomMap = new Map<string, { count: number; total: number }>();
@@ -171,11 +199,12 @@ export async function createBillingImportPreviewBatch(input: {
     }
   }
 
-  // Create a PENDING ImportBatch with the storageKey so execute can retrieve it
+  // Create a PENDING ImportBatch linked to the ImportSession
   const batchId = uuidv4();
   await prisma.importBatch.create({
     data: {
       id: batchId,
+      importSessionId: sessionResult.importSessionId,
       billingPeriodId: period.id,
       filename: input.filename,
       schemaVersion: 'billing-v2',
@@ -192,6 +221,8 @@ export async function createBillingImportPreviewBatch(input: {
         accounts: accounts as unknown as Prisma.InputJsonValue,
         rules: rules as unknown as Prisma.InputJsonValue,
         rows: allRows as unknown as Prisma.InputJsonValue,
+        fileHash,
+        normalizedHash,
       },
       importedBy: input.importedBy ?? 'system',
     },
@@ -201,6 +232,8 @@ export async function createBillingImportPreviewBatch(input: {
     rows: allRows as unknown[],
     preview,
     warnings,
+    importSessionId: sessionResult.importSessionId,
+    isDuplicate: sessionResult.isDuplicate,
     batch: {
       id: batchId,
       status: 'PENDING',
@@ -258,6 +291,9 @@ export async function executeBillingImportBatch(
       `Batch ${batchId} is already ${batch.status}. Only PENDING batches can be executed.`,
     );
   }
+
+  // Gap 5: block billing bulk import on finalized periods (CLOSED/LOCKED/ARCHIVED)
+  await assertBillingPeriodAllowsBulkUpdate(prisma, batch.billingPeriodId);
 
   const errorLogObj = (batch.errorLog ?? {}) as Record<string, unknown>;
   const storageKey = errorLogObj['storageKey'] as string | null;
@@ -389,80 +425,103 @@ export async function executeBillingImportBatch(
       });
 
       if (validRows.length > 0) {
-        // Batch upsert via raw SQL — single DB round-trip for all rows.
-        await prisma.$executeRaw`
-          INSERT INTO "room_billings" (
-            "id", "billingPeriodId", "roomNo", "status",
-            "recvAccountOverrideId", "recvAccountId", "ruleOverrideCode", "ruleCode",
-            "rentAmount",
-            "waterMode", "waterPrev", "waterCurr", "waterUnitsManual",
-            "waterUnits", "waterUsageCharge", "waterServiceFeeManual", "waterServiceFee", "waterTotal",
-            "electricMode", "electricPrev", "electricCurr", "electricUnitsManual",
-            "electricUnits", "electricUsageCharge", "electricServiceFeeManual", "electricServiceFee", "electricTotal",
-            "furnitureFee", "otherFee", "totalDue",
-            "note", "checkNotes"
-          ) VALUES ${join(validRows.map(row => {
-            const ruleCode = (row['ruleCode'] as string) ?? 'DEFAULT';
-            return sql`
-              (
-                ${uuidv4()}, ${billingPeriodId}, ${row['roomNo'] as string}, ${'DRAFT'},
-                ${(row['recvAccountOverrideId'] as string) ?? sql`NULL`},
-                ${(row['recvAccountId'] as string) ?? sql`NULL`},
-                ${(row['ruleOverrideCode'] as string) ?? sql`NULL`},
-                ${ruleCode},
-                ${Number(row['rentAmount']) || 0}::decimal,
-                ${((row['waterMode'] as MeterMode | null) ?? 'NORMAL')}, ${row['waterPrev'] as number ?? sql`NULL`},
-                ${row['waterCurr'] as number ?? sql`NULL`},
-                ${row['waterUnitsManual'] as number ?? sql`NULL`},
-                ${Number(row['waterUnits']) || 0}::decimal, ${Number(row['waterUsageCharge']) || 0}::decimal,
-                ${row['waterServiceFeeManual'] as number ?? sql`NULL`},
-                ${Number(row['waterServiceFee']) || 0}::decimal, ${Number(row['waterTotal']) || 0}::decimal,
-                ${((row['electricMode'] as MeterMode | null) ?? 'NORMAL')}, ${row['electricPrev'] as number ?? sql`NULL`},
-                ${row['electricCurr'] as number ?? sql`NULL`},
-                ${row['electricUnitsManual'] as number ?? sql`NULL`},
-                ${Number(row['electricUnits']) || 0}::decimal, ${Number(row['electricUsageCharge']) || 0}::decimal,
-                ${row['electricServiceFeeManual'] as number ?? sql`NULL`},
-                ${Number(row['electricServiceFee']) || 0}::decimal, ${Number(row['electricTotal']) || 0}::decimal,
-                ${Number(row['furnitureFee']) || 0}::decimal, ${Number(row['otherFee']) || 0}::decimal,
-                ${Number(row['totalDue']) || 0}::decimal,
-                ${(row['note'] as string) ?? sql`NULL`},
-                ${(row['checkNotes'] as string) ?? sql`NULL`}
-              )
-            `;
-          }))}
-          ON CONFLICT ("billingPeriodId", "roomNo")
-          DO UPDATE SET
-            "recvAccountOverrideId" = EXCLUDED."recvAccountOverrideId",
-            "recvAccountId" = EXCLUDED."recvAccountId",
-            "ruleOverrideCode" = EXCLUDED."ruleOverrideCode",
-            "ruleCode" = EXCLUDED."ruleCode",
-            "rentAmount" = EXCLUDED."rentAmount",
-            "waterMode" = EXCLUDED."waterMode",
-            "waterPrev" = EXCLUDED."waterPrev",
-            "waterCurr" = EXCLUDED."waterCurr",
-            "waterUnitsManual" = EXCLUDED."waterUnitsManual",
-            "waterUnits" = EXCLUDED."waterUnits",
-            "waterUsageCharge" = EXCLUDED."waterUsageCharge",
-            "waterServiceFeeManual" = EXCLUDED."waterServiceFeeManual",
-            "waterServiceFee" = EXCLUDED."waterServiceFee",
-            "waterTotal" = EXCLUDED."waterTotal",
-            "electricMode" = EXCLUDED."electricMode",
-            "electricPrev" = EXCLUDED."electricPrev",
-            "electricCurr" = EXCLUDED."electricCurr",
-            "electricUnitsManual" = EXCLUDED."electricUnitsManual",
-            "electricUnits" = EXCLUDED."electricUnits",
-            "electricUsageCharge" = EXCLUDED."electricUsageCharge",
-            "electricServiceFeeManual" = EXCLUDED."electricServiceFeeManual",
-            "electricServiceFee" = EXCLUDED."electricServiceFee",
-            "electricTotal" = EXCLUDED."electricTotal",
-            "furnitureFee" = EXCLUDED."furnitureFee",
-            "otherFee" = EXCLUDED."otherFee",
-            "totalDue" = EXCLUDED."totalDue",
-            "note" = EXCLUDED."note",
-            "checkNotes" = EXCLUDED."checkNotes",
-            "updatedAt" = NOW()
-        `;
-        imported += validRows.length;
+        // Phase 9: filter rows whose billing has a SENT/LOCKED invoice (legally immutable)
+        const { rowsToUpsert: checkedRows, skipped: extraSkipped } =
+          await prisma.$transaction(async (tx) => {
+            const checked = [];
+            let extra = 0;
+            for (const row of validRows) {
+              const roomNo = row['roomNo'] as string;
+              const existingBilling = billingsMap.get(roomNo);
+              if (!existingBilling) { checked.push(row); continue; }
+              const canModify = await checkBillingImportCanModify(tx, existingBilling.id);
+              if (canModify.canModify) { checked.push(row); }
+              else {
+                extra++;
+                logger.info({ type: 'billing_import_skip_sent_invoice', roomNo, invoiceId: canModify.invoiceId, documentStatus: canModify.documentStatus });
+              }
+            }
+            return { rowsToUpsert: checked, skipped: extra };
+          });
+
+        skipped += extraSkipped;
+
+        if (checkedRows.length > 0) {
+          // Batch upsert via raw SQL — single DB round-trip for all rows.
+          await prisma.$executeRaw`
+            INSERT INTO "room_billings" (
+              "id", "billingPeriodId", "roomNo", "status",
+              "recvAccountOverrideId", "recvAccountId", "ruleOverrideCode", "ruleCode",
+              "rentAmount",
+              "waterMode", "waterPrev", "waterCurr", "waterUnitsManual",
+              "waterUnits", "waterUsageCharge", "waterServiceFeeManual", "waterServiceFee", "waterTotal",
+              "electricMode", "electricPrev", "electricCurr", "electricUnitsManual",
+              "electricUnits", "electricUsageCharge", "electricServiceFeeManual", "electricServiceFee", "electricTotal",
+              "furnitureFee", "otherFee", "totalDue",
+              "note", "checkNotes"
+            ) VALUES ${join(checkedRows.map(row => {
+              const ruleCode = (row['ruleCode'] as string) ?? 'DEFAULT';
+              return sql`
+                (
+                  ${uuidv4()}, ${billingPeriodId}, ${row['roomNo'] as string}, ${'DRAFT'},
+                  ${(row['recvAccountOverrideId'] as string) ?? sql`NULL`},
+                  ${(row['recvAccountId'] as string) ?? sql`NULL`},
+                  ${(row['ruleOverrideCode'] as string) ?? sql`NULL`},
+                  ${ruleCode},
+                  ${Number(row['rentAmount']) || 0}::decimal,
+                  ${((row['waterMode'] as MeterMode | null) ?? 'NORMAL')}, ${row['waterPrev'] as number ?? sql`NULL`},
+                  ${row['waterCurr'] as number ?? sql`NULL`},
+                  ${row['waterUnitsManual'] as number ?? sql`NULL`},
+                  ${Number(row['waterUnits']) || 0}::decimal, ${Number(row['waterUsageCharge']) || 0}::decimal,
+                  ${row['waterServiceFeeManual'] as number ?? sql`NULL`},
+                  ${Number(row['waterServiceFee']) || 0}::decimal, ${Number(row['waterTotal']) || 0}::decimal,
+                  ${((row['electricMode'] as MeterMode | null) ?? 'NORMAL')}, ${row['electricPrev'] as number ?? sql`NULL`},
+                  ${row['electricCurr'] as number ?? sql`NULL`},
+                  ${row['electricUnitsManual'] as number ?? sql`NULL`},
+                  ${Number(row['electricUnits']) || 0}::decimal, ${Number(row['electricUsageCharge']) || 0}::decimal,
+                  ${row['electricServiceFeeManual'] as number ?? sql`NULL`},
+                  ${Number(row['electricServiceFee']) || 0}::decimal, ${Number(row['electricTotal']) || 0}::decimal,
+                  ${Number(row['furnitureFee']) || 0}::decimal, ${Number(row['otherFee']) || 0}::decimal,
+                  ${Number(row['totalDue']) || 0}::decimal,
+                  ${(row['note'] as string) ?? sql`NULL`},
+                  ${(row['checkNotes'] as string) ?? sql`NULL`}
+                )
+              `
+            }))}
+            ON CONFLICT ("billingPeriodId", "roomNo")
+            DO UPDATE SET
+              "recvAccountOverrideId" = EXCLUDED."recvAccountOverrideId",
+              "recvAccountId" = EXCLUDED."recvAccountId",
+              "ruleOverrideCode" = EXCLUDED."ruleOverrideCode",
+              "ruleCode" = EXCLUDED."ruleCode",
+              "rentAmount" = EXCLUDED."rentAmount",
+              "waterMode" = EXCLUDED."waterMode",
+              "waterPrev" = EXCLUDED."waterPrev",
+              "waterCurr" = EXCLUDED."waterCurr",
+              "waterUnitsManual" = EXCLUDED."waterUnitsManual",
+              "waterUnits" = EXCLUDED."waterUnits",
+              "waterUsageCharge" = EXCLUDED."waterUsageCharge",
+              "waterServiceFeeManual" = EXCLUDED."waterServiceFeeManual",
+              "waterServiceFee" = EXCLUDED."waterServiceFee",
+              "waterTotal" = EXCLUDED."waterTotal",
+              "electricMode" = EXCLUDED."electricMode",
+              "electricPrev" = EXCLUDED."electricPrev",
+              "electricCurr" = EXCLUDED."electricCurr",
+              "electricUnitsManual" = EXCLUDED."electricUnitsManual",
+              "electricUnits" = EXCLUDED."electricUnits",
+              "electricUsageCharge" = EXCLUDED."electricUsageCharge",
+              "electricServiceFeeManual" = EXCLUDED."electricServiceFeeManual",
+              "electricServiceFee" = EXCLUDED."electricServiceFee",
+              "electricTotal" = EXCLUDED."electricTotal",
+              "furnitureFee" = EXCLUDED."furnitureFee",
+              "otherFee" = EXCLUDED."otherFee",
+              "totalDue" = EXCLUDED."totalDue",
+              "note" = EXCLUDED."note",
+              "checkNotes" = EXCLUDED."checkNotes",
+              "updatedAt" = NOW()
+          `;
+          imported += checkedRows.length;
+        }
       }
 
       result = {
@@ -473,15 +532,29 @@ export async function executeBillingImportBatch(
         errors,
       };
 
-      // 4. Mark as COMPLETED
-      await prisma.importBatch.update({
-        where: { id: batchId },
-        data: {
-          status: 'COMPLETED',
-          rowsImported: result.imported,
-          rowsSkipped: result.skipped,
-          rowsErrored: result.errors,
-        },
+      // 4. Mark as COMPLETED and complete the ImportSession atomically
+      await prisma.$transaction(async (tx) => {
+        await tx.importBatch.update({
+          where: { id: batchId },
+          data: {
+            status: 'COMPLETED',
+            rowsImported: result.imported,
+            rowsSkipped: result.skipped,
+            rowsErrored: result.errors,
+          },
+        });
+        if (batch.importSessionId) {
+          await tx.importSession.update({
+            where: { id: batch.importSessionId },
+            data: {
+              status: 'COMPLETED',
+              importedRows: result.imported,
+              skippedRows: result.skipped,
+              errorRows: result.errors,
+              completedAt: new Date(),
+            },
+          });
+        }
       });
 
       return {
@@ -497,15 +570,29 @@ export async function executeBillingImportBatch(
         importedBy ?? batch.importedBy,
       );
 
-      // 5. Mark as COMPLETED
-      await prisma.importBatch.update({
-        where: { id: batchId },
-        data: {
-          status: 'COMPLETED',
-          rowsImported: result.imported,
-          rowsSkipped: result.skipped,
-          rowsErrored: result.errors,
-        },
+      // 5. Mark as COMPLETED and complete the ImportSession atomically
+      await prisma.$transaction(async (tx) => {
+        await tx.importBatch.update({
+          where: { id: batchId },
+          data: {
+            status: 'COMPLETED',
+            rowsImported: result.imported,
+            rowsSkipped: result.skipped,
+            rowsErrored: result.errors,
+          },
+        });
+        if (batch.importSessionId) {
+          await tx.importSession.update({
+            where: { id: batch.importSessionId },
+            data: {
+              status: 'COMPLETED',
+              importedRows: result.imported,
+              skippedRows: result.skipped,
+              errorRows: result.errors,
+              completedAt: new Date(),
+            },
+          });
+        }
       });
 
       return {
@@ -515,16 +602,29 @@ export async function executeBillingImportBatch(
       };
     }
   } catch (err) {
-    // Roll back to FAILED so the UI can surface the error
-    await prisma.importBatch.update({
-      where: { id: batchId },
-      data: {
-        status: 'FAILED',
-        errorLog: {
-          ...errorLogObj,
-          executeError: err instanceof Error ? err.message : String(err),
+    // Roll back to FAILED and fail the ImportSession atomically
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    await prisma.$transaction(async (tx) => {
+      await tx.importBatch.update({
+        where: { id: batchId },
+        data: {
+          status: 'FAILED',
+          errorLog: {
+            ...errorLogObj,
+            executeError: errorMessage,
+          },
         },
-      },
+      });
+      if (batch.importSessionId) {
+        await tx.importSession.update({
+          where: { id: batch.importSessionId },
+          data: {
+            status: 'FAILED',
+            errorSummary: { message: errorMessage } as Prisma.InputJsonValue,
+            completedAt: new Date(),
+          },
+        });
+      }
     });
     throw err;
   }
@@ -564,6 +664,7 @@ export async function listBillingImportBatches(input?: {
   return {
     batches: batches.map((b) => ({
       id: b.id,
+      importSessionId: b.importSessionId,
       filename: b.filename,
       status: b.status,
       rowsTotal: b.rowsTotal,
@@ -625,6 +726,7 @@ export async function getBillingImportBatchDetail(batchId: string): Promise<Bill
 
   return {
     id: batch.id,
+    importSessionId: batch.importSessionId,
     filename: batch.filename,
     status: batch.status,
     rowsTotal: batch.rowsTotal,

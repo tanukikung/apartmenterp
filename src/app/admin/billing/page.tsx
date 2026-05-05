@@ -308,8 +308,8 @@ export default function AdminBillingPage() {
       } else {
         setSendSuccess(`${summary} — สำเร็จ`);
       }
-      void refetchCycles();
-      void refetchInvoices();
+      await refetchCycles();
+      await refetchInvoices();
     } catch (err) {
       set('error');
       const m = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด';
@@ -328,7 +328,7 @@ export default function AdminBillingPage() {
         throw new Error(json.error?.message || `ส่งไม่สำเร็จ: รหัส ${res.status}`);
       }
       setSendSuccess(`ส่งใบแจ้งหนี้สำเร็จแล้ว`);
-      void refetchInvoices();
+      await refetchInvoices();
     } catch (err) {
       setSendError(err instanceof Error ? err.message : 'ส่งไม่สำเร็จ');
     }

@@ -59,6 +59,11 @@ echo "{
   \"createdAt\": \"$(date -Iseconds)\"
 }" > "${BACKUP_FILE}.meta.json"
 
+# --- Generate SHA256 checksum (Gap 9: backup integrity validation) ---
+echo "Computing SHA256 checksum..."
+sha256sum "${BACKUP_FILE}" > "${BACKUP_FILE}.sha256"
+echo "Checksum saved: ${BACKUP_FILE}.sha256"
+
 echo "Size: $(du -h "${BACKUP_FILE}" | cut -f1)"
 
 # --- Cleanup old backups (keep MAX_KEEP) ---

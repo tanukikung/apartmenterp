@@ -370,15 +370,15 @@ export function asyncHandler<
               return await (handler as (req: NextRequest, ctx?: { params: Params }) => Promise<NextResponse>)(r, resOrContext as { params: Params } | undefined);
             }
 
-            const session = getSessionFromRequest(r);
+            const session = await getSessionFromRequest(r);
             if (!session) {
               throw new UnauthorizedError('Authentication required');
             }
 
             // Sliding expiration: if session is within 5-minute refresh window, mark it refreshed
-            const refreshed = refreshSessionIfNeeded(session, 60 * 5);
+            const refreshed = await refreshSessionIfNeeded(session);
             if (refreshed) {
-              (r as { _sessionRefreshed?: AuthSessionPayload })._sessionRefreshed = refreshed;
+              (r as { _sessionRefreshed?: AuthSessionPayload })._sessionRefreshed = refreshed.payload;
             }
 
             if (

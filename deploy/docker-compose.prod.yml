@@ -15,12 +15,31 @@ version: '3.9'
 
 services:
   postgres:
-    image: postgres:16-alpine
+    # Custom build with awscli for WAL archiving to S3
+    # Build: docker build -f deploy/postgres/Dockerfile -t apartment-erp-postgres:latest .
+    image: apartment-erp-postgres:latest
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
     restart: unless-stopped
     environment:
       POSTGRES_USER:     ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB:       ${POSTGRES_DB:-test}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-ap-southeast-1}
+      WAL_S3_BUCKET:     ${BACKUP_S3_BUCKET:-apt-backups}
+      WAL_S3_PREFIX:     pg/wal
+    # WAL archiving: PITR with RPO < 5 min via S3
+    # Uses /usr/local/bin/wal-g-archive.sh helper (awscli + logging)
+    command: >
+      postgres
+      -c wal_level=replica
+      -c archive_mode=on
+      -c "archive_command=/usr/local/bin/wal-g-archive.sh %p %f"
+      -c max_wal_senders=10
+      -c wal_keep_size=512MB
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
@@ -59,6 +78,10 @@ services:
       AWS_REGION: ${AWS_REGION:-}
       BACKUP_CRON: ${BACKUP_CRON:-0 3 * * *}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      SLACK_ALERT_WEBHOOK_URL: ${SLACK_ALERT_WEBHOOK_URL:-}
+      SLACK_ALERT_CHANNEL: ${SLACK_ALERT_CHANNEL:-#alerts}
+      PAGERDUTY_ROUTING_KEY: ${PAGERDUTY_ROUTING_KEY:-}
+      PAGERDUTY_EVENT_URL: ${PAGERDUTY_EVENT_URL:-https://events.pagerduty.com/v2/enqueue}
     depends_on:
       postgres:
         condition: service_healthy

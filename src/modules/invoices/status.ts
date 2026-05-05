@@ -34,7 +34,7 @@ export function getEffectiveInvoiceStatus(params: {
   dueDate: Date;
   paidAt: Date | null;
 }): string {
-  const { storedStatus, dueDate, paidAt } = params;
+  const { storedStatus, dueDate, paidAt: _paidAt } = params;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 

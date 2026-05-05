@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 // ============================================================================
 
 export const POST = asyncHandler(async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-  const session = requireRole(req, ['OWNER', 'ADMIN']);
+  const session = await await requireRole(req, ['OWNER', 'ADMIN']);
   const url = new URL(req.url);
   const tenantId = url.searchParams.get('tenantId');
   if (!tenantId) {

@@ -7,7 +7,8 @@ import { getVerifiedActor, requireRole } from '@/lib/auth/guards';
 import { withIdempotency } from '@/lib/utils/idempotency';
 import { syncInvoicePaymentState } from '@/modules/payments/invoice-payment-state';
 import { logAudit } from '@/modules/audit';
-import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { rateLimitCritical } from '@/lib/rate-limit/dual-layer-rate-limiter';
+import { requireMutationsAllowed } from '@/lib/guards/system';
 
 const ManualPaymentMethod = z.enum(['CASH', 'CHECK', 'TRANSFER']);
 type ManualPaymentMethod = z.infer<typeof ManualPaymentMethod>;
@@ -46,12 +47,12 @@ async function getInvoiceRemainingAmount(invoiceId: string): Promise<number> {
 }
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
   return withIdempotency(req, 'payment_manual', async () => {
-
-  const limiter = getLoginRateLimiter();
+  const blocked = await requireMutationsAllowed();
+  if (blocked) return blocked;
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-  const { allowed, remaining, resetAt } = await limiter.check(`payments-manual:${session.sub}:${ip}`, PAYMENT_MAX_ATTEMPTS, PAYMENT_WINDOW_MS);
+  const { allowed, remaining, resetAt } = await rateLimitCritical(`payments-manual:${session.sub}:${ip}`, PAYMENT_MAX_ATTEMPTS, PAYMENT_WINDOW_MS);
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: { message: `Too many payment requests. Try again after ${resetAt.toLocaleTimeString()}.`, code: 'RATE_LIMIT_EXCEEDED', name: 'RateLimitError', statusCode: 429 } },
@@ -59,7 +60,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
 
-  const actor = getVerifiedActor(req);
+  const actor = await await getVerifiedActor(req);
 
   let body: Record<string, unknown>;
   try {

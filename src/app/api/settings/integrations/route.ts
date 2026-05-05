@@ -32,7 +32,7 @@ function maskSecret(value: string | undefined | null): string {
 }
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const configs = await prisma.config.findMany({
     where: { key: { in: [...LINE_KEYS] } },
@@ -106,7 +106,7 @@ export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  requireRole(req, ['ADMIN', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'OWNER']);
   const body = updateLineSchema.parse(await req.json());
 
   await prisma.$transaction([

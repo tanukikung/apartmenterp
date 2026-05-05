@@ -1,8 +1,14 @@
 'use client';
 
-import { useEffect, ReactNode } from 'react';
+import { useEffect, ReactNode, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+export interface ConfirmDialogPreview {
+  before: Record<string, string>;
+  after: Record<string, string>;
+  labels?: Record<string, string>;
+}
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -12,7 +18,13 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   dangerous?: boolean;
   loading?: boolean;
-  onConfirm: () => void;
+  /** Show before→after preview of the change */
+  preview?: ConfirmDialogPreview;
+  /** Require a reason string before confirming */
+  reasonRequired?: boolean;
+  reasonLabel?: string;
+  reasonPlaceholder?: string;
+  onConfirm: (reason?: string) => void;
   onCancel: () => void;
 }
 
@@ -24,9 +36,20 @@ export function ConfirmDialog({
   cancelLabel = 'ยกเลิก',
   dangerous = false,
   loading = false,
+  preview,
+  reasonRequired = false,
+  reasonLabel = 'เหตุผล',
+  reasonPlaceholder = 'ระบุเหตุผล...',
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const [reason, setReason] = useState('');
+
+  // Reset reason when dialog closes
+  useEffect(() => {
+    if (!open) setReason('');
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -35,6 +58,8 @@ export function ConfirmDialog({
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [open, onCancel]);
+
+  const canConfirm = !reasonRequired || reason.trim().length >= 5;
 
   return (
     <AnimatePresence>
@@ -55,7 +80,7 @@ export function ConfirmDialog({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-            className="relative z-10 w-full max-w-sm rounded-2xl border border-outline/30 bg-surface-container-lowest p-6 shadow-2xl ring-1 ring-black/5"
+            className="relative z-10 w-full max-w-md rounded-2xl border border-outline/30 bg-surface-container-lowest p-6 shadow-2xl ring-1 ring-black/5"
             role="dialog"
             aria-modal="true"
             aria-labelledby="confirm-dialog-title"
@@ -88,6 +113,53 @@ export function ConfirmDialog({
               </button>
             </div>
 
+            {/* Phase 8.5: Before → After preview */}
+            {preview && (
+              <div className="mt-4 rounded-xl border border-[hsl(var(--color-border))] overflow-hidden">
+                <div className="grid grid-cols-2 divide-x divide-[hsl(var(--color-border))]">
+                  <div className="bg-red-500/5 px-3 py-2">
+                    <p className="text-xs font-semibold text-red-500 mb-1">ก่อน</p>
+                    {Object.entries(preview.before).map(([k, v]) => (
+                      <div key={k} className="flex items-center gap-1.5 text-xs">
+                        <span className="text-on-surface-variant">{preview.labels?.[k] ?? k}:</span>
+                        <span className="font-medium text-red-400 line-through">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-emerald-500/5 px-3 py-2">
+                    <p className="text-xs font-semibold text-emerald-500 mb-1">หลัง</p>
+                    {Object.entries(preview.after).map(([k, v]) => (
+                      <div key={k} className="flex items-center gap-1.5 text-xs">
+                        <span className="text-on-surface-variant">{preview.labels?.[k] ?? k}:</span>
+                        <span className="font-medium text-emerald-600">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Phase 8.5: Reason input */}
+            {reasonRequired && (
+              <div className="mt-4">
+                <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
+                  {reasonLabel} <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder={reasonPlaceholder}
+                  rows={2}
+                  className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--surface))] px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/50 resize-none focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))]/40"
+                />
+                <p className="mt-1 text-xs text-on-surface-variant">
+                  {reason.trim().length < 5 && reason.trim().length > 0
+                    ? `ต้องระบุอย่างน้อย 5 ตัวอักษร (${reason.trim().length}/5)`
+                    : `${reason.trim().length} ตัวอักษร`}
+                </p>
+              </div>
+            )}
+
             <div className="mt-6 flex gap-3 justify-end">
               <motion.button
                 whileHover={{ y: -1 }}
@@ -101,9 +173,9 @@ export function ConfirmDialog({
               <motion.button
                 whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.96 }}
-                onClick={onConfirm}
-                disabled={loading}
-                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-colors disabled:opacity-50 ${
+                onClick={() => onConfirm(reason.trim() || undefined)}
+                disabled={loading || !canConfirm}
+                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   dangerous
                     ? 'border border-error bg-error text-on-error hover:bg-error/90 shadow-error/30'
                     : 'border border-primary bg-primary text-on-primary hover:bg-primary/90 shadow-primary/30'

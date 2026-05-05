@@ -89,6 +89,7 @@ export type CalculateDepositInput = z.infer<typeof calculateDepositSchema>;
 // ============================================================================
 
 export const confirmMoveOutSchema = z.object({
+  reason: z.string().min(5, 'ต้องระบุเหตุผลอย่างน้อย 5 ตัวอักษร'),
   notes: z.string().max(2000).optional().transform(v => v ? stripHtml(v) : v),
 });
 
@@ -99,6 +100,7 @@ export type ConfirmMoveOutInput = z.infer<typeof confirmMoveOutSchema>;
 // ============================================================================
 
 export const markRefundSchema = z.object({
+  reason: z.string().min(5, 'ต้องระบุเหตุผลอย่างน้อย 5 ตัวอักษร'),
   notes: z.string().max(2000).optional().transform(v => v ? stripHtml(v) : v),
 });
 

@@ -23,7 +23,7 @@ export const POST = asyncHandler(async (req: NextRequest, context: Params): Prom
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
   const { id } = context.params;
 
   const reg = await prisma.tenantRegistration.findUnique({ where: { id } });

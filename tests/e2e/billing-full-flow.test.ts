@@ -16,7 +16,7 @@
  * CSRF: Origin-header validation. Browser automatically sends correct Origin.
  *
  * Prerequisites:
- *   - Dev server must be running on APP_BASE_URL (or localhost:3000)
+ *   - Dev server must be running on E2E_BASE_URL (defaults to http://localhost:3001)
  *   - DB must have at least one ADMIN user (for initial login + reset)
  *   - apartment_excel_template.xlsx must exist in apps/erp/
  *
@@ -26,10 +26,8 @@
  */
 
 import { test, expect, type Page } from '@playwright/test';
-
-// ─── Config ───────────────────────────────────────────────────────────────────
-
-const BASE_URL = process.env.APP_BASE_URL || 'http://localhost:3000';
+import { BASE_URL } from './config.js';
+import { loginAsAdmin } from './helpers';
 // Seed admin credentials — available after `npm run seed` or first-run setup
 const SEED_ADMIN_USER = 'owner';
 const SEED_ADMIN_PASS = 'Owner@12345';
@@ -83,35 +81,40 @@ async function apiGet(page: Page, path: string): Promise<{ ok: boolean; status: 
 
 async function loginAs(page: Page, username: string, password: string): Promise<void> {
   await page.goto(`${BASE_URL}/login`);
-  await page.fill('[name="username"]', username);
-  await page.fill('[name="password"]', password);
-  await page.click('[type="submit"]');
-  await page.waitForURL(`${BASE_URL}/admin/dashboard`, { timeout: 20_000 });
+  const usernameInput = page.locator('input[name="username"], input[type="text"]').first();
+  const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+  await usernameInput.fill(username);
+  await passwordInput.fill(password);
+  const navPromise = page.waitForURL('**/admin/**', { timeout: 20000 });
+  await page.locator('button[type="submit"]').first().click();
+  await navPromise;
+  await expect(page.locator('body')).toBeVisible();
 }
-
-// ─── Tests ───────────────────────────────────────────────────────────────────
 
 test.describe('Fresh-DB Release-Gate E2E', () => {
 
   test('Step 1: Login as admin and reset database to clean state', async ({ page }) => {
     // Login with existing seed admin (available in seeded DB)
-    await loginAs(page, SEED_ADMIN_USER, SEED_ADMIN_PASS);
+    await loginAsAdmin(page);
 
     // Reset DB — CSRF-exempt (setup wizard route) but requires ADMIN role
-    const resetRes = await page.evaluate(async () => {
-      const r = await fetch('/api/admin/setup/reset', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Origin': BASE_URL,
-          'Referer': `${BASE_URL}/admin/`,
-        },
-        credentials: 'include',
-        body: JSON.stringify({ backup: false }),
-      });
-      const json = await r.json();
-      return { status: r.status, ok: r.ok, body: json };
-    });
+    const resetRes = await page.evaluate(
+      async ({ baseUrl }: { baseUrl: string }) => {
+        const r = await fetch(`${baseUrl}/api/admin/setup/reset`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Origin': baseUrl,
+            'Referer': `${baseUrl}/admin/`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({ backup: false }),
+        });
+        const json = await r.json();
+        return { status: r.status, ok: r.ok, body: json };
+      },
+      { baseUrl: BASE_URL }
+    );
 
     console.log('[STEP 1] Reset response:', JSON.stringify(resetRes).slice(0, 200));
     expect(resetRes.ok).toBe(true);
@@ -120,7 +123,7 @@ test.describe('Fresh-DB Release-Gate E2E', () => {
 
   test('Step 2: Create first owner account (DB is now empty)', async ({ page }) => {
     await page.goto(`${BASE_URL}/sign-up`);
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('body')).toBeVisible();
 
     await page.fill('input[name="displayName"]', TEST_ADMIN_DISPLAY);
     await page.fill('input[name="username"]', TEST_ADMIN_USER);
@@ -146,7 +149,7 @@ test.describe('Fresh-DB Release-Gate E2E', () => {
     await loginAs(page, TEST_ADMIN_USER, TEST_ADMIN_PASS);
 
     await page.goto(`${BASE_URL}/admin/billing/import`);
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('body')).toBeVisible();
 
     // Upload the apartment Excel template
     const excelPath = `${process.cwd()}/apartment_excel_template.xlsx`;
@@ -154,12 +157,12 @@ test.describe('Fresh-DB Release-Gate E2E', () => {
     await page.locator('input[type="file"]').click();
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(excelPath);
-    await page.waitForTimeout(1_500);
+    await expect(page.locator('body')).toBeVisible();
 
     // Preview batch
     await page.locator('button:has-text("Preview Batch")').click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3_000); // React async render
+    await page.waitForResponse(r => r.url().includes('/api/'), { timeout: 15000 });
+    await expect(page.locator('body')).toBeVisible();
 
     const bodyText = await page.textContent('body');
     const hasPreview = (bodyText ?? '').includes('Batch ID') || (bodyText ?? '').includes('rooms');
@@ -174,18 +177,18 @@ test.describe('Fresh-DB Release-Gate E2E', () => {
     await loginAs(page, TEST_ADMIN_USER, TEST_ADMIN_PASS);
 
     await page.goto(`${BASE_URL}/admin/billing/import`);
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('body')).toBeVisible();
 
     const excelPath = `${process.cwd()}/apartment_excel_template.xlsx`;
     const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 10_000 });
     await page.locator('input[type="file"]').click();
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(excelPath);
-    await page.waitForTimeout(1_500);
+    await page.waitForResponse(r => r.url().includes('/api/'), { timeout: 30000 });
 
     await page.locator('button:has-text("Preview Batch")').click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3_000);
+    await page.waitForResponse(r => r.url().includes('/api/'), { timeout: 15000 });
+    await expect(page.locator('body')).toBeVisible();
 
     // Try Commit
     const commitBtn = page.locator('button:has-text("Commit Batch"), button:has-text("Commit")').first();
@@ -193,8 +196,8 @@ test.describe('Fresh-DB Release-Gate E2E', () => {
 
     if (!isDisabled) {
       await commitBtn.click();
-      await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(3_000);
+      await page.waitForResponse(r => r.url().includes('/api/'), { timeout: 15000 });
+      await expect(page.locator('body')).toBeVisible();
     } else {
       const body = await page.textContent('body');
       const reason = body?.match(/(\d+)\s*(warning|error|invalid)/i)?.[0];

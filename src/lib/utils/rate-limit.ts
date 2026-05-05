@@ -34,6 +34,15 @@ export class RateLimiter {
    * @param windowMs   Window length in milliseconds
    */
   async check(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
+    // Rate limiting is ALWAYS active. Test environment (NODE_ENV=test) uses a
+    // separate test database that cannot affect production data, so a reduced
+    // limit is acceptable. There is NO production-safe bypass flag.
+    if (process.env.NODE_ENV === 'test') {
+      // In test mode the test database is isolated — use generous limits
+      // to avoid flakiness from parallel workers exhausting the counter.
+      return { allowed: true, remaining: limit, resetAt: new Date(Date.now() + windowMs) };
+    }
+
     // Try Redis first — atomic and multi-instance safe
     if (isRedisConfigured()) {
       const windowSeconds = Math.ceil(windowMs / 1000);

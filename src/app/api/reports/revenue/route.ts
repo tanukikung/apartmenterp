@@ -19,7 +19,7 @@ type RevenueRow = {
 
 // Return last N months of revenue breakdown by type
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const url = new URL(req.url);
   const monthsParam = Number(url.searchParams.get('months') ?? '12');

@@ -4,8 +4,9 @@ import { asyncHandler, ApiResponse, UnauthorizedError } from '@/lib/utils/errors
 import { prisma } from '@/lib/db/client';
 import { verifyPassword, hashPassword, needsRehash } from '@/lib/auth/password';
 import { logger } from '@/lib/utils/logger';
-import { setAuthCookies } from '@/lib/auth/session';
+import { signSessionToken } from '@/lib/auth/session';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { inc } from '@/lib/metrics/messaging';
 
 const loginSchema = z.object({
   username: z.string().min(1),
@@ -59,6 +60,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   const passwordOk = user && user.isActive && verifyPassword(body.password, user.passwordHash);
 
   if (!passwordOk) {
+    inc('auth_login_failure_total');
     if (isForm) {
       // 303 See Other forces the browser to GET the redirect target (Post/Redirect/Get).
       // Default 307 would re-POST, which Next.js 14 misidentifies as a URL-encoded
@@ -115,14 +117,31 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     };
   }>);
 
-  setAuthCookies(res, {
+  const token = await signSessionToken({
     sub: user.id,
     username: user.username,
     displayName: user.displayName,
     role: user.role,
     forcePasswordChange: user.forcePasswordChange,
     buildingId: user.buildingId,
-    exp: expiresAt,
+  });
+
+  inc('auth_login_success_total');
+
+  const secure = process.env.COOKIE_SECURE === 'true';
+  res.cookies.set('auth_session', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure,
+    path: '/',
+    expires: new Date(expiresAt * 1000),
+  });
+  res.cookies.set('role', user.role, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure,
+    path: '/',
+    expires: new Date(expiresAt * 1000),
   });
 
   return res;

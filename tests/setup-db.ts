@@ -8,9 +8,16 @@ import { PrismaClient } from '@prisma/client';
 // to '@/lib/db/client' by tests/setup-mocks.ts. Integration tests that need
 // the real client will later doUnmock and re-import '@/lib/db/client'.
 // When USE_TEST_DB is false, we never spawn the engine or open a connection.
+//
+// CRITICAL: All PrismaClients in tests MUST use the SAME DATABASE_URL from .env.test.
+// No hardcoded connections allowed.
 let realPrisma: PrismaClient | null = null;
 function getRealPrisma(): PrismaClient {
-  if (!realPrisma) realPrisma = new PrismaClient();
+  if (!realPrisma) {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) throw new Error('[setup-db] DATABASE_URL is not set — check .env.test');
+    realPrisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+  }
   return realPrisma;
 }
 
@@ -56,6 +63,22 @@ beforeAll(async () => {
         gracePeriodDays: 3,
       },
     });
+
+    // Seed a default billing period for tests.
+    // Use a random month so multiple test runs don't collide on (year, month).
+    // Tests that specifically need a certain month handle that themselves.
+    const bpYear = 2026;
+    const bpMonth = ((Math.floor(Math.random() * 12)) + 1);
+    const bpId = `BP-${bpYear}-${bpMonth}`;
+    try {
+      await (getRealPrisma() as any).billingPeriod.upsert({
+        where: { year_month: { year: bpYear, month: bpMonth } },
+        update: {},
+        create: { id: bpId, year: bpYear, month: bpMonth, status: 'OPEN', dueDay: 25 },
+      });
+    } catch (e: any) {
+      if (e.code !== 'P2002') console.error('[setup-db] bp seed error:', e.message);
+    }
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error('[setup-db] seed failed:', e);

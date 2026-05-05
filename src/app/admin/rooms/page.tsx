@@ -101,8 +101,16 @@ export default function AdminRoomsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [drawerMode, setDrawerMode] = useState<DrawerMode>(null);
 
-  // Confirm dialogs
-  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; description?: string; onConfirm: () => void } | null>(null);
+  // Confirm dialogs — use extended type to support all ConfirmDialog props
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description?: string;
+    dangerous?: boolean;
+    reasonRequired?: boolean;
+    preview?: { before: Record<string, string>; after: Record<string, string>; labels?: Record<string, string> };
+    onConfirm: (reason?: string) => void;
+  } | null>(null);
 
   // React Query for rooms data
   const [currentPage, setCurrentPage] = useState(1);
@@ -260,7 +268,9 @@ export default function AdminRoomsPage() {
       open: true,
       title: `ลบห้อง ${roomNo}?`,
       description: 'ไม่สามารถย้อนกลับได้',
-      onConfirm: async () => {
+      dangerous: true,
+      reasonRequired: true,
+      onConfirm: async (reason) => {
         setConfirmDialog(null);
         setWorking(`delete:${roomNo}`);
         setMessage(null);
@@ -268,6 +278,8 @@ export default function AdminRoomsPage() {
         try {
           const res = await fetch(`/api/rooms/${encodeURIComponent(roomNo)}`, {
             method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason }),
           }).then((r) => r.json());
           if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถลบห้องได้');
           setMessage(`ห้อง ${roomNo} ลบสำเร็จ`);
@@ -717,6 +729,9 @@ export default function AdminRoomsPage() {
         open={confirmDialog?.open ?? false}
         title={confirmDialog?.title ?? ''}
         description={confirmDialog?.description}
+        dangerous={confirmDialog?.dangerous}
+        reasonRequired={confirmDialog?.reasonRequired}
+        preview={confirmDialog?.preview}
         confirmLabel="ยืนยัน"
         cancelLabel="ยกเลิก"
         onConfirm={confirmDialog?.onConfirm ?? (() => {})}

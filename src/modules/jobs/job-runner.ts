@@ -88,12 +88,12 @@ export async function runBillingGenerate(): Promise<JobResult> {
 
 // ── 3. Send pending invoices ────────────────────────────────────────────────
 // Advances GENERATED invoices to SENT status and stamps sentAt.
-// Idempotency: only processes GENERATED invoices (not SENT/VIEWED/OVERDUE/PAID).
-// A second concurrent or overlapping run will find 0 rows and report 0 sent —
-// no duplicate LINE message dispatches.
+// Idempotency: only processes GENERATED invoices with sentAt=null.
+// A second concurrent or overlapping run will find 0 rows (already SENT invoices
+// have sentAt set) — no duplicate LINE message dispatches.
 export async function runInvoiceSend(): Promise<JobResult> {
   const result = await prisma.invoice.updateMany({
-    where: { status: 'GENERATED' },
+    where: { status: 'GENERATED', sentAt: null },
     data: { status: 'SENT', sentAt: new Date() },
   });
 
@@ -185,7 +185,7 @@ export async function runDbCleanup(): Promise<JobResult> {
 // and creates in-app notifications for admins.
 export async function runContractExpiryCheck(): Promise<JobResult> {
   const now = new Date();
-  const { sendLineMessage } = await import('@/lib');
+  const { sendLineMessage } = await import('@/lib/line/client');
 
   const expiryThresholds = [30, 60, 90];
   let totalNotified = 0;
@@ -273,7 +273,7 @@ export async function runContractExpiryCheck(): Promise<JobResult> {
 export async function runDocumentNotify(): Promise<JobResult> {
   const retentionDays = parseInt(process.env.DOCUMENT_RETENTION_DAYS ?? '90', 10);
   const notifyDaysBefore = parseInt(process.env.ARCHIVE_NOTIFY_DAYS_BEFORE ?? '7', 10);
-  const { sendLineMessage, isLineConfigured } = await import('@/lib');
+  const { sendLineMessage, isLineConfigured } = await import('@/lib/line/client');
 
   const notifyCutoff = new Date(Date.now() - (retentionDays - notifyDaysBefore) * 24 * 60 * 60 * 1000);
 

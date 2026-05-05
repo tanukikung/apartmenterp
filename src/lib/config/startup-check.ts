@@ -139,13 +139,26 @@ export function runStartupChecks(): void {
 
   if (process.env.NODE_ENV === 'test') return;
 
-  const { passed, errors, warnings } = checkEnv();
+  // ── E2E_MODE guard ─────────────────────────────────────────────────────────
+  // E2E_MODE is a test-only bypass mechanism. If set in non-test environment it
+  // would disable rate limiting and other safety measures in production — a
+  // critical security fault. Reject it explicitly at boot.
+  if (process.env.E2E_MODE === 'true') {
+    logger.error(
+      'E2E_MODE is set but NODE_ENV is not "test". ' +
+      'E2E_MODE may only be set in test environments. ' +
+      'Unset E2E_MODE or set NODE_ENV=test.'
+    );
+  }
+
+  const { passed, errors: envErrors, warnings } = checkEnv();
+  const allErrors: string[] = [...envErrors];
 
   for (const msg of warnings) {
     logger.warn({ type: 'startup_check', severity: 'warning' }, msg);
   }
 
-  for (const msg of errors) {
+  for (const msg of allErrors) {
     logger.error({ type: 'startup_check', severity: 'error' }, msg);
   }
 
@@ -161,8 +174,8 @@ export function runStartupChecks(): void {
     );
   } else {
     logger.error(
-      { type: 'startup_check', errors: errors.length, warnings: warnings.length },
-      `Environment validation failed with ${errors.length} error(s). ` +
+      { type: 'startup_check', errors: allErrors.length, warnings: warnings.length },
+      `Environment validation failed with ${allErrors.length} error(s). ` +
         'The application may not function correctly until these are resolved.'
     );
   }
