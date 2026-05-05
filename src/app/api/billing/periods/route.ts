@@ -10,7 +10,7 @@ import { BILLING_PERIOD_STATUS } from '@/lib/constants';
 
 export const GET = asyncHandler(
   async (req: NextRequest): Promise<NextResponse> => {
-    const session = await requireRole(req, ['ADMIN', 'OWNER', 'STAFF']);
+    const _session = await requireRole(req, ['ADMIN', 'OWNER', 'STAFF']);
 
     const periods = await prisma.billingPeriod.findMany({
       orderBy: [{ year: 'desc' }, { month: 'desc' }],

@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/guards';
 import { prisma } from '@/lib/db/client';
-import { asyncHandler, ApiResponse, ConflictError } from '@/lib/utils/errors';
+import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
-import {
-  closeBillingPeriod,
-  assertBillingPeriodEditable,
-} from '@/modules/billing/period-closing.service';
+import { closeBillingPeriod } from '@/modules/billing/period-closing.service';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 import { BILLING_PERIOD_STATUS } from '@/lib/constants';
 
@@ -45,7 +42,7 @@ export const POST = asyncHandler(
     }
 
     const { id: periodId } = params;
-    const session = await requireRole(req, ['ADMIN', 'OWNER']);
+    const _session = await requireRole(req, ['ADMIN', 'OWNER']);
 
     // Verify period exists
     const period = await prisma.billingPeriod.findUnique({
@@ -131,7 +128,7 @@ export const POST = asyncHandler(
 
     // Perform close in transaction
     const closeEvent = await prisma.$transaction(async (tx) => {
-      return closeBillingPeriod(tx, periodId, session.sub, { reason, force });
+      return closeBillingPeriod(tx, periodId, _session.sub, { reason, force });
     });
 
     logger.info({
@@ -139,7 +136,7 @@ export const POST = asyncHandler(
       periodId,
       year: period.year,
       month: period.month,
-      closedBy: session.sub,
+      closedBy: _session.sub,
       reason,
     });
 

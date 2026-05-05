@@ -7,7 +7,7 @@
 
 import { PrismaClient, Prisma } from '@prisma/client';
 import { logger } from '../utils/logger';
-import { incrementCounter } from '@/lib/metrics/registry';
+import { incrementCounter, observeHistogram } from '@/lib/metrics/registry';
 
 /**
  * Pool exhaustion error code — thrown when the concurrent query guard
@@ -189,8 +189,6 @@ function logQuery(event: QueryEventLike, source: 'write' | 'read' = 'write'): vo
   // Emit slow-query metric for observability (500ms = P95 target boundary)
   if (duration > 500) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { observeHistogram } = require('@/lib/metrics/registry');
       observeHistogram('db_query_duration_seconds', duration / 1000, { source });
       if (duration > 1000) incrementCounter('db_slow_queries_total', { source });
     } catch { /* metrics optional */ }
@@ -286,7 +284,7 @@ if (_readDbInternal !== _prismaInternal) {
 
 // Register slow-query tracker for diagnostics
 try {
-  const diag = require('@/lib/diagnostics/performance');
+  const diag = await import('@/lib/diagnostics/performance');
   if (diag?.trackSlowQuery) registerSlowQueryTracker(diag.trackSlowQuery);
 } catch { /* diagnostics optional */ }
 

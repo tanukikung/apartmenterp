@@ -100,7 +100,7 @@ async function saveDistributedState(service: string, state: DistributedCircuitSt
   const c = getRedisClient();
   if (!c || !c.isReady) return;
   try {
-    await (c as any).eval(CB_LUA_SCRIPT, 1, CB_KEY(service), JSON.stringify(state));
+    await (c as unknown as { eval(script: string, numKeys: number, key: string, arg: string): Promise<unknown> }).eval(CB_LUA_SCRIPT, 1, CB_KEY(service), JSON.stringify(state));
   } catch {
     // Fall back to in-memory on Redis error
   }
@@ -473,7 +473,7 @@ export async function redisPing(): Promise<boolean> {
 // Safe under high concurrency: uses atomic fetch-increment pattern per key.
 
 // 10-minute TTL — balances memory usage against realistic rate limit windows
-const MEM_RL_TTL_MS = 10 * 60 * 1000;
+const _MEM_RL_TTL_MS = 10 * 60 * 1000;
 const MEM_RL_MAX_ENTRIES = 100_000;
 
 interface MemRateEntry {

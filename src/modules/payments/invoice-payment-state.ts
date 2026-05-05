@@ -137,7 +137,7 @@ export async function syncInvoicePaymentState(
   const effectiveSettled = settled || (totalPaid >= totalOwed);
   const transitionedToPaid = effectiveSettled && invoice.status !== 'PAID';
 
-  let updatedInvoice: InvoicePaymentSnapshot = invoice;
+  const updatedInvoice: InvoicePaymentSnapshot = invoice;
   if (transitionedToPaid) {
     // HARD INVARIANT: Before setting PAID, verify sufficient payment exists.
     // This is a belt-and-suspenders check — the settled computation above

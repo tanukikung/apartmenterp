@@ -56,7 +56,7 @@ export class ConcurrentModificationError extends ConflictError {
  * Check that a model has a version field before using versionedUpdate.
  * Throws if the model doesn't support optimistic locking.
  */
-function assertHasVersionField(model: unknown, modelName: string): void {
+function _assertHasVersionField(model: unknown, modelName: string): void {
   if (!model || typeof model !== 'object') {
     throw new Error(`Invalid Prisma model for ${modelName}`);
   }

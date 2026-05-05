@@ -41,7 +41,7 @@ export const POST = asyncHandler(
     }
 
     const { id: periodId } = params;
-    const session = await requireRole(req, ['ADMIN', 'OWNER']);
+    const _session = await requireRole(req, ['ADMIN', 'OWNER']);
 
     // Verify period exists
     const period = await prisma.billingPeriod.findUnique({
@@ -82,7 +82,7 @@ export const POST = asyncHandler(
 
     // Perform archive in transaction
     await prisma.$transaction(async (tx) => {
-      return archiveBillingPeriod(tx, periodId, session.sub);
+      return archiveBillingPeriod(tx, periodId, _session.sub);
     });
 
     logger.info({
@@ -90,7 +90,7 @@ export const POST = asyncHandler(
       periodId,
       year: period.year,
       month: period.month,
-      archivedBy: session.sub,
+      archivedBy: _session.sub,
     });
 
     return NextResponse.json({

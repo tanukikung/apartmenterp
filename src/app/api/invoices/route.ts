@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceContainer } from '@/lib/service-container';
 import { listInvoicesQuerySchema, generateInvoiceSchema } from '@/modules/invoices/types';
-import { asyncHandler, ApiResponse, formatError, AppError, ConflictError } from '@/lib/utils/errors';
+import { asyncHandler, ApiResponse, formatError, AppError } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { requireOperator, requireRole } from '@/lib/auth/guards';
 import { logAudit } from '@/modules/audit';

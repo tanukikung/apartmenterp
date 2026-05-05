@@ -13,7 +13,6 @@ import { createHash } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/lib/db/client';
-import { EventBus, EventTypes } from '@/lib/events';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
 import { logFinancialAudit } from '@/modules/financial-audit';

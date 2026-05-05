@@ -100,7 +100,7 @@ export async function withOptimisticLock<T extends Record<string, unknown>>(
 
   // Build the SET clause dynamically to avoid SQL injection
   // All keys are controlled by the caller (field names from Prisma schema)
-  const setClause = Object.keys(data)
+  const _setClause = Object.keys(data)
     .map((key) => `"${key}" = $\{${key}}`)
     .concat([`"version" = ${newVersion}`])
     .join(', ');

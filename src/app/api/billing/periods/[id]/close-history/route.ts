@@ -11,7 +11,7 @@ import { getPeriodCloseHistory } from '@/modules/billing/period-closing.service'
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    const session = await requireRole(req, ['ADMIN', 'OWNER', 'STAFF']);
+    const _session = await requireRole(req, ['ADMIN', 'OWNER', 'STAFF']);
     const { id: periodId } = params;
 
     // Verify period exists

@@ -96,7 +96,7 @@ type LineEventResult = 'SUCCESS' | 'FAILED' | 'DUPLICATE_REJECTED' | 'OUT_OF_ORD
  * processing and calls back to mark the event as SUCCESS (via a separate internal call).
  * We use a single transaction for both the InboxEvent write and the LineEvent write.
  */
-async function upsertLineEvent(
+async function _upsertLineEvent(
   eventId: string,
   replyToken: string | undefined,
   eventType: string,
@@ -130,7 +130,7 @@ async function upsertLineEvent(
  * Check if a replyToken has already been used.
  * Returns true if already used (skip reply), false if available.
  */
-async function isReplyTokenUsed(token: string): Promise<boolean> {
+async function _isReplyTokenUsed(token: string): Promise<boolean> {
   const existing = await prisma.lineReplyToken.findUnique({ where: { token } });
   return existing !== null;
 }
@@ -140,7 +140,7 @@ async function isReplyTokenUsed(token: string): Promise<boolean> {
  * If the token was already recorded by a concurrent request, we silently skip
  * (the unique constraint catches this — it's a replay scenario).
  */
-async function markReplyTokenUsed(token: string, eventId: string): Promise<void> {
+async function _markReplyTokenUsed(token: string, eventId: string): Promise<void> {
   try {
     await prisma.lineReplyToken.create({
       data: { token, usedBy: eventId },
@@ -169,7 +169,7 @@ async function markReplyTokenUsed(token: string, eventId: string): Promise<void>
  *   - Same timestamp: returns false (indeterminate — process both)
  *   - Mock/test events (eventType='mock'): returns false (skip check)
  */
-export async function isOutOfOrder(
+async function isOutOfOrder(
   sourceId: string,
   eventTimestamp: bigint,
   eventType: string
@@ -215,7 +215,7 @@ type EventIngestOp = {
  * Out-of-order check is the only pre-transaction DB call we make per event,
  * so it is NOT inside the transaction to avoid holding locks during a read.
  */
-export async function classifyEvents(events: WebhookEvent[]): Promise<EventIngestOp[]> {
+async function classifyEvents(events: WebhookEvent[]): Promise<EventIngestOp[]> {
   return Promise.all(
     events.map(async (event) => {
       const eventId    = extractEventId(event);

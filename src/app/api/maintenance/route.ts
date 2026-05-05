@@ -30,7 +30,7 @@ const querySchema = z.object({
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const limiter = getLoginRateLimiter();
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-  const { allowed, remaining, resetAt } = await limiter.check(`maintenance-list:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+  const { allowed, resetAt } = await limiter.check(`maintenance-list:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
   if (!allowed) {
     return NextResponse.json(
       {

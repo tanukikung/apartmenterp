@@ -91,18 +91,13 @@ export async function assertPeriodAllowsMutation(
   // In mock/test contexts (no real DB), $queryRawUnsafe may not be available or
   // returns an empty result — fall back to plain findUnique without locking.
   try {
-    const rows = await (tx as any).$queryRawUnsafe<Array<{
-      id: string;
-      year: number;
-      month: number;
-      status: string;
-    }>>(
+    const rows = await (tx as any).$queryRawUnsafe(
       `SELECT id, year, month, status FROM "billing_periods" WHERE id = $1 FOR UPDATE NOWAIT`,
       [periodId],
-    );
+    ) as Array<{ id: string; year: number; month: number; status: string }>;
     if (rows.length === 0) return; // Not found — caller handles
     period = rows[0] as { id: string; year: number; month: number; status: BillingPeriodStatus };
-  } catch (rawError) {
+  } catch (_rawError) {
     // $queryRawUnsafe not available (mock tx) or other raw SQL error —
     // fall back to standard findUnique without row lock.
     // In production transactions this path is never hit; the FOR UPDATE NOWAIT
@@ -115,6 +110,7 @@ export async function assertPeriodAllowsMutation(
     period = found;
   }
 
+  if (!period) return; // Safety check — should never happen
   const status = period.status as BillingPeriodStatus;
 
   if (status === BILLING_PERIOD_STATUS.ARCHIVED) {

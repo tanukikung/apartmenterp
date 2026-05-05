@@ -158,17 +158,17 @@ export async function createAuditLog(
  * Returns { valid: false, brokenAt, total, error } on the first detected break.
  */
 export async function verifyAuditChain(
-  fromSeq?: bigint,
-  toSeq?: bigint,
+  _fromSeq?: bigint,
+  _toSeq?: bigint,
 ): Promise<VerifyChainResult> {
   const BATCH = 500;
   let prevHash = GENESIS_PREV_HASH;
-  let expectedSeq = (fromSeq ?? BigInt(1));
+  let expectedSeq = ( _fromSeq ?? BigInt(1));
   let globalCount = 0;
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    const queryStr = fromSeq !== undefined
+    const _queryStr =  _fromSeq !== undefined
       ? `SELECT "sequenceNum", "actorId", "actorRole", "action", "entityType", "entityId",
                   "details", "createdAt", "prevHash", "eventHash"
              FROM "audit_logs"
@@ -294,8 +294,8 @@ export interface AuditIntegrityResult {
  * @param toSeq    Optional upper bound sequence number (inclusive)
  */
 export async function verifyAuditChainIntegrity(
-  fromSeq?: bigint,
-  toSeq?: bigint,
+  _fromSeq?: bigint,
+  _toSeq?: bigint,
 ): Promise<AuditIntegrityResult> {
   const start = Date.now();
   const brokenEvents: Array<{ sequenceNum: string; reason: string }> = [];
@@ -303,12 +303,12 @@ export async function verifyAuditChainIntegrity(
   const BATCH = 10_000;
 
   let prevHash: string | null = null;
-  let expectedSeq = fromSeq ?? BigInt(1);
+  let expectedSeq = _fromSeq ?? BigInt(1);
   let globalCount = 0;
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    const queryStr = fromSeq !== undefined
+    const _queryStr =  _fromSeq !== undefined
       ? `SELECT "sequenceNum", "actorId", "actorRole", "action", "entityType", "entityId",
                   "details", "createdAt", "prevHash", "eventHash"
              FROM "audit_logs"
