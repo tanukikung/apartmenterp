@@ -25,7 +25,7 @@ export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
     const limiter = getLoginRateLimiter();
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-    const { allowed, remaining: _remaining, resetAt } = await limiter.check(`billing-close:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
+    const { allowed, resetAt } = await limiter.check(`billing-close:${ip}`, ADMIN_MAX_ATTEMPTS, ADMIN_WINDOW_MS);
     if (!allowed) {
       return NextResponse.json(
         {
