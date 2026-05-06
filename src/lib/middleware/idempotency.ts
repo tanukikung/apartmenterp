@@ -44,6 +44,7 @@ export class IdempotencyGuard {
   async check(): Promise<NextResponse | null> {
     if (!this.key) return null;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existing = await (prisma as any).idempotencyKey.findUnique({
       where: { key_path: { key: this.key, path: this.requestPath } },
     });
@@ -74,6 +75,7 @@ export class IdempotencyGuard {
     if (!this.key) return;
     const expiresAt = new Date(Date.now() + TTL_HOURS * 3_600_000);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (prisma as any).$executeRaw`
         INSERT INTO idempotency_keys (id, key, path, "responseBody", "responseStatus", "expiresAt", "createdAt")
         VALUES (
@@ -118,6 +120,7 @@ export class IdempotencyGuard {
     if (!this.key) return;
     const expiresAt = new Date(Date.now() + TTL_HOURS * 3_600_000);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (tx as any).$executeRaw`
         INSERT INTO idempotency_keys (id, key, path, "responseBody", "responseStatus", "expiresAt", "createdAt")
         VALUES (

@@ -58,14 +58,6 @@ type ApiResp<T = unknown> = {
   error?: { message?: string };
 };
 
-type ListResp = {
-  items: MessageSequence[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-};
-
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const TRIGGER_LABELS: Record<string, string> = {
@@ -692,12 +684,13 @@ export default function MessageSequencesPage() {
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
   // Fetch all sequences
-  const { data: listData, isLoading, error: fetchError, refetch } = useApiData<ApiResp<ListResp>>(
+  // API returns {success, data: MessageSequence[]} (direct array, not {items:[]})
+  const { data: listData, isLoading, error: fetchError, refetch } = useApiData<ApiResp<MessageSequence[]>>(
     '/api/messaging-sequences?pageSize=100',
     ['messaging-sequences']
   );
 
-  const sequences: MessageSequence[] = listData?.data?.items ?? [];
+  const sequences: MessageSequence[] = listData?.data ?? [];
 
   // Fetch selected sequence with steps
   const { data: detailData, refetch: refetchDetail } = useApiData<ApiResp<MessageSequence>>(
@@ -709,7 +702,7 @@ export default function MessageSequencesPage() {
 
   // Set first sequence as selected on load
   useEffect(() => {
-    const seqList: MessageSequence[] = listData?.data?.items ?? [];
+    const seqList: MessageSequence[] = listData?.data ?? [];
     if (seqList.length > 0 && !selectedSeqId) {
       setSelectedSeqId(seqList[0].id);
     }

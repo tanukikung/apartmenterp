@@ -91,6 +91,7 @@ export async function assertPeriodAllowsMutation(
   // In mock/test contexts (no real DB), $queryRawUnsafe may not be available or
   // returns an empty result — fall back to plain findUnique without locking.
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows = await (tx as any).$queryRawUnsafe(
       `SELECT id, year, month, status FROM "billing_periods" WHERE id = $1 FOR UPDATE NOWAIT`,
       [periodId],
@@ -102,6 +103,7 @@ export async function assertPeriodAllowsMutation(
     // fall back to standard findUnique without row lock.
     // In production transactions this path is never hit; the FOR UPDATE NOWAIT
     // query always succeeds. Mock/test environments use this fallback.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const found = await (tx as any).billingPeriod?.findUnique?.({
       where: { id: periodId },
       select: { id: true, year: true, month: true, status: true },

@@ -12,7 +12,8 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { ImportBatchStatus, MeterMode, Prisma } from '@prisma/client';
+import type { ImportBatchStatus, MeterMode } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { BadRequestError, NotFoundError } from '@/lib/utils/errors';
 import { prisma } from '@/lib/db/client';
 import { logger } from '@/lib';
@@ -26,10 +27,6 @@ import {
   computeNormalizedHash,
   createImportSession,
 } from './import-session.service';
-
-// sql and join are runtime utilities in Prisma 5.x not in all TS declarations.
-const sql = (prisma as unknown as Record<string, unknown>).sql as (s: TemplateStringsArray, ...v: unknown[]) => unknown;
-const join = (prisma as unknown as Record<string, unknown>).join as (a: unknown[]) => unknown;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -459,32 +456,32 @@ export async function executeBillingImportBatch(
               "electricUnits", "electricUsageCharge", "electricServiceFeeManual", "electricServiceFee", "electricTotal",
               "furnitureFee", "otherFee", "totalDue",
               "note", "checkNotes"
-            ) VALUES ${join(checkedRows.map(row => {
+            ) VALUES ${Prisma.join(checkedRows.map(row => {
               const ruleCode = (row['ruleCode'] as string) ?? 'DEFAULT';
-              return sql`
+              return Prisma.sql`
                 (
-                  ${uuidv4()}, ${billingPeriodId}, ${row['roomNo'] as string}, ${'DRAFT'},
-                  ${(row['recvAccountOverrideId'] as string) ?? sql`NULL`},
-                  ${(row['recvAccountId'] as string) ?? sql`NULL`},
-                  ${(row['ruleOverrideCode'] as string) ?? sql`NULL`},
+                  ${uuidv4()}, ${billingPeriodId}, ${row['roomNo'] as string}, 'DRAFT'::"RoomBillingStatus",
+                  ${(row['recvAccountOverrideId'] as string) ?? Prisma.sql`NULL`},
+                  ${(row['recvAccountId'] as string) ?? Prisma.sql`NULL`},
+                  ${(row['ruleOverrideCode'] as string) ?? Prisma.sql`NULL`},
                   ${ruleCode},
                   ${Number(row['rentAmount']) || 0}::decimal,
-                  ${((row['waterMode'] as MeterMode | null) ?? 'NORMAL')}, ${row['waterPrev'] as number ?? sql`NULL`},
-                  ${row['waterCurr'] as number ?? sql`NULL`},
-                  ${row['waterUnitsManual'] as number ?? sql`NULL`},
+                  ${((row['waterMode'] as MeterMode | null) ?? 'NORMAL')}::"MeterMode", ${row['waterPrev'] as number ?? Prisma.sql`NULL`},
+                  ${row['waterCurr'] as number ?? Prisma.sql`NULL`},
+                  ${row['waterUnitsManual'] as number ?? Prisma.sql`NULL`},
                   ${Number(row['waterUnits']) || 0}::decimal, ${Number(row['waterUsageCharge']) || 0}::decimal,
-                  ${row['waterServiceFeeManual'] as number ?? sql`NULL`},
+                  ${row['waterServiceFeeManual'] as number ?? Prisma.sql`NULL`},
                   ${Number(row['waterServiceFee']) || 0}::decimal, ${Number(row['waterTotal']) || 0}::decimal,
-                  ${((row['electricMode'] as MeterMode | null) ?? 'NORMAL')}, ${row['electricPrev'] as number ?? sql`NULL`},
-                  ${row['electricCurr'] as number ?? sql`NULL`},
-                  ${row['electricUnitsManual'] as number ?? sql`NULL`},
+                  ${((row['electricMode'] as MeterMode | null) ?? 'NORMAL')}::"MeterMode", ${row['electricPrev'] as number ?? Prisma.sql`NULL`},
+                  ${row['electricCurr'] as number ?? Prisma.sql`NULL`},
+                  ${row['electricUnitsManual'] as number ?? Prisma.sql`NULL`},
                   ${Number(row['electricUnits']) || 0}::decimal, ${Number(row['electricUsageCharge']) || 0}::decimal,
-                  ${row['electricServiceFeeManual'] as number ?? sql`NULL`},
+                  ${row['electricServiceFeeManual'] as number ?? Prisma.sql`NULL`},
                   ${Number(row['electricServiceFee']) || 0}::decimal, ${Number(row['electricTotal']) || 0}::decimal,
                   ${Number(row['furnitureFee']) || 0}::decimal, ${Number(row['otherFee']) || 0}::decimal,
                   ${Number(row['totalDue']) || 0}::decimal,
-                  ${(row['note'] as string) ?? sql`NULL`},
-                  ${(row['checkNotes'] as string) ?? sql`NULL`}
+                  ${(row['note'] as string) ?? Prisma.sql`NULL`},
+                  ${(row['checkNotes'] as string) ?? Prisma.sql`NULL`}
                 )
               `
             }))}

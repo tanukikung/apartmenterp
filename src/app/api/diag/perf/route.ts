@@ -24,12 +24,15 @@ const rawHandler = async function(req: NextRequest) {
   // Step 3: loadDistributedState (inside checkCircuitBeforeConnect)
   const t3 = Date.now();
   let distDur = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let distResult: any = null;
   if (rawClient) {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       distResult = await (rawClient as any).get('apt:cb:redis');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      distResult = 'err:' + e.message;
+      distResult = 'err:' + (e as { message?: string }).message;
     }
     distDur = Date.now() - t3;
   }
@@ -42,8 +45,9 @@ const rawHandler = async function(req: NextRequest) {
     try {
       await rawClient.connect();
       connectDur = Date.now() - t4;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      connectErr = e.message;
+      connectErr = (e as { message?: string }).message || 'unknown';
       connectDur = Date.now() - t4;
     }
   }

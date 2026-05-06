@@ -18,6 +18,8 @@ import { prisma } from '@/lib/db/client';
 import { logger } from '@/lib/utils/logger';
 import type { JobType } from './types';
 
+type JobRow = { id: string; type: string; payload: unknown; retryCount: number };
+
 export const JOB_POLL_INTERVAL_MS =
   Number(process.env.JOB_POLL_INTERVAL_MS ?? 2_000);
 
@@ -55,6 +57,7 @@ export async function enqueueJob(
     `;
 
     // Return existing job id if insert was suppressed
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existing = await (prisma as any).backgroundJob.findFirst({
       where: { idempotencyKey: key },
       select: { id: true },
@@ -65,6 +68,7 @@ export async function enqueueJob(
   }
 
   const id = uuidv4();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (prisma as any).backgroundJob.create({
     data: {
       id,
@@ -93,6 +97,7 @@ export async function getJobStatus(jobId: string): Promise<{
   startedAt: Date | null;
   finishedAt: Date | null;
 } | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (prisma as any).backgroundJob.findUnique({
     where: { id: jobId },
     select: {
@@ -116,10 +121,10 @@ export async function getJobStatus(jobId: string): Promise<{
  */
 export async function claimAndMarkRunning(
   batchSize = 5,
-): Promise<Array<{ id: string; type: string; payload: unknown; retryCount: number }>> {
-  type JobRow = { id: string; type: string; payload: unknown; retryCount: number };
+): Promise<JobRow[]> {
   let claimed: JobRow[] = [];
   await prisma.$transaction(async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     claimed = await (tx as any).$queryRaw<JobRow[]>`
       UPDATE background_jobs
       SET status = 'RUNNING', "startedAt" = NOW(), "updatedAt" = NOW()
@@ -169,6 +174,7 @@ export async function reclaimStuckJobs(
  * Mark a job as DONE with its result payload.
  */
 export async function markJobDone(jobId: string, result: Record<string, unknown>): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (prisma as any).backgroundJob.update({
     where: { id: jobId },
     data: { status: 'DONE', result, finishedAt: new Date() },
@@ -185,6 +191,7 @@ export async function markJobFailed(jobId: string, error: string, retryCount: nu
   const baseBackoffMs = Math.pow(2, nextRetry) * 5_000; // 10s, 20s, 40s …
   const jitterMs = Math.floor(Math.random() * baseBackoffMs * 0.25); // ±25% jitter
   const backoffMs = Math.min(baseBackoffMs + jitterMs, 300_000); // cap 5min
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (prisma as any).backgroundJob.update({
     where: { id: jobId },
     data: {

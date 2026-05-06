@@ -19,7 +19,7 @@ type AuditRow = {
   createdAt: string;
 };
 
-async function fetchAuditLogs(action: string, q: string): Promise<{ rows: AuditRow[] }> {
+async function fetchAuditLogs(action: string, q: string): Promise<{ rows: AuditRow[]; total: number }> {
   const query = new URLSearchParams({
     limit: '100',
     ...(action ? { action } : {}),
@@ -29,7 +29,8 @@ async function fetchAuditLogs(action: string, q: string): Promise<{ rows: AuditR
   if (!res.ok) throw new Error('Failed to fetch audit logs');
   const json = await res.json();
   if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
-  return json.data;
+  // API returns { success: true, data: { rows: [], total: number, limit: number } }
+  return json.data as { rows: AuditRow[]; total: number };
 }
 
 export default function AdminAuditLogsPage() {
@@ -41,7 +42,7 @@ export default function AdminAuditLogsPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data, isLoading, error } = useQuery<{ rows: AuditRow[] }>({
+  const { data, isLoading, error } = useQuery<{ rows: AuditRow[]; total: number }>({
     queryKey: ['audit-logs', action, searchDebounced],
     queryFn: () => fetchAuditLogs(action, searchDebounced),
   });

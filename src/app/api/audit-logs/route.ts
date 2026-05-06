@@ -38,10 +38,17 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     prisma.auditLog.count({ where }),
   ]);
 
+  // BigInt (sequenceNum) cannot be serialized by JSON — convert to number
+  const serializableRows = rows.map((r) => ({
+    ...r,
+    sequenceNum: Number(r.sequenceNum),
+    entityVersion: r.entityVersion,
+  }));
+
   return NextResponse.json({
     success: true,
     data: {
-      rows,
+      rows: serializableRows,
       total,
       limit,
     },

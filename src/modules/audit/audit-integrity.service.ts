@@ -435,7 +435,7 @@ export async function probeAuditChainIntegrity(): Promise<{
     Array<{ event_hash: string | null }>
   >(
     `SELECT event_hash FROM audit_logs WHERE sequence_num = $1 LIMIT 1`,
-    [last.sequence_num - BigInt(1)],
+    BigInt(last.sequence_num - BigInt(1)),
   );
 
   const expectedPrev = previous?.event_hash ?? GENESIS_PREV_HASH;

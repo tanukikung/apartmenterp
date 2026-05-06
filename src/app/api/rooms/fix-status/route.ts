@@ -33,12 +33,13 @@ export const POST = asyncHandler(
     await await requireRole(req, ['ADMIN', 'OWNER']);
 
     // Single query: find OCCUPIED rooms with no active tenants
+    // Note: raw SQL references actual DB table name "room_tenants" (underscore notation)
     const orphanedRooms = await prisma.$queryRaw<{ roomNo: string }[]>`
       SELECT r."roomNo"
       FROM rooms r
       WHERE r."roomStatus" = 'OCCUPIED'
         AND NOT EXISTS (
-          SELECT 1 FROM "roomTenants" rt
+          SELECT 1 FROM room_tenants rt
           WHERE rt."roomNo" = r."roomNo" AND rt."moveOutDate" IS NULL
         )
     `;
@@ -86,12 +87,13 @@ export const GET = asyncHandler(
     await await requireRole(req, ['ADMIN', 'OWNER']);
 
     // Single query: find OCCUPIED rooms with no active tenants (dry run)
+    // Note: raw SQL references actual DB table name "room_tenants" (underscore notation)
     const orphanedRooms = await prisma.$queryRaw<{ roomNo: string }[]>`
       SELECT r."roomNo"
       FROM rooms r
       WHERE r."roomStatus" = 'OCCUPIED'
         AND NOT EXISTS (
-          SELECT 1 FROM "roomTenants" rt
+          SELECT 1 FROM room_tenants rt
           WHERE rt."roomNo" = r."roomNo" AND rt."moveOutDate" IS NULL
         )
     `;

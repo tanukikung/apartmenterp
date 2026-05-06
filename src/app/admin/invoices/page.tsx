@@ -211,6 +211,7 @@ export default function AdminInvoicesPage() {
         const totals: Partial<Record<InvoiceStatus, number>> = {};
         STATUSES.forEach((s, idx) => {
           const r = statusRes[idx];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if (r?.success) totals[s] = (r as any)?.data?.total ?? (r as any)?.total ?? 0;
         });
         setStatusTotals(totals);

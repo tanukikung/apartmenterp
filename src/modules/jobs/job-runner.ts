@@ -135,10 +135,12 @@ export async function runDbCleanup(): Promise<JobResult> {
       where: { expiresAt: { lt: new Date() } },
     }),
     // Purge expired idempotency keys (TTL-based)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (prisma as any).idempotencyKey.deleteMany({
       where: { expiresAt: { lt: new Date() } },
     }),
     // Purge dead background jobs older than 7 days
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (prisma as any).backgroundJob.deleteMany({
       where: {
         status: 'DEAD',

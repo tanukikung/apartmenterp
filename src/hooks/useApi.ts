@@ -16,6 +16,7 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...options,
     cache: 'no-store',
+    credentials: 'include',
   });
 
   // Check HTTP status before parsing JSON
@@ -42,7 +43,7 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
     );
     throw err;
   }
-  return json.data as T;
+  return json as T;
 }
 
 export function useApiData<T>(
