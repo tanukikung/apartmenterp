@@ -33,7 +33,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
 
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const form = await req.formData();
   const file = form.get('file');

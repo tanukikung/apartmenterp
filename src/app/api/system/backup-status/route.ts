@@ -35,7 +35,7 @@ async function getLatestBackup(dir: string): Promise<{ file: string; mtime: Date
 }
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
 
   const dir = backupDir();
   const retentionDays = parseInt(process.env.BACKUP_RETENTION_DAYS || '7', 10);

@@ -112,7 +112,7 @@ function describeCron(expr: string): string {
 // GET
 // ────────────────────────────────────────────────────────────────────────────
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const configs = await prisma.config.findMany({
     where: { key: { in: [...AUTOMATION_KEYS] } },
@@ -165,7 +165,7 @@ export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
   const body = updateAutomationSchema.parse(await req.json());
 
   await prisma.$transaction([

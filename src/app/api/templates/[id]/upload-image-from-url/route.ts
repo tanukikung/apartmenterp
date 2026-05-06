@@ -20,7 +20,7 @@ export const POST = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const { url } = await req.json();
 
   if (!url || typeof url !== 'string') {

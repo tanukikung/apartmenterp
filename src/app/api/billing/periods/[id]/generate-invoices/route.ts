@@ -145,7 +145,7 @@ export const POST = asyncHandler(
     }
 
     const { id: periodId } = params;
-    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await requireRole(req, ['ADMIN', 'OWNER']);
 
     // FM-21: Human confirmation guard.
     // Without ?confirm=true the endpoint returns a dry-run preview so the UI

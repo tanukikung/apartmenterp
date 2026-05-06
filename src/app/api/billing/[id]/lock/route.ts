@@ -36,7 +36,7 @@ export const POST = asyncHandler(
         { status: 400 }
       );
     }
-    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await requireRole(req, ['ADMIN', 'OWNER']);
 
     const input = lockBillingSchema.parse(body);
 

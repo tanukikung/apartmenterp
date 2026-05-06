@@ -29,7 +29,7 @@ export const PATCH = asyncHandler(async (req: NextRequest, context?: { params: {
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = await await requireRole(req, ['OWNER', 'ADMIN']);
+  const session = await requireRole(req, ['OWNER', 'ADMIN']);
   const userId = context?.params.id;
   if (!userId) {
     throw new NotFoundError('AdminUser');

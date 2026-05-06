@@ -16,7 +16,7 @@ export const POST = asyncHandler(
       const blocked = await requireMutationsAllowed();
       if (blocked) return blocked;
 
-      const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+      const session = await requireRole(req, ['ADMIN', 'OWNER']);
       const _ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
       const requestId = req.headers.get('x-request-id') ?? undefined;
 

@@ -86,8 +86,8 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 400 }
     );
   }
-  const actor = await await getVerifiedActor(req);
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  const actor = await getVerifiedActor(req);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const input = createPaymentSchema.parse(body) as CreatePaymentInput;
 

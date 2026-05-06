@@ -47,7 +47,7 @@ function normalizeReceiptDownloadLink(receiptId: string, requestedLink?: string)
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const { id } = params;
     let body: Record<string, unknown>;
     try {

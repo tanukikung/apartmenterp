@@ -36,7 +36,7 @@ export const PATCH = asyncHandler(async (req: NextRequest, { params }: RoutePara
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const body = await req.json();
 
   const input = updateMoveOutItemSchema.parse(body);
@@ -71,7 +71,7 @@ export const DELETE = asyncHandler(async (req: NextRequest, { params }: RoutePar
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* empty body */ }

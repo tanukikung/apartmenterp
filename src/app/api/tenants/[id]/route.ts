@@ -18,7 +18,7 @@ const DELETE_MAX_ATTEMPTS = 5;
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const { id } = params;
 
     const { tenantService } = getServiceContainer();
@@ -37,7 +37,7 @@ export const GET = asyncHandler(
 
 export const PATCH = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await requireRole(req, ['ADMIN', 'OWNER']);
 
     const limiter = getLoginRateLimiter();
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
@@ -86,7 +86,7 @@ export const DELETE = asyncHandler(
       );
     }
     const { id } = params;
-    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await requireRole(req, ['ADMIN', 'OWNER']);
 
     const { tenantService } = getServiceContainer();
     await tenantService.deleteTenant(id, session.sub);

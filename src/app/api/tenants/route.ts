@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireOperator(req);
+  await requireOperator(req);
   const url = new URL(req.url);
   
   const query = {
@@ -61,7 +61,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await requireRole(req, ['ADMIN', 'OWNER']);
   requireBuildingAccess(session, null);
   const body = await req.json();
 

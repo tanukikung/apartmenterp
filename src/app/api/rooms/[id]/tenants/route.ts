@@ -27,7 +27,7 @@ export const POST = asyncHandler(
         );
       }
     }
-    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const { id: roomId } = params;
     const body = await req.json();
 
@@ -57,7 +57,7 @@ export const POST = asyncHandler(
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const { id: roomId } = params;
 
     const { tenantService } = getServiceContainer();

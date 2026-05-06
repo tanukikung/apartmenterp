@@ -21,7 +21,7 @@ export const POST = asyncHandler(async (
     );
   }
   // Auth required; actorId not recorded for pure validation checks.
-  const _session = await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  const _session = await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const service = getDocumentTemplateService();
 
   // Verify the version belongs to this template

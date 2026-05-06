@@ -34,7 +34,7 @@ const DEAD_LETTER_THRESHOLD = Number(process.env.OUTBOX_DEAD_LETTER_THRESHOLD ??
 // ── GET ── list dead-lettered events ─────────────────────────────────────────
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
   const { page, pageSize, skip } = parsePagination(req, { defaultSize: 25, max: 100 });
   const { searchParams } = new URL(req.url);
   const eventType = searchParams.get('eventType') || undefined;
@@ -81,7 +81,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await requireRole(req, ['ADMIN', 'OWNER']);
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -148,7 +148,7 @@ export const DELETE = asyncHandler(async (req: NextRequest): Promise<NextRespons
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await requireRole(req, ['ADMIN', 'OWNER']);
   let body: Record<string, unknown>;
   try {
     body = await req.json();

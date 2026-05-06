@@ -22,7 +22,7 @@ interface RouteParams {
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest, { params }: RouteParams): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const moveOutService = createMoveOutService();
   const moveOut = await moveOutService.getMoveOutById(params.id);
 
@@ -46,7 +46,7 @@ export const PATCH = asyncHandler(async (req: NextRequest, { params }: RoutePara
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const body = await req.json();
 
   const input = updateMoveOutSchema.parse(body);
@@ -80,7 +80,7 @@ export const DELETE = asyncHandler(async (req: NextRequest, { params }: RoutePar
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
 
   const moveOutService = createMoveOutService();
   await moveOutService.deleteMoveOut(params.id);

@@ -18,7 +18,7 @@ const confirmMatchSchema = z.object({
 });
 
 export const POST = asyncHandler(async (request: NextRequest): Promise<NextResponse> => {
-  const session = await await requireRole(request, ['ADMIN', 'OWNER']);
+  const session = await requireRole(request, ['ADMIN', 'OWNER']);
   return withIdempotency(request, 'payment_match_confirm', async () => {
   const blocked = await requireMutationsAllowed();
   if (blocked) return blocked;

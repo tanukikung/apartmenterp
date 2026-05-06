@@ -11,7 +11,7 @@ const resolveSchema = z.object({
 
 export const POST = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    await await requireRole(req, ['ADMIN', 'OWNER']);
+    await requireRole(req, ['ADMIN', 'OWNER']);
 
     let body: Record<string, unknown>;
     try {
@@ -31,7 +31,7 @@ export const POST = asyncHandler(
       );
     }
 
-    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await requireRole(req, ['ADMIN', 'OWNER']);
     const service = new ReconciliationService();
     await service.resolveIssue(params.id, session.sub, validation.data.resolution, validation.data.notes);
 

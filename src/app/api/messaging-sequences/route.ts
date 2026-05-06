@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['OWNER', 'ADMIN']);
+  await requireRole(req, ['OWNER', 'ADMIN']);
   const sequences = await messagingSequenceService.listSequences();
   return NextResponse.json({ success: true, data: sequences } as ApiResponse<typeof sequences>);
 });
@@ -20,7 +20,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 // ============================================================================
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['OWNER', 'ADMIN']);
+  await requireRole(req, ['OWNER', 'ADMIN']);
   const body = await req.json();
   const sequence = await messagingSequenceService.createSequence(body);
   return NextResponse.json({ success: true, data: sequence }, { status: 201 });

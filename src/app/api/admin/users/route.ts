@@ -22,7 +22,7 @@ const createUserSchema = z.object({
 });
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const [users, resetTokens, pendingRequests] = await Promise.all([
     prisma.adminUser.findMany({
@@ -127,7 +127,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
   // Only OWNER may create users — prevents ADMIN from escalating to OWNER
-  await await requireRole(req, ['OWNER']);
+  await requireRole(req, ['OWNER']);
   const body = createUserSchema.parse(await req.json());
   const username = body.username.trim().toLowerCase();
   const email = body.email?.trim().toLowerCase() || null;

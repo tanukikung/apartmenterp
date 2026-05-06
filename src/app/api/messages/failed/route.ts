@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/client';
 import { requireRole } from '@/lib/auth/guards';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
 
   const failedMessages = await prisma.failedMessage.findMany({
     orderBy: { createdAt: 'desc' },

@@ -24,7 +24,7 @@ type MaintenanceSearchClause =
 // tenant-detail "Open Tickets" KPI is correctly scoped per-tenant.
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const { searchParams } = req.nextUrl;
   const tenantId = searchParams.get('tenantId') ?? undefined;

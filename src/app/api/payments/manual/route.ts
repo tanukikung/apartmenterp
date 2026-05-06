@@ -47,7 +47,7 @@ async function getInvoiceRemainingAmount(invoiceId: string): Promise<number> {
 }
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await requireRole(req, ['ADMIN', 'OWNER']);
   return withIdempotency(req, 'payment_manual', async () => {
   const blocked = await requireMutationsAllowed();
   if (blocked) return blocked;
@@ -60,7 +60,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
 
-  const actor = await await getVerifiedActor(req);
+  const actor = await getVerifiedActor(req);
 
   let body: Record<string, unknown>;
   try {

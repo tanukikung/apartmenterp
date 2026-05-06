@@ -31,7 +31,7 @@ export const POST = asyncHandler(
     }
 
     const { id: periodId } = params;
-    await await requireRole(req, ['ADMIN', 'OWNER']);
+    await requireRole(req, ['ADMIN', 'OWNER']);
 
     // Verify period exists
     const period = await prisma.billingPeriod.findUnique({ where: { id: periodId } });

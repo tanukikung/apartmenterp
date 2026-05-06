@@ -63,7 +63,7 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     );
   }
 
-  const session = await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  const session = await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const body = await req.json();
 
   const input = createBillingRecordSchema.parse(body);

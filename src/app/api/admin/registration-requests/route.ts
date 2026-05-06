@@ -6,7 +6,7 @@ import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 export const dynamic = 'force-dynamic';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status') ?? 'PENDING';

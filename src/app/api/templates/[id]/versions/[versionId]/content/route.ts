@@ -11,7 +11,7 @@ export const GET = asyncHandler(async (
   req: NextRequest,
   { params }: { params: { id: string; versionId: string } },
 ): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const service = getDocumentTemplateService();
   const version = await service.getVersionContent(params.id, params.versionId);
   return NextResponse.json({ success: true, data: version } as ApiResponse<typeof version>);
@@ -30,7 +30,7 @@ export const PATCH = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const body = await req.json();
   const service = getDocumentTemplateService();
   const updated = await service.updateVersionContent(params.id, params.versionId, body.body ?? '', body.subject ?? null);

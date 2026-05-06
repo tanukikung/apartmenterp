@@ -36,7 +36,7 @@ function readString(configs: { key: string; value: unknown }[], key: string): st
 }
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const configs = await prisma.config.findMany({
     where: { key: { in: [...BUILDING_KEYS] } },
@@ -73,7 +73,7 @@ export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+  const session = await requireRole(req, ['ADMIN', 'OWNER']);
   const body = updateBuildingSchema.parse(await req.json());
 
   const keyValuePairs: Array<{ key: BuildingKey; value: string; description: string }> = [

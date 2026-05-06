@@ -72,7 +72,7 @@ export interface MessagingHealthData {
 }
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER', 'STAFF']);
+  await requireRole(req, ['ADMIN', 'OWNER', 'STAFF']);
 
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1_000);
 
