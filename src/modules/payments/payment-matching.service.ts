@@ -693,17 +693,13 @@ export class PaymentMatchingService {
       // "invoice" from consuming the wrong prefix when both exist in text.
       /(?:^|\s)INVOICE[-\s]?(\d[\d-]*)(?=\s|$)/i,
       /(?:^|\s)INV[-\s]?([A-Z0-9][A-Z0-9-]*)(?=\s|$)/i,
-      /(?:^|[\s/])PAYTEST[-\s]?(\d{3})(?=\s|$)/i,
       /(?<![a-zA-Z\d])(\d{4}[-\s]?\d{3,})(?![-\s]?\d)/i,
     ];
 
     for (const pattern of patterns) {
       const match = text.match(pattern);
       if (match) {
-        let result = match[1].replace(/\s/g, '').toUpperCase();
-        // PAYTEST-101 → 101, INV-PAYTEST-101 → 101, 2024-001 stays 2024-001
-        const normalized = result.replace(/^([A-Z]+[-\s]?)(\d+)$/i, '$2');
-        return normalized === result ? result : normalized;
+        return match[1].replace(/\s/g, '').toUpperCase();
       }
     }
 
