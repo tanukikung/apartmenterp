@@ -188,9 +188,15 @@ export default function AdminRoomsPage() {
     const rooms = floorFilter === null ? roomsData.data : roomsData.data.filter(r => r.floorNo === floorFilter);
     return [...rooms].sort((a, b) => {
       if (a.floorNo !== b.floorNo) return a.floorNo - b.floorNo;
-      const numA = parseInt(a.roomNo.replace(/.*\//, ''), 10);
-      const numB = parseInt(b.roomNo.replace(/.*\//, ''), 10);
-      return numA - numB;
+      const parseParts = (s: string) => {
+        const slashIdx = s.indexOf('/');
+        if (slashIdx === -1) return { prefix: parseInt(s, 10), suffix: 0 };
+        return { prefix: parseInt(s.substring(0, slashIdx), 10), suffix: parseInt(s.substring(slashIdx + 1), 10) };
+      };
+      const aP = parseParts(a.roomNo);
+      const bP = parseParts(b.roomNo);
+      if (aP.prefix !== bP.prefix) return aP.prefix - bP.prefix;
+      return aP.suffix - bP.suffix;
     });
   }, [roomsData, floorFilter]);
 

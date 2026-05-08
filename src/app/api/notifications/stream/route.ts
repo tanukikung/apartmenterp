@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest): Promise<Response> {
   try {
-    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   } catch {
     return new Response('Unauthorized', { status: 401 });
   }

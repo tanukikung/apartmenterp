@@ -6,7 +6,7 @@ import { sendLineMessage, isLineConfigured } from '@/lib/line/client';
 import { logger } from '@/lib/utils/logger';
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
 
   const id = req.nextUrl.pathname.split('/').at(-2);
   if (!id) {

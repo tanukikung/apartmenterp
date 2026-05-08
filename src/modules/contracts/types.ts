@@ -121,6 +121,7 @@ export interface ContractResponse {
   updatedAt: Date;
   room?: {
     roomNo: string;
+    roomNumber: string;
   };
   primaryTenant?: {
     id: string;

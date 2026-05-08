@@ -44,6 +44,7 @@
     "@prisma/client": "^5.22.0",
     "@sentry/nextjs": "^10.48.0",
     "@socket.io/redis-adapter": "^8.3.0",
+    "@swc/helpers": "^0.5.21",
     "@tanstack/react-query": "^5.91.2",
     "@tiptap/extension-color": "^3.20.2",
     "@tiptap/extension-font-family": "^3.20.2",

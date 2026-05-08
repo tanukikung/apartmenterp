@@ -55,7 +55,7 @@ export interface DLQItem {
 // ── GET /api/admin/messaging/dlq ─────────────────────────────────────────────
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
 
   const url       = new URL(req.url);
   const type      = (url.searchParams.get('type') ?? 'both') as 'inbox' | 'outbox' | 'both';
@@ -149,7 +149,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 // ── POST /api/admin/messaging/dlq/bulk-retry ──────────────────────────────────
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
 
   const body = await req.json() as {
     ids:                  string[];

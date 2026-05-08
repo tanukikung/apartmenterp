@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 // ============================================================================
 
 export const GET = asyncHandler(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const { id } = await params;
   const expenseService = createExpenseService();
   const expense = await expenseService.getExpenseById(id);
@@ -42,7 +42,7 @@ export const PATCH = asyncHandler(async (req: NextRequest, { params }: { params:
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
   const { id } = await params;
   const body = await req.json();
 
@@ -71,7 +71,7 @@ export const DELETE = asyncHandler(async (req: NextRequest, { params }: { params
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
   const { id } = await params;
   const expenseService = createExpenseService();
   await expenseService.deleteExpense(id);

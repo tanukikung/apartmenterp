@@ -20,7 +20,7 @@ export const POST = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  const session = await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const form = await req.formData();
   const file = form.get('file');
   if (!(file instanceof File)) {

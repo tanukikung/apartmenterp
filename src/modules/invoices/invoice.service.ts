@@ -448,7 +448,7 @@ export class InvoiceService {
    * List invoices
    */
   async listInvoices(query: ListInvoicesQuery): Promise<InvoicesListResponse> {
-    const { q, roomNo, year, month, status, page, pageSize, sortBy, sortOrder } = query;
+    const { q, roomNo, tenantId, year, month, status, page, pageSize, sortBy, sortOrder } = query;
 
     const where: Record<string, unknown> = {};
 
@@ -456,6 +456,9 @@ export class InvoiceService {
     if (year) where.year = year;
     if (month) where.month = month;
     if (status) where.status = status;
+    if (tenantId) {
+      where.room = { tenants: { some: { tenantId, moveOutDate: null } } };
+    }
 
     // Free-text search: matches on roomNo OR id (prefix), OR tenant firstName/lastName
     // via the nested room → roomTenants → tenant relation. Case-insensitive.

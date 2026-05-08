@@ -10,7 +10,7 @@ const autoMatchedSchema = z.object({
 });
 
 export const GET = asyncHandler(async (request: NextRequest): Promise<NextResponse> => {
-  await await requireRole(request, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(request, ['ADMIN', 'STAFF', 'OWNER']);
   const searchParams = request.nextUrl.searchParams;
   
   const limit = parseInt(searchParams.get('limit') || '50');

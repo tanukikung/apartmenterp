@@ -26,7 +26,7 @@ const deleteRoomSchema = z.object({
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const { id } = params;
 
     const { roomService } = getServiceContainer();
@@ -85,7 +85,7 @@ export const PATCH = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await requireRole(req, ['ADMIN', 'OWNER']);
     const { id } = params;
     const body = await req.json();
 
@@ -132,7 +132,7 @@ export const DELETE = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+    const session = await requireRole(req, ['ADMIN', 'OWNER']);
     const { id } = params;
 
     // Parse and require reason for audit trail

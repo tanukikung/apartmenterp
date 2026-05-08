@@ -724,7 +724,10 @@ export async function getBillingImportBatchDetail(batchId: string): Promise<Bill
     }
   }
 
-  return {
+  const errorLogObj = (batch.errorLog ?? {}) as Record<string, unknown>;
+  const rowsData = errorLogObj['rows'];
+
+    return {
     id: batch.id,
     importSessionId: batch.importSessionId,
     filename: batch.filename,
@@ -747,7 +750,7 @@ export async function getBillingImportBatchDetail(batchId: string): Promise<Bill
     totalRows: batch.rowsTotal,
     validRows: batch.rowsTotal - batch.rowsErrored,
     invalidRows: batch.rowsErrored,
-    warningRows: 0,
+    warningRows: Array.isArray(rowsData) ? (rowsData as Array<{ checkNotes?: string | null }>).filter(r => r.checkNotes).length : 0,
   };
 }
 

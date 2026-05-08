@@ -681,6 +681,7 @@ export class ContractService {
       room: contract.room
         ? {
             roomNo: contract.room.roomNo,
+            roomNumber: contract.room.roomNo,
           }
         : undefined,
       primaryTenant: contract.primaryTenant

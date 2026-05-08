@@ -4,7 +4,7 @@ import { requireRole } from '@/lib/auth/guards';
 import { ReconciliationService } from '@/modules/reconciliation';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
 
   const { searchParams } = new URL(req.url);
   const severity = searchParams.get('severity') as 'CRITICAL' | 'WARNING' | 'INFO' | null;
@@ -25,7 +25,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
 // POST /api/reconciliation/run — manual trigger
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
 
   const service = new ReconciliationService();
   const result = await service.runDailyReconciliation();

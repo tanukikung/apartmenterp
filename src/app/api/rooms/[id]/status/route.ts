@@ -24,7 +24,7 @@ export const PATCH = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    await await requireRole(req, ['ADMIN', 'OWNER']);
+    await requireRole(req, ['ADMIN', 'OWNER']);
     const { id } = params;
     const body = await req.json();
 

@@ -19,7 +19,7 @@ function last12Months(ref: Date): Array<{ year: number; month: number }> {
 }
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireOperator(req);
+  await requireOperator(req);
   const now = Date.now();
   if (cache && cache.expiry > now) {
     return NextResponse.json({ success: true, data: cache.value } as ApiResponse<RevenuePoint[]>);

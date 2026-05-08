@@ -8,7 +8,7 @@ import { parsePagination } from '@/lib/utils/pagination';
 export const dynamic = 'force-dynamic';
 
 const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const url = new URL(req.url);
   const { page, pageSize } = parsePagination(req);
   const lineUserId = url.searchParams.get('lineUserId');
@@ -61,7 +61,7 @@ const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResp
     invoiceMap = latestInvoices;
   }
 
-  // Enhance items with invoice status information
+  // Enhance items with invoice status information and roomNumber alias
   const enhancedItems = items.map(conv => {
     let overdue = false;
     let waitingPayment = false;
@@ -77,6 +77,8 @@ const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResp
 
     return {
       ...conv,
+      // roomNumber alias for UI compatibility (many pages use roomNumber not roomNo)
+      room: conv.room ? { ...conv.room, roomNumber: conv.room.roomNo } : undefined,
       overdue,
       waitingPayment,
     };
@@ -97,7 +99,7 @@ const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResp
 export const GET = withTiming(getConversations);
 
 const markRead = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const { searchParams } = new URL(req.url);
   const conversationId = searchParams.get('conversationId');
 

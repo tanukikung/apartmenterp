@@ -60,6 +60,7 @@ export type PayInvoiceInput = z.infer<typeof payInvoiceSchema>;
 export const listInvoicesQuerySchema = z.object({
   q: z.string().trim().min(1).max(100).optional(),
   roomNo: z.string().optional(),
+  tenantId: z.string().uuid().optional(), // filter via Room → RoomTenant → Tenant
   year: z.coerce.number().int().min(2000).max(2100).optional(),
   month: z.coerce.number().int().min(1).max(12).optional(),
   status: invoiceStatusSchema.optional(),

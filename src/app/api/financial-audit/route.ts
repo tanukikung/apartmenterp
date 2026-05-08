@@ -11,7 +11,7 @@ const querySchema = z.object({
 });
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER', 'STAFF']);
+  await requireRole(req, ['ADMIN', 'OWNER', 'STAFF']);
 
   const { searchParams } = new URL(req.url);
   const raw = Object.fromEntries(searchParams.entries());

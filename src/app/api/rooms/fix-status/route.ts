@@ -30,7 +30,7 @@ export const POST = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    await await requireRole(req, ['ADMIN', 'OWNER']);
+    await requireRole(req, ['ADMIN', 'OWNER']);
 
     // Single query: find OCCUPIED rooms with no active tenants
     const orphanedRooms = await prisma.$queryRaw<{ roomNo: string }[]>`
@@ -83,7 +83,7 @@ export const POST = asyncHandler(
 
 export const GET = asyncHandler(
   async (req: NextRequest): Promise<NextResponse> => {
-    await await requireRole(req, ['ADMIN', 'OWNER']);
+    await requireRole(req, ['ADMIN', 'OWNER']);
 
     // Single query: find OCCUPIED rooms with no active tenants (dry run)
     const orphanedRooms = await prisma.$queryRaw<{ roomNo: string }[]>`

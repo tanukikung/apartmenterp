@@ -1076,11 +1076,11 @@
   transition: background 0.1s, color 0.1s;
   flex-shrink: 0;
 }
-.word-icon-btn:hover { background: #f1f3f4; }
-.word-icon-btn:active { background: #e8eaed; }
+.word-icon-btn:hover { background: hsl(var(--color-primary) / 0.06); }
+.word-icon-btn:active { background: hsl(var(--color-primary) / 0.1); }
 .word-icon-btn.active {
-  background: #e8f0fe;
-  color: #1a73e8;
+  background: hsl(var(--color-primary) / 0.1);
+  color: hsl(var(--color-primary));
 }
 .word-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -1088,7 +1088,7 @@
 .word-toolbar-shell {
   background: #ffffff;
   border: 1px solid #d3d3d3;
-  border-radius: 4px;
+  border-radius: 10px;
   overflow: hidden;
 }
 
@@ -1134,25 +1134,25 @@
   white-space: nowrap;
 }
 .word-region-button:hover {
-  background: #f1f3f4;
-  color: #202124;
+  background: hsl(var(--color-primary) / 0.06);
+  color: hsl(var(--color-primary));
 }
 .word-region-button-active,
 .word-region-button:focus {
-  background: #e8f0fe;
-  color: #1a73e8;
-  border-color: #1a73e8;
+  background: hsl(var(--color-primary) / 0.1);
+  color: hsl(var(--color-primary));
+  border-color: hsl(var(--color-primary) / 0.3);
 }
 
 .word-region-button-label {
-  font-weight: 500;
+  font-weight: 600;
   font-size: 13px;
 }
 
 .word-region-button-copy {
   font-size: 11px;
-  color: #9aa0a6;
-  display: none;
+  color: hsl(var(--color-text-3));
+  display: inline;
 }
 
 .word-toolbar-context {
@@ -1165,7 +1165,7 @@
 .word-toolbar-separator {
   width: 1px;
   height: 20px;
-  background: #d3d3d3;
+  background: hsl(var(--color-border));
   margin: 0 4px;
   flex-shrink: 0;
 }
@@ -1177,27 +1177,27 @@
   gap: 4px;
   min-width: 32px;
   height: 32px;
-  padding: 0 6px;
-  border-radius: 4px;
+  padding: 0 8px;
+  border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
-  color: #202124;
+  color: hsl(var(--color-text));
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
   flex-shrink: 0;
   white-space: nowrap;
 }
 .word-toolbar-button:hover {
-  background: #f1f3f4;
-  color: #202124;
+  background: hsl(var(--color-primary) / 0.06);
+  color: hsl(var(--color-primary));
 }
 .word-toolbar-button-active,
 .word-toolbar-button[aria-pressed="true"] {
-  background: #e8f0fe;
-  color: #1a73e8;
-  border-color: #c2d7fb;
+  background: hsl(var(--color-primary) / 0.1);
+  color: hsl(var(--color-primary));
+  border-color: hsl(var(--color-primary) / 0.3);
 }
 .word-toolbar-button:disabled {
   opacity: 0.4;
@@ -1214,7 +1214,7 @@
 .word-ruler-track {
   position: relative;
   height: 24px;
-  background: #f8f9fa;
+  background: #ffffff;
   border: 1px solid #d3d3d3;
   border-top: none;
   width: 100%;
@@ -1250,8 +1250,11 @@
 
 /* ── Page Editor ── */
 .word-editor-page {
-  width: 816px;
-  min-height: 1056px;
+  /* Dynamic dimensions driven by pageStyle (TemplateDocumentMeta). Inline styles set
+     pixel values for the current page size; these custom properties hold the mm strings
+     so PaperMiniature and other components can read them. */
+  width: var(--word-page-width, 816px) !important;
+  min-height: var(--word-page-min-height, 1056px) !important;
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.08);
   position: relative;
@@ -1325,8 +1328,8 @@
   border-bottom: none;
 }
 .word-editor-region-active {
-  background: #f0f4ff;
-  border-bottom-color: #c2d7fb;
+  background: hsl(var(--color-primary) / 0.05);
+  border-bottom-color: hsl(var(--color-primary) / 0.2);
 }
 .word-editor-region-bar {
   display: flex;
@@ -1352,7 +1355,7 @@
 }
 .word-editor-region-action {
   font-size: 12px;
-  color: #1a73e8;
+  color: hsl(var(--color-primary));
   font-weight: 500;
   background: none;
   border: none;
@@ -1363,7 +1366,7 @@
   flex-shrink: 0;
 }
 .word-editor-region-action:hover {
-  background: #e8f0fe;
+  background: hsl(var(--color-primary) / 0.08);
 }
 
 /* ── Editor Content ── */
@@ -1371,9 +1374,10 @@
   padding: 16px 24px;
   outline: none;
   min-height: 120px;
+  background: #ffffff;
 }
 .word-editor-content-region {
-  border-left: 3px solid #1a73e8;
+  border-left: 3px solid hsl(var(--color-primary));
   margin: 0;
 }
 .word-editor-content-header {
@@ -1394,10 +1398,10 @@
   align-items: center;
   gap: 16px;
   padding: 8px 24px;
-  background: #f8f9fa;
-  border-top: 1px solid #e8e8e8;
+  background: #ffffff;
+  border-top: 1px solid #d3d3d3;
   font-size: 11px;
-  color: #9aa0a6;
+  color: #5f6368;
 }
 .word-editor-footer-hint {
   display: flex;
@@ -1414,6 +1418,7 @@
 .word-editor-footer-stats span {
   padding: 0 6px;
   border-right: 1px solid #d3d3d3;
+  color: #5f6368;
 }
 .word-editor-footer-stats span:last-child {
   border-right: none;
@@ -1441,16 +1446,16 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #9aa0a6;
+  color: hsl(var(--color-text-3));
   margin-bottom: 4px;
 }
 .word-preview-content {
   font-size: 12px;
   line-height: 1.5;
-  color: #202124;
+  color: hsl(var(--color-text));
 }
 .word-preview-content-region {
-  color: #5f6368;
+  color: hsl(var(--color-text-3));
   font-size: 11px;
 }
 
@@ -1464,12 +1469,12 @@
 .word-margin-guide-inner {
   position: absolute;
   inset: 0;
-  border: 1px dashed rgba(26, 115, 232, 0.4);
+  border: 1px dashed hsl(var(--color-primary) / 0.4);
 }
 .word-margin-guide-label {
   position: absolute;
   font-size: 9px;
-  color: #1a73e8;
+  color: hsl(var(--color-primary));
   font-weight: 600;
 }
 
@@ -1479,7 +1484,7 @@
   align-items: center;
   gap: 4px;
   padding: 0 4px;
-  border-right: 1px solid #d3d3d3;
+  border-right: 1px solid hsl(var(--color-border));
 }
 .word-color-group:last-child {
   border-right: none;
@@ -1537,7 +1542,7 @@
 
 /* ── Editor Shell ── */
 .word-editor-shell {
-  background: #f1f3f4;
+  background: #ffffff;
   min-height: calc(100vh - 120px);
   padding: 24px;
   display: flex;
@@ -1629,16 +1634,16 @@
 /* ── Typography ── */
 .word-editor-shell .ProseMirror {
   outline: none;
-  font-family: 'Google Sans', 'Segoe UI', Arial, sans-serif;
+  font-family: 'Sarabun', 'Segoe UI', system-ui, sans-serif;
   font-size: 11pt;
   line-height: 1.5;
-  color: #202124;
-  caret-color: #1a73e8;
+  color: hsl(var(--color-text));
+  caret-color: hsl(var(--color-primary));
 }
 
-.word-editor-shell .ProseMirror h1 { font-size: 26pt; font-weight: 400; margin: 0 0 0.83em; color: #202124; }
-.word-editor-shell .ProseMirror h2 { font-size: 20pt; font-weight: 400; margin: 0 0 0.83em; color: #202124; }
-.word-editor-shell .ProseMirror h3 { font-size: 16pt; font-weight: 400; margin: 0 0 0.83em; color: #202124; }
+.word-editor-shell .ProseMirror h1 { font-size: 26pt; font-weight: 600; margin: 0 0 0.83em; color: hsl(var(--color-text)); }
+.word-editor-shell .ProseMirror h2 { font-size: 20pt; font-weight: 600; margin: 0 0 0.83em; color: hsl(var(--color-text)); }
+.word-editor-shell .ProseMirror h3 { font-size: 16pt; font-weight: 600; margin: 0 0 0.83em; color: hsl(var(--color-text)); }
 .word-editor-shell .ProseMirror p { margin: 0 0 0.75em; }
 .word-editor-shell .ProseMirror ul, .word-editor-shell .ProseMirror ol { padding-left: 1.5em; margin: 0 0 0.75em; }
 .word-editor-shell .ProseMirror li { margin-bottom: 0.25em; }
@@ -1686,8 +1691,8 @@
   width: 100%;
   text-align: left;
 }
-.word-dropdown-item:hover { background: #f1f3f4; }
-.word-dropdown-item.active { background: #e8f0fe; color: #1a73e8; }
+.word-dropdown-item:hover { background: hsl(var(--color-primary) / 0.06); }
+.word-dropdown-item.active { background: hsl(var(--color-primary) / 0.1); color: hsl(var(--color-primary)); }
 .word-dropdown-item .check { width: 16px; }
 
 /* ── Page Break ── */
@@ -1728,8 +1733,8 @@
   margin-bottom: -1px;
   transition: color 0.15s, border-color 0.15s;
 }
-.word-tab-btn:hover { color: #202124; }
-.word-tab-btn.active { color: #1a73e8; border-bottom-color: #1a73e8; font-weight: 500; }
+.word-tab-btn:hover { color: hsl(var(--color-text)); }
+.word-tab-btn.active { color: hsl(var(--color-primary)); border-bottom-color: hsl(var(--color-primary)); font-weight: 600; }
 
 /* 15. GRADIENT KPI CARDS
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */

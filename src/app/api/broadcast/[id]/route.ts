@@ -18,7 +18,7 @@ const updateSchema = z.object({
 
 // GET /api/broadcast/[id]
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
@@ -41,7 +41,7 @@ export const PATCH = asyncHandler(async (req: NextRequest): Promise<NextResponse
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');

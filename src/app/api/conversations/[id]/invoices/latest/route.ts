@@ -4,7 +4,7 @@ import { asyncHandler, type ApiResponse, NotFoundError } from '@/lib/utils/error
 import { prisma, logger } from '@/lib';
 
 export const GET = asyncHandler(async (_req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-  await await requireRole(_req, ['ADMIN', 'STAFF']);
+  await requireRole(_req, ['ADMIN', 'STAFF']);
   const { id: conversationId } = params;
   const conversation = await prisma.conversation.findUnique({ where: { id: conversationId } });
   if (!conversation) {

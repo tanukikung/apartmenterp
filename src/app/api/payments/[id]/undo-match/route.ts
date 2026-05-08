@@ -17,7 +17,7 @@ export const POST = asyncHandler(
       const blocked = await requireMutationsAllowed();
       if (blocked) return blocked;
 
-      const session = await await requireRole(req, ['ADMIN', 'OWNER']);
+      const session = await requireRole(req, ['ADMIN', 'OWNER']);
       const requestId = req.headers.get('x-request-id') ?? undefined;
 
       let body: Record<string, unknown>;

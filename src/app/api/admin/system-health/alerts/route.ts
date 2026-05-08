@@ -66,7 +66,7 @@ export const DELETE = asyncHandler(async (req: NextRequest): Promise<NextRespons
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
   clearAlerts();
   return NextResponse.json({ success: true, data: { cleared: true } });
 });

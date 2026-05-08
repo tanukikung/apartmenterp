@@ -33,7 +33,7 @@ export const PUT = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const existing = await prisma.messageTemplate.findUnique({ where: { id: params.id } });
   if (!existing) throw new NotFoundError('Message template not found');
@@ -80,7 +80,7 @@ export const PATCH = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const existing = await prisma.messageTemplate.findUnique({ where: { id: params.id } });
   if (!existing) throw new NotFoundError('Message template not found');
@@ -126,7 +126,7 @@ export const DELETE = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
 
   const existing = await prisma.messageTemplate.findUnique({ where: { id: params.id } });
   if (!existing) throw new NotFoundError('Message template not found');

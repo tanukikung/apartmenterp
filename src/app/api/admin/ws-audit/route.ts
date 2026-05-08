@@ -6,7 +6,7 @@ import { getAuditSnapshot } from '@/server/ws-audit';
 export const dynamic = 'force-dynamic';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
 
   const snapshot = getAuditSnapshot();
 

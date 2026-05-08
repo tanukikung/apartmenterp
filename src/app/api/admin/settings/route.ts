@@ -19,7 +19,7 @@ const updateSettingsSchema = z.object({
 const settingKeys = ['billing.billingDay', 'billing.dueDay', 'billing.overdueDay'] as const;
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
   const configs = await prisma.config.findMany({
     where: {
@@ -57,7 +57,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 });
 
 export const PUT = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
   const body = updateSettingsSchema.parse(await req.json());
 
   await prisma.$transaction([

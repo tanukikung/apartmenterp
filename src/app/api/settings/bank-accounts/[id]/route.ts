@@ -32,7 +32,7 @@ export const PATCH = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    await await requireRole(req, ['ADMIN', 'OWNER']);
+    await requireRole(req, ['ADMIN', 'OWNER']);
     const id = context?.params.id ?? '';
 
     const existing = await prisma.bankAccount.findUnique({ where: { id } });
@@ -74,7 +74,7 @@ export const DELETE = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    await await requireRole(req, ['ADMIN', 'OWNER']);
+    await requireRole(req, ['ADMIN', 'OWNER']);
     const id = context?.params.id ?? '';
 
     const existing = await prisma.bankAccount.findUnique({ where: { id } });

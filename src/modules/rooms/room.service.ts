@@ -621,6 +621,8 @@ export class RoomService {
   async getRoomsByFloor(floorNo: number): Promise<RoomResponse[]> {
     const rooms = await prisma.room.findMany({
       where: { floorNo },
+      // Note: DB orderBy roomNo is lexical (798/1, 798/10, 798/2...);
+      // the JS .sort below applies natural sort as a secondary step.
       orderBy: { roomNo: 'asc' },
     });
 

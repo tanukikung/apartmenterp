@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 const VALID_STATUSES: ImportBatchStatus[] = ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'];
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'OWNER']);
 
   const { searchParams } = req.nextUrl;
   const statusParam = searchParams.get('status');

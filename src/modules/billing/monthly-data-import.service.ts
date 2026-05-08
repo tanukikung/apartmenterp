@@ -9,6 +9,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import type { Decimal } from '@prisma/client/runtime/library';
 import type { ImportBatchStatus } from '@prisma/client';
 import { BadRequestError, NotFoundError } from '@/lib/utils/errors';
 import { prisma } from '@/lib/db/client';
@@ -16,15 +17,11 @@ import { prisma } from '@/lib/db/client';
 // sql and join are runtime utilities in Prisma 5.x not in all TS declarations.
 const sql = (prisma as unknown as Record<string, unknown>).sql as (s: TemplateStringsArray, ...v: unknown[]) => unknown;
 const join = (prisma as unknown as Record<string, unknown>).join as (a: unknown[]) => unknown;
-import {
-  parseMonthlyDataWorkbook,
-  parseAllMonthlyDataRows,
-  validateMonthlyDataWorkbook,
-  type MonthlyDataRow,
-} from './monthly-data-parser';
+import { parseMonthlyDataWorkbook, parseAllMonthlyDataRows, validateMonthlyDataWorkbook, type MonthlyDataRow } from './monthly-data-parser';
 import { getStorage } from '@/infrastructure/storage';
 import { DEFAULT_DUE_DAY } from './billing.service';
 import { logMeterResetAlert } from '@/modules/audit/audit.service';
+import { computeRoomBilling, type BillingRuleData, type RoomBillingRow as CalcRoomBillingRow } from './billing-calculator';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -96,17 +93,59 @@ export type MonthlyDataImportBatchDetail = MonthlyDataImportBatchListItem & {
 // Billing Calculation Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface BillingRuleForCalc {
-  waterEnabled: boolean;
-  waterUnitPrice: number;
-  waterMinCharge: number;
-  waterServiceFeeMode: 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE';
-  waterServiceFeeAmount: number;
-  electricEnabled: boolean;
-  electricUnitPrice: number;
-  electricMinCharge: number;
-  electricServiceFeeMode: 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE';
-  electricServiceFeeAmount: number;
+// ─────────────────────────────────────────────────────────────────────────────
+// Billing Calculation — delegates to billing-calculator.ts (single source of truth)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Build BillingRuleData from a DB BillingRule row (Prisma Decimal → number).
+ * Handles all modes including STEP tiered pricing.
+ */
+function buildBillingRuleData(rule: { waterEnabled: boolean; waterUnitPrice: Decimal; waterMinCharge: Decimal; waterServiceFeeMode: string; waterServiceFeeAmount: Decimal; waterS1Upto: Decimal | null; waterS1Rate: Decimal | null; waterS2Upto: Decimal | null; waterS2Rate: Decimal | null; waterS3Rate: Decimal | null; electricEnabled: boolean; electricUnitPrice: Decimal; electricMinCharge: Decimal; electricServiceFeeMode: string; electricServiceFeeAmount: Decimal; electricS1Upto: Decimal | null; electricS1Rate: Decimal | null; electricS2Upto: Decimal | null; electricS2Rate: Decimal | null; electricS3Rate: Decimal | null }): BillingRuleData {
+  return {
+    waterEnabled: rule.waterEnabled,
+    waterUnitPrice: Number(rule.waterUnitPrice),
+    waterMinCharge: Number(rule.waterMinCharge),
+    waterServiceFeeMode: rule.waterServiceFeeMode as 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE',
+    waterServiceFeeAmount: Number(rule.waterServiceFeeAmount),
+    waterS1Upto: rule.waterS1Upto ? Number(rule.waterS1Upto) : null,
+    waterS1Rate: rule.waterS1Rate ? Number(rule.waterS1Rate) : null,
+    waterS2Upto: rule.waterS2Upto ? Number(rule.waterS2Upto) : null,
+    waterS2Rate: rule.waterS2Rate ? Number(rule.waterS2Rate) : null,
+    waterS3Rate: rule.waterS3Rate ? Number(rule.waterS3Rate) : null,
+    electricEnabled: rule.electricEnabled,
+    electricUnitPrice: Number(rule.electricUnitPrice),
+    electricMinCharge: Number(rule.electricMinCharge),
+    electricServiceFeeMode: rule.electricServiceFeeMode as 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE',
+    electricServiceFeeAmount: Number(rule.electricServiceFeeAmount),
+    electricS1Upto: rule.electricS1Upto ? Number(rule.electricS1Upto) : null,
+    electricS1Rate: rule.electricS1Rate ? Number(rule.electricS1Rate) : null,
+    electricS2Upto: rule.electricS2Upto ? Number(rule.electricS2Upto) : null,
+    electricS2Rate: rule.electricS2Rate ? Number(rule.electricS2Rate) : null,
+    electricS3Rate: rule.electricS3Rate ? Number(rule.electricS3Rate) : null,
+  };
+}
+
+/**
+ * Build CalcRoomBillingRow from a MonthlyDataRow for computeRoomBilling.
+ * Uses NORMAL mode for water/electric (monthly-data format has no mode column).
+ */
+function buildCalcRow(row: MonthlyDataRow): CalcRoomBillingRow {
+  return {
+    rentAmount: row.rentAmount,
+    waterMode: 'NORMAL',
+    waterPrev: row.waterPrev,
+    waterCurr: row.waterCurr,
+    waterUnitsManual: null,
+    waterServiceFeeManual: null,
+    electricMode: 'NORMAL',
+    electricPrev: row.electricPrev,
+    electricCurr: row.electricCurr,
+    electricUnitsManual: null,
+    electricServiceFeeManual: null,
+    furnitureFee: row.furnitureFee,
+    otherFee: row.otherFee,
+  };
 }
 
 interface ChargeComparison {
@@ -123,86 +162,58 @@ interface ChargeComparison {
 }
 
 /**
- * Calculate water and electric charges based on billing rule.
- * Returns both calculated values and comparison with Excel values.
+ * Calculate charges using the proper billing-calculator (supports STEP tiers,
+ * minimum charges, service fee modes). Replaces the old local linear-only calculator.
+ * Respects isOccupied: if false, water/electric = 0 (same as old behavior).
  */
 function calculateChargesFromRule(
-  rule: BillingRuleForCalc,
+  rule: BillingRuleData,
   waterUnits: number,
   electricUnits: number,
-  waterPrev: number | null,
-  waterCurr: number | null,
-  electricPrev: number | null,
-  electricCurr: number | null,
+  _waterPrev: number | null,
+  _waterCurr: number | null,
+  _electricPrev: number | null,
+  _electricCurr: number | null,
   isOccupied: boolean,
   meterResetNote: string | null
 ): ChargeComparison {
   const warnings: string[] = [];
-  let meterReset = false;
+  const meterReset = !!meterResetNote;
 
-  // Calculate water charges
-  let calcWaterUsageCharge = 0;
-  let calcWaterServiceFee = 0;
-  let calcWaterTotal = 0;
+  // Build a CalcRoomBillingRow with units from the parser
+  const calcRow: CalcRoomBillingRow = {
+    rentAmount: 0, // rent not needed for water/electric calculation here
+    waterMode: waterUnits > 0 ? 'NORMAL' : 'DISABLED',
+    waterPrev: _waterPrev,
+    waterCurr: _waterCurr,
+    waterUnitsManual: waterUnits > 0 ? waterUnits : null,
+    waterServiceFeeManual: null,
+    electricMode: electricUnits > 0 ? 'NORMAL' : 'DISABLED',
+    electricPrev: _electricPrev,
+    electricCurr: _electricCurr,
+    electricUnitsManual: electricUnits > 0 ? electricUnits : null,
+    electricServiceFeeManual: null,
+    furnitureFee: 0,
+    otherFee: 0,
+  };
 
-  if (rule.waterEnabled && isOccupied) {
-    calcWaterUsageCharge = waterUnits * rule.waterUnitPrice;
+  // If room is not occupied, disable so calculator returns 0 for water/electric
+  const ruleForCalc: BillingRuleData = isOccupied
+    ? rule
+    : { ...rule, waterEnabled: false, electricEnabled: false };
 
-    // Calculate service fee based on mode
-    if (rule.waterServiceFeeMode === 'FLAT_ROOM') {
-      calcWaterServiceFee = rule.waterServiceFeeAmount;
-    } else if (rule.waterServiceFeeMode === 'PER_UNIT') {
-      calcWaterServiceFee = waterUnits * rule.waterServiceFeeAmount;
-    }
+  const computed = computeRoomBilling(calcRow, ruleForCalc);
 
-    calcWaterTotal = calcWaterUsageCharge + calcWaterServiceFee;
-
-    // Apply minimum charge
-    if (calcWaterTotal < rule.waterMinCharge) {
-      calcWaterTotal = rule.waterMinCharge;
-    }
-  }
-
-  // Calculate electric charges
-  let calcElectricUsageCharge = 0;
-  let calcElectricServiceFee = 0;
-  let calcElectricTotal = 0;
-
-  if (rule.electricEnabled && isOccupied) {
-    calcElectricUsageCharge = electricUnits * rule.electricUnitPrice;
-
-    // Calculate service fee based on mode
-    if (rule.electricServiceFeeMode === 'FLAT_ROOM') {
-      calcElectricServiceFee = rule.electricServiceFeeAmount;
-    } else if (rule.electricServiceFeeMode === 'PER_UNIT') {
-      calcElectricServiceFee = electricUnits * rule.electricServiceFeeAmount;
-    }
-
-    calcElectricTotal = calcElectricUsageCharge + calcElectricServiceFee;
-
-    // Apply minimum charge
-    if (calcElectricTotal < rule.electricMinCharge) {
-      calcElectricTotal = rule.electricMinCharge;
-    }
-  }
-
-  // Calculate total due
-  const calcTotalDue = calcWaterTotal + calcElectricTotal;
-
-  // For occupied rooms with meter reset, we can't calculate accurately
-  if (meterResetNote) {
-    meterReset = true;
-    warnings.push(meterResetNote);
-  }
+  if (meterResetNote) warnings.push(meterResetNote);
 
   return {
-    waterMatches: true, // Will be set after comparison
+    waterMatches: true,
     electricMatches: true,
     meterReset,
     warnings,
-    calcWaterTotal,
-    calcElectricTotal,
-    calcTotalDue,
+    calcWaterTotal: computed.waterTotal,
+    calcElectricTotal: computed.electricTotal,
+    calcTotalDue: computed.totalDue,
   };
 }
 
@@ -523,17 +534,10 @@ export async function executeMonthlyDataImportBatch(
       const roomRule = ruleMap.get(room.defaultRuleCode) ?? defaultRule;
       const rule = roomRule ?? defaultRule;
       const isOccupied = row.rentAmount > 0;
+      // Use the proper billing-calculator which supports STEP tiers
+      const billingRuleData = buildBillingRuleData(rule);
       const calculated = calculateChargesFromRule(
-        {
-          waterEnabled: rule.waterEnabled, waterUnitPrice: Number(rule.waterUnitPrice),
-          waterMinCharge: Number(rule.waterMinCharge),
-          waterServiceFeeMode: rule.waterServiceFeeMode as 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE',
-          waterServiceFeeAmount: Number(rule.waterServiceFeeAmount),
-          electricEnabled: rule.electricEnabled, electricUnitPrice: Number(rule.electricUnitPrice),
-          electricMinCharge: Number(rule.electricMinCharge),
-          electricServiceFeeMode: rule.electricServiceFeeMode as 'NONE' | 'FLAT_ROOM' | 'PER_UNIT' | 'MANUAL_FEE',
-          electricServiceFeeAmount: Number(rule.electricServiceFeeAmount),
-        },
+        billingRuleData,
         row.waterUnits, row.electricUnits, row.waterPrev, row.waterCurr, row.electricPrev, row.electricCurr,
         isOccupied, row.meterResetNote
       );

@@ -898,7 +898,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                     exit={{ opacity: 0, y: -4, filter: 'blur(3px)' }}
                     transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                    className="mx-auto w-full max-w-[1600px] px-5 sm:px-8 lg:px-12 xl:px-14 py-6 sm:py-8 lg:py-10"
+                    className="mx-auto w-full px-5 sm:px-8 lg:px-12 xl:px-14 py-6 sm:py-8 lg:py-10"
                   >
                     {children}
                   </motion.div>

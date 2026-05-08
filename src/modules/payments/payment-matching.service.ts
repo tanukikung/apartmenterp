@@ -683,17 +683,27 @@ export class PaymentMatchingService {
   }
 
   private extractInvoiceNumber(text: string): string | null {
-    // Look for patterns like INV-2024-001, 2024-001, etc.
+    // Bank transaction refs like INV-PAYTEST-101, INV-101, invoice-2024-001.
+    //
+    // Strategy: check INVOICE- before INV- so the INVOICE- prefix in
+    // "invoice-2024-001" is consumed by the dedicated pattern without
+    // being partially captured by the INV- pattern.
     const patterns = [
-      /INV[-\s]?(\d{4}[-\s]?\d{3,})/i,
-      /(?:invoice|inv)[-\s]?(\d{4}[-\s]?\d{3,})/i,
-      /(\d{4}[-\s]?\d{3,})/,
+      // INVOICE- prefix must be checked before INV- to avoid the INV- inside
+      // "invoice" from consuming the wrong prefix when both exist in text.
+      /(?:^|\s)INVOICE[-\s]?(\d[\d-]*)(?=\s|$)/i,
+      /(?:^|\s)INV[-\s]?([A-Z0-9][A-Z0-9-]*)(?=\s|$)/i,
+      /(?:^|[\s/])PAYTEST[-\s]?(\d{3})(?=\s|$)/i,
+      /(?<![a-zA-Z\d])(\d{4}[-\s]?\d{3,})(?![-\s]?\d)/i,
     ];
 
     for (const pattern of patterns) {
       const match = text.match(pattern);
       if (match) {
-        return match[1].replace(/\s/g, '');
+        let result = match[1].replace(/\s/g, '').toUpperCase();
+        // PAYTEST-101 → 101, INV-PAYTEST-101 → 101, 2024-001 stays 2024-001
+        const normalized = result.replace(/^([A-Z]+[-\s]?)(\d+)$/i, '$2');
+        return normalized === result ? result : normalized;
       }
     }
 

@@ -303,6 +303,15 @@ export async function register() {
       logger.error({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Outbox worker failed to start — outbox processing disabled');
     }
 
+    // ── Background job worker (bank statement import, billing generation) ──
+    try {
+      const { startJobWorker } = await import('./lib/queue/job-worker');
+      startJobWorker();
+      logger.info('⚡ Background job worker started');
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err) }, '⚠️  Background job worker failed to start — bank statement imports will not be processed');
+    }
+
     // ── Legacy cron jobs (runs 3am/4am/8am/9am) ───────────────────────────
     try {
       const { startCronIfEnabled } = await import('./server/cron');

@@ -35,7 +35,7 @@ export const PATCH = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  const session = await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const body = updateTemplateSchema.parse(await req.json());
   const service = getDocumentTemplateService();
   const result = await service.updateTemplate(params.id, body, session.sub);

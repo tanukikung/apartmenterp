@@ -1265,7 +1265,7 @@ export function TemplateWordEditor({
               <div className="word-paper-shadow" />
 
               {/* A4 Paper */}
-              <div className={`word-paper-a4 ${layout.pageSize === 'LETTER' ? 'word-paper-letter' : ''} ${layout.orientation === 'LANDSCAPE' ? 'word-paper-landscape' : ''}`}>
+              <div className={`word-paper-a4 ${layout.pageSize === 'LETTER' ? 'word-paper-letter' : ''} ${layout.orientation === 'LANDSCAPE' ? 'word-paper-landscape' : ''}`} style={pageStyle}>
                 {/* Margin guides overlay */}
                 {showMarginGuides && (
                   <div className="word-margin-guide">

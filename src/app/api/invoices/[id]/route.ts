@@ -14,7 +14,7 @@ import { prisma } from '@/lib/db/client';
 
 export const GET = asyncHandler(
   async (req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> => {
-    const session = await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    const session = await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
 
     const { id } = params;
 

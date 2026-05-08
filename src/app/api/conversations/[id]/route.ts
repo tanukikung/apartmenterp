@@ -12,7 +12,7 @@ const getConversation = asyncHandler(
     _req: NextRequest,
     { params }: { params: { id: string } },
   ): Promise<NextResponse> => {
-    await await requireRole(_req, ['ADMIN', 'STAFF']);
+    await requireRole(_req, ['ADMIN', 'STAFF']);
     const conversation = await prisma.conversation.findUnique({
       where: { id: params.id },
       include: {

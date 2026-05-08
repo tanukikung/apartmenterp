@@ -20,7 +20,7 @@ export const POST = asyncHandler(async (
       { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
     );
   }
-  const session = await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  const session = await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const service = getDocumentTemplateService();
   const result = await service.duplicateTemplate(params.id, session.sub);
   return NextResponse.json({ success: true, data: result } as ApiResponse<typeof result>, { status: 201 });

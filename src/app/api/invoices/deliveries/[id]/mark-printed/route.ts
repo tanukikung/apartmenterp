@@ -30,7 +30,7 @@ export const PATCH = asyncHandler(
         { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt.getTime() - Date.now()) / 1000)), 'X-RateLimit-Remaining': String(remaining) } }
       );
     }
-    const session = await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+    const session = await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const actorId = session.sub;
     const actorRole = session.role;
 

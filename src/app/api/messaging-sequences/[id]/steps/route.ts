@@ -17,7 +17,7 @@ type StepOp = 'add' | 'update' | 'delete' | 'reorder';
 // ============================================================================
 
 export const POST = asyncHandler(async (req: NextRequest, { params }: StepsParams): Promise<NextResponse> => {
-  await await requireRole(req, ['OWNER', 'ADMIN']);
+  await requireRole(req, ['OWNER', 'ADMIN']);
   const body = await req.json();
   const { op } = body as { op: StepOp; stepId?: string; targetOrder?: number; step?: Record<string, unknown> };
 
@@ -43,7 +43,7 @@ export const POST = asyncHandler(async (req: NextRequest, { params }: StepsParam
 // ============================================================================
 
 export const PUT = asyncHandler(async (req: NextRequest, { params: _params }: StepsParams): Promise<NextResponse> => {
-  await await requireRole(req, ['OWNER', 'ADMIN']);
+  await requireRole(req, ['OWNER', 'ADMIN']);
   const body = await req.json();
   const { stepId, step } = body as { stepId: string; step: Record<string, unknown> };
   // @ts-expect-error StepUpdateSchema has specific enum types; Record<string,unknown> is safe at runtime
@@ -57,7 +57,7 @@ export const PUT = asyncHandler(async (req: NextRequest, { params: _params }: St
 // ============================================================================
 
 export const DELETE = asyncHandler(async (req: NextRequest, { params: _params }: StepsParams): Promise<NextResponse> => {
-  await await requireRole(req, ['OWNER', 'ADMIN']);
+  await requireRole(req, ['OWNER', 'ADMIN']);
   const body = await req.json();
   const { stepId } = body as { stepId: string };
   await messagingSequenceService.deleteStep(stepId);

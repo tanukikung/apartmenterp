@@ -14,7 +14,7 @@ export const GET = asyncHandler(async (
   req: NextRequest,
   ctx: { params: { jobId: string } }
 ): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
+  await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
   const { jobId } = await ctx.params;
 
   const job = await getJobStatus(jobId);

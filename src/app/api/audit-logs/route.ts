@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
 import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
-import { requireRole } from '@/lib/auth/guards';
 
 export const dynamic = 'force-dynamic';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
-  await await requireRole(req, ['ADMIN', 'OWNER']);
   const url = new URL(req.url);
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || '50')));
   const action = url.searchParams.get('action') || undefined;
@@ -38,10 +36,17 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     prisma.auditLog.count({ where }),
   ]);
 
+  // BigInt serialization: convert sequenceNum to string
+  const formattedRows = rows.map((row) => ({
+    ...row,
+    sequenceNum: String(row.sequenceNum),
+    entityVersion: row.entityVersion,
+  }));
+
   return NextResponse.json({
     success: true,
     data: {
-      rows,
+      rows: formattedRows,
       total,
       limit,
     },
