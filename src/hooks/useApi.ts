@@ -43,7 +43,7 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
     );
     throw err;
   }
-  return json as T;
+  return json.data as T;
 }
 
 export function useApiData<T>(

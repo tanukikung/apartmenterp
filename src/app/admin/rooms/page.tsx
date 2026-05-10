@@ -117,12 +117,13 @@ export default function AdminRoomsPage() {
   const roomsQueryParams = useMemo(() => {
     const params = new URLSearchParams({
       page: String(currentPage),
-      pageSize: '50',
+      pageSize: floorFilter !== null ? '300' : '50',
       ...(search.trim() ? { q: search.trim() } : {}),
       ...(statusFilter ? { roomStatus: statusFilter } : {}),
+      ...(floorFilter !== null ? { floorNo: String(floorFilter) } : {}),
     });
     return `/api/rooms?${params.toString()}`;
-  }, [search, statusFilter, currentPage]);
+  }, [search, statusFilter, currentPage, floorFilter]);
 
   const { data: roomsData, isLoading: loading, refetch } = useApiData<RoomList>(roomsQueryParams, ['rooms']);
 
@@ -185,14 +186,13 @@ export default function AdminRoomsPage() {
 
   const filteredRooms = useMemo(() => {
     if (!roomsData?.data) return [];
-    const rooms = floorFilter === null ? roomsData.data : roomsData.data.filter(r => r.floorNo === floorFilter);
-    return [...rooms].sort((a, b) => {
+    return [...roomsData.data].sort((a, b) => {
       if (a.floorNo !== b.floorNo) return a.floorNo - b.floorNo;
       const numA = parseInt(a.roomNo.replace(/.*\//, ''), 10);
       const numB = parseInt(b.roomNo.replace(/.*\//, ''), 10);
       return numA - numB;
     });
-  }, [roomsData, floorFilter]);
+  }, [roomsData]);
 
   function closeDrawer() {
     setDrawerMode(null);
@@ -427,7 +427,7 @@ export default function AdminRoomsPage() {
         <div className="flex flex-wrap gap-2">
           <button
             className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${floorFilter === null ? 'bg-[hsl(var(--primary))] text-white shadow-[0_0_20px_rgba(99,102,241,0.15)]' : 'bg-[hsl(var(--color-surface))]/50 text-[hsl(var(--on-surface-variant))] border border-white/8 hover:border-white/15 hover:bg-[hsl(var(--color-surface-hover))]'}`}
-            onClick={() => setFloorFilter(null)}
+            onClick={() => { setFloorFilter(null); setCurrentPage(1); }}
           >
             ทุกชั้น
           </button>
@@ -435,7 +435,7 @@ export default function AdminRoomsPage() {
             <button
               key={f.floorNo}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${floorFilter === f.floorNo ? 'bg-[hsl(var(--primary))] text-white shadow-[0_0_20px_rgba(99,102,241,0.15)]' : 'bg-[hsl(var(--color-surface))]/50 text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-border))]/80 hover:bg-[hsl(var(--color-surface-hover))]'}`}
-              onClick={() => setFloorFilter(f.floorNo)}
+              onClick={() => { setFloorFilter(f.floorNo); setCurrentPage(1); }}
             >
               ชั้น {f.floorNo}
             </button>
