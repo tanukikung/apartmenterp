@@ -84,8 +84,14 @@ export async function createImportSession(
 ): Promise<CreateImportSessionResult> {
   const { billingPeriodId, filename, fileHash, normalizedHash, totalRows, importedBy, forceImport = false } = input;
 
-  if (forceImport) {
-    // Force import: create session without checking for duplicates
+  // Check for existing session with same normalizedHash + billingPeriodId
+  const existing = await tx.importSession.findUnique({
+    where: {
+      import_session_normalized_hash_unique: { billingPeriodId, normalizedHash },
+    },
+  });
+
+  if (forceImport && !existing) {
     const session = await tx.importSession.create({
       data: {
         billingPeriodId,
@@ -106,13 +112,6 @@ export async function createImportSession(
     };
   }
 
-  // Check for existing session with same normalizedHash + billingPeriodId
-  const existing = await tx.importSession.findUnique({
-    where: {
-      import_session_normalized_hash_unique: { billingPeriodId, normalizedHash },
-    },
-  });
-
   if (existing) {
     // A session with this normalized data already exists
     if (existing.status === 'PROCESSING') {
@@ -123,6 +122,37 @@ export async function createImportSession(
       );
     }
     // COMPLETED, FAILED, or CANCELLED — treat as duplicate
+    if (forceImport || existing.status === 'FAILED' || existing.status === 'CANCELLED') {
+      const session = await tx.importSession.update({
+        where: { id: existing.id },
+        data: {
+          filename,
+          fileHash,
+          totalRows,
+          status: 'PROCESSING',
+          importedRows: 0,
+          skippedRows: 0,
+          errorRows: 0,
+          errorSummary: undefined,
+          completedAt: null,
+          importedBy,
+          forceImport,
+        },
+      });
+      return {
+        sessionId: session.id,
+        importSessionId: session.id,
+        normalizedHash,
+        isDuplicate: true,
+        existingSession: {
+          id: existing.id,
+          status: existing.status,
+          createdAt: existing.createdAt,
+          filename: existing.filename,
+        },
+      };
+    }
+
     throw new ConflictError(
       `A session with this file's data has already been imported for this billing period ` +
         `(${existing.id}, status: ${existing.status}). ` +

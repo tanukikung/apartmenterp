@@ -282,11 +282,13 @@ if (_readDbInternal !== _prismaInternal) {
   (e: unknown) => logError('error', (e as { message: string }).message)
 );
 
-// Register slow-query tracker for diagnostics
-try {
-  const diag = await import('@/lib/diagnostics/performance');
-  if (diag?.trackSlowQuery) registerSlowQueryTracker(diag.trackSlowQuery);
-} catch { /* diagnostics optional */ }
+// Register slow-query tracker for diagnostics. Keep this async side effect out
+// of top-level await so worker scripts can run through CommonJS transforms.
+void import('@/lib/diagnostics/performance')
+  .then((diag) => {
+    if (diag?.trackSlowQuery) registerSlowQueryTracker(diag.trackSlowQuery);
+  })
+  .catch(() => { /* diagnostics optional */ });
 
 // Prevent multiple instances in development
 if (process.env.NODE_ENV !== 'production') {

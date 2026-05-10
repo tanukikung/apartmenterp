@@ -344,6 +344,7 @@ model ImportBatch {
   errorLog        Json?
   importedBy      String
   createdAt       DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
   billingPeriod   BillingPeriod     @relation(fields: [billingPeriodId], references: [id])
 
   @@index([billingPeriodId])
@@ -722,6 +723,7 @@ model UploadedFile {
   archivedAt                   DateTime?                 @db.Timestamptz(6)
   uploadedBy                   String?
   createdAt                    DateTime                  @default(now()) @db.Timestamptz(6)
+  updatedAt                    DateTime                  @updatedAt @db.Timestamptz(6)
   documentGenerationJobBundles DocumentGenerationJob[]   @relation("GenerationJobBundleFile")
   templateVersions             DocumentTemplateVersion[] @relation("TemplateVersionSourceFile")
   generatedDocumentFiles       GeneratedDocumentFile[]

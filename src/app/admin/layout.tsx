@@ -586,6 +586,7 @@ function TopBar({
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-color-text-3 pointer-events-none" />
           <input
             ref={searchInputRef}
+            suppressHydrationWarning
             type="text"
             placeholder="ค้นหาห้อง, ผู้เช่า, ใบแจ้งหนี้..."
             value={searchQuery}

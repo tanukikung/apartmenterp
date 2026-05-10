@@ -51,7 +51,7 @@ export async function enqueueJob(
     await prisma.$executeRaw`
       INSERT INTO background_jobs (id, type, payload, status, "retryCount", "scheduledAt", priority, "idempotencyKey", "createdAt", "updatedAt")
       VALUES (${id}, ${type}, ${JSON.stringify(payload)}::jsonb, 'PENDING', 0, ${scheduledAt}, ${priority}, ${key}, NOW(), NOW())
-      ON CONFLICT ("idempotencyKey") DO NOTHING
+      ON CONFLICT ("idempotencyKey") WHERE "idempotencyKey" IS NOT NULL DO NOTHING
     `;
 
     // Return existing job id if insert was suppressed
