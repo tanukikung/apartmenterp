@@ -48,6 +48,11 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
     );
   }
 
+  // Merge meta (pagination info) into the returned object so paginated hooks
+  // receive { data: T[], page, pageSize, total, totalPages } instead of just T[]
+  if (json.meta && typeof json.meta === 'object') {
+    return { data: json.data, ...json.meta } as T;
+  }
   return json.data as T;
 }
 

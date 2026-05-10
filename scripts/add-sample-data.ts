@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { addMonths, subMonths } from 'date-fns';
 
 const prisma = new PrismaClient();
@@ -80,10 +81,106 @@ async function main() {
   }
   console.log(`Created ${contractCount} new contracts`);
 
-  console.log('Invoices and payments managed through billing system');
+  // Create billing periods (current and previous months)
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1-12
+  const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+  const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
+  // Check if periods already exist
+  let currentPeriod = await prisma.billingPeriod.findFirst({
+    where: { year: currentYear, month: currentMonth }
+  });
+
+  if (!currentPeriod) {
+    currentPeriod = await prisma.billingPeriod.create({
+      data: {
+        year: currentYear,
+        month: currentMonth,
+        status: 'OPEN',
+        dueDay: 25,
+        gracePeriodDays: 3
+      }
+    });
+  }
+
+  let previousPeriod = await prisma.billingPeriod.findFirst({
+    where: { year: previousYear, month: previousMonth }
+  });
+
+  if (!previousPeriod) {
+    previousPeriod = await prisma.billingPeriod.create({
+      data: {
+        year: previousYear,
+        month: previousMonth,
+        status: 'CLOSED',
+        dueDay: 25,
+        gracePeriodDays: 3
+      }
+    });
+  }
+
+  console.log('Billing periods ready for invoicing');
+
+  // Create room billings for sample rooms
+  const defaultRule = billingRules[0];
+  const defaultAccount = bankAccounts[0];
+  let billingCount = 0;
+
+  for (let i = 0; i < Math.min(5, rooms.length); i++) {
+    const room = rooms[i];
+
+    // Create billing for previous month (for testing overdue invoices)
+    const existingBilling = await prisma.roomBilling.findFirst({
+      where: {
+        roomNo: room.roomNo,
+        billingPeriodId: previousPeriod.id
+      }
+    });
+
+    if (!existingBilling) {
+      const roomBilling = await prisma.roomBilling.create({
+        data: {
+          billingPeriodId: previousPeriod.id,
+          roomNo: room.roomNo,
+          recvAccountId: defaultAccount.id,
+          ruleCode: defaultRule.code,
+          rentAmount: room.defaultRentAmount,
+          waterMode: 'NORMAL',
+          electricMode: 'NORMAL',
+          waterUnits: new Decimal(15),
+          waterUsageCharge: new Decimal(300),
+          electricUnits: new Decimal(250),
+          electricUsageCharge: new Decimal(2500),
+          totalDue: room.defaultRentAmount.plus(300).plus(2500),
+          status: 'LOCKED'
+        }
+      });
+
+      // Create invoice for this billing
+      const dueDate = new Date(previousYear, previousMonth - 1, 25);
+      await prisma.invoice.create({
+        data: {
+          roomBillingId: roomBilling.id,
+          roomNo: room.roomNo,
+          year: previousYear,
+          month: previousMonth,
+          status: 'GENERATED',
+          totalAmount: roomBilling.totalDue,
+          dueDate,
+          issuedAt: new Date(previousYear, previousMonth - 1, 1),
+        }
+      });
+
+      billingCount++;
+    }
+  }
+
+  console.log(`Created ${billingCount} sample billings and invoices`);
 
   console.log('\n✅ Sample data added successfully!');
-  console.log(`Summary: ${createdTenants.length} tenants, ${contractCount} contracts ready`);
+  console.log(`Summary: ${createdTenants.length} tenants, ${contractCount} contracts, ${billingCount} billings`);
 }
 
 main()

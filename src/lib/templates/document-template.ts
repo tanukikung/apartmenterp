@@ -98,8 +98,17 @@ function stripTemplateWrappers(html: string): string {
     .trim();
 }
 
+// Strip &lt;span data-template-field="..."&gt;{{key}}&lt;/span&gt; wrappers that
+// ended up as entity-encoded text nodes from previous insertContent behaviour.
+function cleanLegacySpanWrappers(html: string): string {
+  return html.replace(
+    /&lt;span\s[^&]*?data-template-field="[^"]*"[^&]*?&gt;(\{\{[^}]+\}\})&lt;\/span&gt;/g,
+    '$1',
+  );
+}
+
 export function normalizeDocumentTemplateBody(body: string): string {
-  const trimmed = stripTemplateWrappers(body).trim();
+  const trimmed = cleanLegacySpanWrappers(stripTemplateWrappers(body)).trim();
   if (!trimmed) {
     return '<p></p>';
   }

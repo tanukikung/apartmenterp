@@ -297,9 +297,9 @@ export async function middleware(req: NextRequest) {
   res.headers.set('Referrer-Policy', 'no-referrer');
   res.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   res.headers.set('X-XSS-Protection', '0');
-  // Only apply strict CSP to API routes; page routes need 'unsafe-inline' for Next.js hydration.
+  // Only apply strict CSP to API routes in production; skip for development
   // Skip CSP for embeddable routes — CSP only applies to HTML documents, not PDFs or iframes.
-  if (url.pathname.startsWith('/api/') && !isEmbeddableRoute) {
+  if (process.env.NODE_ENV === 'production' && url.pathname.startsWith('/api/') && !isEmbeddableRoute) {
     res.headers.set('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline'");
   }
   // Log all API requests with requestId for correlation in all environments.
