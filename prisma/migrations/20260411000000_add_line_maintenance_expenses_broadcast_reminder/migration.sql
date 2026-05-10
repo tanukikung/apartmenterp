@@ -193,6 +193,18 @@ END $$;
 -- CreateIndex: room_billings_calculated_at_idx (if not exists)
 DO $$
 BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'room_billings'
+          AND column_name = 'calculatedAt'
+    ) THEN
+        ALTER TABLE "room_billings" ADD COLUMN "calculatedAt" TIMESTAMPTZ;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'room_billings_calculated_at_idx') THEN
         CREATE INDEX "room_billings_calculated_at_idx" ON "room_billings"("calculatedAt");
     END IF;

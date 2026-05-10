@@ -49,7 +49,7 @@ export class DeliveryService {
     }
 
     if (latestByRoom.size === 0) {
-      throw new Error('ไม่พบเอกสารที่ตรงกับเงื่อนไข');
+      throw new NotFoundError('ไม่พบเอกสารที่ตรงกับเงื่อนไข');
     }
 
     // 5. Resolve LINE recipients for each room
@@ -169,7 +169,7 @@ export class DeliveryService {
         },
       },
     });
-    if (!order) throw new Error('ไม่พบ Delivery Order');
+    if (!order) throw new NotFoundError('ไม่พบ Delivery Order');
 
     // Sort items by room number naturally
     order.items.sort((a, b) => naturalCollator.compare(a.roomNo, b.roomNo));
@@ -190,7 +190,7 @@ export class DeliveryService {
         },
       },
     });
-    if (!order) throw new Error('ไม่พบ Delivery Order');
+    if (!order) throw new NotFoundError('ไม่พบ Delivery Order');
 
     await prisma.deliveryOrder.update({
       where: { id: orderId },
@@ -232,8 +232,8 @@ export class DeliveryService {
         },
       },
     });
-    if (!item) throw new Error('ไม่พบรายการ');
-    if (!item.recipientRef) throw new Error('ไม่มี LINE ID ผู้รับ');
+    if (!item) throw new NotFoundError('ไม่พบรายการ');
+    if (!item.recipientRef) throw new BadRequestError('ไม่มี LINE ID ผู้รับ');
 
     await prisma.deliveryOrderItem.update({
       where: { id: itemId },
@@ -241,7 +241,7 @@ export class DeliveryService {
     });
 
     const pdfFile = item.generatedDocument?.files.find(f => f.role === 'PDF');
-    if (!pdfFile) throw new Error('ไม่พบไฟล์ PDF');
+    if (!pdfFile) throw new NotFoundError('ไม่พบไฟล์ PDF');
 
     const container = getServiceContainer();
     await container.eventBus.publish(

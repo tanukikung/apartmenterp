@@ -30,6 +30,13 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
   }
   const session = await requireRole(request, ['ADMIN', 'STAFF', 'OWNER']);
 
+  const ct = request.headers.get('content-type') || '';
+  if (!ct.includes('multipart/form-data') && !ct.includes('application/x-www-form-urlencoded')) {
+    return NextResponse.json(
+      { success: false, error: { message: 'Content-Type must be multipart/form-data' } },
+      { status: 400 }
+    );
+  }
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
 

@@ -1,11 +1,199 @@
-import { PrismaClient } from '@prisma/client';
-import { hashPassword } from '../src/lib/auth/password';
+import {
+  DocumentFieldCategory,
+  DocumentFieldValueType,
+  DocumentTemplateStatus,
+  DocumentTemplateType,
+  DocumentTemplateVersionStatus,
+  PrismaClient,
+} from '@prisma/client';
+import { createHash, randomBytes, scryptSync } from 'crypto';
 
 const prisma = new PrismaClient();
+const KEY_LENGTH = 64;
+
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString('hex');
+  const derivedKey = scryptSync(password, salt, KEY_LENGTH).toString('hex');
+  return `scrypt:${salt}:${derivedKey}`;
+}
+
+function hashTemplateBody(body: string): string {
+  return createHash('sha256').update(body).digest('hex');
+}
+
+type SeedTemplateField = {
+  key: string;
+  label: string;
+  category: DocumentFieldCategory;
+  valueType: DocumentFieldValueType;
+  path: string;
+  description?: string;
+  sampleValue?: string;
+  isRequired?: boolean;
+  isCollection?: boolean;
+  metadata?: unknown;
+  sortOrder: number;
+};
+
+function getSeedTemplateFields(type: DocumentTemplateType): SeedTemplateField[] {
+  if (type === DocumentTemplateType.GENERAL_NOTICE) {
+    return [
+      {
+        key: 'room.number',
+        label: 'Room Number',
+        category: DocumentFieldCategory.ROOM,
+        valueType: DocumentFieldValueType.STRING,
+        path: 'room.number',
+        description: 'Display room number.',
+        sampleValue: '101',
+        isRequired: true,
+        sortOrder: 20,
+      },
+      {
+        key: 'computed.occupancyDisplay',
+        label: 'Occupancy Display',
+        category: DocumentFieldCategory.COMPUTED,
+        valueType: DocumentFieldValueType.STRING,
+        path: 'computed.occupancyDisplay',
+        description: 'Display string for current room occupants.',
+        sampleValue: 'Somchai Jaidee (Primary)',
+        sortOrder: 610,
+      },
+    ];
+  }
+
+  const commonBillingFields: SeedTemplateField[] = [
+    {
+      key: 'room.number',
+      label: 'Room Number',
+      category: DocumentFieldCategory.ROOM,
+      valueType: DocumentFieldValueType.STRING,
+      path: 'room.number',
+      description: 'Display room number.',
+      sampleValue: '101',
+      isRequired: true,
+      sortOrder: 20,
+    },
+    {
+      key: 'tenant.fullName',
+      label: 'Tenant Full Name',
+      category: DocumentFieldCategory.TENANT,
+      valueType: DocumentFieldValueType.STRING,
+      path: 'tenant.fullName',
+      description: 'Primary resident full name.',
+      sampleValue: 'Somchai Jaidee',
+      sortOrder: 110,
+    },
+    {
+      key: 'computed.billingMonthLabel',
+      label: 'Billing Month Label',
+      category: DocumentFieldCategory.COMPUTED,
+      valueType: DocumentFieldValueType.STRING,
+      path: 'computed.billingMonthLabel',
+      description: 'Formatted billing month label.',
+      sampleValue: 'April 2026',
+      sortOrder: 590,
+    },
+    {
+      key: 'computed.dueDateLabel',
+      label: 'Due Date Label',
+      category: DocumentFieldCategory.COMPUTED,
+      valueType: DocumentFieldValueType.STRING,
+      path: 'computed.dueDateLabel',
+      description: 'Formatted billing due date.',
+      sampleValue: '25 April 2026',
+      sortOrder: 600,
+    },
+    {
+      key: 'computed.totalAmountFormatted',
+      label: 'Formatted Total Amount',
+      category: DocumentFieldCategory.COMPUTED,
+      valueType: DocumentFieldValueType.STRING,
+      path: 'computed.totalAmountFormatted',
+      description: 'Currency formatted total amount.',
+      sampleValue: 'THB 3,696.00',
+      sortOrder: 620,
+    },
+  ];
+
+  if (type === DocumentTemplateType.PAYMENT_NOTICE) {
+    return commonBillingFields;
+  }
+
+  if (type === DocumentTemplateType.INVOICE) {
+    return [
+      ...commonBillingFields,
+      {
+        key: 'billing_items',
+        label: 'Billing Items',
+        category: DocumentFieldCategory.BILLING_ITEM,
+        valueType: DocumentFieldValueType.ARRAY,
+        path: 'billingItems',
+        description: 'Billing line items collection.',
+        sampleValue: '[...]',
+        isCollection: true,
+        sortOrder: 500,
+      },
+      {
+        key: 'billing_items.typeName',
+        label: 'Billing Item Name',
+        category: DocumentFieldCategory.BILLING_ITEM,
+        valueType: DocumentFieldValueType.STRING,
+        path: 'billingItems.typeName',
+        description: 'Billing line item label.',
+        sampleValue: 'Room Rent',
+        isCollection: true,
+        sortOrder: 510,
+      },
+      {
+        key: 'billing_items.quantity',
+        label: 'Billing Item Quantity',
+        category: DocumentFieldCategory.BILLING_ITEM,
+        valueType: DocumentFieldValueType.NUMBER,
+        path: 'billingItems.quantity',
+        description: 'Billing line item quantity.',
+        sampleValue: '1',
+        isCollection: true,
+        sortOrder: 520,
+      },
+      {
+        key: 'billing_items.unitPriceFormatted',
+        label: 'Billing Item Unit Price',
+        category: DocumentFieldCategory.BILLING_ITEM,
+        valueType: DocumentFieldValueType.STRING,
+        path: 'billingItems.unitPriceFormatted',
+        description: 'Formatted unit price for each billing line item.',
+        sampleValue: 'THB 3,000.00',
+        isCollection: true,
+        sortOrder: 530,
+      },
+      {
+        key: 'billing_items.amountFormatted',
+        label: 'Billing Item Amount',
+        category: DocumentFieldCategory.BILLING_ITEM,
+        valueType: DocumentFieldValueType.STRING,
+        path: 'billingItems.amountFormatted',
+        description: 'Formatted total amount for each billing line item.',
+        sampleValue: 'THB 3,000.00',
+        isCollection: true,
+        sortOrder: 540,
+      },
+    ];
+  }
+
+  return [];
+}
 
 async function main() {
-  const ownerPassword = process.env.SEED_OWNER_PASSWORD || 'Owner@12345';
-  const staffPassword = process.env.SEED_STAFF_PASSWORD || 'Staff@12345';
+  const isProduction = process.env.NODE_ENV === 'production';
+  const ownerPassword = process.env.SEED_OWNER_PASSWORD || (isProduction ? '' : 'Owner@12345');
+  const staffPassword = process.env.SEED_STAFF_PASSWORD || (isProduction ? '' : 'Staff@12345');
+
+  if (!ownerPassword || !staffPassword) {
+    throw new Error(
+      'SEED_OWNER_PASSWORD and SEED_STAFF_PASSWORD must be set when seeding in production.',
+    );
+  }
 
   console.log('Seeding database...');
 
@@ -526,6 +714,142 @@ async function main() {
   // ──────────────────────────────────────────────────────────────────────────
   // Config
   // ──────────────────────────────────────────────────────────────────────────
+  const invoiceTemplateBody = [
+    '<section style="font-family: Noto Sans Thai, sans-serif; color: #0f172a;">',
+    '  <h1 style="font-size: 28px; margin-bottom: 8px;">\u0e43\u0e1a\u0e41\u0e08\u0e49\u0e07\u0e2b\u0e19\u0e35\u0e49</h1>',
+    '  <p>\u0e2b\u0e49\u0e2d\u0e07 <strong><span data-template-field="room.number">{{room.number}}</span></strong></p>',
+    '  <p>\u0e1c\u0e39\u0e49\u0e40\u0e0a\u0e48\u0e32 <span data-template-field="tenant.fullName">{{tenant.fullName}}</span></p>',
+    '  <p>\u0e23\u0e2d\u0e1a\u0e1a\u0e34\u0e25 <span data-template-field="computed.billingMonthLabel">{{computed.billingMonthLabel}}</span></p>',
+    '  <p>\u0e04\u0e23\u0e1a\u0e01\u0e33\u0e2b\u0e19\u0e14\u0e0a\u0e33\u0e23\u0e30 <span data-template-field="computed.dueDateLabel">{{computed.dueDateLabel}}</span></p>',
+    '  <p>\u0e22\u0e2d\u0e14\u0e23\u0e27\u0e21 <strong><span data-template-field="computed.totalAmountFormatted">{{computed.totalAmountFormatted}}</span></strong></p>',
+    '  <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">',
+    '    <thead>',
+    '      <tr>',
+    '        <th style="text-align: left; border-bottom: 1px solid #cbd5e1; padding: 8px;">\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23</th>',
+    '        <th style="text-align: right; border-bottom: 1px solid #cbd5e1; padding: 8px;">\u0e08\u0e33\u0e19\u0e27\u0e19</th>',
+    '        <th style="text-align: right; border-bottom: 1px solid #cbd5e1; padding: 8px;">\u0e23\u0e32\u0e04\u0e32\u0e15\u0e48\u0e2d\u0e2b\u0e19\u0e48\u0e27\u0e22</th>',
+    '        <th style="text-align: right; border-bottom: 1px solid #cbd5e1; padding: 8px;">\u0e08\u0e33\u0e19\u0e27\u0e19\u0e40\u0e07\u0e34\u0e19</th>',
+    '      </tr>',
+    '    </thead>',
+    '    <tbody data-template-repeat="billing_items">',
+    '      <tr>',
+    '        <td style="padding: 8px;"><span data-template-field="billing_items.typeName">{{billing_items.typeName}}</span></td>',
+    '        <td style="padding: 8px; text-align: right;"><span data-template-field="billing_items.quantity">{{billing_items.quantity}}</span></td>',
+    '        <td style="padding: 8px; text-align: right;"><span data-template-field="billing_items.unitPriceFormatted">{{billing_items.unitPriceFormatted}}</span></td>',
+    '        <td style="padding: 8px; text-align: right;"><span data-template-field="billing_items.amountFormatted">{{billing_items.amountFormatted}}</span></td>',
+    '      </tr>',
+    '    </tbody>',
+    '  </table>',
+    '</section>',
+  ].join('\n');
+
+  const paymentNoticeBody = [
+    '<section style="font-family: Noto Sans Thai, sans-serif; color: #0f172a;">',
+    '  <h1 style="font-size: 28px; margin-bottom: 8px;">\u0e41\u0e08\u0e49\u0e07\u0e40\u0e15\u0e37\u0e2d\u0e19\u0e0a\u0e33\u0e23\u0e30</h1>',
+    '  <p>\u0e40\u0e23\u0e35\u0e22\u0e19 <span data-template-field="tenant.fullName">{{tenant.fullName}}</span></p>',
+    '  <p>\u0e01\u0e23\u0e38\u0e13\u0e32\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e01\u0e32\u0e23\u0e0a\u0e33\u0e23\u0e30\u0e04\u0e48\u0e32\u0e1e\u0e31\u0e01\u0e2b\u0e49\u0e2d\u0e07 <strong><span data-template-field="room.number">{{room.number}}</span></strong></p>',
+    '  <p>\u0e1b\u0e23\u0e30\u0e08\u0e33\u0e23\u0e2d\u0e1a <span data-template-field="computed.billingMonthLabel">{{computed.billingMonthLabel}}</span></p>',
+    '  <p>\u0e22\u0e2d\u0e14\u0e17\u0e35\u0e48\u0e15\u0e49\u0e2d\u0e07\u0e0a\u0e33\u0e23\u0e30 <strong><span data-template-field="computed.totalAmountFormatted">{{computed.totalAmountFormatted}}</span></strong></p>',
+    '  <p>\u0e01\u0e23\u0e38\u0e13\u0e32\u0e0a\u0e33\u0e23\u0e30\u0e20\u0e32\u0e22\u0e43\u0e19\u0e27\u0e31\u0e19\u0e17\u0e35\u0e48 <span data-template-field="computed.dueDateLabel">{{computed.dueDateLabel}}</span></p>',
+    '  <p style="margin-top: 16px;">\u0e2b\u0e32\u0e01\u0e0a\u0e33\u0e23\u0e30\u0e41\u0e25\u0e49\u0e27 \u0e01\u0e23\u0e38\u0e13\u0e32\u0e2a\u0e48\u0e07\u0e2a\u0e25\u0e34\u0e1b\u0e43\u0e2b\u0e49\u0e40\u0e08\u0e49\u0e32\u0e2b\u0e19\u0e49\u0e32\u0e17\u0e35\u0e48\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a\u0e44\u0e14\u0e49\u0e17\u0e31\u0e19\u0e17\u0e35</p>',
+    '</section>',
+  ].join('\n');
+
+  const generalNoticeBody = [
+    '<section style="font-family: Noto Sans Thai, sans-serif; color: #0f172a;">',
+    '  <h1 style="font-size: 28px; margin-bottom: 8px;">\u0e1b\u0e23\u0e30\u0e01\u0e32\u0e28\u0e16\u0e36\u0e07\u0e1c\u0e39\u0e49\u0e1e\u0e31\u0e01\u0e2d\u0e32\u0e28\u0e31\u0e22</h1>',
+    '  <p>\u0e2b\u0e49\u0e2d\u0e07 <strong><span data-template-field="room.number">{{room.number}}</span></strong></p>',
+    '  <p>\u0e23\u0e32\u0e22\u0e0a\u0e37\u0e48\u0e2d\u0e1c\u0e39\u0e49\u0e1e\u0e31\u0e01 <span data-template-field="computed.occupancyDisplay">{{computed.occupancyDisplay}}</span></p>',
+    '  <p style="margin-top: 16px;">\u0e2b\u0e31\u0e27\u0e02\u0e49\u0e2d: \u0e42\u0e1b\u0e23\u0e14\u0e01\u0e23\u0e2d\u0e01\u0e40\u0e19\u0e37\u0e49\u0e2d\u0e2b\u0e32\u0e1b\u0e23\u0e30\u0e01\u0e32\u0e28\u0e17\u0e31\u0e48\u0e27\u0e44\u0e1b\u0e17\u0e35\u0e48\u0e15\u0e49\u0e2d\u0e07\u0e01\u0e32\u0e23</p>',
+    '  <p>\u0e15\u0e31\u0e27\u0e2d\u0e22\u0e48\u0e32\u0e07: \u0e01\u0e23\u0e38\u0e13\u0e32\u0e41\u0e08\u0e49\u0e07\u0e0b\u0e48\u0e2d\u0e21\u0e1a\u0e33\u0e23\u0e38\u0e07 \u0e2b\u0e23\u0e37\u0e2d\u0e01\u0e33\u0e2b\u0e19\u0e14\u0e01\u0e32\u0e23\u0e43\u0e0a\u0e49\u0e1e\u0e37\u0e49\u0e19\u0e17\u0e35\u0e48\u0e2a\u0e48\u0e27\u0e19\u0e01\u0e25\u0e32\u0e07</p>',
+    '</section>',
+  ].join('\n');
+
+  const documentTemplates = [
+    {
+      name: '\u0e43\u0e1a\u0e41\u0e08\u0e49\u0e07\u0e2b\u0e19\u0e35\u0e49\u0e21\u0e32\u0e15\u0e23\u0e10\u0e32\u0e19',
+      description: '\u0e40\u0e17\u0e21\u0e40\u0e1e\u0e25\u0e15\u0e44\u0e27\u0e49\u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e2d\u0e2d\u0e01\u0e43\u0e1a\u0e41\u0e08\u0e49\u0e07\u0e2b\u0e19\u0e35\u0e49\u0e23\u0e32\u0e22\u0e40\u0e14\u0e37\u0e2d\u0e19',
+      type: DocumentTemplateType.INVOICE,
+      subject: '\u0e43\u0e1a\u0e41\u0e08\u0e49\u0e07\u0e2b\u0e19\u0e35\u0e49 {{computed.billingMonthLabel}} \u0e2b\u0e49\u0e2d\u0e07 {{room.number}}',
+      body: invoiceTemplateBody,
+    },
+    {
+      name: '\u0e41\u0e08\u0e49\u0e07\u0e40\u0e15\u0e37\u0e2d\u0e19\u0e0a\u0e33\u0e23\u0e30\u0e21\u0e32\u0e15\u0e23\u0e10\u0e32\u0e19',
+      description: '\u0e40\u0e17\u0e21\u0e40\u0e1e\u0e25\u0e15\u0e44\u0e27\u0e49\u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e2a\u0e48\u0e07\u0e41\u0e08\u0e49\u0e07\u0e40\u0e15\u0e37\u0e2d\u0e19\u0e01\u0e48\u0e2d\u0e19\u0e04\u0e23\u0e1a\u0e01\u0e33\u0e2b\u0e19\u0e14',
+      type: DocumentTemplateType.PAYMENT_NOTICE,
+      subject: '\u0e41\u0e08\u0e49\u0e07\u0e40\u0e15\u0e37\u0e2d\u0e19 {{computed.billingMonthLabel}} \u0e2b\u0e49\u0e2d\u0e07 {{room.number}}',
+      body: paymentNoticeBody,
+    },
+    {
+      name: '\u0e1b\u0e23\u0e30\u0e01\u0e32\u0e28\u0e16\u0e36\u0e07\u0e1c\u0e39\u0e49\u0e1e\u0e31\u0e01\u0e41\u0e1a\u0e1a\u0e17\u0e31\u0e48\u0e27\u0e44\u0e1b',
+      description: '\u0e40\u0e17\u0e21\u0e40\u0e1e\u0e25\u0e15\u0e15\u0e31\u0e49\u0e07\u0e15\u0e49\u0e19\u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e1b\u0e23\u0e30\u0e01\u0e32\u0e28\u0e17\u0e31\u0e48\u0e27\u0e44\u0e1b\u0e16\u0e36\u0e07\u0e1c\u0e39\u0e49\u0e40\u0e0a\u0e48\u0e32',
+      type: DocumentTemplateType.GENERAL_NOTICE,
+      subject: '\u0e1b\u0e23\u0e30\u0e01\u0e32\u0e28\u0e2b\u0e49\u0e2d\u0e07 {{room.number}}',
+      body: generalNoticeBody,
+    },
+  ];
+
+  let documentTemplateCount = 0;
+  for (const template of documentTemplates) {
+    const existing = await prisma.documentTemplate.findFirst({ where: { name: template.name } });
+    if (existing) {
+      continue;
+    }
+
+    const createdTemplate = await prisma.documentTemplate.create({
+      data: {
+        name: template.name,
+        description: template.description,
+        type: template.type,
+        status: DocumentTemplateStatus.ACTIVE,
+        subject: template.subject,
+        body: template.body,
+      },
+    });
+
+    const activeVersion = await prisma.documentTemplateVersion.create({
+      data: {
+        templateId: createdTemplate.id,
+        version: 1,
+        label: 'Initial version',
+        subject: template.subject,
+        body: template.body,
+        status: DocumentTemplateVersionStatus.ACTIVE,
+        fileType: 'html',
+        checksum: hashTemplateBody(template.body),
+        activatedAt: new Date(),
+      },
+    });
+
+    await prisma.documentTemplate.update({
+      where: { id: createdTemplate.id },
+      data: {
+        activeVersionId: activeVersion.id,
+      },
+    });
+
+    await prisma.documentTemplateFieldDefinition.createMany({
+      data: getSeedTemplateFields(template.type).map((field) => ({
+        templateId: createdTemplate.id,
+        key: field.key,
+        label: field.label,
+        category: field.category,
+        valueType: field.valueType,
+        path: field.path,
+        description: field.description,
+        sampleValue: field.sampleValue,
+        isRequired: field.isRequired,
+        isCollection: field.isCollection,
+        sortOrder: field.sortOrder,
+        metadata: field.metadata as any,
+      })),
+      skipDuplicates: true,
+    });
+
+    documentTemplateCount++;
+  }
+  console.log(`Created ${documentTemplateCount} document templates`);
+
   const configs = [
     { key: 'app.name', value: 'ระบบจัดการอพาร์ตเมนต์', description: 'Application name' },
     { key: 'app.currency', value: 'THB', description: 'Default currency' },

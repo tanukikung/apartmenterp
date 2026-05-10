@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 /**
  * Theme System Tests
  *
@@ -8,7 +10,7 @@
  * - ThemeToggle button renders correct icon per theme
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 
 // Minimal mock of the ThemeProvider + ThemeToggle without Next.js context
@@ -23,6 +25,26 @@ function getStoredTheme(): string | null {
 describe('Theme system', () => {
   beforeEach(() => {
     localStorage.removeItem(LOCAL_STORAGE_KEY);
+    document.documentElement.classList.remove('dark');
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    document.documentElement.classList.remove('dark');
   });
 
   // ── localStorage helper tests ────────────────────────────────────────────
@@ -122,7 +144,7 @@ describe('ThemeToggle component', () => {
   });
 
   it('toggles theme from light to dark when clicked', async () => {
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    localStorage.setItem(LOCAL_STORAGE_KEY, 'light');
     let currentTheme = 'light';
 
     const TestComponent = () => {
@@ -182,13 +204,14 @@ describe('ThemeToggle component', () => {
       </ThemeProvider>
     );
 
-    // ThemeProvider starts with light (no dark class)
+    // ThemeProvider defaults to dark when no stored preference exists.
     await waitFor(() => {
-      expect(document.documentElement.classList.contains('dark')).toBe(false);
+      expect(document.documentElement.classList.contains('dark')).toBe(true);
     });
 
-    // Now set dark via localStorage and re-mount
-    localStorage.setItem(LOCAL_STORAGE_KEY, 'dark');
+    cleanup();
+    document.documentElement.classList.remove('dark');
+    localStorage.setItem(LOCAL_STORAGE_KEY, 'light');
     render(
       <ThemeProvider>
         <div>content</div>
@@ -196,12 +219,12 @@ describe('ThemeToggle component', () => {
     );
 
     await waitFor(() => {
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
+      expect(document.documentElement.classList.contains('dark')).toBe(false);
     });
   });
 
   it('removes dark class from documentElement when light mode is active', async () => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, 'dark');
+    localStorage.setItem(LOCAL_STORAGE_KEY, 'light');
     document.documentElement.classList.add('dark');
 
     render(
@@ -218,11 +241,11 @@ describe('ThemeToggle component', () => {
 
 describe('Tailwind dark: class integration', () => {
   it('tailwind config has darkMode set to class', async () => {
-    // Verify the tailwind.config.ts has darkMode: 'class'
+    // Verify the tailwind config has darkMode: 'class'
     const fs = require('fs');
     const path = require('path');
     const config = fs.readFileSync(
-      path.join(__dirname, '..', 'tailwind.config.ts'),
+      path.join(__dirname, '..', 'tailwind.config.js'),
       'utf8'
     );
     expect(config).toContain("darkMode: 'class'");
