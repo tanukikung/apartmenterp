@@ -502,27 +502,15 @@ export class TenantService {
           tenantId: input.tenantId,
           role: input.role,
           moveInDate: new Date(input.moveInDate),
+          createdAt: new Date(),
         },
         include: {
           room: true,
         },
       });
-      await tx.outboxEvent.create({
-        data: {
-          id: uuidv4(),
-          aggregateType: 'Tenant',
-          aggregateId: tenant.id,
-          eventType: EventTypes.TENANT_ASSIGNED_TO_ROOM,
-          payload: {
-            tenantId: tenant.id,
-            fullName: `${tenant.firstName} ${tenant.lastName}`,
-            roomNo: room.roomNo,
-            role: input.role,
-            moveInDate: input.moveInDate,
-            assignedBy,
-          },
-          retryCount: 0,
-        },
+      await tx.room.update({
+        where: { roomNo: roomId },
+        data: { roomStatus: 'OCCUPIED' },
       });
       return created;
     });
@@ -597,23 +585,6 @@ export class TenantService {
         }
       }
 
-      await tx.outboxEvent.create({
-        data: {
-          id: uuidv4(),
-          aggregateType: 'Tenant',
-          aggregateId: tenantId,
-          eventType: EventTypes.TENANT_REMOVED_FROM_ROOM,
-          payload: {
-            tenantId: roomTenant.tenant.id,
-            fullName: `${roomTenant.tenant.firstName} ${roomTenant.tenant.lastName}`,
-            roomNo: roomTenant.room.roomNo,
-            role: roomTenant.role,
-            moveOutDate: input.moveOutDate,
-            removedBy,
-          },
-          retryCount: 0,
-        },
-      });
     });
 
     // Publish event

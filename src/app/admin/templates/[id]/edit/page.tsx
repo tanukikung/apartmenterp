@@ -663,7 +663,7 @@ export default function TemplateEditPage() {
                         <input
                           ref={fileRef}
                           type="file"
-                          accept=".docx"
+                          accept=".html,.htm"
                           className="hidden"
                           onChange={(event) => {
                             const file = event.target.files?.[0];

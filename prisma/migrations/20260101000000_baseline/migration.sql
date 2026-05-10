@@ -95,7 +95,7 @@ CREATE TYPE "DocumentSourceScope" AS ENUM ('SINGLE_ROOM', 'SELECTED_ROOMS', 'FLO
 CREATE TYPE "GeneratedDocumentStatus" AS ENUM ('GENERATED', 'EXPORTED', 'SENT', 'ARCHIVED', 'FAILED');
 
 -- CreateEnum
-CREATE TYPE "GeneratedDocumentFileRole" AS ENUM ('SOURCE_HTML', 'PDF', 'DOCX', 'ZIP_BUNDLE', 'PREVIEW');
+CREATE TYPE "GeneratedDocumentFileRole" AS ENUM ('SOURCE_HTML', 'PDF', 'ZIP_BUNDLE', 'PREVIEW');
 
 -- CreateEnum
 CREATE TYPE "InvoiceDeliveryChannel" AS ENUM ('LINE', 'PDF', 'PRINT');
@@ -1270,4 +1270,3 @@ ALTER TABLE "_InvoiceToPayment" ADD CONSTRAINT "_InvoiceToPayment_A_fkey" FOREIG
 
 -- AddForeignKey
 ALTER TABLE "_InvoiceToPayment" ADD CONSTRAINT "_InvoiceToPayment_B_fkey" FOREIGN KEY ("B") REFERENCES "payments"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-

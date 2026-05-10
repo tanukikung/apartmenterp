@@ -8,7 +8,7 @@ import { useUrlState } from '@/hooks/useUrlState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonKPICard } from '@/components/ui/skeleton';
-import { CardGrid } from '@/components/ui/card-grid';
+import { useToast } from '@/components/providers/ToastProvider';
 
 type Room = {
   roomNo: string;
@@ -96,9 +96,8 @@ export default function AdminRoomsPage() {
   const [createForm, setCreateForm] = useState(createDefaults);
   const [editForm, setEditForm] = useState({ floorNo: 2, defaultRentAmount: '3000', hasFurniture: false, defaultFurnitureAmount: '0', defaultAccountId: '', defaultRuleCode: '', roomStatus: 'VACANT' as Room['roomStatus'] });
   const [working, setWorking] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const toast = useToast();
   const [drawerMode, setDrawerMode] = useState<DrawerMode>(null);
 
   // Confirm dialogs — use extended type to support all ConfirmDialog props
@@ -117,12 +116,14 @@ export default function AdminRoomsPage() {
   const roomsQueryParams = useMemo(() => {
     const params = new URLSearchParams({
       page: String(currentPage),
-      pageSize: '50',
+      // Load all rooms when no floor filter so all floor sections show at once
+      pageSize: floorFilter === null ? '300' : '50',
       ...(search.trim() ? { q: search.trim() } : {}),
       ...(statusFilter ? { roomStatus: statusFilter } : {}),
+      ...(floorFilter !== null ? { floorNo: String(floorFilter) } : {}),
     });
     return `/api/rooms?${params.toString()}`;
-  }, [search, statusFilter, currentPage]);
+  }, [search, statusFilter, currentPage, floorFilter]);
 
   const { data: roomsData, isLoading: loading, refetch } = useApiData<RoomList>(roomsQueryParams, ['rooms']);
 
@@ -183,16 +184,34 @@ export default function AdminRoomsPage() {
     ownerUse: roomsData?.statusCounts?.OWNER_USE ?? 0,
   }), [roomsData]);
 
+  const parseParts = (s: string) => {
+    const slashIdx = s.indexOf('/');
+    if (slashIdx === -1) return { prefix: parseInt(s, 10), suffix: 0 };
+    return { prefix: parseInt(s.substring(0, slashIdx), 10), suffix: parseInt(s.substring(slashIdx + 1), 10) };
+  };
+
   const filteredRooms = useMemo(() => {
     if (!roomsData?.data) return [];
     const rooms = floorFilter === null ? roomsData.data : roomsData.data.filter(r => r.floorNo === floorFilter);
     return [...rooms].sort((a, b) => {
       if (a.floorNo !== b.floorNo) return a.floorNo - b.floorNo;
-      const numA = parseInt(a.roomNo.replace(/.*\//, ''), 10);
-      const numB = parseInt(b.roomNo.replace(/.*\//, ''), 10);
-      return numA - numB;
+      const aP = parseParts(a.roomNo);
+      const bP = parseParts(b.roomNo);
+      if (aP.prefix !== bP.prefix) return aP.prefix - bP.prefix;
+      return aP.suffix - bP.suffix;
     });
   }, [roomsData, floorFilter]);
+
+  // Group sorted rooms by floor for section headers
+  const roomsByFloor = useMemo(() => {
+    const map = new Map<number, Room[]>();
+    for (const room of filteredRooms) {
+      const list = map.get(room.floorNo) ?? [];
+      list.push(room);
+      map.set(room.floorNo, list);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
+  }, [filteredRooms]);
 
   function closeDrawer() {
     setDrawerMode(null);
@@ -202,8 +221,8 @@ export default function AdminRoomsPage() {
   async function createRoom(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setWorking('create');
-    setMessage(null);
-    setError(null);
+    
+    
     try {
       const res = await fetch('/api/rooms', {
         method: 'POST',
@@ -219,12 +238,12 @@ export default function AdminRoomsPage() {
         }),
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถสร้างห้องได้');
-      setMessage(`ห้อง ${createForm.roomNo} สร้างสำเร็จ`);
+      toast.success(`ห้อง ${createForm.roomNo} สร้างสำเร็จ`);
       setCreateForm((prev) => ({ ...prev, roomNo: '' }));
       closeDrawer();
       await refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถสร้างห้องได้');
+      toast.error(err instanceof Error ? err.message : 'ไม่สามารถสร้างห้องได้');
     } finally {
       setWorking(null);
     }
@@ -234,8 +253,8 @@ export default function AdminRoomsPage() {
     e.preventDefault();
     if (!selectedRoom) return;
     setWorking(`edit:${selectedRoom.roomNo}`);
-    setMessage(null);
-    setError(null);
+    
+    
     try {
       const res = await fetch(`/api/rooms/${encodeURIComponent(selectedRoom.roomNo)}`, {
         method: 'PATCH',
@@ -251,11 +270,11 @@ export default function AdminRoomsPage() {
         }),
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถอัพเดทห้องได้');
-      setMessage(`ห้อง ${selectedRoom.roomNo} อัพเดทสำเร็จ`);
+      toast.success(`ห้อง ${selectedRoom.roomNo} อัพเดทสำเร็จ`);
       closeDrawer();
       await refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถอัพเดทห้องได้');
+      toast.error(err instanceof Error ? err.message : 'ไม่สามารถอัพเดทห้องได้');
     } finally {
       setWorking(null);
     }
@@ -273,8 +292,8 @@ export default function AdminRoomsPage() {
       onConfirm: async (reason) => {
         setConfirmDialog(null);
         setWorking(`delete:${roomNo}`);
-        setMessage(null);
-        setError(null);
+        
+        
         try {
           const res = await fetch(`/api/rooms/${encodeURIComponent(roomNo)}`, {
             method: 'DELETE',
@@ -282,11 +301,11 @@ export default function AdminRoomsPage() {
             body: JSON.stringify({ reason }),
           }).then((r) => r.json());
           if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถลบห้องได้');
-          setMessage(`ห้อง ${roomNo} ลบสำเร็จ`);
+          toast.success(`ห้อง ${roomNo} ลบสำเร็จ`);
           closeDrawer();
           await refetch();
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'ไม่สามารถลบห้องได้');
+          toast.error(err instanceof Error ? err.message : 'ไม่สามารถลบห้องได้');
         } finally {
           setWorking(null);
         }
@@ -303,8 +322,8 @@ export default function AdminRoomsPage() {
         onConfirm: async () => {
           setConfirmDialog(null);
           setWorking(`status:${roomNo}`);
-          setError(null);
-          setMessage(null);
+          
+          
           try {
             const res = await fetch(`/api/rooms/${encodeURIComponent(roomNo)}/status`, {
               method: 'PATCH',
@@ -312,10 +331,10 @@ export default function AdminRoomsPage() {
               body: JSON.stringify({ roomStatus: nextStatus }),
             }).then((r) => r.json());
             if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถอัพเดทสถานะได้');
-            setMessage(`สถานะห้อง ${roomNo} เปลี่ยนสำเร็จ`);
+            toast.success(`สถานะห้อง ${roomNo} เปลี่ยนสำเร็จ`);
             await refetch();
           } catch (err) {
-            setError(err instanceof Error ? err.message : 'ไม่สามารถอัพเดทสถานะได้');
+            toast.error(err instanceof Error ? err.message : 'ไม่สามารถอัพเดทสถานะได้');
           } finally {
             setWorking(null);
           }
@@ -324,8 +343,8 @@ export default function AdminRoomsPage() {
       return;
     }
     setWorking(`status:${roomNo}`);
-    setError(null);
-    setMessage(null);
+    
+    
     try {
       const res = await fetch(`/api/rooms/${encodeURIComponent(roomNo)}/status`, {
         method: 'PATCH',
@@ -333,10 +352,10 @@ export default function AdminRoomsPage() {
         body: JSON.stringify({ roomStatus: nextStatus }),
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถอัพเดทสถานะได้');
-      setMessage(`สถานะห้อง ${roomNo} เปลี่ยนสำเร็จ`);
+      toast.success(`สถานะห้อง ${roomNo} เปลี่ยนสำเร็จ`);
       await refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถอัพเดทสถานะได้');
+      toast.error(err instanceof Error ? err.message : 'ไม่สามารถอัพเดทสถานะได้');
     } finally {
       setWorking(null);
     }
@@ -389,10 +408,13 @@ export default function AdminRoomsPage() {
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--on-surface-variant))]" />
           <input
+            id="room-search"
+            name="room-search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-lg text-sm text-[hsl(var(--on-surface))] placeholder:text-[hsl(var(--on-surface-variant))]/50 focus:outline-none focus:border-[hsl(var(--primary))]/50 focus:ring-2 focus:ring-[hsl(var(--primary))]/20 transition-all duration-200"
             placeholder="ค้นหาเลขห้อง..."
+            autoComplete="off"
           />
         </div>
         <select
@@ -427,7 +449,7 @@ export default function AdminRoomsPage() {
         <div className="flex flex-wrap gap-2">
           <button
             className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${floorFilter === null ? 'bg-[hsl(var(--primary))] text-white shadow-[0_0_20px_rgba(99,102,241,0.15)]' : 'bg-[hsl(var(--color-surface))]/50 text-[hsl(var(--on-surface-variant))] border border-white/8 hover:border-white/15 hover:bg-[hsl(var(--color-surface-hover))]'}`}
-            onClick={() => setFloorFilter(null)}
+            onClick={() => { setFloorFilter(null); setCurrentPage(1); }}
           >
             ทุกชั้น
           </button>
@@ -435,23 +457,11 @@ export default function AdminRoomsPage() {
             <button
               key={f.floorNo}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${floorFilter === f.floorNo ? 'bg-[hsl(var(--primary))] text-white shadow-[0_0_20px_rgba(99,102,241,0.15)]' : 'bg-[hsl(var(--color-surface))]/50 text-[hsl(var(--on-surface-variant))] border border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-border))]/80 hover:bg-[hsl(var(--color-surface-hover))]'}`}
-              onClick={() => setFloorFilter(f.floorNo)}
+              onClick={() => { setFloorFilter(f.floorNo); setCurrentPage(1); }}
             >
               ชั้น {f.floorNo}
             </button>
           ))}
-        </div>
-      )}
-
-      {/* ── Alerts ── */}
-      {message && (
-        <div className="px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-400 font-medium">
-          {message}
-        </div>
-      )}
-      {error && (
-        <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400 font-medium">
-          {error}
         </div>
       )}
 
@@ -472,45 +482,48 @@ export default function AdminRoomsPage() {
           />
         </div>
       ) : viewMode === 'grid' ? (
-        <CardGrid
-          items={filteredRooms}
-          columns={4}
-          idKey="roomNo"
-          getCardMeta={(room) => {
-            const badgeCfg = glassRoomStatusBadge(room.roomStatus);
-            return {
-              title: room.roomNo,
-              subtitle: `ชั้น ${room.floorNo}`,
-              badge: (
-                <GlassStatusBadge label={badgeCfg.label} cls={badgeCfg.cls} />
-              ),
-              stats: [
-                { label: 'ค่าเช่า', value: `฿${Number(room.defaultRentAmount).toLocaleString()}` },
-              ],
-              footer: (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-[hsl(var(--on-surface-variant))]">ค่าเช่าเริ่มต้น</span>
-                  <Link
-                    href={`/admin/rooms/${encodeURIComponent(room.roomNo)}`}
-                    className="text-xs font-semibold text-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]/80 transition-colors flex items-center gap-1 active:scale-[0.98]"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    ดูรายละเอียด <ExternalLink className="h-3 w-3" />
-                  </Link>
-                </div>
-              ),
-            };
-          }}
-          onCardClick={(room) => setSelectedRoom(room)}
-          loading={loading}
-          empty={
-            <div className="rounded-xl border border-white/8 bg-[hsl(var(--color-surface))]/40 p-12 text-center">
-              <DoorOpen size={40} className="mx-auto text-[hsl(var(--on-surface-variant))] mb-4" />
-              <div className="text-sm font-semibold text-[hsl(var(--on-surface-variant))]">ไม่พบห้อง</div>
-              <div className="text-xs text-[hsl(var(--on-surface-variant))] mt-1">ลองเปลี่ยนตัวกรองหรือเพิ่มห้องใหม่</div>
+        <div className="space-y-8">
+          {roomsByFloor.map(([floorNo, rooms]) => (
+            <div key={floorNo}>
+              <div className="flex items-center gap-3 mb-3">
+                <h3 className="text-sm font-bold text-[hsl(var(--on-surface-variant))] uppercase tracking-widest">
+                  ชั้น {floorNo}
+                </h3>
+                <span className="text-xs text-[hsl(var(--on-surface-variant))]/60 bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-full px-2 py-0.5">
+                  {rooms.length} ห้อง
+                </span>
+                <div className="flex-1 h-px bg-[hsl(var(--color-border))]" />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+                {rooms.map((room) => {
+                  const badgeCfg = glassRoomStatusBadge(room.roomStatus);
+                  return (
+                    <div
+                      key={room.roomNo}
+                      onClick={() => setSelectedRoom(room)}
+                      className="cursor-pointer rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-3 hover:bg-[hsl(var(--color-surface-hover))] hover:border-[hsl(var(--primary))]/30 transition-all duration-150 group"
+                    >
+                      <div className="flex items-start justify-between gap-1 mb-2">
+                        <span className="font-bold text-sm text-[hsl(var(--on-surface))] font-mono leading-tight">{room.roomNo}</span>
+                        <GlassStatusBadge label={badgeCfg.label} cls={badgeCfg.cls} />
+                      </div>
+                      <div className="text-xs text-[hsl(var(--on-surface-variant))] mb-2">
+                        ฿{Number(room.defaultRentAmount).toLocaleString()}/เดือน
+                      </div>
+                      <Link
+                        href={`/admin/rooms/${encodeURIComponent(room.roomNo)}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[10px] font-semibold text-[hsl(var(--primary))] hover:underline flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        ดูรายละเอียด <ExternalLink className="h-2.5 w-2.5" />
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          }
-        />
+          ))}
+        </div>
       ) : (
         <div className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] shadow-[0_1px_3px_rgba(0,0,0,0.5)] overflow-hidden">
           <div className="overflow-auto">

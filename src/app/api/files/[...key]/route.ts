@@ -14,7 +14,6 @@ function guessContentTypeFromKey(key: string): string {
   if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'text/html; charset=utf-8';
   if (lower.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   if (lower.endsWith('.xls')) return 'application/vnd.ms-excel';
-  if (lower.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   return 'application/octet-stream';
 }
 

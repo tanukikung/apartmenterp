@@ -1572,7 +1572,6 @@ enum GeneratedDocumentStatus {
 enum GeneratedDocumentFileRole {
   SOURCE_HTML
   PDF
-  DOCX
   ZIP_BUNDLE
   PREVIEW
 }

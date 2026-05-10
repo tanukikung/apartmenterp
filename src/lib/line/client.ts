@@ -1014,7 +1014,7 @@ export async function sendReplyMessage(
 }
 
 /**
- * Send file message (PDF, DOCX, etc.)
+ * Send file message (PDF and other downloadable attachments)
  */
 export async function sendLineFileMessage(
   userId: string,
