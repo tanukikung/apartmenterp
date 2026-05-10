@@ -21,7 +21,7 @@ import {
 import { TemplateWordEditor } from '@/components/document-editor/TemplateWordEditor';
 import { VersionHistoryModal } from '@/components/document-editor/extensions/VersionHistoryModal';
 import { CommentPanel } from '@/components/document-editor/extensions/CommentPanel';
-import { createRepeatBlockMarkup, createScalarFieldMarkup } from '@/modules/documents/field-catalog';
+import { createRepeatBlockMarkup } from '@/modules/documents/field-catalog';
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import { ErrorBoundary } from '@/components/error/ErrorBoundary';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -33,6 +33,7 @@ type TemplateField = {
   description: string | null;
   isCollection: boolean;
   isRequired: boolean;
+  sampleValue?: string | null;
 };
 
 type TemplateVersion = {
@@ -348,10 +349,13 @@ export default function TemplateEditPage() {
   }
 
   async function insertFieldMarkup(field: TemplateField) {
-    const markup = field.isCollection
-      ? createRepeatBlockMarkup(field.key)
-      : createScalarFieldMarkup(field.key, field.label);
-    activeEditorRef.current?.chain().focus().insertContent(markup).run();
+    const editor = activeEditorRef.current;
+    if (!editor) return;
+    if (field.isCollection) {
+      editor.chain().focus().insertContent(createRepeatBlockMarkup(field.key)).run();
+    } else {
+      editor.chain().focus().insertContent({ type: 'text', text: `{{${field.key}}}` }).run();
+    }
     setMessage(`แทรก ${field.label} แล้ว`);
   }
 
@@ -642,31 +646,31 @@ export default function TemplateEditPage() {
                         <Layers3 className="h-4 w-4 text-primary" />
                         เวอร์ชัน
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => void createDraft()}
-                          className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
+                          title={working === 'draft' ? 'กำลังสร้าง...' : 'ร่างใหม่'}
+                          className="inline-flex items-center justify-center rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] h-7 w-7 text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
                           disabled={working === 'draft'}
                         >
-                          <FilePlus2 className="h-3.5 w-3.5" />
-                          {working === 'draft' ? 'กำลังสร้าง...' : 'ร่างใหม่'}
+                          {working === 'draft' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FilePlus2 className="h-3.5 w-3.5" />}
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowHistory(true)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
+                          title="ประวัติเวอร์ชัน"
+                          className="inline-flex items-center justify-center rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] h-7 w-7 text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
                         >
                           <History className="h-3.5 w-3.5" />
-                          ประวัติ
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowComments(true)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
+                          title="ความเห็น"
+                          className="inline-flex items-center justify-center rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] h-7 w-7 text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
                         >
                           <MessageSquare className="h-3.5 w-3.5" />
-                          ความเห็น
                         </button>
                         <input
                           ref={fileRef}
@@ -750,7 +754,7 @@ export default function TemplateEditPage() {
                       />
                     </div>
                   </div>
-                  <div className="space-y-1 p-3">
+                  <div className="space-y-0.5 p-2 max-h-80 overflow-y-auto">
                     {filteredGroupedFields.map(([group, fields]) => {
                       const isExpanded = expandedGroups.has(group) || !fieldSearch;
                       return (
@@ -765,42 +769,37 @@ export default function TemplateEditPage() {
                                 return next;
                               });
                             }}
-                            className="flex w-full items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[hsl(var(--card))] transition-colors"
+                            className="flex w-full items-center justify-between px-2 py-1 rounded-lg hover:bg-[hsl(var(--card))] transition-colors"
                           >
-                            <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[hsl(var(--card-foreground))]/30">{group}</span>
-                            <ChevronDown className={`h-3.5 w-3.5 text-[hsl(var(--card-foreground))]/30 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[hsl(var(--card-foreground))]/30">{group}</span>
+                            <ChevronDown className={`h-3 w-3 text-[hsl(var(--card-foreground))]/30 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           </button>
                           {isExpanded && (
-                            <div className="mt-1 space-y-1.5 pl-1">
+                            <div className="space-y-0.5">
                               {fields.map((field) => (
-                                <div key={field.key} className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5 hover:shadow-md transition-all duration-200">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                      <div className="font-semibold text-[hsl(var(--card-foreground))] text-sm leading-tight">{field.label}</div>
-                                      <div className="mt-0.5 font-mono text-[10px] text-primary/70">{field.key}</div>
-                                      {field.description ? (
-                                        <div className="mt-1 text-xs text-[hsl(var(--card-foreground))]/40 leading-snug line-clamp-2">{field.description}</div>
-                                      ) : null}
-                                    </div>
-                                    <div className="flex flex-col gap-1 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() => void insertFieldMarkup(field)}
-                                        className="inline-flex items-center gap-1 rounded-lg bg-primary/10 border border-primary/20 text-primary px-2 py-1 text-xs font-medium shadow-sm transition-all duration-200 hover:bg-primary/20 active:scale-[0.98]"
-                                      >
-                                        <Copy className="h-3 w-3" />
-                                        แทรก
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => jumpToField(field)}
-                                        className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-2 py-1 text-xs font-medium text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
-                                        title="ไปที่ฟิลด์ในเอกสาร"
-                                      >
-                                        <MapPin className="h-3 w-3" />
-                                        ไปที่
-                                      </button>
-                                    </div>
+                                <div key={field.key} className="flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-2.5 py-1.5 hover:bg-primary/5 transition-colors">
+                                  <div className="min-w-0 flex-1">
+                                    <span className="font-medium text-[hsl(var(--card-foreground))] text-xs leading-tight">{field.label}</span>
+                                    <span className="ml-1.5 font-mono text-[9px] text-primary/60">{field.key}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => void insertFieldMarkup(field)}
+                                      className="inline-flex items-center gap-1 rounded bg-primary/10 border border-primary/20 text-primary px-1.5 py-0.5 text-[10px] font-medium hover:bg-primary/20 active:scale-[0.98] transition-all"
+                                      title="แทรกฟิลด์นี้"
+                                    >
+                                      <Copy className="h-2.5 w-2.5" />
+                                      แทรก
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => jumpToField(field)}
+                                      className="inline-flex items-center justify-center rounded border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] w-5 h-5 text-[hsl(var(--card-foreground))]/50 hover:bg-primary/10 transition-colors"
+                                      title="ไปที่ฟิลด์ในเอกสาร"
+                                    >
+                                      <MapPin className="h-2.5 w-2.5" />
+                                    </button>
                                   </div>
                                 </div>
                               ))}
@@ -983,7 +982,7 @@ export default function TemplateEditPage() {
                         <TemplateWordEditor
                           value={versionContent}
                           subject={versionSubject}
-                          previewValues={Object.fromEntries((template?.fields ?? []).map((f) => [f.key, f.label]))}
+                          previewValues={Object.fromEntries((template?.fields ?? []).map((f) => [`{{${f.key}}}`, f.sampleValue ?? f.label]))}
                           templateId={isNew ? undefined : params.id}
                           editorRef={activeEditorRef}
                           onChange={(html) => {

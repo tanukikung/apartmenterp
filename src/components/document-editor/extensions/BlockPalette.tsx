@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
+import { ChevronDown, LayoutGrid } from 'lucide-react';
 
 type Block = {
   label: string;
@@ -8,7 +10,6 @@ type Block = {
   html: string;
   color: string;
   bg: string;
-  /** 'html' = insertContent (default), 'table' = insertTable */
   type?: 'html' | 'table';
 };
 
@@ -74,7 +75,7 @@ const BLOCKS: Block[] = [
   },
   {
     label: 'QR Transfer',
-    labelTh: 'QR + ช่องโอน',
+    labelTh: 'QR + ช่องโอนเงิน',
     color: '#1c3860',
     bg: 'transparent',
     html: `<div style="display:flex;gap:0;align-items:stretch;">
@@ -122,6 +123,19 @@ type Props = {
 };
 
 export function BlockPalette({ activeEditor }: Props) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onOutsideClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onOutsideClick);
+    return () => document.removeEventListener('mousedown', onOutsideClick);
+  }, []);
+
   function insertBlock(block: Block) {
     if (!activeEditor) return;
     if (block.type === 'table') {
@@ -129,54 +143,75 @@ export function BlockPalette({ activeEditor }: Props) {
     } else {
       activeEditor.chain().focus().insertContent(block.html).run();
     }
+    setOpen(false);
   }
 
   return (
-    <div className="block-palette">
-      <div className="block-palette-label">แทรก</div>
-      <div className="block-palette-scroll">
-        {BLOCKS.map((block) => (
-          <button
-            key={block.label}
-            type="button"
-            className="block-palette-btn"
-            onClick={() => insertBlock(block)}
-            title={block.labelTh}
-          >
-            <div
-              className="block-palette-preview"
+    <div ref={containerRef} style={{ position: 'relative', flexShrink: 0 }}>
+      <button
+        type="button"
+        className={`word-toolbar-button${open ? ' word-toolbar-button-active' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+        title="แทรกบล็อก"
+      >
+        <LayoutGrid className="h-4 w-4" />
+        <span style={{ fontSize: 12 }}>แทรก</span>
+        <ChevronDown className="h-3 w-3" style={{ opacity: 0.6 }} />
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            zIndex: 200,
+            background: '#fff',
+            border: '1px solid #d3d3d3',
+            borderRadius: 8,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.14)',
+            padding: 4,
+            minWidth: 196,
+          }}
+        >
+          {BLOCKS.map((block) => (
+            <button
+              key={block.label}
+              type="button"
+              onClick={() => insertBlock(block)}
               style={{
-                background: block.bg,
-                border: `1.5px solid ${block.color}`,
-                borderRadius: 4,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                width: '100%',
+                padding: '7px 10px',
+                border: 'none',
+                borderRadius: 5,
+                background: 'transparent',
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontSize: 13,
+                color: '#202124',
+                transition: 'background 0.1s',
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#f1f3f4'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
             >
-              {block.type === 'table' ? (
-                <div className="flex gap-[2px] items-center justify-center p-1">
-                  {[0, 1, 2].map((col) => (
-                    <div
-                      key={col}
-                      className="w-4 rounded-[1px]"
-                      style={{ background: block.color, height: 14 }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div
-                  style={{
-                    width: 28,
-                    height: block.label === 'Section' ? 2 : 18,
-                    background: block.color,
-                    borderRadius: block.label === 'Section' ? 0 : 2,
-                    margin: '0 auto',
-                  }}
-                />
-              )}
-            </div>
-            <span className="block-palette-name">{block.labelTh}</span>
-          </button>
-        ))}
-      </div>
+              <div
+                style={{
+                  width: 24,
+                  height: 16,
+                  flexShrink: 0,
+                  background: block.bg === 'transparent' ? 'transparent' : block.bg,
+                  border: `1.5px solid ${block.color}`,
+                  borderRadius: 3,
+                }}
+              />
+              <span>{block.labelTh}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

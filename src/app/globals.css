@@ -1095,11 +1095,28 @@
 .word-toolbar-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
   padding: 4px 8px;
   min-height: 40px;
   flex-shrink: 0;
 }
+.word-style-select {
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid #d3d3d3;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  color: #202124;
+  cursor: pointer;
+  flex-shrink: 0;
+  min-width: 90px;
+  transition: border-color 0.1s;
+}
+.word-style-select:hover { border-color: #b0b0b0; }
+.word-style-select:focus { outline: none; border-color: #1a73e8; }
 
 .word-toolbar-row-between {
   display: flex;
@@ -1264,6 +1281,9 @@
 .word-paper-a4 {
   width: 816px;
   min-height: 1056px;
+  background: #ffffff;
+  padding: 48px 60px;
+  position: relative;
 }
 .word-paper-letter {
   width: 816px;
@@ -1321,15 +1341,15 @@
 /* ── Editor Regions (Header/Body/Footer) ── */
 .word-editor-region {
   position: relative;
-  border-bottom: 1px dashed #e0e0e0;
   min-height: 48px;
+  background: #ffffff;
 }
-.word-editor-region:last-child {
-  border-bottom: none;
+.word-editor-region-body {
+  flex: 1;
+  background: #ffffff;
 }
 .word-editor-region-active {
-  background: hsl(var(--color-primary) / 0.05);
-  border-bottom-color: hsl(var(--color-primary) / 0.2);
+  background: hsl(var(--color-primary) / 0.03);
 }
 .word-editor-region-bar {
   display: flex;
@@ -1376,20 +1396,64 @@
   min-height: 120px;
   background: #ffffff;
 }
+/* Ensure TipTap's EditorContent wrapper div (has no class) fills white too */
+.word-editor-region-body > div {
+  background: #ffffff;
+}
 .word-editor-content-region {
-  border-left: 3px solid hsl(var(--color-primary));
   margin: 0;
+  min-height: 36px;
+  padding: 4px 24px 8px;
 }
 .word-editor-content-header {
-  background: #fafafa;
+  background: transparent;
 }
 .word-editor-content-footer {
-  background: #f8f9fa;
-  font-size: 12px;
-  color: #5f6368;
+  background: transparent;
 }
 .word-editor-content-body {
   flex: 1;
+  min-height: 360px;
+}
+
+/* ── Word-like region strip (header/footer label bar) ── */
+.word-region-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 24px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9aa0a6;
+  user-select: none;
+  pointer-events: none;
+}
+.word-region-strip-header { padding-top: 6px; }
+.word-region-strip-footer { padding-bottom: 6px; }
+.word-region-strip-hint {
+  font-weight: 400;
+  font-size: 10px;
+  color: #bbbfc3;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.word-editor-region-active .word-region-strip {
+  color: hsl(var(--color-primary) / 0.7);
+}
+.word-editor-region-active .word-region-strip-hint {
+  color: hsl(var(--color-primary) / 0.4);
+}
+
+/* ── Dashed divider between header/body/footer ── */
+.word-region-divider {
+  height: 0;
+  border-top: 1.5px dashed #d0d4d9;
+  margin: 0 0;
+}
+.word-editor-region-active .word-region-divider {
+  border-top-color: hsl(var(--color-primary) / 0.35);
 }
 
 /* ── Editor Footer ── */
@@ -1446,16 +1510,16 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: hsl(var(--color-text-3));
+  color: #9aa0a6;
   margin-bottom: 4px;
 }
 .word-preview-content {
   font-size: 12px;
   line-height: 1.5;
-  color: hsl(var(--color-text));
+  color: #1a1a1a;
 }
 .word-preview-content-region {
-  color: hsl(var(--color-text-3));
+  color: #5f6368;
   font-size: 11px;
 }
 
@@ -1478,17 +1542,76 @@
   font-weight: 600;
 }
 
-/* ── Color Picker ── */
+/* ── Font Pickers ── */
 .word-color-group {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 0 4px;
   border-right: 1px solid hsl(var(--color-border));
+  position: relative;
+  flex-shrink: 0;
 }
 .word-color-group:last-child {
   border-right: none;
 }
+.word-font-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: 1px solid #d3d3d3;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+  transition: background 0.1s, border-color 0.1s;
+  flex-shrink: 0;
+}
+.word-font-picker-btn:hover { background: #f1f3f4; border-color: #b0b0b0; }
+.word-font-picker-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 72px;
+  min-width: 0;
+}
+.word-font-size-value {
+  min-width: 20px;
+  text-align: center;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.word-font-picker-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 200;
+  background: #fff;
+  border: 1px solid #d3d3d3;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.14);
+  padding: 4px;
+  min-width: 160px;
+}
+.word-font-picker-option {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  color: #202124;
+  transition: background 0.1s;
+  white-space: nowrap;
+}
+.word-font-picker-option:hover { background: #f1f3f4; }
+.word-font-picker-option.active { background: #e8f0fe; color: #1a73e8; }
 .word-color-swatch {
   width: 20px;
   height: 20px;
@@ -1538,6 +1661,10 @@
 .word-editor-shell .ProseMirror {
   outline: none;
   min-height: 400px;
+}
+/* Header/footer editors are compact — override the 400px floor */
+.word-editor-shell .word-editor-content-region.ProseMirror {
+  min-height: 36px !important;
 }
 
 /* ── Editor Shell ── */
@@ -1640,6 +1767,7 @@
   color: hsl(var(--color-text));
   caret-color: hsl(var(--color-primary));
 }
+
 
 .word-editor-shell .ProseMirror h1 { font-size: 26pt; font-weight: 600; margin: 0 0 0.83em; color: hsl(var(--color-text)); }
 .word-editor-shell .ProseMirror h2 { font-size: 20pt; font-weight: 600; margin: 0 0 0.83em; color: hsl(var(--color-text)); }
@@ -2534,4 +2662,89 @@
   .dark .divide-slate-200 > * + * { border-color: hsl(var(--color-border)) !important; }
   .dark .divide-gray-100 > * + * { border-color: hsl(var(--color-border)) !important; }
   .dark .divide-gray-200 > * + * { border-color: hsl(var(--color-border)) !important; }
+
+  /* ── Word Editor dark mode ── */
+  /* Toolbar shell */
+  .dark .word-toolbar-shell {
+    background: hsl(var(--color-surface));
+    border-color: hsl(var(--color-border));
+  }
+  .dark .word-toolbar-row-between {
+    border-bottom-color: hsl(var(--color-border));
+  }
+  .dark .word-style-select {
+    background: hsl(var(--color-surface));
+    color: hsl(var(--color-text));
+    border-color: hsl(var(--color-border));
+  }
+  .dark .word-region-button { color: hsl(var(--color-text-2)); }
+  .dark .word-toolbar-context { color: hsl(var(--color-text-3)); }
+
+  /* Region strips & dividers */
+  .dark .word-region-strip { color: hsl(var(--color-text-3)); }
+  .dark .word-region-strip-hint { color: hsl(var(--color-text-3) / 0.7); }
+  .dark .word-region-divider { border-top-color: hsl(var(--color-border)); }
+  .dark .word-editor-region-active .word-region-divider { border-top-color: hsl(var(--color-primary) / 0.4); }
+
+  /* Editor shell — the grey area around the paper stays dark */
+  .dark .word-editor-shell { background: hsl(var(--color-bg)); }
+
+  /* The paper always stays white — it represents a printed document.
+     Force dark text so content is readable in dark mode. */
+  .dark .word-editor-page,
+  .dark .word-editor-page .word-editor-region,
+  .dark .word-editor-page .word-editor-region-body,
+  .dark .word-editor-page .word-editor-region-body > div {
+    background: #ffffff !important;
+  }
+  .dark .word-editor-page .ProseMirror,
+  .dark .word-editor-page .word-editor-content {
+    background: #ffffff !important;
+    color: #1a1a1a !important;
+  }
+  .dark .word-editor-page .ProseMirror h1,
+  .dark .word-editor-page .ProseMirror h2,
+  .dark .word-editor-page .ProseMirror h3 {
+    color: #1a1a1a !important;
+  }
+  /* Region label strips stay light grey on the white paper */
+  .dark .word-region-strip { color: #9aa0a6; }
+  .dark .word-region-strip-hint { color: #bbbfc3; }
+  .dark .word-editor-region-active .word-region-strip { color: #6b8fb5; }
+
+  .dark .word-editor-footer {
+    background: hsl(var(--color-surface));
+    border-top-color: hsl(var(--color-border));
+    color: hsl(var(--color-text-2));
+  }
+
+  /* Ruler */
+  .dark .word-ruler,
+  .dark .word-ruler-track { background: hsl(var(--color-surface)); border-color: hsl(var(--color-border)); }
+  .dark .word-ruler-margin { background: hsl(var(--color-primary) / 0.12); border-right-color: hsl(var(--color-primary) / 0.5); }
+  .dark .word-ruler-tick { background: hsl(var(--color-border-strong)); }
+  .dark .word-ruler-tick-major { background: hsl(var(--color-text-3)); }
+  .dark .word-ruler-tick span { color: hsl(var(--color-text-3)); }
+
+  /* Font pickers */
+  .dark .word-font-picker-btn {
+    background: hsl(var(--color-surface));
+    border-color: hsl(var(--color-border));
+    color: hsl(var(--color-text));
+  }
+  .dark .word-font-picker-btn:hover { background: hsl(var(--surface-container-high)); border-color: hsl(var(--color-border-strong)); }
+  .dark .word-font-picker-dropdown {
+    background: hsl(var(--color-surface));
+    border-color: hsl(var(--color-border));
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  .dark .word-font-picker-option { color: hsl(var(--color-text)); }
+  .dark .word-font-picker-option:hover { background: hsl(var(--color-primary) / 0.12); }
+  .dark .word-font-picker-option.active { background: hsl(var(--color-primary) / 0.18); color: hsl(var(--color-primary)); }
+
+  /* Table toolbar (amber bar) — already uses inline styles, keep readable */
+  .dark .word-table-toolbar { filter: brightness(0.9); }
+
+  /* Footer stats */
+  .dark .word-editor-footer-stats span { border-right-color: hsl(var(--color-border)); color: hsl(var(--color-text-3)); }
 }

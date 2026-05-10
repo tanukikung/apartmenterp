@@ -31,13 +31,11 @@ import {
   AlignJustify,
   AlignLeft,
   AlignRight,
+  ArrowDownToLine,
   Bold,
   Columns3,
   Eye,
   FileDown,
-  Heading1,
-  Heading2,
-  Heading3,
   Highlighter,
   ImagePlus,
   Indent,
@@ -48,15 +46,17 @@ import {
   ListOrdered,
   Loader2,
   Maximize2,
+  Minus,
   Outdent,
   PaintBucket,
-  Pilcrow,
+  Plus,
   Printer,
   Redo2,
   RemoveFormatting,
   Rows3,
   Settings2,
   SplitSquareVertical,
+  Trash2,
   Underline as UnderlineIcon,
   Undo2,
   X,
@@ -79,7 +79,6 @@ import { PageSetupModal } from './extensions/PageSetupModal';
 import { BlockPalette } from './extensions/BlockPalette';
 import { FindReplaceModal } from './extensions/FindReplaceModal';
 import { FloatingToolbar, FontFamilyPicker, FontSizePicker } from './extensions/FloatingToolbar';
-import { TableToolbar } from './extensions/TableToolbar';
 
 type TemplateWordEditorProps = {
   value: string;
@@ -161,35 +160,38 @@ function buildPageStyle(meta: TemplateDocumentMeta): CSSProperties {
 
 function createWordExtensions(placeholder: string) {
   return [
-    StarterKit.configure({
-      heading: {
-        levels: [1, 2, 3],
-      },
-    }),
+    StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
     Underline,
     TextStyle,
     FontFamily,
     Color,
     Highlight.configure({ multicolor: true }),
-    Link.configure({
-      openOnClick: false,
-      autolink: false,
-    }),
-    TextAlign.configure({
-      types: ['heading', 'paragraph'],
-    }),
-    Placeholder.configure({
-      placeholder,
-    }),
-    Table.configure({
-      resizable: true,
-    }),
+    Link.configure({ openOnClick: false, autolink: false }),
+    TextAlign.configure({ types: ['heading', 'paragraph'] }),
+    Placeholder.configure({ placeholder }),
+    Table.configure({ resizable: true }),
     TableRow,
     TableHeader,
     TableCell,
     ResizableImage,
     PageBreak,
     Columns,
+    LineSpacing,
+  ];
+}
+
+function createRegionExtensions(placeholder: string) {
+  return [
+    StarterKit.configure({ heading: { levels: [1, 2, 3] }, blockquote: false, codeBlock: false }),
+    Underline,
+    TextStyle,
+    FontFamily,
+    Color,
+    Highlight.configure({ multicolor: true }),
+    Link.configure({ openOnClick: false, autolink: false }),
+    TextAlign.configure({ types: ['heading', 'paragraph'] }),
+    Placeholder.configure({ placeholder }),
+    ResizableImage,
     LineSpacing,
   ];
 }
@@ -286,6 +288,7 @@ export function TemplateWordEditor({
   const [footerHtml, setFooterHtml] = useState(parsedDocument.footerHtml);
   const [editorBody, setEditorBody] = useState(parsedDocument.bodyHtml);
   const [activeRegion, setActiveRegion] = useState<RegionKey>('body');
+  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [puppeteerPreviewUrl, setPuppeteerPreviewUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -294,6 +297,8 @@ export function TemplateWordEditor({
   const [undoToast, setUndoToast] = useState<string | null>(null);
   const [previewFlash, setPreviewFlash] = useState(false);
   const [_showHistory, _setShowHistory] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlInputValue, setUrlInputValue] = useState('');
 
   async function generatePuppeteerPreview() {
     setIsGeneratingPreview(true);
@@ -341,7 +346,7 @@ export function TemplateWordEditor({
 
   const headerEditor = useEditor({
     immediatelyRender: false,
-    extensions: createWordExtensions('Add a repeating header for every page...'),
+    extensions: createRegionExtensions('Add a repeating header for every page...'),
     content: parsedDocument.headerHtml,
     onUpdate({ editor }) {
       setHeaderHtml(normalizeDocumentTemplateBody(editor.getHTML()));
@@ -427,7 +432,7 @@ export function TemplateWordEditor({
 
   const footerEditor = useEditor({
     immediatelyRender: false,
-    extensions: createWordExtensions('Add a repeating footer for every page...'),
+    extensions: createRegionExtensions('Add a repeating footer for every page...'),
     content: parsedDocument.footerHtml,
     onUpdate({ editor }) {
       setFooterHtml(normalizeDocumentTemplateBody(editor.getHTML()));
@@ -643,8 +648,7 @@ export function TemplateWordEditor({
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="space-y-4">
+    <div className="space-y-4">
         <section className="admin-card overflow-hidden">
           <div className="word-toolbar-shell">
             <div className="word-toolbar-row word-toolbar-row-between">
@@ -668,8 +672,24 @@ export function TemplateWordEditor({
                   onClick={() => focusRegion('footer')}
                 />
               </div>
+              <div className="flex rounded-md overflow-hidden border border-outline" style={{ flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('edit')}
+                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'edit' ? 'bg-primary text-on-primary' : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container'}`}
+                >แก้ไข</button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('preview')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'preview' ? 'bg-primary text-on-primary' : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container'}`}
+                >
+                  <Eye className="h-3 w-3" />
+                  ตัวอย่าง
+                </button>
+              </div>
             </div>
 
+            <div style={{ display: viewMode === 'preview' ? 'none' : undefined }}>
             <div className="word-toolbar-row">
               <ToolbarButton label="Undo" onClick={() => {
                 activeEditor.chain().focus().undo().run();
@@ -686,34 +706,26 @@ export function TemplateWordEditor({
                 <Redo2 className="h-4 w-4" />
               </ToolbarButton>
               <div className="word-toolbar-separator" />
-              <ToolbarButton
-                label="Heading 1"
-                active={activeEditor.isActive('heading', { level: 1 })}
-                onClick={() => activeEditor.chain().focus().toggleHeading({ level: 1 }).run()}
+              <select
+                className="word-style-select"
+                value={
+                  activeEditor.isActive('heading', { level: 1 }) ? 'h1' :
+                  activeEditor.isActive('heading', { level: 2 }) ? 'h2' :
+                  activeEditor.isActive('heading', { level: 3 }) ? 'h3' : 'p'
+                }
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === 'h1') activeEditor.chain().focus().toggleHeading({ level: 1 }).run();
+                  else if (v === 'h2') activeEditor.chain().focus().toggleHeading({ level: 2 }).run();
+                  else if (v === 'h3') activeEditor.chain().focus().toggleHeading({ level: 3 }).run();
+                  else activeEditor.chain().focus().setParagraph().run();
+                }}
               >
-                <Heading1 className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                label="Heading 2"
-                active={activeEditor.isActive('heading', { level: 2 })}
-                onClick={() => activeEditor.chain().focus().toggleHeading({ level: 2 }).run()}
-              >
-                <Heading2 className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                label="Heading 3"
-                active={activeEditor.isActive('heading', { level: 3 })}
-                onClick={() => activeEditor.chain().focus().toggleHeading({ level: 3 }).run()}
-              >
-                <Heading3 className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                label="Paragraph"
-                active={activeEditor.isActive('paragraph')}
-                onClick={() => activeEditor.chain().focus().setParagraph().run()}
-              >
-                <Pilcrow className="h-4 w-4" />
-              </ToolbarButton>
+                <option value="p">ย่อหน้า</option>
+                <option value="h1">หัวข้อ 1</option>
+                <option value="h2">หัวข้อ 2</option>
+                <option value="h3">หัวข้อ 3</option>
+              </select>
               <div className="word-toolbar-separator" />
               <ToolbarButton
                 label="Bold"
@@ -810,8 +822,7 @@ export function TemplateWordEditor({
             <div className="word-toolbar-row">
               <FontFamilyPicker editor={activeEditor} />
               <FontSizePicker editor={activeEditor} />
-              <div className="word-color-group">
-                <span className="word-toolbar-label">Line</span>
+              <div className="word-color-group" title="Line / Paragraph spacing">
                 <select
                   className="admin-select !w-auto !py-1.5"
                   value=""
@@ -819,84 +830,74 @@ export function TemplateWordEditor({
                     const [spacing, value] = event.target.value.split(':');
                     const chain = activeEditor.chain().focus();
                     if (spacing === 'lh') {
-                      // tiptap chain() return type doesn't expose extension methods; safe to narrow
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       void (chain as any as { setLineHeight(v: string): { run(): boolean } }).setLineHeight(value).run();
                     } else if (spacing === 'pa') {
-                      // tiptap chain() return type doesn't expose extension methods; safe to narrow
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       void (chain as any as { setParagraphSpacing(v: string): { run(): boolean } }).setParagraphSpacing(value).run();
                     }
                   }}
                 >
-                  <option value="">Line Height</option>
-                  <option value="lh:1">Single (1.0)</option>
-                  <option value="lh:1.15">1.15</option>
-                  <option value="lh:1.5">1.5</option>
-                  <option value="lh:1.75">1.75</option>
-                  <option value="lh:2">Double (2.0)</option>
+                  <option value="">↕ ระยะ</option>
+                  <option value="lh:1">บรรทัด 1.0×</option>
+                  <option value="lh:1.15">บรรทัด 1.15×</option>
+                  <option value="lh:1.5">บรรทัด 1.5×</option>
+                  <option value="lh:1.75">บรรทัด 1.75×</option>
+                  <option value="lh:2">บรรทัด 2.0×</option>
                   <option disabled>—</option>
-                  <option value="pa:0">Space before: 0</option>
-                  <option value="pa:6">Space before: 6pt</option>
-                  <option value="pa:12">Space before: 12pt</option>
-                  <option value="pa:18">Space before: 18pt</option>
+                  <option value="pa:0">ก่อนย่อหน้า: 0</option>
+                  <option value="pa:6">ก่อนย่อหน้า: 6pt</option>
+                  <option value="pa:12">ก่อนย่อหน้า: 12pt</option>
+                  <option value="pa:18">ก่อนย่อหน้า: 18pt</option>
                   <option disabled>—</option>
-                  <option value="pa:-6">Space after: 6pt</option>
-                  <option value="pa:-12">Space after: 12pt</option>
+                  <option value="pa:-6">หลังย่อหน้า: 6pt</option>
+                  <option value="pa:-12">หลังย่อหน้า: 12pt</option>
                 </select>
               </div>
-              <div className="word-color-group">
-                <span className="word-toolbar-label">Columns</span>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container-lowest px-2.5 py-1.5 text-xs font-medium text-on-surface shadow-sm transition-colors hover:bg-surface-container"
-                  onClick={() => {
-                    // tiptap chain() return type doesn't expose extension methods; safe to narrow
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const chain = (activeEditor.chain().focus() as any) as {
-                      selectParentNode(): { lift(): { run(): boolean } };
-                      insertContent(node: object): { run(): boolean };
-                    };
-                    if (activeEditor.isActive('columns')) {
-                      chain.selectParentNode().lift().run();
-                    } else {
-                      const columnsType = activeEditor.schema.nodes['columns'];
-                      if (columnsType) {
-                        chain.insertContent(columnsType.create({ count: 2 })).run();
-                      }
+              <ToolbarButton
+                label={activeEditor.isActive('columns') ? 'นำ 2 คอลัมน์ออก' : 'แบ่ง 2 คอลัมน์'}
+                active={activeEditor.isActive('columns')}
+                onClick={() => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const chain = (activeEditor.chain().focus() as any) as {
+                    selectParentNode(): { lift(): { run(): boolean } };
+                    insertContent(node: object): { run(): boolean };
+                  };
+                  if (activeEditor.isActive('columns')) {
+                    chain.selectParentNode().lift().run();
+                  } else {
+                    const columnsType = activeEditor.schema.nodes['columns'];
+                    if (columnsType) {
+                      chain.insertContent(columnsType.create({ count: 2 })).run();
                     }
-                  }}
-                >
-                  <Columns3 className="h-3.5 w-3.5" />
-                  {activeEditor.isActive('columns') ? 'Remove' : '2 Col'}
-                </button>
-              </div>
-              <div className="word-color-group">
-                <span className="word-toolbar-label">
-                  <PaintBucket className="h-4 w-4" />
-                  Text
-                </span>
+                  }
+                }}
+              >
+                <Columns3 className="h-4 w-4" />
+              </ToolbarButton>
+              <div className="word-toolbar-separator" />
+              <div className="word-color-group" title="สีตัวอักษร">
+                <PaintBucket className="h-3.5 w-3.5 text-slate-500" />
                 {TEXT_COLORS.map((color) => (
                   <button
                     key={color}
                     type="button"
                     className="word-color-swatch"
-                    style={{ backgroundColor: color }}
+                    style={{ backgroundColor: color, width: 16, height: 16 }}
+                    title={color}
                     onClick={() => activeEditor.chain().focus().setColor(color).run()}
                   />
                 ))}
               </div>
-              <div className="word-color-group">
-                <span className="word-toolbar-label">
-                  <Highlighter className="h-4 w-4" />
-                  Highlight
-                </span>
+              <div className="word-color-group" title="ไฮไลท์">
+                <Highlighter className="h-3.5 w-3.5 text-slate-500" />
                 {HIGHLIGHT_COLORS.map((color) => (
                   <button
                     key={color}
                     type="button"
                     className="word-color-swatch"
-                    style={{ backgroundColor: color }}
+                    style={{ backgroundColor: color, width: 16, height: 16 }}
+                    title={color}
                     onClick={() => activeEditor.chain().focus().toggleHighlight({ color }).run()}
                   />
                 ))}
@@ -914,57 +915,8 @@ export function TemplateWordEditor({
               >
                 <Rows3 className="h-4 w-4" />
               </ToolbarButton>
-              <ToolbarButton
-                label="Add Row"
-                disabled={!activeEditor.can().addRowAfter()}
-                onClick={() => activeEditor.chain().focus().addRowAfter().run()}
-              >
-                <span className="text-xs font-semibold">+Row</span>
-              </ToolbarButton>
-              <ToolbarButton
-                label="Add Column"
-                disabled={!activeEditor.can().addColumnAfter()}
-                onClick={() => activeEditor.chain().focus().addColumnAfter().run()}
-              >
-                <span className="text-xs font-semibold">+Col</span>
-              </ToolbarButton>
-              <ToolbarButton
-                label="Delete Row"
-                disabled={!activeEditor.can().deleteRow()}
-                onClick={() => activeEditor.chain().focus().deleteRow().run()}
-              >
-                <span className="text-xs font-semibold">Del Row</span>
-              </ToolbarButton>
-              <ToolbarButton
-                label="Delete Column"
-                disabled={!activeEditor.can().deleteColumn()}
-                onClick={() => activeEditor.chain().focus().deleteColumn().run()}
-              >
-                <span className="text-xs font-semibold">Del Col</span>
-              </ToolbarButton>
-              <ToolbarButton
-                label="Merge Cells"
-                disabled={!activeEditor.can().mergeCells()}
-                onClick={() => activeEditor.chain().focus().mergeCells().run()}
-              >
-                <SplitSquareVertical className="h-4 w-4 rotate-90" />
-              </ToolbarButton>
-              <ToolbarButton
-                label="Split Cell"
-                disabled={!activeEditor.can().splitCell()}
-                onClick={() => activeEditor.chain().focus().splitCell().run()}
-              >
-                <SplitSquareVertical className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                label="Delete Table"
-                disabled={!activeEditor.can().deleteTable()}
-                onClick={() => activeEditor.chain().focus().deleteTable().run()}
-              >
-                <span className="text-xs font-semibold">Del Tbl</span>
-              </ToolbarButton>
               <ToolbarButton label="Page Break" onClick={() => activeEditor.chain().focus().insertPageBreak().run()}>
-                <span className="text-xs font-semibold">Page</span>
+                <ArrowDownToLine className="h-4 w-4" />
               </ToolbarButton>
               <ToolbarButton label="Image" onClick={() => fileInputRef.current?.click()}>
                 <ImagePlus className="h-4 w-4" />
@@ -978,18 +930,77 @@ export function TemplateWordEditor({
               />
             </div>
 
-            {/* Row 3: Block Palette + Table Toolbar + Font Size + Page Setup */}
+            {/* Contextual Table Bar — only visible when cursor is inside a table */}
+            {activeEditor.isActive('table') && (
+              <div className="word-toolbar-row" style={{ background: 'rgba(245, 158, 11, 0.06)', borderTop: '1px solid rgba(245, 158, 11, 0.25)' }}>
+                <span className="word-toolbar-label" style={{ color: '#b45309', fontWeight: 600 }}>Table</span>
+                <div className="word-toolbar-separator" />
+                <ToolbarButton
+                  label="Add Row Below"
+                  disabled={!activeEditor.can().addRowAfter()}
+                  onClick={() => activeEditor.chain().focus().addRowAfter().run()}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="text-[10px] leading-none">Row</span>
+                </ToolbarButton>
+                <ToolbarButton
+                  label="Add Column Right"
+                  disabled={!activeEditor.can().addColumnAfter()}
+                  onClick={() => activeEditor.chain().focus().addColumnAfter().run()}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="text-[10px] leading-none">Col</span>
+                </ToolbarButton>
+                <div className="word-toolbar-separator" />
+                <ToolbarButton
+                  label="Merge Cells"
+                  disabled={!activeEditor.can().mergeCells()}
+                  onClick={() => activeEditor.chain().focus().mergeCells().run()}
+                >
+                  <SplitSquareVertical className="h-4 w-4 rotate-90" />
+                </ToolbarButton>
+                <ToolbarButton
+                  label="Split Cell"
+                  disabled={!activeEditor.can().splitCell()}
+                  onClick={() => activeEditor.chain().focus().splitCell().run()}
+                >
+                  <SplitSquareVertical className="h-4 w-4" />
+                </ToolbarButton>
+                <div className="word-toolbar-separator" />
+                <ToolbarButton
+                  label="Delete Row"
+                  disabled={!activeEditor.can().deleteRow()}
+                  onClick={() => activeEditor.chain().focus().deleteRow().run()}
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                  <span className="text-[10px] leading-none">Row</span>
+                </ToolbarButton>
+                <ToolbarButton
+                  label="Delete Column"
+                  disabled={!activeEditor.can().deleteColumn()}
+                  onClick={() => activeEditor.chain().focus().deleteColumn().run()}
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                  <span className="text-[10px] leading-none">Col</span>
+                </ToolbarButton>
+                <ToolbarButton
+                  label="Delete Table"
+                  disabled={!activeEditor.can().deleteTable()}
+                  onClick={() => activeEditor.chain().focus().deleteTable().run()}
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                </ToolbarButton>
+              </div>
+            )}
+
+            {/* Row 3: Block Palette + Font Size + Page Setup */}
             <div className="word-toolbar-row word-toolbar-row-gap-sm">
               <BlockPalette activeEditor={activeEditor} />
 
               <div className="word-toolbar-separator" style={{ margin: '0 4px' }} />
 
-              <TableToolbar activeEditor={activeEditor} />
-
-              <div className="word-toolbar-separator" style={{ margin: '0 4px' }} />
-
               <div className="word-color-group" style={{ flexShrink: 0 }}>
-                <span className="word-toolbar-label">ขนาด</span>
+                <span className="word-toolbar-label">ขนาดหน้า</span>
                 <select
                   className="admin-select !w-auto !py-1.5"
                   value={layout.fontSize}
@@ -1000,54 +1011,92 @@ export function TemplateWordEditor({
                     }))
                   }
                 >
-                  <option value="sm">12px</option>
                   <option value="sm">14px</option>
-                  <option value="base">16px</option>
-                  <option value="lg">18px</option>
+                  <option value="base">15px</option>
+                  <option value="lg">17px</option>
                 </select>
               </div>
 
-              <ToolbarButton label="ตั้งค่าหน้า"
-                onClick={() => setShowPageSetup(true)}
-              >
+              <ToolbarButton label="ตั้งค่าหน้า" onClick={() => setShowPageSetup(true)}>
                 <Settings2 className="h-4 w-4" />
               </ToolbarButton>
-              <ToolbarButton
-                label="ใส่รูปจาก URL"
-                onClick={() => {
-                  const raw = window.prompt('แปะ URL รูปภาพจากเว็บ:');
-                  if (!raw?.trim()) return;
-                  const url = raw.trim();
-                  setEditorError(null);
-                  setUploadingImage(true);
-                  void (async () => {
-                    try {
-                      const res = await fetch(`/api/templates/${templateId}/upload-image-from-url`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url }),
-                      });
-                      const json = await res.json();
-                      if (!json.success) throw new Error(json.error?.message ?? 'ดึงรูปไม่สำเร็จ');
-                      activeEditor.chain().focus().setResizableImage({
-                        src: json.data.url,
-                        alt: url.split('/').pop() ?? 'image',
-                        width: 640,
-                        align: 'center',
-                      }).run();
-                    } catch (e) {
-                      setEditorError(e instanceof Error ? e.message : 'ดึงรูปไม่สำเร็จ');
-                    } finally {
-                      setUploadingImage(false);
-                    }
-                  })();
-                }}
-              >
-                <LinkIcon className="h-4 w-4" />
-              </ToolbarButton>
-            </div>
-          </div>
 
+              {/* Inline URL image input */}
+              <div className="relative flex items-center">
+                <ToolbarButton
+                  label={showUrlInput ? 'ยกเลิก' : 'ใส่รูปจาก URL'}
+                  active={showUrlInput}
+                  onClick={() => {
+                    setShowUrlInput((v) => !v);
+                    setUrlInputValue('');
+                  }}
+                >
+                  <LinkIcon className="h-4 w-4" />
+                </ToolbarButton>
+                {showUrlInput && (
+                  <div className="absolute top-full left-0 z-50 mt-1 flex items-center gap-1.5 rounded-lg border border-outline bg-surface-container-lowest px-2 py-1.5 shadow-md">
+                    <input
+                      autoFocus
+                      type="url"
+                      placeholder="https://..."
+                      value={urlInputValue}
+                      onChange={(e) => setUrlInputValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') { setShowUrlInput(false); setUrlInputValue(''); }
+                      }}
+                      className="h-7 w-56 rounded border border-outline bg-surface-container-lowest px-2 text-xs text-on-surface outline-none focus:border-primary"
+                    />
+                    <button
+                      type="button"
+                      disabled={!urlInputValue.trim() || uploadingImage}
+                      className="flex items-center gap-1 rounded bg-primary px-2.5 py-1 text-xs font-medium text-on-primary disabled:opacity-50"
+                      onClick={() => {
+                        const url = urlInputValue.trim();
+                        if (!url) return;
+                        setShowUrlInput(false);
+                        setUrlInputValue('');
+                        setEditorError(null);
+                        setUploadingImage(true);
+                        void (async () => {
+                          try {
+                            const res = await fetch(`/api/templates/${templateId}/upload-image-from-url`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ url }),
+                            });
+                            const json = await res.json();
+                            if (!json.success) throw new Error(json.error?.message ?? 'ดึงรูปไม่สำเร็จ');
+                            activeEditor.chain().focus().setResizableImage({
+                              src: json.data.url,
+                              alt: url.split('/').pop() ?? 'image',
+                              width: 640,
+                              align: 'center',
+                            }).run();
+                          } catch (e) {
+                            setEditorError(e instanceof Error ? e.message : 'ดึงรูปไม่สำเร็จ');
+                          } finally {
+                            setUploadingImage(false);
+                          }
+                        })();
+                      }}
+                    >
+                      ใส่รูป
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowUrlInput(false); setUrlInputValue(''); }}
+                      className="flex h-7 w-7 items-center justify-center rounded text-on-surface-variant hover:bg-surface-container"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            </div>{/* end edit-only toolbar rows */}
+          </div>{/* end word-toolbar-shell */}
+
+          {viewMode === 'edit' ? (
           <div className="word-editor-shell">
             <div className="word-ruler-shell" style={pageStyle}>
               <div className="word-ruler">
@@ -1080,7 +1129,12 @@ export function TemplateWordEditor({
                 className={`word-editor-region word-editor-region-header ${activeRegion === 'header' ? 'word-editor-region-active' : ''}`}
                 onMouseDown={() => setActiveRegion('header')}
               >
+                <div className="word-region-strip word-region-strip-header">
+                  <span>ส่วนหัว</span>
+                  <span className="word-region-strip-hint">ปรากฏทุกหน้า</span>
+                </div>
                 <EditorContent editor={headerEditor} />
+                <div className="word-region-divider" />
               </section>
 
               <section
@@ -1107,10 +1161,45 @@ export function TemplateWordEditor({
                 className={`word-editor-region word-editor-region-footer ${activeRegion === 'footer' ? 'word-editor-region-active' : ''}`}
                 onMouseDown={() => setActiveRegion('footer')}
               >
+                <div className="word-region-divider" />
+                <div className="word-region-strip word-region-strip-footer">
+                  <span>ส่วนท้าย</span>
+                  <span className="word-region-strip-hint">ลายเซ็น & อ้างอิง</span>
+                </div>
                 <EditorContent editor={footerEditor} />
               </section>
             </div>
           </div>
+
+          ) : (
+          <div className="word-editor-shell">
+            <div className="word-editor-page" style={pageStyle}>
+              {previewDocument.headerHtml !== '<p></p>' && (
+                <section className="word-editor-region">
+                  <div className="word-region-strip word-region-strip-header">
+                    <span>ส่วนหัว</span>
+                    <span className="word-region-strip-hint">ปรากฏทุกหน้า</span>
+                  </div>
+                  <div className="word-editor-content word-editor-content-region" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewDocument.headerHtml) }} />
+                  <div className="word-region-divider" />
+                </section>
+              )}
+              <section className="word-editor-region word-editor-region-body">
+                <div className="word-editor-content word-editor-content-body" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewDocument.bodyHtml) }} />
+              </section>
+              {previewDocument.footerHtml !== '<p></p>' && (
+                <section className="word-editor-region">
+                  <div className="word-region-divider" />
+                  <div className="word-region-strip word-region-strip-footer">
+                    <span>ส่วนท้าย</span>
+                    <span className="word-region-strip-hint">ลายเซ็น & อ้างอิง</span>
+                  </div>
+                  <div className="word-editor-content word-editor-content-region" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewDocument.footerHtml) }} />
+                </section>
+              )}
+            </div>
+          </div>
+          )}
 
           <div className="word-editor-footer">
             <div className="word-editor-footer-stats">
@@ -1126,246 +1215,6 @@ export function TemplateWordEditor({
 
         {editorError ? <div className="auth-alert auth-alert-error">{editorError}</div> : null}
 
-        <section className={`admin-card word-preview-card${previewFlash ? ' word-preview-flash' : ''}`}>
-          {/* ── Print Preview Header ────────────────────────────── */}
-          <div className="admin-card-header flex-wrap gap-2">
-            <div className="admin-card-title flex items-center gap-2">
-              <Eye className="h-4 w-4 text-primary" />
-              Print Preview
-              <span className="flex items-center gap-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Live</span>
-              </span>
-            </div>
-            <div className="flex items-center gap-2 ml-auto">
-              {/* Zoom controls */}
-              <div className="flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-1 py-0.5">
-                <button
-                  type="button"
-                  onClick={() => setPreviewZoom((z) => Math.max(25, z - 10))}
-                  className="flex h-7 w-7 items-center justify-center rounded text-on-surface-variant hover:bg-surface-container disabled:opacity-40"
-                  title="Zoom out"
-                >
-                  <ZoomOut className="h-3.5 w-3.5" />
-                </button>
-                <span className="w-12 text-center text-xs font-mono font-medium text-on-surface">{previewZoom}%</span>
-                <button
-                  type="button"
-                  onClick={() => setPreviewZoom((z) => Math.min(200, z + 10))}
-                  className="flex h-7 w-7 items-center justify-center rounded text-on-surface-variant hover:bg-surface-container disabled:opacity-40"
-                  title="Zoom in"
-                >
-                  <ZoomIn className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewZoom(100)}
-                  className="flex h-7 w-7 items-center justify-center rounded text-on-surface-variant hover:bg-surface-container"
-                  title="Fit to width"
-                >
-                  <Maximize2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              {/* Page navigation */}
-              <div className="flex items-center gap-1 rounded-lg border border-outline bg-surface-container-lowest px-1 py-0.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const pages = document.querySelectorAll('[data-page-break]');
-                    const current = document.querySelector('[data-page-break="true"]');
-                    if (!current || pages.length === 0) return;
-                    const idx = Array.from(pages).indexOf(current);
-                    if (idx > 0) (pages[idx - 1] as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }}
-                  className="flex h-7 w-7 items-center justify-center rounded text-on-surface-variant hover:bg-surface-container"
-                  title="หน้าก่อนหน้า"
-                >
-                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </button>
-                <span className="w-12 text-center text-xs font-mono font-medium text-on-surface">
-                  {countDesignedPages(editorBody)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const pages = document.querySelectorAll('[data-page-break]');
-                    const current = document.querySelector('[data-page-break="true"]');
-                    if (!current || pages.length === 0) return;
-                    const idx = Array.from(pages).indexOf(current);
-                    if (idx < pages.length - 1) (pages[idx + 1] as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }}
-                  className="flex h-7 w-7 items-center justify-center rounded text-on-surface-variant hover:bg-surface-container"
-                  title="หน้าถัดไป"
-                >
-                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5"><path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </button>
-              </div>
-
-              {/* Margin guides toggle */}
-              <button
-                type="button"
-                onClick={() => setShowMarginGuides((v) => !v)}
-                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                  showMarginGuides
-                    ? 'border-primary/40 bg-primary/5 text-primary'
-                    : 'border-outline bg-surface-container-lowest text-on-surface-variant'
-                }`}
-                title="Toggle margin guides"
-              >
-                <span className="h-2 w-2 rounded-full border border-current" />
-                Guides
-              </button>
-
-              {/* Print button */}
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
-                title="Print (or save as PDF)"
-              >
-                <Printer className="h-3.5 w-3.5" />
-                Print / PDF
-              </button>
-
-              {/* Real browser preview — Puppeteer screenshot */}
-              <button
-                type="button"
-                onClick={() => void generatePuppeteerPreview()}
-                disabled={isGeneratingPreview}
-                className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-primary/10 disabled:opacity-60"
-                title="ดูตัวอย่างเอกสารที่พิมพ์จริง (ใช้ Chromium)"
-              >
-                {isGeneratingPreview ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    กำลังโหลด...
-                  </>
-                ) : (
-                  <>
-                    <Eye className="h-3.5 w-3.5" />
-                    {templateId ? 'ดูตัวอย่างจริง (DB)' : 'ดูตัวอย่าง (HTML)'}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* ── A4 Paper Preview ───────────────────────────────── */}
-          <div className="word-preview-shell overflow-auto">
-            {/* Scale wrapper — transforms the paper to simulate zoom */}
-            <div
-              className="word-paper-scale mx-auto my-6"
-              style={{ transform: `scale(${previewZoom / 100})`, transformOrigin: 'top center' }}
-            >
-              {/* Drop shadow beneath paper */}
-              <div className="word-paper-shadow" />
-
-              {/* A4 Paper */}
-              <div className={`word-paper-a4 ${layout.pageSize === 'LETTER' ? 'word-paper-letter' : ''} ${layout.orientation === 'LANDSCAPE' ? 'word-paper-landscape' : ''}`} style={pageStyle}>
-                {/* Margin guides overlay */}
-                {showMarginGuides && (
-                  <div className="word-margin-guide">
-                    <div className="word-margin-guide-inner" />
-                    {/* Top-left corner label */}
-                    <span className="word-margin-guide-label" style={{ top: 4, left: 4 }}>
-                      {metrics.marginTop}
-                    </span>
-                    {/* Bottom-right corner label */}
-                    <span className="word-margin-guide-label" style={{ bottom: 4, right: 4 }}>
-                      {metrics.marginBottom}
-                    </span>
-                  </div>
-                )}
-
-                {/* Header */}
-                {previewDocument.headerHtml !== '<p></p>' && (
-                  <div className="word-preview-region word-preview-region-first">
-                    <div className="word-preview-region-label">Header</div>
-                    <div
-                      className="word-preview-content word-preview-content-region"
-                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewDocument.headerHtml) }}
-                    />
-                  </div>
-                )}
-
-                {/* Body */}
-                <div className="word-preview-region">
-                  <div className="word-preview-region-label">Body</div>
-                  <div
-                    className="word-preview-content"
-                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewDocument.bodyHtml) }}
-                  />
-                </div>
-
-                {/* Footer */}
-                {previewDocument.footerHtml !== '<p></p>' && (
-                  <div className="word-preview-region">
-                    <div className="word-preview-region-label">Footer</div>
-                    <div
-                      className="word-preview-content word-preview-content-region"
-                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewDocument.footerHtml) }}
-                    />
-                  </div>
-                )}
-
-                {/* Status bar */}
-                <div className="flex items-center justify-between border-t border-outline-variant bg-surface-container-lowest px-4 py-2">
-                  <div className="flex items-center gap-4 text-xs text-on-surface-variant">
-                    <span>{countWords(editorBody)} คำ</span>
-                    <span>{editorBody.replace(/<[^>]+>/g, '').length} ตัวอักษร</span>
-                    <span>{countDesignedPages(editorBody)} หน้า</span>
-                  </div>
-                  <span className="text-xs text-on-surface-variant">
-                    {layout.pageSize} · {layout.orientation === 'LANDSCAPE' ? 'แนวนอน' : 'แนวตั้ง'}
-                  </span>
-                </div>
-
-                {/* Page indicator */}
-                <div className="word-page-indicator">
-                  Page 1 — {layout.pageSize} {layout.orientation === 'LANDSCAPE' ? 'Landscape' : 'Portrait'}
-                  {layout.pageSize === 'LETTER'
-                    ? layout.orientation === 'LANDSCAPE' ? ' (11 × 8.5 in)' : ' (8.5 × 11 in)'
-                    : layout.orientation === 'LANDSCAPE' ? ' (297 × 210 mm)' : ' (210 × 297 mm)'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Print hint ───────────────────────────────────── */}
-          <div className="border-t border-outline-variant px-5 py-3">
-            <p className="text-xs text-on-surface-variant">
-              <strong>Print:</strong> Use browser Print (Ctrl+P) to save as PDF or print directly.{' '}
-              <strong>Zoom:</strong> Scales the paper preview. Margin guides (blue dashes) show printable area.{' '}
-              Content overflow beyond the page height will be clipped in print.
-            </p>
-          </div>
-        </section>
-      </div>
-
-      <div className="space-y-4">
-        {/* Sample Data — only show if there are values to preview */}
-        {Object.keys(previewValues).length > 0 && (
-          <section className="admin-card">
-            <div className="admin-card-header">
-              <div className="admin-card-title">Sample Data</div>
-            </div>
-            <div className="space-y-2 p-4 text-sm text-slate-600">
-              {Object.entries(previewValues).map(([key, nextValue]) => (
-                <div
-                  key={key}
-                  className="flex items-start justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2"
-                >
-                  <code className="font-mono text-xs text-slate-500">{key}</code>
-                  <span className="text-right text-sm text-slate-800">{nextValue}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* ── Puppeteer Real Print Preview Modal ─────────────────── */}
         {puppeteerPreviewUrl ? (
@@ -1432,7 +1281,6 @@ export function TemplateWordEditor({
             onClose={() => setShowPageSetup(false)}
           />
         )}
-      </div>
     </div>
   );
 }
