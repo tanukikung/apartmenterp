@@ -214,7 +214,10 @@ export default function AnalyticsPage() {
       {isLoading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-24 rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] animate-pulse" />
+            <div key={i} className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] p-5">
+              <div className="shimmer-wave h-3 rounded-md mb-3" style={{ animationDelay: `${i * 60}ms`, width: '55%' }} />
+              <div className="shimmer-wave h-7 rounded-md" style={{ animationDelay: `${i * 60 + 30}ms`, width: '70%' }} />
+            </div>
           ))}
         </div>
       ) : (
@@ -235,7 +238,7 @@ export default function AnalyticsPage() {
         <GlassCard className="p-5 lg:col-span-2">
           <h2 className="text-sm font-semibold text-[hsl(var(--on-surface))] mb-4">รายรับ 12 เดือนล่าสุด (บาท)</h2>
           {isLoading ? (
-            <div className="h-48 rounded-xl bg-[hsl(var(--color-surface))] animate-pulse" />
+            <div className="shimmer-wave h-48 rounded-xl" />
           ) : chartData.length === 0 ? (
             <div className="h-48 flex items-center justify-center text-sm text-[hsl(var(--on-surface-variant))]">ยังไม่มีข้อมูลรายรับ</div>
           ) : (
@@ -261,7 +264,7 @@ export default function AnalyticsPage() {
         <GlassCard className="p-5">
           <h2 className="text-sm font-semibold text-[hsl(var(--on-surface))] mb-4">อัตราการเข้าพัก</h2>
           {isLoading ? (
-            <div className="h-48 rounded-xl bg-[hsl(var(--color-surface))] animate-pulse" />
+            <div className="shimmer-wave h-48 rounded-xl" />
           ) : !occupancy ? (
             <div className="h-48 flex items-center justify-center text-sm text-[hsl(var(--on-surface-variant))]">ไม่มีข้อมูล</div>
           ) : (

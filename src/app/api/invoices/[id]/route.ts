@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceContainer } from '@/lib/service-container';
-import { asyncHandler, ApiResponse, NotFoundError } from '@/lib/utils/errors';
+import { asyncHandler, NotFoundError } from '@/lib/utils/errors';
 import { requireRole, requireBuildingAccess } from '@/lib/auth/guards';
 import { prisma } from '@/lib/db/client';
+import { formatSuccess } from '@/lib/api-response';
 
 // ============================================================================
 // GET /api/invoices/[id] — Get invoice by ID (admin/staff only)
@@ -33,9 +34,8 @@ export const GET = asyncHandler(
     const { invoiceService } = getServiceContainer();
     const invoiceData = await invoiceService.getInvoiceById(id);
 
-    return NextResponse.json({
-      success: true,
-      data: invoiceData,
-    } as ApiResponse<typeof invoiceData>);
+    return NextResponse.json(
+      formatSuccess(invoiceData)
+    );
   }
 );

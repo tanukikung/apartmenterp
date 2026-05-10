@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler } from '@/lib/utils/errors';
 import { prisma } from '@/lib';
 import { requireAuthSession } from '@/lib/auth/guards';
 import { parsePagination } from '@/lib/utils/pagination';
+import { formatPaginatedSuccess } from '@/lib/api-response';
 
 const deliveriesSearchSchema = z.string().trim().min(1).max(100).optional();
 
@@ -101,14 +102,12 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
       : null,
   }));
 
-  return NextResponse.json({
-    success: true,
-    data: {
-      items: data,
-      total,
+  return NextResponse.json(
+    formatPaginatedSuccess(
+      data,
       page,
       pageSize,
-      totalPages: Math.ceil(total / pageSize),
-    },
-  } as ApiResponse<{ items: DeliveryWithInvoice[]; total: number; page: number; pageSize: number; totalPages: number }>);
+      total
+    )
+  );
 });

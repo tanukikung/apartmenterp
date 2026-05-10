@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonKPICard } from '@/components/ui/skeleton';
 import { CardGrid } from '@/components/ui/card-grid';
+import { useToast } from '@/components/providers/ToastProvider';
 
 type Room = {
   roomNo: string;
@@ -96,9 +97,8 @@ export default function AdminRoomsPage() {
   const [createForm, setCreateForm] = useState(createDefaults);
   const [editForm, setEditForm] = useState({ floorNo: 2, defaultRentAmount: '3000', hasFurniture: false, defaultFurnitureAmount: '0', defaultAccountId: '', defaultRuleCode: '', roomStatus: 'VACANT' as Room['roomStatus'] });
   const [working, setWorking] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const toast = useToast();
   const [drawerMode, setDrawerMode] = useState<DrawerMode>(null);
 
   // Confirm dialogs — use extended type to support all ConfirmDialog props
@@ -208,8 +208,8 @@ export default function AdminRoomsPage() {
   async function createRoom(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setWorking('create');
-    setMessage(null);
-    setError(null);
+    
+    
     try {
       const res = await fetch('/api/rooms', {
         method: 'POST',
@@ -225,12 +225,12 @@ export default function AdminRoomsPage() {
         }),
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถสร้างห้องได้');
-      setMessage(`ห้อง ${createForm.roomNo} สร้างสำเร็จ`);
+      toast.success(`ห้อง ${createForm.roomNo} สร้างสำเร็จ`);
       setCreateForm((prev) => ({ ...prev, roomNo: '' }));
       closeDrawer();
       await refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถสร้างห้องได้');
+      toast.error(err instanceof Error ? err.message : 'ไม่สามารถสร้างห้องได้');
     } finally {
       setWorking(null);
     }
@@ -240,8 +240,8 @@ export default function AdminRoomsPage() {
     e.preventDefault();
     if (!selectedRoom) return;
     setWorking(`edit:${selectedRoom.roomNo}`);
-    setMessage(null);
-    setError(null);
+    
+    
     try {
       const res = await fetch(`/api/rooms/${encodeURIComponent(selectedRoom.roomNo)}`, {
         method: 'PATCH',
@@ -257,11 +257,11 @@ export default function AdminRoomsPage() {
         }),
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถอัพเดทห้องได้');
-      setMessage(`ห้อง ${selectedRoom.roomNo} อัพเดทสำเร็จ`);
+      toast.success(`ห้อง ${selectedRoom.roomNo} อัพเดทสำเร็จ`);
       closeDrawer();
       await refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถอัพเดทห้องได้');
+      toast.error(err instanceof Error ? err.message : 'ไม่สามารถอัพเดทห้องได้');
     } finally {
       setWorking(null);
     }
@@ -279,8 +279,8 @@ export default function AdminRoomsPage() {
       onConfirm: async (reason) => {
         setConfirmDialog(null);
         setWorking(`delete:${roomNo}`);
-        setMessage(null);
-        setError(null);
+        
+        
         try {
           const res = await fetch(`/api/rooms/${encodeURIComponent(roomNo)}`, {
             method: 'DELETE',
@@ -288,11 +288,11 @@ export default function AdminRoomsPage() {
             body: JSON.stringify({ reason }),
           }).then((r) => r.json());
           if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถลบห้องได้');
-          setMessage(`ห้อง ${roomNo} ลบสำเร็จ`);
+          toast.success(`ห้อง ${roomNo} ลบสำเร็จ`);
           closeDrawer();
           await refetch();
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'ไม่สามารถลบห้องได้');
+          toast.error(err instanceof Error ? err.message : 'ไม่สามารถลบห้องได้');
         } finally {
           setWorking(null);
         }
@@ -309,8 +309,8 @@ export default function AdminRoomsPage() {
         onConfirm: async () => {
           setConfirmDialog(null);
           setWorking(`status:${roomNo}`);
-          setError(null);
-          setMessage(null);
+          
+          
           try {
             const res = await fetch(`/api/rooms/${encodeURIComponent(roomNo)}/status`, {
               method: 'PATCH',
@@ -318,10 +318,10 @@ export default function AdminRoomsPage() {
               body: JSON.stringify({ roomStatus: nextStatus }),
             }).then((r) => r.json());
             if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถอัพเดทสถานะได้');
-            setMessage(`สถานะห้อง ${roomNo} เปลี่ยนสำเร็จ`);
+            toast.success(`สถานะห้อง ${roomNo} เปลี่ยนสำเร็จ`);
             await refetch();
           } catch (err) {
-            setError(err instanceof Error ? err.message : 'ไม่สามารถอัพเดทสถานะได้');
+            toast.error(err instanceof Error ? err.message : 'ไม่สามารถอัพเดทสถานะได้');
           } finally {
             setWorking(null);
           }
@@ -330,8 +330,8 @@ export default function AdminRoomsPage() {
       return;
     }
     setWorking(`status:${roomNo}`);
-    setError(null);
-    setMessage(null);
+    
+    
     try {
       const res = await fetch(`/api/rooms/${encodeURIComponent(roomNo)}/status`, {
         method: 'PATCH',
@@ -339,10 +339,10 @@ export default function AdminRoomsPage() {
         body: JSON.stringify({ roomStatus: nextStatus }),
       }).then((r) => r.json());
       if (!res.success) throw new Error(res.error?.message || 'ไม่สามารถอัพเดทสถานะได้');
-      setMessage(`สถานะห้อง ${roomNo} เปลี่ยนสำเร็จ`);
+      toast.success(`สถานะห้อง ${roomNo} เปลี่ยนสำเร็จ`);
       await refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ไม่สามารถอัพเดทสถานะได้');
+      toast.error(err instanceof Error ? err.message : 'ไม่สามารถอัพเดทสถานะได้');
     } finally {
       setWorking(null);
     }
@@ -446,18 +446,6 @@ export default function AdminRoomsPage() {
               ชั้น {f.floorNo}
             </button>
           ))}
-        </div>
-      )}
-
-      {/* ── Alerts ── */}
-      {message && (
-        <div className="px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-400 font-medium">
-          {message}
-        </div>
-      )}
-      {error && (
-        <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400 font-medium">
-          {error}
         </div>
       )}
 

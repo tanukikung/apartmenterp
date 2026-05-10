@@ -4,11 +4,12 @@ import {
   createTenantSchema,
   listTenantsQuerySchema,
 } from '@/modules/tenants/types';
-import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
-import { logger } from '@/lib/utils/logger';
+import { asyncHandler } from '@/lib/utils/errors';
+import { logger, auditLogger } from '@/lib/utils/logger';
 import { requireOperator, requireRole, requireBuildingAccess } from '@/lib/auth/guards';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 import { requireMutationsAllowed } from '@/lib/guards/system';
+import { formatPaginatedSuccess, formatSuccess } from '@/lib/api-response';
 
 const ADMIN_WINDOW_MS = 60 * 1000;
 const ADMIN_MAX_ATTEMPTS = 20;
@@ -38,10 +39,14 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const { tenantService } = getServiceContainer();
   const result = await tenantService.listTenants(validatedQuery);
 
-  return NextResponse.json({
-    success: true,
-    data: result,
-  } as ApiResponse<typeof result>);
+  return NextResponse.json(
+    formatPaginatedSuccess(
+      result.data,
+      result.page,
+      result.pageSize,
+      result.total
+    )
+  );
 });
 
 // ============================================================================
@@ -76,9 +81,10 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     fullName: tenant.fullName,
   });
 
-  return NextResponse.json({
-    success: true,
-    data: tenant,
-    message: 'Tenant created successfully',
-  } as ApiResponse<typeof tenant>, { status: 201 });
+  auditLogger.info('tenant.create', 'Tenant', tenant.id, { fullName: tenant.fullName });
+
+  return NextResponse.json(
+    formatSuccess(tenant, 'Tenant created successfully'),
+    { status: 201 }
+  );
 });

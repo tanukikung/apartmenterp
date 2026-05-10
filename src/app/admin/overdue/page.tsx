@@ -335,64 +335,121 @@ export default function AdminOverduePage() {
             <p className="text-sm text-[hsl(var(--color-text))]/40">ไม่มีใบแจ้งหนี้ค้างชำระในขณะนี้</p>
           </div>
         ) : (
-          <div className="overflow-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-[hsl(var(--color-border))]/50">
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">ห้อง</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">ผู้เช่า</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">เลขใบแจ้งหนี้</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">วันครบกำหนด</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">วันค้างชำระ</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">จำนวน (บาท)</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr><td colSpan={7} className="px-3 py-8 text-center text-[hsl(var(--color-text))]/40">กำลังโหลดใบแจ้งหนี้ค้างชำระ...</td></tr>
-                ) : filtered.length === 0 ? (
-                  <tr><td colSpan={7} className="px-3 py-8 text-center text-[hsl(var(--color-text))]/40">ไม่พบใบแจ้งหนี้ค้างชำระที่ตรงกับการค้นหา</td></tr>
-                ) : (
-                  filtered.map((inv) => {
-                    const days = daysSince(inv.dueDate);
-                    return (
-                      <tr key={inv.id} className="border-b border-[hsl(var(--color-border))]/50 hover:bg-[hsl(var(--color-surface))] transition-colors">
-                        <td className="px-4 py-3 font-semibold text-[hsl(var(--color-text))]">{roomNum(inv)}</td>
-                        <td className="px-4 py-3 text-[hsl(var(--on-surface-variant))]">{tenantName(inv)}</td>
-                        <td className="px-4 py-3">
-                          <span className="font-mono text-xs font-medium text-blue-600">{inv.invoiceNumber ?? inv.id.slice(0, 8)}</span>
-                        </td>
-                        <td className="px-4 py-3 text-[hsl(var(--on-surface-variant))]"><ClientOnly fallback="-">{new Date(inv.dueDate).toLocaleDateString('th-TH')}</ClientOnly></td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${daysOverdueBadge(days ?? 0)}`}>
-                            <Clock className={`h-3 w-3 ${daysOverdueText(days ?? 0)}`} />
-                            {days}d
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="font-semibold text-red-600">{money(inv.totalAmount)}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => void sendReminder(inv.id)} disabled={working === `remind:${inv.id}` || working === 'all'}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))]/70 transition-colors hover:bg-[hsl(var(--color-surface))]/80 disabled:opacity-40 active:scale-95">
-                              <Send className="h-3.5 w-3.5" />
-                              {working === `remind:${inv.id}` ? 'กำลังส่ง...' : 'ส่งแจ้งเตือน'}
-                            </button>
-                            <Link href={inv.billingPeriodId ? `/admin/billing/${inv.billingPeriodId}?tab=invoices` : `/admin/invoices`}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))]/70 transition-colors hover:bg-[hsl(var(--color-surface))]/80">
-                              ดูใบแจ้งหนี้
-                            </Link>
-                          </div>
+          <>
+            {/* Mobile cards - md:hidden */}
+            <div className="md:hidden divide-y divide-[hsl(var(--color-border))]">
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={`skl-m-${i}`} className="p-4">
+                    <div className="shimmer-wave h-5 rounded-md mb-2" style={{ animationDelay: `${i * 60}ms` }} />
+                    <div className="shimmer-wave h-4 rounded-md w-2/3" style={{ animationDelay: `${i * 60 + 30}ms` }} />
+                  </div>
+                ))
+              ) : filtered.length === 0 ? (
+                <p className="px-4 py-8 text-center text-sm text-[hsl(var(--color-text))]/40">ไม่พบใบแจ้งหนี้ค้างชำระที่ตรงกับการค้นหา</p>
+              ) : (
+                filtered.map((inv) => {
+                  const days = daysSince(inv.dueDate);
+                  return (
+                    <div key={inv.id} className="p-4 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-[hsl(var(--on-surface))]">ห้อง {roomNum(inv)}</p>
+                          <p className="text-sm text-[hsl(var(--on-surface-variant))]">{tenantName(inv)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-red-500">{money(inv.totalAmount)}</p>
+                          <p className="text-xs text-[hsl(var(--on-surface-variant))]">{days ?? '—'} วัน</p>
+                        </div>
+                      </div>
+                      <div className="text-xs text-[hsl(var(--on-surface-variant))]">
+                        <span>ครบกำหนด: <ClientOnly fallback="-">{new Date(inv.dueDate).toLocaleDateString('th-TH')}</ClientOnly></span>
+                        {' · '}
+                        <span>{inv.invoiceNumber ?? inv.id.slice(0, 8)}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => void sendReminder(inv.id)} disabled={working === `remind:${inv.id}` || working === 'all'}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))]/70 transition-colors hover:bg-[hsl(var(--color-surface))]/80 disabled:opacity-40 active:scale-95">
+                          <Send className="h-3.5 w-3.5" />
+                          {working === `remind:${inv.id}` ? 'กำลังส่ง...' : 'ส่งแจ้งเตือน'}
+                        </button>
+                        <Link href={inv.billingPeriodId ? `/admin/billing/${inv.billingPeriodId}?tab=invoices` : `/admin/invoices`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))]/70 transition-colors hover:bg-[hsl(var(--color-surface))]/80">
+                          ดูใบแจ้งหนี้
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop table - hidden md:block */}
+            <div className="hidden md:block overflow-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[hsl(var(--color-border))]/50">
+                    <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">ห้อง</th>
+                    <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">ผู้เช่า</th>
+                    <th className="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">เลขใบแจ้งหนี้</th>
+                    <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">วันครบกำหนด</th>
+                    <th className="hidden sm:table-cell whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">วันค้างชำระ</th>
+                    <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">จำนวน (บาท)</th>
+                    <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[hsl(var(--color-text))]/30">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    Array.from({ length: 6 }).map((_, i) => (
+                      <tr key={`skl-${i}`} className="border-b border-[hsl(var(--color-border))]/50">
+                        <td colSpan={7} className="px-4 py-3">
+                          <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
                         </td>
                       </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                    ))
+                  ) : filtered.length === 0 ? (
+                    <tr><td colSpan={7} className="px-3 py-8 text-center text-[hsl(var(--color-text))]/40">ไม่พบใบแจ้งหนี้ค้างชำระที่ตรงกับการค้นหา</td></tr>
+                  ) : (
+                    filtered.map((inv) => {
+                      const days = daysSince(inv.dueDate);
+                      return (
+                        <tr key={inv.id} className="border-b border-[hsl(var(--color-border))]/50 hover:bg-[hsl(var(--color-surface))] transition-colors">
+                          <td className="px-4 py-3 font-semibold text-[hsl(var(--color-text))]">{roomNum(inv)}</td>
+                          <td className="px-4 py-3 text-[hsl(var(--on-surface-variant))]">{tenantName(inv)}</td>
+                          <td className="hidden lg:table-cell px-4 py-3">
+                            <span className="font-mono text-xs font-medium text-blue-600">{inv.invoiceNumber ?? inv.id.slice(0, 8)}</span>
+                          </td>
+                          <td className="px-4 py-3 text-[hsl(var(--on-surface-variant))]"><ClientOnly fallback="-">{new Date(inv.dueDate).toLocaleDateString('th-TH')}</ClientOnly></td>
+                          <td className="hidden sm:table-cell px-4 py-3">
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${daysOverdueBadge(days ?? 0)}`}>
+                              <Clock className={`h-3 w-3 ${daysOverdueText(days ?? 0)}`} />
+                              {days}d
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className="font-semibold text-red-600">{money(inv.totalAmount)}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => void sendReminder(inv.id)} disabled={working === `remind:${inv.id}` || working === 'all'}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))]/70 transition-colors hover:bg-[hsl(var(--color-surface))]/80 disabled:opacity-40 active:scale-95">
+                                <Send className="h-3.5 w-3.5" />
+                                {working === `remind:${inv.id}` ? 'กำลังส่ง...' : 'ส่งแจ้งเตือน'}
+                              </button>
+                              <Link href={inv.billingPeriodId ? `/admin/billing/${inv.billingPeriodId}?tab=invoices` : `/admin/invoices`}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))]/50 bg-[hsl(var(--color-surface))]/50 px-3 py-1.5 text-xs font-medium text-[hsl(var(--color-text))]/70 transition-colors hover:bg-[hsl(var(--color-surface))]/80">
+                                ดูใบแจ้งหนี้
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </GlassCard>
     </main>

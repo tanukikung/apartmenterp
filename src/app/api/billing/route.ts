@@ -4,11 +4,12 @@ import {
   createBillingRecordSchema,
   listBillingRecordsQuerySchema,
 } from '@/modules/billing/types';
-import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { requireAuthSession, requireRole } from '@/lib/auth/guards';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 import { logAudit } from '@/modules/audit';
+import { formatPaginatedSuccess, formatSuccess } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,10 +43,14 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const { billingService } = getServiceContainer();
   const result = await billingService.listBillingRecords(validatedQuery);
 
-  return NextResponse.json({
-    success: true,
-    data: result,
-  } as ApiResponse<typeof result>);
+  return NextResponse.json(
+    formatPaginatedSuccess(
+      result.data,
+      result.page,
+      result.pageSize,
+      result.total
+    )
+  );
 });
 
 // ============================================================================
@@ -88,9 +93,8 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     month: record.month,
   });
 
-  return NextResponse.json({
-    success: true,
-    data: record,
-    message: 'Billing record created successfully',
-  } as ApiResponse<typeof record>, { status: 201 });
+  return NextResponse.json(
+    formatSuccess(record, 'Billing record created successfully'),
+    { status: 201 }
+  );
 });

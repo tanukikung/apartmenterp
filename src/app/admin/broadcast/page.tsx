@@ -241,8 +241,18 @@ export default function BroadcastPage() {
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center p-10">
-              <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--on-surface-variant))]" />
+            <div className="overflow-auto max-h-[500px]">
+              <table className="w-full text-sm">
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={`skl-${i}`} className="border-t border-[hsl(var(--color-border))]">
+                      <td colSpan={6} className="px-4 py-3">
+                        <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : overdueInvoices.length === 0 ? (
             <div className="p-10 text-center text-sm text-[hsl(var(--on-surface-variant))]">ไม่พบใบแจ้งหนี้ค้างชำระ</div>

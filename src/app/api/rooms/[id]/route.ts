@@ -4,7 +4,8 @@ import { getServiceContainer } from '@/lib/service-container';
 import {
   updateRoomSchema,
 } from '@/modules/rooms/types';
-import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler } from '@/lib/utils/errors';
+import { formatSuccess } from '@/lib/api-response';
 import { logger } from '@/lib/utils/logger';
 import { prisma } from '@/lib';
 import { requireRole } from '@/lib/auth/guards';
@@ -50,9 +51,8 @@ export const GET = asyncHandler(
       orderBy: { createdAt: 'asc' },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: {
+    return NextResponse.json(
+      formatSuccess({
         ...room,
         roomTenants: roomTenants.map((entry) => ({
           role: entry.role,
@@ -65,8 +65,8 @@ export const GET = asyncHandler(
               }
             : null,
         })),
-      },
-    } as ApiResponse<typeof room>);
+      })
+    );
   }
 );
 
@@ -109,11 +109,9 @@ export const PATCH = asyncHandler(
       roomNo: room.roomNo,
     });
 
-    return NextResponse.json({
-      success: true,
-      data: room,
-      message: 'Room updated successfully',
-    } as ApiResponse<typeof room>);
+    return NextResponse.json(
+      formatSuccess(room, 'Room updated successfully')
+    );
   }
 );
 
@@ -166,10 +164,8 @@ export const DELETE = asyncHandler(
       roomId: id,
     });
 
-    return NextResponse.json({
-      success: true,
-      data: null,
-      message: 'Room deleted successfully',
-    } as ApiResponse<null>);
+    return NextResponse.json(
+      formatSuccess(null, 'Room deleted successfully')
+    );
   }
 );

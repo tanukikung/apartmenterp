@@ -4,10 +4,11 @@ import {
   createContractSchema,
   listContractsQuerySchema,
 } from '@/modules/contracts/types';
-import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
-import { logger } from '@/lib/utils/logger';
+import { asyncHandler } from '@/lib/utils/errors';
+import { logger, auditLogger } from '@/lib/utils/logger';
 import { requireRole, requireBuildingAccess } from '@/lib/auth/guards';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { formatPaginatedSuccess, formatSuccess } from '@/lib/api-response';
 
 const ADMIN_WINDOW_MS = 60 * 1000;
 const ADMIN_MAX_ATTEMPTS = 20;
@@ -39,10 +40,14 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const { contractService } = getServiceContainer();
   const result = await contractService.listContracts(validatedQuery);
 
-  return NextResponse.json({
-    success: true,
-    data: result,
-  } as ApiResponse<typeof result>);
+  return NextResponse.json(
+    formatPaginatedSuccess(
+      result.data,
+      result.page,
+      result.pageSize,
+      result.total
+    )
+  );
 });
 
 // ============================================================================
@@ -78,9 +83,10 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     roomNo: contract.roomNo,
   });
 
-  return NextResponse.json({
-    success: true,
-    data: contract,
-    message: 'Contract created successfully',
-  } as ApiResponse<typeof contract>, { status: 201 });
+  auditLogger.info('contract.create', 'Contract', contract.id, { roomId: contract.roomNo, tenantId: contract.primaryTenantId });
+
+  return NextResponse.json(
+    formatSuccess(contract, 'Contract created successfully'),
+    { status: 201 }
+  );
 });

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler } from '@/lib/utils/errors';
 import { getServiceContainer } from '@/lib/service-container';
 import { requireRole } from '@/lib/auth/guards';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
+import { formatPaginatedSuccess } from '@/lib/api-response';
 
 const ADMIN_WINDOW_MS = 60 * 1000;
 const ADMIN_MAX_ATTEMPTS = 20;
@@ -63,8 +64,12 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     pageSize: validated.pageSize,
   });
 
-  return NextResponse.json({
-    success: true,
-    data: result,
-  } as ApiResponse<typeof result>);
+  return NextResponse.json(
+    formatPaginatedSuccess(
+      result.data,
+      result.page,
+      result.pageSize,
+      result.total
+    )
+  );
 });

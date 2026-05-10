@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asyncHandler } from '@/lib/utils/errors';
+import { auditLogger } from '@/lib/utils/logger';
 import { requireRole } from '@/lib/auth/guards';
 import { withIdempotency } from '@/lib/utils/idempotency';
 import { getServiceContainer } from '@/lib/service-container';
@@ -51,6 +52,8 @@ export const POST = asyncHandler(async (request: NextRequest): Promise<NextRespo
       manualOverride,
       overrideReason,
     });
+
+    auditLogger.info('payment.confirm', 'PaymentMatch', transactionId, { decision: manualOverride ? 'manual' : 'auto', invoiceId });
 
     return NextResponse.json({
       success: true,

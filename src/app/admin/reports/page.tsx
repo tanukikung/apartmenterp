@@ -338,7 +338,17 @@ function OverviewTab() {
           <Link href="/admin/audit-logs" className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/60 transition-colors hover:bg-[hsl(var(--color-surface))] hover:text-[hsl(var(--on-surface))]">ดูทั้งหมด</Link>
         </div>
         {auditLoading ? (
-          <div className="px-6 py-8 text-center text-sm text-[hsl(var(--on-surface-variant))]">กำลังโหลด...</div>
+          <ul className="divide-y divide-[hsl(var(--color-border))]">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <li key={`skl-${i}`} className="flex items-start gap-4 px-6 py-3">
+                <div className="shimmer-wave mt-1 h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ animationDelay: `${i * 60}ms` }} />
+                <div className="flex-1">
+                  <div className="shimmer-wave h-4 rounded-md mb-1.5" style={{ animationDelay: `${i * 60}ms`, width: `${50 + (i * 17) % 40}%` }} />
+                  <div className="shimmer-wave h-3 rounded-md" style={{ animationDelay: `${i * 60 + 30}ms`, width: `${30 + (i * 13) % 30}%` }} />
+                </div>
+              </li>
+            ))}
+          </ul>
         ) : auditRows.length === 0 ? (
           <div className="px-6 py-8 text-center text-sm text-[hsl(var(--on-surface-variant))]">ไม่พบกิจกรรม</div>
         ) : (
@@ -542,7 +552,13 @@ function RevenueTab() {
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={5} className="py-8 text-center text-[hsl(var(--on-surface-variant))]">กำลังโหลด...</td></tr>
+              {loading ? Array.from({ length: 6 }).map((_, i) => (
+                <tr key={`skl-${i}`} className="border-b border-[hsl(var(--color-border))]">
+                  <td colSpan={5} className="px-4 py-3">
+                    <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
+                  </td>
+                </tr>
+              ))
                 : rows.length === 0 ? <tr><td colSpan={5} className="py-8 text-center text-[hsl(var(--on-surface-variant))]">ไม่มีข้อมูล</td></tr>
                 : rows.map((row) => {
                   const rate = row.invoiced > 0 ? Math.round((row.collected / row.invoiced) * 100) : 100;
@@ -674,7 +690,13 @@ function OccupancyTab() {
                 </tr>
               </thead>
               <tbody>
-                {loading ? <tr><td colSpan={6} className="py-8 text-center text-[hsl(var(--on-surface-variant))]">กำลังโหลด...</td></tr>
+                {loading ? Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={`skl-${i}`} className="border-b border-[hsl(var(--color-border))]">
+                    <td colSpan={6} className="px-4 py-3">
+                      <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
+                    </td>
+                  </tr>
+                ))
                   : byFloor.length === 0 ? <tr><td colSpan={6} className="py-8 text-center text-[hsl(var(--on-surface-variant))]">ไม่มีข้อมูล</td></tr>
                   : byFloor.map((fl) => {
                     const rate = fl.occupancyRate ?? pct(fl.occupied, fl.total);
@@ -704,7 +726,13 @@ function OccupancyTab() {
         {/* Status distribution */}
         <GlassCard className="p-5">
           <div className="text-sm font-semibold text-[hsl(var(--on-surface))] mb-4">สถานะห้อง</div>
-          {loading ? <div className="py-8 text-center text-sm text-[hsl(var(--on-surface-variant))]">กำลังโหลด...</div> : (
+          {loading ? (
+            <div className="flex flex-col gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={`skl-${i}`} className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms`, width: `${60 + (i * 13) % 35}%` }} />
+              ))}
+            </div>
+          ) : (
             <div className="flex flex-col gap-4">
               <div className="flex h-4 w-full overflow-hidden rounded-full">
                 {distribution.filter((d) => d.count > 0).map((d) => {
@@ -876,7 +904,13 @@ function CollectionsTab() {
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={6} className="py-8 text-center text-[hsl(var(--on-surface-variant))]">กำลังโหลด...</td></tr>
+              {loading ? Array.from({ length: 6 }).map((_, i) => (
+                <tr key={`skl-${i}`} className="border-b border-[hsl(var(--color-border))]">
+                  <td colSpan={6} className="px-4 py-3">
+                    <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
+                  </td>
+                </tr>
+              ))
                 : rows.length === 0 ? <tr><td colSpan={6} className="py-8 text-center text-[hsl(var(--on-surface-variant))]">ไม่มีข้อมูล</td></tr>
                 : rows.map((row) => {
                   const sl = statusLabel(row.collectionRate);
@@ -912,7 +946,16 @@ function CollectionsTab() {
             <span className="text-sm text-[hsl(var(--on-surface))]/50">{overdueInvoices.length} ใบแจ้งหนี้เกินกำหนด</span>
           </div>
         </div>
-        {loading ? <div className="py-8 text-center text-sm text-[hsl(var(--on-surface-variant))]">กำลังโหลด...</div> : (
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={`skl-${i}`} className="rounded-xl border border-[hsl(var(--color-border))] p-4">
+                <div className="shimmer-wave h-3 rounded-md mb-3" style={{ animationDelay: `${i * 60}ms`, width: '50%' }} />
+                <div className="shimmer-wave h-7 rounded-md" style={{ animationDelay: `${i * 60 + 30}ms`, width: '70%' }} />
+              </div>
+            ))}
+          </div>
+        ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {agingBuckets.map((bucket) => {
               const barPct = maxAgingAmount > 0 ? (bucket.amount / maxAgingAmount) * 100 : 0;

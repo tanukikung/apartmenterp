@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceContainer } from '@/lib/service-container';
 import { updateContractSchema, terminateContractSchema } from '@/modules/contracts/types';
-import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler } from '@/lib/utils/errors';
+import { formatSuccess } from '@/lib/api-response';
 import { requireRole } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit/audit.service';
@@ -27,10 +28,9 @@ export const GET = asyncHandler(
     const { contractService } = getServiceContainer();
     const contract = await contractService.getContractById(id);
 
-    return NextResponse.json({
-      success: true,
-      data: contract,
-    } as ApiResponse<typeof contract>);
+    return NextResponse.json(
+      formatSuccess(contract)
+    );
   }
 );
 

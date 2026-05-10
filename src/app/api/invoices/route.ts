@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceContainer } from '@/lib/service-container';
 import { listInvoicesQuerySchema, generateInvoiceSchema } from '@/modules/invoices/types';
-import { asyncHandler, ApiResponse, formatError, AppError } from '@/lib/utils/errors';
+import { asyncHandler, formatError, AppError } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { requireOperator, requireRole } from '@/lib/auth/guards';
 import { logAudit } from '@/modules/audit';
 import { requireMutationsAllowed } from '@/lib/guards/system';
+import { formatPaginatedSuccess, formatSuccess } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,10 +37,15 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const { invoiceService } = getServiceContainer();
   const result = await invoiceService.listInvoices(validatedQuery);
 
-  return NextResponse.json({
-    success: true,
-    data: result,
-  } as ApiResponse<typeof result>);
+  // Normalize response using standardized format
+  return NextResponse.json(
+    formatPaginatedSuccess(
+      result.data,
+      result.page,
+      result.pageSize,
+      result.total
+    )
+  );
 });
 
 // ============================================================================
@@ -87,11 +93,10 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
         billingRecordId: input.billingRecordId,
       });
 
-      return NextResponse.json({
-        success: true,
-        data: invoice,
-        message: 'Invoice generated successfully',
-      } as ApiResponse<typeof invoice>, { status: 201 });
+      return NextResponse.json(
+        formatSuccess(invoice, 'Invoice generated successfully'),
+        { status: 201 }
+      );
     } catch (err) {
       // Rollback: unlock the billing record so it is not orphaned in LOCKED state
       try {

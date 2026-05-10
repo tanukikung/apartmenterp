@@ -4,12 +4,13 @@ import {
   createRoomSchema,
   listRoomsQuerySchema,
 } from '@/modules/rooms/types';
-import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler } from '@/lib/utils/errors';
 import { logger } from '@/lib/utils/logger';
 import { requireOperator, requireRole, requireBuildingAccess } from '@/lib/auth/guards';
 import { prisma } from '@/lib';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 import { requireMutationsAllowed } from '@/lib/guards/system';
+import { formatPaginatedSuccess, formatSuccess } from '@/lib/api-response';
 
 const ADMIN_WINDOW_MS = 60 * 1000;
 const ADMIN_MAX_ATTEMPTS = 20;
@@ -42,10 +43,14 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const { roomService } = getServiceContainer();
   const result = await roomService.listRooms(validatedQuery);
 
-  return NextResponse.json({
-    success: true,
-    data: result,
-  } as ApiResponse<typeof result>);
+  return NextResponse.json(
+    formatPaginatedSuccess(
+      result.data,
+      result.page,
+      result.pageSize,
+      result.total
+    )
+  );
 });
 
 // ============================================================================
@@ -92,9 +97,8 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     roomNo: room.roomNo,
   });
 
-  return NextResponse.json({
-    success: true,
-    data: room,
-    message: 'Room created successfully',
-  } as ApiResponse<typeof room>, { status: 201 });
+  return NextResponse.json(
+    formatSuccess(room, 'Room created successfully'),
+    { status: 201 }
+  );
 });

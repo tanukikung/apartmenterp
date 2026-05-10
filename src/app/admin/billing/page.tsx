@@ -21,6 +21,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useToast } from '@/components/providers/ToastProvider';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -213,10 +214,9 @@ export default function AdminBillingPage() {
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<InvoiceStatus | 'ALL'>('ALL');
   const [invoiceSearch, setInvoiceSearch] = useState('');
 
+  const toast = useToast();
   const [batchState, setBatchState] = useState<Record<string, BatchState>>({});
   const [batchMsg,   setBatchMsg]   = useState<Record<string, string>>({});
-  const [sendError, setSendError] = useState<string | null>(null);
-  const [sendSuccess, setSendSuccess] = useState<string | null>(null);
   const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
   const [sendTargetInvoiceId, setSendTargetInvoiceId] = useState<string | null>(null);
   const [batchGenerateConfirmOpen, setBatchGenerateConfirmOpen] = useState(false);
@@ -267,7 +267,6 @@ export default function AdminBillingPage() {
 
     set('locking');
     msg('');
-    setSendError(null);
 
     try {
       // ── Step 1: Lock all DRAFT records (skip if already LOCKED) ──────────
@@ -304,9 +303,9 @@ export default function AdminBillingPage() {
       set('done');
       msg(summary);
       if (errors > 0) {
-        setSendError(`${summary} — มีข้อผิดพลาด`);
+        toast.error(`${summary} — มีข้อผิดพลาด`);
       } else {
-        setSendSuccess(`${summary} — สำเร็จ`);
+        toast.success(`${summary} — สำเร็จ`);
       }
       await refetchCycles();
       await refetchInvoices();
@@ -314,23 +313,21 @@ export default function AdminBillingPage() {
       set('error');
       const m = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด';
       msg(m);
-      setSendError(m);
+      toast.error(m);
     }
   }
 
   async function handleSendInvoice(invoiceId: string) {
-    setSendError(null);
-    setSendSuccess(null);
     try {
       const res = await fetch(`/api/invoices/${invoiceId}/send`, { method: 'POST', cache: 'no-store' });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         throw new Error(json.error?.message || `ส่งไม่สำเร็จ: รหัส ${res.status}`);
       }
-      setSendSuccess(`ส่งใบแจ้งหนี้สำเร็จแล้ว`);
+      toast.success(`ส่งใบแจ้งหนี้สำเร็จแล้ว`);
       await refetchInvoices();
     } catch (err) {
-      setSendError(err instanceof Error ? err.message : 'ส่งไม่สำเร็จ');
+      toast.error(err instanceof Error ? err.message : 'ส่งไม่สำเร็จ');
     }
   }
 
@@ -397,6 +394,24 @@ export default function AdminBillingPage() {
         </div>
       </div>
 
+      {/* Billing workflow guide */}
+      <details className="rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] text-sm">
+        <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 font-medium text-[hsl(var(--on-surface))]/70 hover:text-[hsl(var(--on-surface))] select-none list-none">
+          <Info className="h-4 w-4 text-[hsl(var(--primary))]" />
+          วิธีใช้งาน: ขั้นตอนการออกบิลรายเดือน
+          <ChevronDown className="ml-auto h-4 w-4 transition-transform [[open]>&]:rotate-180" />
+        </summary>
+        <div className="border-t border-[hsl(var(--color-border))] px-4 py-3">
+          <ol className="space-y-1.5 text-[hsl(var(--on-surface-variant))] list-decimal list-inside">
+            <li>สร้างรอบบิลใหม่ โดยกด <strong className="text-[hsl(var(--on-surface))]">+ สร้างรอบบิล</strong> แล้วเลือกเดือน/ปี</li>
+            <li>นำเข้าข้อมูลมิเตอร์น้ำ/ไฟ ผ่าน Excel โดยกด <strong className="text-[hsl(var(--on-surface))]">นำเข้า Excel</strong></li>
+            <li>ตรวจสอบความครอบคลุม ห้องที่ยังไม่มีข้อมูลจะแสดงเป็นสีเหลือง</li>
+            <li>กด <strong className="text-[hsl(var(--on-surface))]">ล็อก + สร้างทั้งหมด</strong> เพื่อล็อกรายการและสร้างใบแจ้งหนี้ในคราวเดียว</li>
+            <li>ส่งใบแจ้งหนี้ผ่าน LINE ได้ในแท็บ <strong className="text-[hsl(var(--on-surface))]">ใบแจ้งหนี้</strong></li>
+          </ol>
+        </div>
+      </details>
+
       {/* Tab Switcher */}
       <div className="inline-flex items-center gap-1 rounded-xl bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] p-1 w-fit">
         {[
@@ -427,18 +442,6 @@ export default function AdminBillingPage() {
           </button>
         ))}
       </div>
-
-      {/* ── Alerts ─────────────────────────────────────────── */}
-      {sendError && (
-        <div className="rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 text-sm px-4 py-3 font-medium">
-          {sendError}
-        </div>
-      )}
-      {sendSuccess && (
-        <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-sm px-4 py-3 font-medium">
-          {sendSuccess}
-        </div>
-      )}
 
       {/* ── CYCLE TAB ─────────────────────────────────────────── */}
       {activeTab === 'cycles' && (
@@ -527,8 +530,27 @@ export default function AdminBillingPage() {
           {/* Table */}
           <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-2xl overflow-hidden">
             {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--primary))]" />
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[hsl(var(--color-border))]/[0.07]">
+                      {['เดือน/ปี', 'สถานะ', 'รายการ', 'ความครอบคลุม', 'ยอดรวม', 'ใบแจ้งหนี้', 'วันครบกำหนด', 'จัดการ'].map((h) => (
+                        <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <tr key={`skl-${i}`} className="border-b border-white/[0.05]">
+                        <td colSpan={8} className="px-4 py-3">
+                          <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : filteredCycles.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -547,135 +569,185 @@ export default function AdminBillingPage() {
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[hsl(var(--color-border))]/[0.07]">
-                      {['เดือน/ปี', 'สถานะ', 'รายการ', 'ความครอบคลุม', 'ยอดรวม', 'ใบแจ้งหนี้', 'วันครบกำหนด', 'จัดการ'].map((h) => (
-                        <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCycles.map((cycle) => {
-                      const bs   = batchState[cycle.id] ?? 'idle';
-                      const bmsg = batchMsg[cycle.id] ?? '';
-                      const busy = bs === 'locking' || bs === 'generating';
+              <>
+                {/* Mobile cards — visible below md */}
+                <div className="md:hidden divide-y divide-[hsl(var(--color-border))]">
+                  {filteredCycles.map((cycle) => {
+                    const bs = batchState[cycle.id] ?? 'idle';
+                    const bmsg = batchMsg[cycle.id] ?? '';
+                    const busy = bs === 'locking' || bs === 'generating';
+                    const needsLock = cycle.status === 'OPEN';
+                    const needsGen  = cycle.status === 'LOCKED';
+                    const canBatch  = needsLock || needsGen;
+                    return (
+                      <div key={cycle.id} className="p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-[hsl(var(--on-surface))]">{thaiMonthYear(cycle.year, cycle.month)}</span>
+                          <StatusBadge status={cycle.status} />
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-[hsl(var(--on-surface-variant))]">ยอดรวม</span>
+                          <span className="font-bold">฿{formatBaht(cycle.totalAmount ?? 0)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-[hsl(var(--on-surface-variant))]">ใบแจ้งหนี้</span>
+                          <span>{cycle.invoiceCount > 0 ? cycle.invoiceCount : '—'}{cycle.pendingInvoices > 0 && <span className="ml-1 text-xs text-red-600">({cycle.pendingInvoices} รอ)</span>}</span>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <Link href={`/admin/billing/${cycle.id}`} className="flex-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-center text-xs font-medium text-[hsl(var(--on-surface))]/70">ดูรายละเอียด</Link>
+                          {canBatch && bs !== 'done' && (
+                            <button
+                              onClick={() => { setBatchGenerateTarget({ periodId: cycle.id, needsLock }); setBatchGenerateConfirmOpen(true); }}
+                              disabled={busy}
+                              className="flex-1 rounded-lg bg-[hsl(var(--primary))] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+                            >
+                              {busy ? <Loader2 className="mx-auto h-3.5 w-3.5 animate-spin" /> : needsLock ? 'ล็อก + สร้าง' : 'สร้างทั้งหมด'}
+                            </button>
+                          )}
+                          {bs === 'done' && bmsg && <span className="text-xs font-medium text-emerald-600">✓ {bmsg}</span>}
+                        </div>
+                        {bs === 'error' && bmsg && (
+                          <div className="flex items-center gap-2 text-xs text-red-600"><AlertTriangle className="h-3.5 w-3.5 shrink-0" />{bmsg}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
 
-                      // What action is available?
-                      const needsLock   = cycle.status === 'OPEN';
-                      const needsGen    = cycle.status === 'LOCKED';
-                      const canBatch    = needsLock || needsGen;
+                {/* Desktop table — visible from md up */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[hsl(var(--color-border))]/[0.07]">
+                        <th className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">เดือน/ปี</th>
+                        <th className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สถานะ</th>
+                        <th className="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">รายการ</th>
+                        <th className="hidden md:table-cell whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ความครอบคลุม</th>
+                        <th className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ยอดรวม</th>
+                        <th className="hidden md:table-cell whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ใบแจ้งหนี้</th>
+                        <th className="hidden lg:table-cell whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">วันครบกำหนด</th>
+                        <th className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">จัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredCycles.map((cycle) => {
+                        const bs   = batchState[cycle.id] ?? 'idle';
+                        const bmsg = batchMsg[cycle.id] ?? '';
+                        const busy = bs === 'locking' || bs === 'generating';
 
-                      return (
-                        <React.Fragment key={cycle.id}>
-                          <tr className="border-b border-white/[0.05] hover:bg-[hsl(var(--color-surface))] transition-colors">
-                            <td className="px-4 py-3 font-medium text-[hsl(var(--on-surface))]/90 whitespace-nowrap">
-                              {thaiMonthYear(cycle.year, cycle.month)}
-                            </td>
-                            <td className="px-4 py-3">
-                              <StatusBadge status={cycle.status} />
-                            </td>
-                            <td className="px-4 py-3 text-right text-[hsl(var(--on-surface))]/50">
-                              {(cycle.totalRecords ?? 0).toLocaleString()}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                {cycle.totalRooms > 0 ? (
-                                  <>
-                                    <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden max-w-[60px]">
-                                      <div
-                                        className={`h-full rounded-full ${(cycle.missingRooms ?? 0) > 0 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                                        style={{ width: `${Math.round(((cycle.totalRooms - (cycle.missingRooms ?? 0)) / cycle.totalRooms) * 100)}%` }}
-                                      />
-                                    </div>
-                                    <span className={`text-xs font-medium whitespace-nowrap ${(cycle.missingRooms ?? 0) > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                                      {cycle.totalRooms - (cycle.missingRooms ?? 0)}/{cycle.totalRooms}
-                                    </span>
-                                    {(cycle.missingRooms ?? 0) > 0 && (
-                                      <span className="text-[10px] text-amber-600 whitespace-nowrap">
-                                        (−{cycle.missingRooms})
+                        // What action is available?
+                        const needsLock   = cycle.status === 'OPEN';
+                        const needsGen    = cycle.status === 'LOCKED';
+                        const canBatch    = needsLock || needsGen;
+
+                        return (
+                          <React.Fragment key={cycle.id}>
+                            <tr className="border-b border-white/[0.05] hover:bg-[hsl(var(--color-surface))] transition-colors">
+                              <td className="px-4 py-3 font-medium text-[hsl(var(--on-surface))]/90 whitespace-nowrap">
+                                {thaiMonthYear(cycle.year, cycle.month)}
+                              </td>
+                              <td className="px-4 py-3">
+                                <StatusBadge status={cycle.status} />
+                              </td>
+                              <td className="hidden lg:table-cell px-4 py-3 text-right text-[hsl(var(--on-surface))]/50">
+                                {(cycle.totalRecords ?? 0).toLocaleString()}
+                              </td>
+                              <td className="hidden md:table-cell px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  {cycle.totalRooms > 0 ? (
+                                    <>
+                                      <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden max-w-[60px]">
+                                        <div
+                                          className={`h-full rounded-full ${(cycle.missingRooms ?? 0) > 0 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                          style={{ width: `${Math.round(((cycle.totalRooms - (cycle.missingRooms ?? 0)) / cycle.totalRooms) * 100)}%` }}
+                                        />
+                                      </div>
+                                      <span className={`text-xs font-medium whitespace-nowrap ${(cycle.missingRooms ?? 0) > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                        {cycle.totalRooms - (cycle.missingRooms ?? 0)}/{cycle.totalRooms}
                                       </span>
-                                    )}
-                                  </>
-                                ) : (
-                                  <span className="text-xs text-[hsl(var(--on-surface))]/30">—</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right font-semibold text-[hsl(var(--on-surface))]/90 whitespace-nowrap">
-                              ฿{formatBaht(cycle.totalAmount ?? 0)}
-                            </td>
-                            <td className="px-4 py-3 text-right text-[hsl(var(--on-surface))]/50">
-                              {cycle.invoiceCount > 0 ? (
-                                <span>
-                                  {cycle.invoiceCount}
-                                  {cycle.pendingInvoices > 0 && (
-                                    <span className="ml-1.5 text-xs text-red-600">({cycle.pendingInvoices} รอ)</span>
+                                      {(cycle.missingRooms ?? 0) > 0 && (
+                                        <span className="text-[10px] text-amber-600 whitespace-nowrap">
+                                          (−{cycle.missingRooms})
+                                        </span>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <span className="text-xs text-[hsl(var(--on-surface))]/30">—</span>
                                   )}
-                                </span>
-                              ) : (
-                                <span className="text-[hsl(var(--on-surface))]/30">—</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-[hsl(var(--on-surface))]/50 whitespace-nowrap text-xs">
-                              <ClientOnly fallback={<span className="text-[hsl(var(--on-surface))]/30">—</span>}>{cycle.dueDate
-                                ? new Date(cycle.dueDate).toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' })
-                                : <span className="text-[hsl(var(--on-surface))]/30">—</span>
-                              }</ClientOnly>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center justify-end gap-2">
-                                <Link
-                                  href={`/admin/billing/${cycle.id}`}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface-hover))] active:scale-[0.98]"
-                                >
-                                  ดูรายละเอียด
-                                </Link>
-
-                                {canBatch && bs !== 'done' && (
-                                  <button
-                                    onClick={() => { setBatchGenerateTarget({ periodId: cycle.id, needsLock }); setBatchGenerateConfirmOpen(true); }}
-                                    disabled={busy}
-                                    title={needsLock ? 'ล็อกทั้งหมด แล้วสร้างใบแจ้งหนี้' : 'สร้างใบแจ้งหนี้ทั้งหมด'}
-                                    className="inline-flex items-center gap-1 rounded-lg bg-[hsl(var(--primary))] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98] disabled:opacity-40"
-                                  >
-                                    {bs === 'locking' ? (
-                                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> กำลังล็อก…</>
-                                    ) : bs === 'generating' ? (
-                                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> กำลังสร้างบิล…</>
-                                    ) : needsLock ? (
-                                      <><Zap className="h-3.5 w-3.5" /> ล็อก + สร้างทั้งหมด</>
-                                    ) : (
-                                      <><Send className="h-3.5 w-3.5" /> สร้างทั้งหมด</>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-right font-semibold text-[hsl(var(--on-surface))]/90 whitespace-nowrap">
+                                ฿{formatBaht(cycle.totalAmount ?? 0)}
+                              </td>
+                              <td className="hidden md:table-cell px-4 py-3 text-right text-[hsl(var(--on-surface))]/50">
+                                {cycle.invoiceCount > 0 ? (
+                                  <span>
+                                    {cycle.invoiceCount}
+                                    {cycle.pendingInvoices > 0 && (
+                                      <span className="ml-1.5 text-xs text-red-600">({cycle.pendingInvoices} รอ)</span>
                                     )}
-                                  </button>
+                                  </span>
+                                ) : (
+                                  <span className="text-[hsl(var(--on-surface))]/30">—</span>
                                 )}
+                              </td>
+                              <td className="hidden lg:table-cell px-4 py-3 text-[hsl(var(--on-surface))]/50 whitespace-nowrap text-xs">
+                                <ClientOnly fallback={<span className="text-[hsl(var(--on-surface))]/30">—</span>}>{cycle.dueDate
+                                  ? new Date(cycle.dueDate).toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' })
+                                  : <span className="text-[hsl(var(--on-surface))]/30">—</span>
+                                }</ClientOnly>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-end gap-2">
+                                  <Link
+                                    href={`/admin/billing/${cycle.id}`}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 transition-all hover:bg-[hsl(var(--color-surface-hover))] active:scale-[0.98]"
+                                  >
+                                    ดูรายละเอียด
+                                  </Link>
 
-                                {bs === 'done' && bmsg && (
-                                  <span className="text-xs font-medium text-emerald-600">✓ {bmsg}</span>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                          {bs === 'error' && bmsg && (
-                            <tr className="bg-red-500/5">
-                              <td colSpan={7} className="px-4 py-2">
-                                <div className="flex items-center gap-2 text-xs text-red-600">
-                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                  {bmsg}
+                                  {canBatch && bs !== 'done' && (
+                                    <button
+                                      onClick={() => { setBatchGenerateTarget({ periodId: cycle.id, needsLock }); setBatchGenerateConfirmOpen(true); }}
+                                      disabled={busy}
+                                      title={needsLock ? 'ล็อกทั้งหมด แล้วสร้างใบแจ้งหนี้' : 'สร้างใบแจ้งหนี้ทั้งหมด'}
+                                      className="inline-flex items-center gap-1 rounded-lg bg-[hsl(var(--primary))] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--on-surface))] shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all hover:bg-[hsl(var(--color-primary-dark))] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98] disabled:opacity-40"
+                                    >
+                                      {bs === 'locking' ? (
+                                        <><Loader2 className="h-3.5 w-3.5 animate-spin" /> กำลังล็อก…</>
+                                      ) : bs === 'generating' ? (
+                                        <><Loader2 className="h-3.5 w-3.5 animate-spin" /> กำลังสร้างบิล…</>
+                                      ) : needsLock ? (
+                                        <><Zap className="h-3.5 w-3.5" /> ล็อก + สร้างทั้งหมด</>
+                                      ) : (
+                                        <><Send className="h-3.5 w-3.5" /> สร้างทั้งหมด</>
+                                      )}
+                                    </button>
+                                  )}
+
+                                  {bs === 'done' && bmsg && (
+                                    <span className="text-xs font-medium text-emerald-600">✓ {bmsg}</span>
+                                  )}
                                 </div>
                               </td>
                             </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            {bs === 'error' && bmsg && (
+                              <tr className="bg-red-500/5">
+                                <td colSpan={7} className="px-4 py-2">
+                                  <div className="flex items-center gap-2 text-xs text-red-600">
+                                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                    {bmsg}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
 
@@ -718,8 +790,27 @@ export default function AdminBillingPage() {
           {/* Invoice table */}
           <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-2xl overflow-hidden">
             {invoiceLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--primary))]" />
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[hsl(var(--color-border))]/[0.07]">
+                      {['เลขที่ใบแจ้งหนี้', 'ห้อง', 'ผู้เช่า', 'เดือน/ปี', 'ยอดรวม', 'สถานะ', 'ครบกำหนด', 'จัดการ'].map((h) => (
+                        <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <tr key={`skl-inv-${i}`} className="border-b border-white/[0.05]">
+                        <td colSpan={8} className="px-4 py-3">
+                          <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : filteredInvoices.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">

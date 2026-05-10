@@ -1,11 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ApiResponse } from '@/lib/api-response';
 
 export class ApiError extends Error {
   constructor(
     message: string,
     public code?: string,
     public statusCode?: number,
-    public url?: string
+    public url?: string,
+    public details?: Record<string, any>
   ) {
     super(message);
     this.name = 'ApiError';
@@ -18,30 +20,34 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
     cache: 'no-store',
   });
 
-  // Check HTTP status before parsing JSON
-  if (!res.ok) {
-    let errorMessage = `HTTP ${res.status}: ${res.statusText}`;
-    try {
-      const json = await res.json();
-      if (json.error?.message) {
-        errorMessage = json.error.message;
-      }
-    } catch {
-      // Response might not be JSON, use status text
-    }
-    throw new ApiError(errorMessage, 'HTTP_ERROR', res.status, url);
+  // Parse response
+  const json = (await res.json()) as ApiResponse<T>;
+
+  // Check for API-level success
+  if (!json.success) {
+    const errorMessage = json.error?.message ?? 'Request failed';
+    const errorCode = json.error?.code ?? 'UNKNOWN_ERROR';
+    const statusCode = json.error?.statusCode ?? res.status;
+
+    throw new ApiError(
+      errorMessage,
+      errorCode,
+      statusCode,
+      url,
+      json.error?.details
+    );
   }
 
-  const json = await res.json();
-  if (!json.success) {
-    const err = new ApiError(
-      json.error?.message ?? 'Request failed',
-      json.error?.code,
+  // Check HTTP status for non-200 responses
+  if (!res.ok) {
+    throw new ApiError(
+      json.error?.message || `HTTP ${res.status}`,
+      'HTTP_ERROR',
       res.status,
       url
     );
-    throw err;
   }
+
   return json.data as T;
 }
 

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { asyncHandler, type ApiResponse, NotFoundError } from '@/lib/utils/errors';
+import { asyncHandler, NotFoundError } from '@/lib/utils/errors';
 import { requireRole, requireBuildingAccess } from '@/lib/auth/guards';
 import { prisma } from '@/lib';
+import { formatSuccess } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,7 +74,7 @@ export const GET = asyncHandler(
           : null,
       };
 
-      return NextResponse.json({ success: true, data } as ApiResponse<typeof data>);
+      return NextResponse.json(formatSuccess(data));
     }
 
     // ── Fallback: try the simpler Payment model (created by manual entry) ──
@@ -123,7 +124,7 @@ export const GET = asyncHandler(
           : null,
       };
 
-      return NextResponse.json({ success: true, data } as ApiResponse<typeof data>);
+      return NextResponse.json(formatSuccess(data));
     }
 
     throw new NotFoundError('Payment', id);
