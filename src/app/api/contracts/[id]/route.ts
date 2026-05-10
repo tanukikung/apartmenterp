@@ -77,11 +77,9 @@ export const PATCH = asyncHandler(
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: contract,
-      message: 'Contract updated successfully',
-    } as ApiResponse<typeof contract>);
+    return NextResponse.json(
+      formatSuccess(contract, 'Contract updated successfully')
+    );
   }
 );
 

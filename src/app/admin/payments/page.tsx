@@ -235,7 +235,7 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
-function LoadingState({ message }: { message: string }) {
+function _LoadingState({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
       <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--on-surface-variant))]" />

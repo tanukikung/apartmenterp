@@ -4,7 +4,7 @@ import { Component, type ReactNode, ReactElement } from 'react';
 
 interface Props {
   children: ReactNode;
-  fallback?: (error: Error, retry: () => void) => ReactElement;
+  fallback?: ReactElement | ((error: Error, retry: () => void) => ReactElement);
   onReset?: () => void;
   componentName?: string;
 }
@@ -84,7 +84,9 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError && this.state.error) {
       if (this.props.fallback) {
-        return this.props.fallback(this.state.error, this.handleReset);
+        return typeof this.props.fallback === 'function'
+          ? this.props.fallback(this.state.error, this.handleReset)
+          : this.props.fallback;
       }
 
       const isDevelopment = process.env.NODE_ENV === 'development';
