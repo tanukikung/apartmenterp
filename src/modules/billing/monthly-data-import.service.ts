@@ -13,15 +13,15 @@ import type { Decimal } from '@prisma/client/runtime/library';
 import type { ImportBatchStatus } from '@prisma/client';
 import { BadRequestError, NotFoundError } from '@/lib/utils/errors';
 import { prisma } from '@/lib/db/client';
-
-// sql and join are runtime utilities in Prisma 5.x not in all TS declarations.
-const sql = (prisma as unknown as Record<string, unknown>).sql as (s: TemplateStringsArray, ...v: unknown[]) => unknown;
-const join = (prisma as unknown as Record<string, unknown>).join as (a: unknown[]) => unknown;
 import { parseMonthlyDataWorkbook, parseAllMonthlyDataRows, validateMonthlyDataWorkbook, type MonthlyDataRow } from './monthly-data-parser';
 import { getStorage } from '@/infrastructure/storage';
 import { DEFAULT_DUE_DAY } from './billing.service';
 import { logMeterResetAlert } from '@/modules/audit/audit.service';
 import { computeRoomBilling, type BillingRuleData, type RoomBillingRow as CalcRoomBillingRow } from './billing-calculator';
+
+// sql and join are runtime utilities in Prisma 5.x not in all TS declarations.
+const sql = (prisma as unknown as Record<string, unknown>).sql as (s: TemplateStringsArray, ...v: unknown[]) => unknown;
+const join = (prisma as unknown as Record<string, unknown>).join as (a: unknown[]) => unknown;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -123,28 +123,6 @@ function buildBillingRuleData(rule: { waterEnabled: boolean; waterUnitPrice: Dec
     electricS2Upto: rule.electricS2Upto ? Number(rule.electricS2Upto) : null,
     electricS2Rate: rule.electricS2Rate ? Number(rule.electricS2Rate) : null,
     electricS3Rate: rule.electricS3Rate ? Number(rule.electricS3Rate) : null,
-  };
-}
-
-/**
- * Build CalcRoomBillingRow from a MonthlyDataRow for computeRoomBilling.
- * Uses NORMAL mode for water/electric (monthly-data format has no mode column).
- */
-function buildCalcRow(row: MonthlyDataRow): CalcRoomBillingRow {
-  return {
-    rentAmount: row.rentAmount,
-    waterMode: 'NORMAL',
-    waterPrev: row.waterPrev,
-    waterCurr: row.waterCurr,
-    waterUnitsManual: null,
-    waterServiceFeeManual: null,
-    electricMode: 'NORMAL',
-    electricPrev: row.electricPrev,
-    electricCurr: row.electricCurr,
-    electricUnitsManual: null,
-    electricServiceFeeManual: null,
-    furnitureFee: row.furnitureFee,
-    otherFee: row.otherFee,
   };
 }
 

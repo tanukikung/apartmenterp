@@ -35,12 +35,18 @@ logs/
 test-results/
 coverage/
 playwright-report/
+test-screenshots/
 *.test-results/
+tests/e2e/*-output.txt
+tests/e2e/*-out.txt
+tests/e2e/stdout.json
+tests/e2e/pw-*.txt
 
 # =============================================================================
 # App runtime data
 # =============================================================================
 .data/
+.runtime/
 tmp/
 *.csv
 
@@ -55,6 +61,18 @@ uploads/
 .DS_Store
 Thumbs.db
 desktop.ini
+~$*.xlsx
+
+# =============================================================================
+# Local scratch scripts
+# =============================================================================
+audit-*.ts
+debug-*.ts
+debug-*.js
+check-*.js
+cleanup-db.js
+test-raw-seed.ts
+test_*.xlsx
 
 # =============================================================================
 # IDE

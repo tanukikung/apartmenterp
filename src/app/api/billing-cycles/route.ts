@@ -94,6 +94,8 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
       year: period.year,
       month: period.month,
       status: period.status,
+      dueDay: period.dueDay,
+      gracePeriodDays: period.gracePeriodDays,
       totalRecords,
       totalAmount,
       invoiceCount,

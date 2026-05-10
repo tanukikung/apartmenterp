@@ -1,5 +1,7 @@
 import type { AdminRole } from '@prisma/client';
-import { signSessionToken, type AuthSessionPayload } from '@/lib/auth/session';
+import { createHmac } from 'crypto';
+import { type AuthSessionPayload } from '@/lib/auth/session';
+import { getAuthSecret } from '@/lib/config/env';
 
 type RequestLikeOptions = {
   url: string;
@@ -33,8 +35,21 @@ export function buildSignedAuthCookie(
   role: AdminRole,
   overrides?: Partial<AuthSessionPayload>,
 ): string {
-  const token = signSessionToken(buildSessionPayload(role, overrides));
+  const token = signTestSessionToken(buildSessionPayload(role, overrides));
   return `auth_session=${token}; role=${role}`;
+}
+
+function base64UrlJson(value: unknown): string {
+  return Buffer.from(JSON.stringify(value)).toString('base64url');
+}
+
+function signTestSessionToken(payload: AuthSessionPayload): string {
+  const header = base64UrlJson({ alg: 'HS256', typ: 'JWT' });
+  const body = base64UrlJson(payload);
+  const signature = createHmac('sha256', getAuthSecret())
+    .update(`${header}.${body}`)
+    .digest('base64url');
+  return `${header}.${body}.${signature}`;
 }
 
 export function makeCookieStoreFromHeader(header?: string) {
@@ -58,7 +73,7 @@ export function makeRequestLike(options: RequestLikeOptions) {
   };
 
   if (options.role) {
-    const token = signSessionToken(buildSessionPayload(options.role, options.sessionOverrides));
+    const token = signTestSessionToken(buildSessionPayload(options.role, options.sessionOverrides));
     cookies.auth_session = token;
     cookies.role = options.role;
   } else if (options.plainRole) {

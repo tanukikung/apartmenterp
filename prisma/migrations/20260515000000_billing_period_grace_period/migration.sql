@@ -1,0 +1,2 @@
+ALTER TABLE "billing_periods"
+ADD COLUMN IF NOT EXISTS "gracePeriodDays" INTEGER NOT NULL DEFAULT 0;

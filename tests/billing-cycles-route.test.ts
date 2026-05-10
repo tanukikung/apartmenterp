@@ -12,7 +12,7 @@
  *  6. pendingInvoices counts only GENERATED | SENT | VIEWED | OVERDUE (not PAID)
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { signSessionToken } from '@/lib/auth/session';
+import { buildSignedAuthCookie } from './helpers/auth';
 
 // ── Prisma mock ───────────────────────────────────────────────────────────────
 const mockCount = vi.fn();
@@ -63,16 +63,14 @@ function makeRequest(overrides: {
 }
 
 function adminCookie(): string {
-  const token = signSessionToken({
+  return buildSignedAuthCookie('ADMIN', {
     sub: 'user-admin-1',
-    role: 'ADMIN',
     username: 'owner',
     displayName: 'Owner',
     forcePasswordChange: false,
     buildingId: null,
     exp: Math.floor(Date.now() / 1000) + 3600,
   });
-  return `auth_session=${token}`;
 }
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
