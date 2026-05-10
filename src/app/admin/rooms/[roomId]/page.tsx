@@ -361,7 +361,7 @@ function TenantTab({ roomNo, room, assigningTenant, setAssigningTenant, selected
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/contracts?roomNo=${encodeURIComponent(roomNo)}&status=ACTIVE&pageSize=1&sortBy=createdAt&sortOrder=desc`);
+      const res = await fetch(`/api/contracts?roomId=${encodeURIComponent(roomNo)}&status=ACTIVE&pageSize=1&sortBy=createdAt&sortOrder=desc`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.message ?? 'ไม่สามารถโหลดข้อมูลสัญญา');
       const items: Contract[] = json.data?.data ?? json.data ?? [];
@@ -394,7 +394,7 @@ function TenantTab({ roomNo, room, assigningTenant, setAssigningTenant, selected
               <FileText size={12} />
               สร้างสัญญาเช่า
             </button>
-            {room && room.roomStatus !== 'VACANT' && (
+            {room && (
               <button
                 onClick={() => setAssigningTenant(true)}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-[11px] font-semibold text-white shadow-[0_0_20px_rgba(99,102,241,0.15)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-[0.98] transition-all duration-200"
@@ -820,7 +820,7 @@ export default function RoomDetailPage() {
     if (!assigningTenant) return;
     async function loadTenants() {
       try {
-        const res = await fetch('/api/tenants?pageSize=200', { cache: 'no-store' }).then(r => r.json());
+        const res = await fetch('/api/tenants?pageSize=100', { cache: 'no-store' }).then(r => r.json());
         if (res.success) {
           const all: Array<{ id: string; fullName: string; phone: string | null }> = [];
           const chunk: Array<{ id: string; fullName: string; phone: string | null }> = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);

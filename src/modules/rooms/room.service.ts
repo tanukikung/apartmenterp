@@ -241,6 +241,11 @@ export class RoomService {
 
     const rooms = await prisma.room.findMany({
       where,
+      include: {
+        tenants: {
+          include: { tenant: { select: { firstName: true, lastName: true } } },
+        },
+      },
       orderBy: isRoomNoSort
         ? [{ floorNo: 'asc' }, { roomNo: 'asc' }]
         : { [sortBy]: sortOrder },
@@ -643,6 +648,7 @@ export class RoomService {
       defaultFurnitureAmount: unknown;
       roomStatus: string;
       lineUserId?: string | null;
+      tenants?: Array<{ tenant?: { firstName?: string; lastName?: string } }>;
     }
   ): RoomResponse {
     return {
@@ -656,6 +662,7 @@ export class RoomService {
       defaultFurnitureAmount: Number(room.defaultFurnitureAmount),
       roomStatus: room.roomStatus as RoomStatus,
       lineUserId: room.lineUserId ?? null,
+      roomTenants: room.tenants,
     };
   }
 }

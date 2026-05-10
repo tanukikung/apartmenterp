@@ -44,13 +44,10 @@ import {
   Link as LinkIcon,
   List,
   ListOrdered,
-  Loader2,
-  Maximize2,
   Minus,
   Outdent,
   PaintBucket,
   Plus,
-  Printer,
   Redo2,
   RemoveFormatting,
   Rows3,
@@ -60,8 +57,6 @@ import {
   Underline as UnderlineIcon,
   Undo2,
   X,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react';
 import {
   applyTemplateVariables,
@@ -282,60 +277,23 @@ export function TemplateWordEditor({
   const [uploadingImage, setUploadingImage] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [layout, setLayout] = useState<TemplateDocumentMeta>(parsedDocument.meta);
-  const [previewZoom, setPreviewZoom] = useState(60); // percent
-  const [showMarginGuides, setShowMarginGuides] = useState(true);
+  const [_previewZoom, _setPreviewZoom] = useState(60); // percent
+  const [_showMarginGuides, _setShowMarginGuides] = useState(true);
   const [headerHtml, setHeaderHtml] = useState(parsedDocument.headerHtml);
   const [footerHtml, setFooterHtml] = useState(parsedDocument.footerHtml);
   const [editorBody, setEditorBody] = useState(parsedDocument.bodyHtml);
   const [activeRegion, setActiveRegion] = useState<RegionKey>('body');
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [puppeteerPreviewUrl, setPuppeteerPreviewUrl] = useState<string | null>(null);
-  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showPageSetup, setShowPageSetup] = useState(false);
   const [, setShowFindReplace] = useState(false);
   const [undoToast, setUndoToast] = useState<string | null>(null);
-  const [previewFlash, setPreviewFlash] = useState(false);
+  const [_previewFlash, _setPreviewFlash] = useState(false);
   const [_showHistory, _setShowHistory] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInputValue, setUrlInputValue] = useState('');
 
-  async function generatePuppeteerPreview() {
-    setIsGeneratingPreview(true);
-    setPreviewError(null);
-    try {
-      const payload: Record<string, unknown> = {};
-
-      if (templateId) {
-        // Mode 1: Resolve real DB data (tenant name, room number, billing amounts, etc.)
-        payload.templateId = templateId;
-        // Defaults: first eligible room + current month/year
-        const now = new Date();
-        payload.year = now.getFullYear();
-        payload.month = now.getMonth() + 1;
-      } else {
-        // Mode 2: Raw HTML quick preview (shows layout/CSS but placeholder values)
-        payload.html = previewHtml;
-      }
-
-      const response = await fetch('/api/templates/preview-screenshot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        const json = await response.json().catch(() => ({}));
-        throw new Error(json.error?.message ?? 'ไม่สามารถสร้างตัวอย่างเอกสาร');
-      }
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      setPuppeteerPreviewUrl(objectUrl);
-    } catch (err) {
-      setPreviewError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
-    } finally {
-      setIsGeneratingPreview(false);
-    }
-  }
 
   function closePuppeteerPreview() {
     if (puppeteerPreviewUrl) {

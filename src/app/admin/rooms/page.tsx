@@ -8,7 +8,6 @@ import { useUrlState } from '@/hooks/useUrlState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonKPICard } from '@/components/ui/skeleton';
-import { CardGrid } from '@/components/ui/card-grid';
 import { useToast } from '@/components/providers/ToastProvider';
 
 type Room = {

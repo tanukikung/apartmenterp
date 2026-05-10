@@ -8,7 +8,7 @@
  *   - Backgrounds, borders, shadows — all preserved
  *   - Pixel-perfect match to browser print output
  */
-import { htmlToPdfBuffer } from '@/lib/puppeteer';
+import { htmlToPdfBuffer, htmlToScreenshot } from '@/lib/puppeteer';
 
 export type PdfOptions = {
   title?: string;
@@ -35,6 +35,19 @@ export async function generateDocumentPdf(
     marginRight: options.marginRight ?? '15mm',
     printBackground: true,
     scale: 1,
+  });
+
+  return new Uint8Array(buffer);
+}
+
+export async function generateDocumentImage(
+  _title: string,
+  html: string,
+  options: { width?: number; fullPage?: boolean } = {},
+): Promise<Uint8Array> {
+  const buffer = await htmlToScreenshot(html, {
+    width: options.width ?? 794,
+    fullPage: options.fullPage ?? true,
   });
 
   return new Uint8Array(buffer);

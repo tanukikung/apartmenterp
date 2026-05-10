@@ -6,7 +6,6 @@ export function guessDocumentContentType(filename: string): string {
   const lower = filename.toLowerCase();
   if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'text/html; charset=utf-8';
   if (lower.endsWith('.pdf')) return 'application/pdf';
-  if (lower.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   if (lower.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   if (lower.endsWith('.zip')) return 'application/zip';
   return 'application/octet-stream';

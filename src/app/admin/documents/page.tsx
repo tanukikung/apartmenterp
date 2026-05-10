@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ClientOnly } from '@/components/ui/ClientOnly';
-import { ExternalLink, FileOutput, FolderOpen, Layers3, Search, Send, Trash2, FileX } from 'lucide-react';
+import { ExternalLink, FolderOpen, Layers3, Search, Send, Trash2, FileX } from 'lucide-react';
 import { useToast } from '@/components/providers/ToastProvider';
 import { SkeletonTable } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -29,14 +29,14 @@ type GeneratedDocument = {
   files: Array<{ role: string; format: string; url: string }>;
 };
 
-async function fetchDocuments(q: string): Promise<{ data: GeneratedDocument[] }> {
+async function fetchDocuments(q: string): Promise<GeneratedDocument[]> {
   const params = new URLSearchParams({ pageSize: '100' });
   if (q) params.set('q', q);
   const res = await fetch(`/api/documents?${params.toString()}`, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch documents');
   const json = await res.json();
   if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
-  return json.data;
+  return Array.isArray(json.data) ? json.data : (json.data?.data ?? []);
 }
 
 export default function DocumentsPage() {
@@ -57,12 +57,12 @@ export default function DocumentsPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data: docsData, isLoading, error: fetchError } = useQuery<{ data: GeneratedDocument[] }>({
+  const { data: docsData, isLoading, error: fetchError } = useQuery<GeneratedDocument[]>({
     queryKey: ['documents', searchDebounced],
     queryFn: () => fetchDocuments(searchDebounced),
   });
 
-  const documents: GeneratedDocument[] = docsData?.data ?? [];
+  const documents: GeneratedDocument[] = docsData ?? [];
 
   async function sendDocument(documentId: string) {
     setSendingIds((prev) => new Set(prev).add(documentId));
@@ -392,12 +392,14 @@ export default function DocumentsPage() {
                           PDF
                         </a>
                         <a
-                          href={`/api/documents/${document.id}/download?format=docx`}
-                          aria-label="ดาวน์โหลด DOCX"
+                          href={`/api/documents/${document.id}/image`}
+                          aria-label="เปิด PNG"
+                          target="_blank"
+                          rel="noreferrer"
                           className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:bg-white/5 hover:border-[hsl(var([hsl(var(--color-border))]))] hover:text-[hsl(var(--card-foreground))] active:scale-[0.98]"
                         >
-                          <FileOutput className="h-3.5 w-3.5" />
-                          DOCX
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          PNG
                         </a>
                         <button
                           type="button"

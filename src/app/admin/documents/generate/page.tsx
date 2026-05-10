@@ -68,28 +68,28 @@ const SCOPES = [
   { value: 'ROOMS_WITH_BILLING', label: 'เฉพาะห้องที่มีการเรียกเก็บ' },
 ] as const;
 
-async function fetchTemplates(): Promise<{ data: TemplateOption[] }> {
+async function fetchTemplates(): Promise<TemplateOption[]> {
   const res = await fetch('/api/templates?pageSize=100', { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch templates');
   const json = await res.json();
   if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
-  return json.data;
+  return Array.isArray(json.data) ? json.data : (json.data?.data ?? []);
 }
 
-async function fetchFloors(): Promise<{ data: FloorOption[] }> {
+async function fetchFloors(): Promise<FloorOption[]> {
   const res = await fetch('/api/floors', { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch floors');
   const json = await res.json();
   if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
-  return json.data;
+  return Array.isArray(json.data) ? json.data : (json.data?.data ?? []);
 }
 
-async function fetchRooms(): Promise<{ data: RoomOption[] }> {
+async function fetchRooms(): Promise<RoomOption[]> {
   const res = await fetch('/api/rooms?pageSize=100&page=1', { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch rooms');
   const json = await res.json();
   if (!json.success) throw new Error(json.error?.message ?? 'Request failed');
-  return json.data;
+  return Array.isArray(json.data) ? json.data : (json.data?.data ?? []);
 }
 
 export default function GenerateDocumentsPage() {
@@ -118,22 +118,22 @@ export default function GenerateDocumentsPage() {
 
   const initRef = useRef(false);
 
-  const { data: templatesRaw, isLoading: templatesLoading } = useQuery<{ data: TemplateOption[] }>({
+  const { data: templatesRaw, isLoading: templatesLoading } = useQuery<TemplateOption[]>({
     queryKey: ['templates-for-generate'],
     queryFn: fetchTemplates,
   });
-  const { data: floorsRaw, isLoading: floorsLoading } = useQuery<{ data: FloorOption[] }>({
+  const { data: floorsRaw, isLoading: floorsLoading } = useQuery<FloorOption[]>({
     queryKey: ['floors-for-generate'],
     queryFn: fetchFloors,
   });
-  const { data: roomsRaw, isLoading: roomsLoading } = useQuery<{ data: RoomOption[] }>({
+  const { data: roomsRaw, isLoading: roomsLoading } = useQuery<RoomOption[]>({
     queryKey: ['rooms-for-generate'],
     queryFn: fetchRooms,
   });
 
-  const templates: TemplateOption[] = (templatesRaw?.data ?? []).filter((t: TemplateOption) => t.activeVersionId);
-  const floors: FloorOption[] = floorsRaw?.data ?? [];
-  const rooms: RoomOption[] = useMemo(() => roomsRaw?.data ?? [], [roomsRaw?.data]);
+  const templates: TemplateOption[] = (templatesRaw ?? []).filter((t: TemplateOption) => t.activeVersionId);
+  const floors: FloorOption[] = floorsRaw ?? [];
+  const rooms: RoomOption[] = useMemo(() => roomsRaw ?? [], [roomsRaw]);
   const isLoading = templatesLoading || floorsLoading || roomsLoading;
 
   // Auto-select template: prefer matching type from URL param, else first available

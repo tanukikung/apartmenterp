@@ -93,6 +93,7 @@ export interface RoomResponse {
   defaultFurnitureAmount: number;
   roomStatus: RoomStatus;
   lineUserId?: string | null;
+  roomTenants?: Array<{ tenant?: { firstName?: string; lastName?: string } }>;
 }
 
 export interface RoomStatusCounts {

@@ -30,8 +30,6 @@ function mimeExtFromRole(role: GeneratedDocumentFileRole): string {
   switch (role) {
     case GeneratedDocumentFileRole.PDF:
       return 'pdf';
-    case GeneratedDocumentFileRole.DOCX:
-      return 'docx';
     case GeneratedDocumentFileRole.ZIP_BUNDLE:
       return 'zip';
     default:
@@ -254,7 +252,7 @@ export class DocumentGenerationService {
     html: string,
   ) {
     const pdfBuffer = Buffer.from(await generateDocumentPdf(title, html));
-    return { pdfBuffer, docxBuffer: null };
+    return { pdfBuffer };
   }
 
   private async persistGeneratedFiles(
@@ -280,7 +278,7 @@ export class DocumentGenerationService {
       uploadedBy: actorId ?? null,
     });
 
-    const { pdfBuffer, docxBuffer } = await this.convertHtmlOutputs(
+    const { pdfBuffer } = await this.convertHtmlOutputs(
       sourceFile.url,
       title,
       generatedDocumentId,
@@ -318,28 +316,6 @@ export class DocumentGenerationService {
           include: { uploadedFile: true },
         }),
       ];
-
-      if (docxBuffer) {
-        const docxFile = await storeDocumentFile({
-          keyPrefix: `generated-documents/${generatedDocumentId}`,
-          filename: `${title}.docx`,
-          content: docxBuffer,
-          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          uploadedBy: actorId ?? null,
-        });
-        files.push(
-          await tx.generatedDocumentFile.create({
-            data: {
-              generatedDocumentId,
-              uploadedFileId: docxFile.id,
-              role: GeneratedDocumentFileRole.DOCX,
-              format: 'docx',
-              isPrimary: false,
-            },
-            include: { uploadedFile: true },
-          }),
-        );
-      }
 
       return files;
     });

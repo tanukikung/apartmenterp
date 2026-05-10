@@ -85,7 +85,7 @@ export type UpdateTenantInput = z.infer<typeof updateTenantSchema>;
 // ============================================================================
 
 export const assignTenantSchema = z.object({
-  tenantId: z.string().uuid('Invalid tenant ID'),
+  tenantId: z.string().min(1, 'Tenant ID is required'),
   role: tenantRoleSchema,
   moveInDate: z.string().date('Invalid move-in date'),
 });

@@ -1,36 +1,141 @@
 import { prisma } from '@/lib/db/client';
-import { getServiceContainer } from '@/lib/service-container';
+import { buildFileAccessUrl } from '@/lib/files/access';
+import { sendLineFileMessage, sendLineMessage } from '@/lib/line/client';
 import { BadRequestError, ConflictError, NotFoundError } from '@/lib/utils/errors';
 import { Prisma } from '@prisma/client';
 import type { CreateDeliveryOrderInput, DeliveryOrderListQuery } from './types';
 
 const naturalCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
+function buildSignedDocumentFileUrl(storageKey: string): string {
+  const absoluteBaseUrl = (process.env.APP_BASE_URL || '').trim();
+  if (!absoluteBaseUrl) {
+    throw new Error('APP_BASE_URL must be configured for document delivery');
+  }
+
+  return buildFileAccessUrl(storageKey, {
+    absoluteBaseUrl,
+    inline: true,
+    signed: true,
+    expiresInSeconds: 15 * 60,
+  });
+}
+
+function buildAbsoluteAppUrl(pathOrUrl: string): string {
+  if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
+    return pathOrUrl;
+  }
+
+  const absoluteBaseUrl = (process.env.APP_BASE_URL || '').trim();
+  if (!absoluteBaseUrl) {
+    throw new Error('APP_BASE_URL must be configured for document delivery');
+  }
+
+  return `${absoluteBaseUrl.replace(/\/+$/, '')}${pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`}`;
+}
+
 export class DeliveryService {
-  // Creates a DeliveryOrder + items by finding matching GeneratedDocuments
+  private async recalculateOrderStatus(orderId: string): Promise<void> {
+    const items = await prisma.deliveryOrderItem.findMany({
+      where: { deliveryOrderId: orderId },
+      select: { status: true },
+    });
+
+    const sentCount = items.filter((item) => item.status === 'SENT').length;
+    const failedCount = items.filter((item) => item.status === 'FAILED').length;
+    const skippedCount = items.filter((item) => item.status === 'SKIPPED').length;
+    const pendingCount = items.filter((item) => item.status === 'PENDING').length;
+
+    let status: 'COMPLETED' | 'PARTIAL' | 'FAILED' | 'SENDING' = 'SENDING';
+    if (pendingCount === 0) {
+      if (sentCount === 0 && failedCount > 0) {
+        status = 'FAILED';
+      } else if (sentCount === items.length) {
+        status = 'COMPLETED';
+      } else if (sentCount > 0 || skippedCount > 0) {
+        status = 'PARTIAL';
+      } else {
+        status = 'COMPLETED';
+      }
+    }
+
+    await prisma.deliveryOrder.update({
+      where: { id: orderId },
+      data: { sentCount, failedCount, status },
+    });
+  }
+
+  private async sendDeliveryOrderItemNow(input: {
+    itemId: string;
+    orderId: string;
+    lineUserId: string;
+    documentTitle: string;
+    roomNo: string;
+    pdfUrl: string;
+    generatedDocumentId?: string | null;
+  }): Promise<void> {
+    const { itemId, orderId, lineUserId, documentTitle, roomNo, pdfUrl, generatedDocumentId } = input;
+    const absolutePdfUrl = buildAbsoluteAppUrl(pdfUrl);
+    const fileName = `${documentTitle}-${roomNo}.pdf`;
+
+    try {
+      try {
+        await sendLineFileMessage(lineUserId, absolutePdfUrl, fileName);
+      } catch {
+        await sendLineMessage(
+          lineUserId,
+          `${documentTitle}\nห้อง ${roomNo}\nดาวน์โหลดเอกสาร: ${absolutePdfUrl}`,
+        );
+      }
+
+      await prisma.deliveryOrderItem.update({
+        where: { id: itemId },
+        data: {
+          status: 'SENT',
+          sentAt: new Date(),
+          errorMessage: null,
+        },
+      });
+
+      if (generatedDocumentId) {
+        await prisma.generatedDocument.update({
+          where: { id: generatedDocumentId },
+          data: { status: 'SENT' },
+        });
+      }
+    } catch (error) {
+      await prisma.deliveryOrderItem.update({
+        where: { id: itemId },
+        data: {
+          status: 'FAILED',
+          errorMessage: error instanceof Error ? error.message : String(error),
+        },
+      });
+      throw error;
+    } finally {
+      await this.recalculateOrderStatus(orderId);
+    }
+  }
+
   async createOrder(input: CreateDeliveryOrderInput, actorId?: string | null) {
-    // 1. Build where clause for GeneratedDocument
-    // Note: Zod schema uses 'GENERAL' but Prisma enum has 'GENERAL_NOTICE' — cast via unknown
     const docWhere: Prisma.GeneratedDocumentWhereInput = {
       documentType: input.documentType as unknown as Prisma.GeneratedDocumentWhereInput['documentType'],
     };
     if (input.year) docWhere.year = input.year;
     if (input.month) docWhere.month = input.month;
 
-    // 2-3. Room scope
     let roomNos: string[] | undefined = input.roomNos;
     if (input.floorNumber && !roomNos?.length) {
       const rooms = await prisma.room.findMany({
         where: { floorNo: input.floorNumber },
         select: { roomNo: true },
       });
-      roomNos = rooms.map(r => r.roomNo);
+      roomNos = rooms.map((room) => room.roomNo);
     }
     if (roomNos?.length) {
       docWhere.roomNo = { in: roomNos };
     }
 
-    // 4. Find latest document per room
     const docs = await prisma.generatedDocument.findMany({
       where: docWhere,
       include: {
@@ -40,8 +145,7 @@ export class DeliveryService {
       orderBy: { generatedAt: 'desc' },
     });
 
-    // Group by room - take latest only
-    const latestByRoom = new Map<string, typeof docs[0]>();
+    const latestByRoom = new Map<string, (typeof docs)[number]>();
     for (const doc of docs) {
       if (!latestByRoom.has(doc.roomNo)) {
         latestByRoom.set(doc.roomNo, doc);
@@ -52,7 +156,6 @@ export class DeliveryService {
       throw new NotFoundError('ไม่พบเอกสารที่ตรงกับเงื่อนไข');
     }
 
-    // 5. Resolve LINE recipients for each room
     const roomNosList = Array.from(latestByRoom.keys());
     const roomTenants = await prisma.roomTenant.findMany({
       where: { roomNo: { in: roomNosList }, moveOutDate: null },
@@ -60,15 +163,13 @@ export class DeliveryService {
     });
 
     const recipientByRoom = new Map<string, { tenantId: string; lineUserId: string | null }>();
-    for (const rt of roomTenants) {
-      // Use room's lineUserId first, then tenant's
-      const lineUserId = rt.room.lineUserId || rt.tenant.lineUserId || null;
-      if (!recipientByRoom.has(rt.roomNo)) {
-        recipientByRoom.set(rt.roomNo, { tenantId: rt.tenantId, lineUserId });
+    for (const roomTenant of roomTenants) {
+      const lineUserId = roomTenant.room.lineUserId || roomTenant.tenant.lineUserId || null;
+      if (!recipientByRoom.has(roomTenant.roomNo)) {
+        recipientByRoom.set(roomTenant.roomNo, { tenantId: roomTenant.tenantId, lineUserId });
       }
     }
 
-    // 6. Create order + items in transaction
     const scopeRoomNos = Array.from(latestByRoom.keys()).sort((a, b) => naturalCollator.compare(a, b));
 
     const order = await prisma.deliveryOrder.create({
@@ -79,22 +180,22 @@ export class DeliveryService {
         year: input.year,
         month: input.month,
         floorNumber: input.floorNumber,
-        scopeRoomNos: scopeRoomNos,
+        scopeRoomNos,
         status: 'DRAFT',
         totalCount: latestByRoom.size,
         createdBy: actorId,
         items: {
-          create: scopeRoomNos.map(roomNo => {
+          create: scopeRoomNos.map((roomNo) => {
             const doc = latestByRoom.get(roomNo)!;
             const recipient = recipientByRoom.get(roomNo);
-            const hasPdf = doc.files.some(f => f.role === 'PDF');
+            const hasPdf = doc.files.some((file) => file.role === 'PDF');
             return {
               roomNo,
               tenantId: recipient?.tenantId || null,
               generatedDocumentId: doc.id,
               invoiceId: doc.invoiceId,
               recipientRef: recipient?.lineUserId || null,
-              status: (!recipient?.lineUserId || !hasPdf) ? 'SKIPPED' : 'PENDING',
+              status: !recipient?.lineUserId || !hasPdf ? 'SKIPPED' : 'PENDING',
             };
           }),
         },
@@ -112,16 +213,6 @@ export class DeliveryService {
       },
     });
 
-    // Update skipped count
-    const skippedCount = order.items.filter(i => i.status === 'SKIPPED').length;
-    if (skippedCount > 0) {
-      await prisma.deliveryOrder.update({
-        where: { id: order.id },
-        data: { totalCount: order.items.length },
-      });
-    }
-
-    // 7. If sendNow, execute immediately
     if (input.sendNow) {
       await this.executeOrder(order.id, actorId);
     }
@@ -169,9 +260,10 @@ export class DeliveryService {
         },
       },
     });
-    if (!order) throw new NotFoundError('ไม่พบ Delivery Order');
+    if (!order) {
+      throw new NotFoundError('ไม่พบ Delivery Order');
+    }
 
-    // Sort items by room number naturally
     order.items.sort((a, b) => naturalCollator.compare(a.roomNo, b.roomNo));
     return order;
   }
@@ -190,37 +282,32 @@ export class DeliveryService {
         },
       },
     });
-    if (!order) throw new NotFoundError('ไม่พบ Delivery Order');
+    if (!order) {
+      throw new NotFoundError('ไม่พบ Delivery Order');
+    }
 
     await prisma.deliveryOrder.update({
       where: { id: orderId },
       data: { status: 'SENDING' },
     });
 
-    const container = getServiceContainer();
-    const bus = container.eventBus;
-
     for (const item of order.items) {
       if (!item.recipientRef || !item.generatedDocument) continue;
-      const pdfFile = item.generatedDocument.files.find(f => f.role === 'PDF');
+      const pdfFile = item.generatedDocument.files.find((file) => file.role === 'PDF');
       if (!pdfFile) continue;
 
-      await bus.publish(
-        'DeliveryOrderItemSendRequested',
-        'DeliveryOrderItem',
-        item.id,
-        {
-          itemId: item.id,
-          orderId: order.id,
-          lineUserId: item.recipientRef,
-          documentTitle: item.generatedDocument.title,
-          roomNo: item.roomNo,
-          pdfUrl: pdfFile.uploadedFile.url,
-        },
-      );
+      await this.sendDeliveryOrderItemNow({
+        itemId: item.id,
+        orderId: order.id,
+        lineUserId: item.recipientRef,
+        documentTitle: item.generatedDocument.title,
+        roomNo: item.roomNo,
+        pdfUrl: buildSignedDocumentFileUrl(pdfFile.uploadedFile.storageKey),
+        generatedDocumentId: item.generatedDocument.id,
+      });
     }
 
-    return { message: 'กำลังส่ง...' };
+    return { message: 'ส่งเอกสารเรียบร้อย' };
   }
 
   async resendItem(orderId: string, itemId: string) {
@@ -232,55 +319,48 @@ export class DeliveryService {
         },
       },
     });
-    if (!item) throw new NotFoundError('ไม่พบรายการ');
-    if (!item.recipientRef) throw new BadRequestError('ไม่มี LINE ID ผู้รับ');
+    if (!item) {
+      throw new NotFoundError('ไม่พบรายการ');
+    }
+    if (!item.recipientRef) {
+      throw new BadRequestError('ไม่มี LINE ID ผู้รับ');
+    }
 
     await prisma.deliveryOrderItem.update({
       where: { id: itemId },
       data: { status: 'PENDING', errorMessage: null },
     });
 
-    const pdfFile = item.generatedDocument?.files.find(f => f.role === 'PDF');
-    if (!pdfFile) throw new NotFoundError('ไม่พบไฟล์ PDF');
+    const pdfFile = item.generatedDocument?.files.find((file) => file.role === 'PDF');
+    if (!pdfFile) {
+      throw new NotFoundError('ไม่พบไฟล์ PDF');
+    }
 
-    const container = getServiceContainer();
-    await container.eventBus.publish(
-      'DeliveryOrderItemSendRequested',
-      'DeliveryOrderItem',
-      item.id,
-      {
-        itemId: item.id,
-        orderId,
-        lineUserId: item.recipientRef,
-        documentTitle: item.generatedDocument!.title,
-        roomNo: item.roomNo,
-        pdfUrl: pdfFile.uploadedFile.url,
-      },
-    );
+    await this.sendDeliveryOrderItemNow({
+      itemId: item.id,
+      orderId,
+      lineUserId: item.recipientRef,
+      documentTitle: item.generatedDocument!.title,
+      roomNo: item.roomNo,
+      pdfUrl: buildSignedDocumentFileUrl(pdfFile.uploadedFile.storageKey),
+      generatedDocumentId: item.generatedDocumentId,
+    });
   }
 
-  /**
-   * Send a single generated document via LINE.
-   *
-   * FLOW: Send uses only the already-rendered, already-saved PDF artifact.
-   * This method does NOT regenerate, does NOT pull live billing data, and
-   * does NOT mutate the GeneratedDocument status optimistically.
-   *
-   * Idempotency: if the document has already been successfully sent (a
-   * DeliveryOrderItem with status=SENT exists for this generatedDocumentId),
-   * a ConflictError is thrown so the caller knows not to retry.
-   */
   async sendSingleDocument(generatedDocumentId: string, actorId?: string | null) {
     const doc = await prisma.generatedDocument.findUnique({
       where: { id: generatedDocumentId },
       include: { room: true, files: { include: { uploadedFile: true } } },
     });
-    if (!doc) throw new NotFoundError('GeneratedDocument', generatedDocumentId);
+    if (!doc) {
+      throw new NotFoundError('GeneratedDocument', generatedDocumentId);
+    }
 
-    const pdfFile = doc.files.find(f => f.role === 'PDF');
-    if (!pdfFile) throw new NotFoundError('Generated document PDF');
+    const pdfFile = doc.files.find((file) => file.role === 'PDF');
+    if (!pdfFile) {
+      throw new NotFoundError('Generated document PDF');
+    }
 
-    // Idempotency check: do not send again if already successfully delivered.
     const existingSuccess = await prisma.deliveryOrderItem.findFirst({
       where: {
         generatedDocumentId,
@@ -293,15 +373,15 @@ export class DeliveryService {
       );
     }
 
-    // Find LINE recipient
     const roomTenant = await prisma.roomTenant.findFirst({
       where: { roomNo: doc.roomNo, moveOutDate: null },
       include: { tenant: true, room: true },
     });
     const lineUserId = doc.room.lineUserId || roomTenant?.tenant.lineUserId;
-    if (!lineUserId) throw new BadRequestError('ไม่พบ LINE ID ของผู้เช่าห้องนี้');
+    if (!lineUserId) {
+      throw new BadRequestError('ไม่พบ LINE ID ของผู้เช่าห้องนี้');
+    }
 
-    // Create ad-hoc delivery order for tracking
     const order = await prisma.deliveryOrder.create({
       data: {
         channel: 'LINE',
@@ -326,31 +406,25 @@ export class DeliveryService {
       include: { items: true },
     });
 
-    const container = getServiceContainer();
-    await container.eventBus.publish(
-      'DeliveryOrderItemSendRequested',
-      'DeliveryOrderItem',
-      order.items[0].id,
-      {
-        itemId: order.items[0].id,
-        orderId: order.id,
-        lineUserId,
-        documentTitle: doc.title,
-        roomNo: doc.roomNo,
-        pdfUrl: pdfFile.uploadedFile.url,
-      },
-    );
-
-    // Note: GeneratedDocument.status is NOT updated here optimistically.
-    // The event handler will update it to SENT once delivery is confirmed.
-    // This ensures the status always reflects actual delivery state.
+    await this.sendDeliveryOrderItemNow({
+      itemId: order.items[0].id,
+      orderId: order.id,
+      lineUserId,
+      documentTitle: doc.title,
+      roomNo: doc.roomNo,
+      pdfUrl: buildSignedDocumentFileUrl(pdfFile.uploadedFile.storageKey),
+      generatedDocumentId: doc.id,
+    });
 
     return order;
   }
 }
 
 let _instance: DeliveryService | null = null;
+
 export function getDeliveryService(): DeliveryService {
-  if (!_instance) _instance = new DeliveryService();
+  if (!_instance) {
+    _instance = new DeliveryService();
+  }
   return _instance;
 }

@@ -72,7 +72,7 @@
  *   Must NOT show: GeneratedDocument records (those belong in /admin/documents).
  *
  * /admin/documents
- *   Purpose: GeneratedDocument artifact viewer — rendered PDFs/DOCX outputs.
+ *   Purpose: GeneratedDocument artifact viewer — rendered HTML/PDF outputs.
  *   Data source: GET /api/documents (GeneratedDocument records)
  *   Must NOT contain: Invoice lifecycle tracking (sent/viewed/paid/overdue).
  *   ⚠️  This page was previously the redirect target of /admin/invoices — that
