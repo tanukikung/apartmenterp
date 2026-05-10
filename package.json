@@ -69,6 +69,7 @@
     "decimal.js": "^10.4.3",
     "docx": "^9.6.1",
     "dompurify": "^3.3.3",
+    "exceljs": "^4.4.0",
     "ioredis": "^5.10.1",
     "jose": "^6.2.3",
     "jszip": "^3.10.1",
