@@ -1,0 +1,3 @@
+-- Intentionally empty.
+-- docker-compose.test.yml mounts this file so local test databases can add
+-- lightweight SQL setup later without changing the compose contract.

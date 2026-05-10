@@ -244,19 +244,21 @@ export class PaymentService {
     const paidAt = input?.paidAt ? new Date(input.paidAt) : new Date();
 
     const result = await prisma.$transaction(async (tx) => {
-      // Raw SQL FOR UPDATE acquires a row-level lock so that two concurrent
-      // settleOutstandingBalance calls on the same invoice cannot both pass
-      // the PAID/outstanding checks before either transaction commits.
-      // Prisma's findUnique does NOT support a native for:'update' option —
-      // passing it is silently ignored at runtime, leaving the window open.
-      type LockedRow = { id: string; status: string; totalAmount: Prisma.Decimal };
-      const rows = await tx.$queryRaw<LockedRow[]>`
-        SELECT id, status::text AS status, "totalAmount"
-        FROM invoices
-        WHERE id = ${invoiceId}
-        FOR UPDATE
+      // FOR UPDATE prevents concurrent transactions from reading stale invoice state.
+      // Without this lock, two simultaneous settleOutstandingBalance calls on the same
+      // invoice could both pass the "PAID" check before either commits a payment.
+      // Prisma's findUnique does not accept `for: 'update'`; use raw SQL to acquire the
+      // row-level lock, then hydrate the full relation via findUnique.
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "invoices" WHERE id = ${invoiceId} FOR UPDATE
       `;
-      const invoice = rows[0];
+      if (locked.length === 0) {
+        throw new NotFoundError('Invoice', invoiceId);
+      }
+      const invoice = await tx.invoice.findUnique({
+        where: { id: invoiceId },
+        include: { room: true },
+      });
 
       if (!invoice) {
         throw new NotFoundError('Invoice', invoiceId);

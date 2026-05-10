@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, Search, Plus, X, ChevronRight, FileSignature, AlertCircle, CheckCircle2, Clock, XCircle, Pencil, RefreshCw } from 'lucide-react';
+import { FileText, Search, Plus, X, ChevronRight, FileSignature, AlertCircle, CheckCircle2, Clock, XCircle, Pencil, RefreshCw, FilePlus } from 'lucide-react';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { ThaiDateInput } from '@/components/ui/ThaiDateInput';
 import { statusBadgeClassWithBorder } from '@/lib/status-colors';
@@ -608,29 +609,97 @@ export default function AdminContractsPage() {
 
         {/* Table Card */}
         <div className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] overflow-hidden p-0">
-          <div className="overflow-x-auto">
+          {/* Mobile cards - visible below md */}
+          <div className="md:hidden divide-y divide-[hsl(var(--color-border))]">
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={`skl-m-${i}`} className="p-4 space-y-2">
+                  <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
+                  <div className="shimmer-wave h-4 rounded-md w-3/4" style={{ animationDelay: `${i * 60 + 30}ms` }} />
+                </div>
+              ))
+            ) : filteredContracts.length === 0 ? (
+              <EmptyState onNew={openNew} hasFilter={!!search || !!filterStatus} />
+            ) : (
+              filteredContracts.map((c) => {
+                const displayStatus = resolveDisplayStatus(c);
+                return (
+                  <div
+                    key={c.id}
+                    className="p-4 space-y-2 cursor-pointer hover:bg-[hsl(var(--color-surface))]/[0.03] transition-colors duration-150"
+                    onClick={() => openEdit(c)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-[hsl(var(--on-surface))]">ห้อง {c.roomNo}</p>
+                        <p className="text-sm text-[hsl(var(--on-surface-variant))]">{c.primaryTenant?.fullName ?? '—'}</p>
+                        {c.primaryTenant?.phone && (
+                          <p className="text-[11px] text-[hsl(var(--on-surface-variant))]">{c.primaryTenant.phone}</p>
+                        )}
+                      </div>
+                      <StatusBadge status={displayStatus} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                      <span className="text-[hsl(var(--on-surface-variant))]">ค่าเช่า</span>
+                      <span className="text-right font-medium text-[hsl(var(--on-surface))]">{fmtMoney(c.rentAmount)}</span>
+                      <span className="text-[hsl(var(--on-surface-variant))]">เริ่ม</span>
+                      <span className="text-right text-[hsl(var(--on-surface))]/70">{fmtDate(c.startDate)}</span>
+                      <span className="text-[hsl(var(--on-surface-variant))]">สิ้นสุด</span>
+                      <span className="text-right text-[hsl(var(--on-surface))]/70">
+                        {fmtDate(c.endDate)}
+                        {displayStatus === 'EXPIRING_SOON' && (
+                          <span className="ml-1 text-[11px] font-semibold text-amber-400">({daysUntil(c.endDate)}d)</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--color-surface))]/[0.1] hover:text-[hsl(var(--on-surface))] active:scale-[0.98]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEdit(c);
+                        }}
+                      >
+                        <Pencil size={11} />
+                        แก้ไข
+                      </button>
+                      <Link
+                        href={`/admin/documents/generate?rooms=${encodeURIComponent(c.roomNo)}&type=CONTRACT&from=contract`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-400 shadow-sm transition-all duration-200 hover:bg-indigo-500/20 hover:border-indigo-500/50 active:scale-[0.98]"
+                      >
+                        <FilePlus size={11} />
+                        สร้างเอกสาร
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop table - hidden below md */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead>
                 <tr className="bg-[hsl(var(--color-surface))]">
                   <th className="pl-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">หมายเลขห้อง</th>
                   <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ชื่อผู้เช่า</th>
                   <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">วันที่เริ่ม</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">วันที่สิ้นสุด</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] hidden lg:table-cell">วันที่สิ้นสุด</th>
                   <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">ค่าเช่ารายเดือน</th>
-                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">เงินมัดจำ</th>
+                  <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] hidden lg:table-cell">เงินมัดจำ</th>
                   <th className="py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))]">สถานะ</th>
                   <th className="pr-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--on-surface-variant))] text-right">การดำเนินการ</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i}>
-                      {Array.from({ length: 8 }).map((__, j) => (
-                        <td key={j}>
-                          <div className="h-4 rounded bg-[hsl(var(--color-surface))] animate-pulse" style={{ width: `${70 + (i * 13 + j * 17) % 25}%` }} />
-                        </td>
-                      ))}
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={`skl-${i}`} className="border-b border-white/[0.05]">
+                      <td colSpan={8} className="px-4 py-3">
+                        <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
+                      </td>
                     </tr>
                   ))
                 ) : filteredContracts.length === 0 ? (
@@ -669,7 +738,7 @@ export default function AdminContractsPage() {
                           )}
                         </td>
                         <td className="text-[hsl(var(--on-surface))]/70">{fmtDate(c.startDate)}</td>
-                        <td className="text-[hsl(var(--on-surface))]/70">
+                        <td className="text-[hsl(var(--on-surface))]/70 hidden lg:table-cell">
                           <span>{fmtDate(c.endDate)}</span>
                           {displayStatus === 'EXPIRING_SOON' && (
                             <span className="ml-1.5 text-[11px] font-semibold text-amber-400">
@@ -678,21 +747,31 @@ export default function AdminContractsPage() {
                           )}
                         </td>
                         <td className="font-medium text-[hsl(var(--on-surface))]">{fmtMoney(c.rentAmount)}</td>
-                        <td className="text-[hsl(var(--on-surface))]/70">{fmtMoney(c.depositAmount)}</td>
+                        <td className="text-[hsl(var(--on-surface))]/70 hidden lg:table-cell">{fmtMoney(c.depositAmount)}</td>
                         <td>
                           <StatusBadge status={displayStatus} />
                         </td>
                         <td className="pr-4 text-right">
-                          <button
-                            className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--color-surface))]/[0.1] hover:border-[hsl(var(--color-border))] hover:text-[hsl(var(--on-surface))] active:scale-[0.98] flex items-center gap-1 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEdit(c);
-                            }}
-                          >
-                            <Pencil size={11} />
-                            แก้ไข
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Link
+                              href={`/admin/documents/generate?rooms=${encodeURIComponent(c.roomNo)}&type=CONTRACT&from=contract`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-400 shadow-sm transition-all duration-200 hover:bg-indigo-500/20 hover:border-indigo-500/50 active:scale-[0.98]"
+                            >
+                              <FilePlus size={11} />
+                              สร้างเอกสาร
+                            </Link>
+                            <button
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--color-surface))]/[0.1] hover:text-[hsl(var(--on-surface))] active:scale-[0.98]"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEdit(c);
+                              }}
+                            >
+                              <Pencil size={11} />
+                              แก้ไข
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

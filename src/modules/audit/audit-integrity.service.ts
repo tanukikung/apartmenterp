@@ -420,30 +420,30 @@ export async function probeAuditChainIntegrity(): Promise<{
   lastSeq: bigint | null;
 }> {
   const [last] = await prisma.$queryRawUnsafe<
-    Array<{ sequence_num: bigint; event_hash: string | null; prev_hash: string | null }>
+    Array<{ sequenceNum: bigint; eventHash: string | null; prevHash: string | null }>
   >(
-    `SELECT sequence_num, event_hash, prev_hash
+    `SELECT "sequenceNum", "eventHash", "prevHash"
        FROM audit_logs
-   ORDER BY sequence_num DESC
+   ORDER BY "sequenceNum" DESC
       LIMIT 1`,
   );
 
   if (!last) return { healthy: true, lastEventHash: null, lastSeq: null };
 
-  // If there is only one event, prev_hash should be genesis
+  // If there is only one event, prevHash should be genesis
   const [previous] = await prisma.$queryRawUnsafe<
-    Array<{ event_hash: string | null }>
+    Array<{ eventHash: string | null }>
   >(
-    `SELECT event_hash FROM audit_logs WHERE sequence_num = $1 LIMIT 1`,
-    BigInt(last.sequence_num - BigInt(1)),
+    `SELECT "eventHash" FROM audit_logs WHERE "sequenceNum" = $1 LIMIT 1`,
+    [last.sequenceNum - BigInt(1)],
   );
 
-  const expectedPrev = previous?.event_hash ?? GENESIS_PREV_HASH;
-  const healthy = (last.prev_hash ?? GENESIS_PREV_HASH) === expectedPrev;
+  const expectedPrev = previous?.eventHash ?? GENESIS_PREV_HASH;
+  const healthy = (last.prevHash ?? GENESIS_PREV_HASH) === expectedPrev;
 
   return {
     healthy,
-    lastEventHash: last.event_hash,
-    lastSeq: last.sequence_num,
+    lastEventHash: last.eventHash,
+    lastSeq: last.sequenceNum,
   };
 }

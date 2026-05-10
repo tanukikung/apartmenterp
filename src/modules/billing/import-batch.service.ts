@@ -143,19 +143,6 @@ export async function createBillingImportPreviewBatch(input: {
     });
   }
 
-  // Create ImportSession (checks for duplicates unless forceImport=true)
-  const sessionResult = await prisma.$transaction(async (tx) =>
-    createImportSession(tx, {
-      billingPeriodId: period!.id,
-      filename: input.filename,
-      fileHash,
-      normalizedHash,
-      totalRows: allRows.length,
-      importedBy: input.importedBy ?? 'system',
-      forceImport: input.forceImport ?? false,
-    }),
-  );
-
   // Build preview groups (one entry per unique room)
   const roomMap = new Map<string, { count: number; total: number }>();
   for (const row of allRows) {
@@ -196,33 +183,81 @@ export async function createBillingImportPreviewBatch(input: {
     }
   }
 
-  // Create a PENDING ImportBatch linked to the ImportSession
-  const batchId = uuidv4();
-  await prisma.importBatch.create({
-    data: {
-      id: batchId,
-      importSessionId: sessionResult.importSessionId,
-      billingPeriodId: period.id,
-      filename: input.filename,
-      schemaVersion: 'billing-v2',
-      rowsTotal: allRows.length,
-      rowsImported: 0,
-      rowsSkipped: 0,
-      rowsErrored: allErrors.length,
-      status: 'PENDING',
-      errorLog: {
-        storageKey: input.storageKey ?? null,
-        uploadedFileId: input.uploadedFileId ?? null,
-        parseErrors: allErrors.slice(0, 50),
-        warningCount: warnings.length,
-        accounts: accounts as unknown as Prisma.InputJsonValue,
-        rules: rules as unknown as Prisma.InputJsonValue,
-        rows: allRows as unknown as Prisma.InputJsonValue,
-        fileHash,
-        normalizedHash,
+  if (!input.forceImport) {
+    const existingSession = await prisma.importSession.findUnique({
+      where: {
+        import_session_normalized_hash_unique: { billingPeriodId: period.id, normalizedHash },
       },
+      include: { ImportBatch: true },
+    });
+
+    if (
+      existingSession?.status === 'PROCESSING' &&
+      existingSession.ImportBatch?.status === 'PENDING'
+    ) {
+      const existingBatch = existingSession.ImportBatch;
+      return {
+        rows: allRows as unknown[],
+        preview,
+        warnings,
+        importSessionId: existingSession.id,
+        isDuplicate: true,
+        batch: {
+          id: existingBatch.id,
+          status: existingBatch.status,
+          totalRows: existingBatch.rowsTotal,
+          validRows: existingBatch.rowsTotal - existingBatch.rowsErrored,
+          invalidRows: existingBatch.rowsErrored,
+          warningRows: warnings.length,
+          billingCycleId: period.id,
+        },
+      };
+    }
+  }
+
+  // Create the ImportSession and PENDING ImportBatch atomically. If the batch
+  // insert fails, the session rolls back too, so duplicate detection will not
+  // get stuck behind an orphan PROCESSING session.
+  const batchId = uuidv4();
+  const sessionResult = await prisma.$transaction(async (tx) => {
+    const session = await createImportSession(tx, {
+      billingPeriodId: period!.id,
+      filename: input.filename,
+      fileHash,
+      normalizedHash,
+      totalRows: allRows.length,
       importedBy: input.importedBy ?? 'system',
-    },
+      forceImport: input.forceImport ?? false,
+    });
+
+    await tx.importBatch.create({
+      data: {
+        id: batchId,
+        importSessionId: session.importSessionId,
+        billingPeriodId: period!.id,
+        filename: input.filename,
+        schemaVersion: 'billing-v2',
+        rowsTotal: allRows.length,
+        rowsImported: 0,
+        rowsSkipped: 0,
+        rowsErrored: allErrors.length,
+        status: 'PENDING',
+        errorLog: {
+          storageKey: input.storageKey ?? null,
+          uploadedFileId: input.uploadedFileId ?? null,
+          parseErrors: allErrors.slice(0, 50),
+          warningCount: warnings.length,
+          accounts: accounts as unknown as Prisma.InputJsonValue,
+          rules: rules as unknown as Prisma.InputJsonValue,
+          rows: allRows as unknown as Prisma.InputJsonValue,
+          fileHash,
+          normalizedHash,
+        },
+        importedBy: input.importedBy ?? 'system',
+      },
+    });
+
+    return session;
   });
 
   return {
@@ -721,7 +756,10 @@ export async function getBillingImportBatchDetail(batchId: string): Promise<Bill
     }
   }
 
-  return {
+  const errorLogObj = (batch.errorLog ?? {}) as Record<string, unknown>;
+  const rowsData = errorLogObj['rows'];
+
+    return {
     id: batch.id,
     importSessionId: batch.importSessionId,
     filename: batch.filename,
@@ -744,7 +782,7 @@ export async function getBillingImportBatchDetail(batchId: string): Promise<Bill
     totalRows: batch.rowsTotal,
     validRows: batch.rowsTotal - batch.rowsErrored,
     invalidRows: batch.rowsErrored,
-    warningRows: 0,
+    warningRows: Array.isArray(rowsData) ? (rowsData as Array<{ checkNotes?: string | null }>).filter(r => r.checkNotes).length : 0,
   };
 }
 

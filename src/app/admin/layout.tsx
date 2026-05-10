@@ -520,6 +520,16 @@ function TopBar({
     fetchNotifications();
   }, []);
 
+  const [currentUser, setCurrentUser] = useState<{ displayName: string; role: string; username: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me').then(r => r.json()).then(data => {
+      if (data?.data?.authenticated && data.data.user) {
+        setCurrentUser(data.data.user);
+      }
+    }).catch(() => {});
+  }, []);
+
   function formatNotifTime(dateStr: string) {
     const date = new Date(dateStr);
     const now = new Date();
@@ -586,6 +596,7 @@ function TopBar({
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-color-text-3 pointer-events-none" />
           <input
             ref={searchInputRef}
+            suppressHydrationWarning
             type="text"
             placeholder="ค้นหาห้อง, ผู้เช่า, ใบแจ้งหนี้..."
             value={searchQuery}
@@ -699,7 +710,7 @@ function TopBar({
             <div className="absolute top-full right-0 mt-2 w-80 bg-color-surface rounded-xl border border-color-border shadow-xl shadow-app-md overflow-hidden z-50">
               <div className="flex items-center justify-between px-4 py-3 border-b border-color-border">
                 <span className="text-sm font-semibold text-color-text">การแจ้งเตือน</span>
-                <button className="text-xs text-color-primary hover:text-color-primary-dark">ดูทั้งหมด</button>
+                <Link href="/admin/notifications" onClick={() => setShowNotifs(false)} className="text-xs text-color-primary hover:text-color-primary-dark">ดูทั้งหมด</Link>
               </div>
               <div className="max-h-64 overflow-y-auto divide-y divide-color-border">
                 {notifLoading ? (
@@ -740,11 +751,11 @@ function TopBar({
             className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-color-surface transition-colors"
           >
             <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[hsl(164,32%,38%)] to-[hsl(30,14%,16%)] flex items-center justify-center shadow-sm">
-              <span className="text-xs font-semibold text-white">O</span>
+              <span className="text-xs font-semibold text-white">{(currentUser?.displayName ?? 'A')[0].toUpperCase()}</span>
             </div>
             <div className="hidden md:block text-left">
-              <div className="text-sm font-medium text-color-text leading-tight">ผู้ดูแลระบบ</div>
-              <div className="text-xs text-color-text-3">เจ้าของ</div>
+              <div className="text-sm font-medium text-color-text leading-tight">{currentUser?.displayName ?? 'ผู้ดูแลระบบ'}</div>
+              <div className="text-xs text-color-text-3">{currentUser?.role === 'OWNER' ? 'เจ้าของ' : currentUser?.role === 'STAFF' ? 'พนักงาน' : currentUser?.role ?? 'เจ้าของ'}</div>
             </div>
             <ChevronDown size={14} className="text-color-text-3 hidden md:block" />
           </button>
@@ -752,8 +763,8 @@ function TopBar({
           {showUserMenu && (
             <div className="absolute top-full right-0 mt-2 w-56 bg-color-surface rounded-xl border border-color-border shadow-xl shadow-app-md overflow-hidden z-50">
               <div className="px-4 py-3 border-b border-color-border">
-                <p className="text-sm font-medium text-color-text">ผู้ดูแลระบบ</p>
-                <p className="text-xs text-color-text-3">owner@apartment.com</p>
+                <p className="text-sm font-medium text-color-text">{currentUser?.displayName ?? 'ผู้ดูแลระบบ'}</p>
+                <p className="text-xs text-color-text-3">{currentUser?.username ?? 'admin'}</p>
               </div>
               <div className="py-1">
                 <Link
@@ -898,7 +909,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                     exit={{ opacity: 0, y: -4, filter: 'blur(3px)' }}
                     transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                    className="mx-auto w-full max-w-[1600px] px-5 sm:px-8 lg:px-12 xl:px-14 py-6 sm:py-8 lg:py-10"
+                    className="mx-auto w-full px-5 sm:px-8 lg:px-12 xl:px-14 py-6 sm:py-8 lg:py-10"
                   >
                     {children}
                   </motion.div>

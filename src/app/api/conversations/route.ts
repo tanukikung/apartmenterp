@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/guards';
-import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler } from '@/lib/utils/errors';
 import { prisma } from '@/lib';
 import { withTiming } from '@/lib/performance/timingMiddleware';
 import { parsePagination } from '@/lib/utils/pagination';
+import { formatPaginatedSuccess, formatSuccess } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +62,7 @@ const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResp
     invoiceMap = latestInvoices;
   }
 
-  // Enhance items with invoice status information
+  // Enhance items with invoice status information and roomNumber alias
   const enhancedItems = items.map(conv => {
     let overdue = false;
     let waitingPayment = false;
@@ -77,21 +78,21 @@ const getConversations = asyncHandler(async (req: NextRequest): Promise<NextResp
 
     return {
       ...conv,
+      // roomNumber alias for UI compatibility (many pages use roomNumber not roomNo)
+      room: conv.room ? { ...conv.room, roomNumber: conv.room.roomNo } : undefined,
       overdue,
       waitingPayment,
     };
   });
 
-  return NextResponse.json({
-    success: true,
-    data: {
-      data: enhancedItems,
-      total,
+  return NextResponse.json(
+    formatPaginatedSuccess(
+      enhancedItems,
       page,
       pageSize,
-      totalPages: Math.ceil(total / pageSize),
-    },
-  } as ApiResponse<unknown>);
+      total
+    )
+  );
 });
 
 export const GET = withTiming(getConversations);
@@ -112,7 +113,9 @@ const markRead = asyncHandler(async (req: NextRequest): Promise<NextResponse> =>
     data: { unreadCount: 0 },
   });
 
-  return NextResponse.json({ success: true, data: { conversationId, unreadCount: 0 } } as ApiResponse<{ conversationId: string; unreadCount: number }>);
+  return NextResponse.json(
+    formatSuccess({ conversationId, unreadCount: 0 })
+  );
 });
 
 export const PATCH = markRead;

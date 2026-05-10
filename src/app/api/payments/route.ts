@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getVerifiedActor, requireAuthSession, requireRole } from '@/lib/auth/guards';
-import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler } from '@/lib/utils/errors';
 import { createPaymentSchema, type CreatePaymentInput } from '@/modules/payments/types';
 import { getServiceContainer } from '@/lib/service-container';
 import { logger } from '@/lib/utils/logger';
@@ -8,6 +8,7 @@ import { prisma } from '@/lib';
 import { PaymentStatus } from '@prisma/client';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 import { requireMutationsAllowed } from '@/lib/guards/system';
+import { formatPaginatedSuccess, formatSuccess } from '@/lib/api-response';
 
 const VALID_PAYMENT_STATUSES: string[] = Object.values(PaymentStatus);
 
@@ -57,10 +58,14 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     prisma.payment.count({ where }),
   ]);
 
-  return NextResponse.json({
-    success: true,
-    data: { data: payments, total, page, pageSize },
-  } as ApiResponse<unknown>);
+  return NextResponse.json(
+    formatPaginatedSuccess(
+      payments,
+      page,
+      pageSize,
+      total
+    )
+  );
 });
 
 export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
@@ -102,9 +107,11 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     method: input.method,
   });
 
-  return NextResponse.json({
-    success: true,
-    data: { payment, invoice },
-    message: settled ? 'Payment recorded and invoice settled' : 'Payment recorded',
-  } as ApiResponse<unknown>, { status: 201 });
+  return NextResponse.json(
+    formatSuccess(
+      { payment, invoice },
+      settled ? 'Payment recorded and invoice settled' : 'Payment recorded'
+    ),
+    { status: 201 }
+  );
 });

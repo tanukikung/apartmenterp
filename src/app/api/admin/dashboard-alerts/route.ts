@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
 import { requireOperator } from '@/lib/auth/guards';
-import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler } from '@/lib/utils/errors';
+import { formatSuccess } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -178,7 +179,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
     })),
   };
 
-  return NextResponse.json({ success: true, data } as ApiResponse<DashboardAlertsData>);
+  return NextResponse.json(formatSuccess(data));
 });
 
 const THAI_MONTHS = [

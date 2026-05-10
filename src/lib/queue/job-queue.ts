@@ -18,8 +18,6 @@ import { prisma } from '@/lib/db/client';
 import { logger } from '@/lib/utils/logger';
 import type { JobType } from './types';
 
-type JobRow = { id: string; type: string; payload: unknown; retryCount: number };
-
 export const JOB_POLL_INTERVAL_MS =
   Number(process.env.JOB_POLL_INTERVAL_MS ?? 2_000);
 
@@ -53,33 +51,25 @@ export async function enqueueJob(
     await prisma.$executeRaw`
       INSERT INTO background_jobs (id, type, payload, status, "retryCount", "scheduledAt", priority, "idempotencyKey", "createdAt", "updatedAt")
       VALUES (${id}, ${type}, ${JSON.stringify(payload)}::jsonb, 'PENDING', 0, ${scheduledAt}, ${priority}, ${key}, NOW(), NOW())
-      ON CONFLICT ("idempotencyKey") DO NOTHING
+      ON CONFLICT ("idempotencyKey") WHERE "idempotencyKey" IS NOT NULL DO NOTHING
     `;
 
     // Return existing job id if insert was suppressed
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const existing = await (prisma as any).backgroundJob.findFirst({
-      where: { idempotencyKey: key },
-      select: { id: true },
-    });
-    const resolvedId = existing?.id ?? id;
+    const existing = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM background_jobs WHERE "idempotencyKey" = ${key} LIMIT 1
+    `;
+    const resolvedId = existing[0]?.id ?? id;
     logger.info({ type: 'job_enqueued', jobId: resolvedId, jobType: type, idempotencyKey: key });
     return resolvedId;
   }
 
   const id = uuidv4();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (prisma as any).backgroundJob.create({
-    data: {
-      id,
-      type,
-      payload,
-      status: 'PENDING',
-      retryCount: 0,
-      scheduledAt: opts.scheduledAt ?? new Date(),
-      priority: opts.priority ?? 0,
-    },
-  });
+  const scheduledAt = opts.scheduledAt ?? new Date();
+  const priority = opts.priority ?? 0;
+  await prisma.$executeRaw`
+    INSERT INTO background_jobs (id, type, payload, status, "retryCount", "scheduledAt", priority, "idempotencyKey", "createdAt", "updatedAt")
+    VALUES (${id}, ${type}, ${JSON.stringify(payload)}::jsonb, 'PENDING', 0, ${scheduledAt}, ${priority}, NULL, NOW(), NOW())
+  `;
   logger.info({ type: 'job_enqueued', jobId: id, jobType: type });
   return id;
 }
@@ -97,20 +87,12 @@ export async function getJobStatus(jobId: string): Promise<{
   startedAt: Date | null;
   finishedAt: Date | null;
 } | null> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (prisma as any).backgroundJob.findUnique({
-    where: { id: jobId },
-    select: {
-      id: true,
-      type: true,
-      status: true,
-      result: true,
-      error: true,
-      createdAt: true,
-      startedAt: true,
-      finishedAt: true,
-    },
-  });
+  return prisma.$queryRaw<Array<{ id: string; type: string; status: string; result: Record<string, unknown> | null; error: string | null; createdAt: Date; startedAt: Date | null; finishedAt: Date | null }>>`
+    SELECT id, type, status, result, error, "createdAt", "startedAt", "finishedAt"
+    FROM background_jobs
+    WHERE id = ${jobId}
+    LIMIT 1
+  `.then(rows => rows[0] ?? null);
 }
 
 /**
@@ -121,10 +103,10 @@ export async function getJobStatus(jobId: string): Promise<{
  */
 export async function claimAndMarkRunning(
   batchSize = 5,
-): Promise<JobRow[]> {
+): Promise<Array<{ id: string; type: string; payload: unknown; retryCount: number }>> {
+  type JobRow = { id: string; type: string; payload: unknown; retryCount: number };
   let claimed: JobRow[] = [];
   await prisma.$transaction(async (tx) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     claimed = await (tx as any).$queryRaw<JobRow[]>`
       UPDATE background_jobs
       SET status = 'RUNNING', "startedAt" = NOW(), "updatedAt" = NOW()
@@ -174,11 +156,11 @@ export async function reclaimStuckJobs(
  * Mark a job as DONE with its result payload.
  */
 export async function markJobDone(jobId: string, result: Record<string, unknown>): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (prisma as any).backgroundJob.update({
-    where: { id: jobId },
-    data: { status: 'DONE', result, finishedAt: new Date() },
-  });
+  await prisma.$executeRaw`
+    UPDATE background_jobs
+    SET status = 'DONE', result = ${JSON.stringify(result)}::jsonb, "finishedAt" = NOW(), "updatedAt" = NOW()
+    WHERE id = ${jobId}
+  `;
 }
 
 /**
@@ -188,20 +170,24 @@ export async function markJobDone(jobId: string, result: Record<string, unknown>
 export async function markJobFailed(jobId: string, error: string, retryCount: number): Promise<void> {
   const nextRetry = retryCount + 1;
   const isDead = nextRetry >= JOB_MAX_RETRIES;
-  const baseBackoffMs = Math.pow(2, nextRetry) * 5_000; // 10s, 20s, 40s …
-  const jitterMs = Math.floor(Math.random() * baseBackoffMs * 0.25); // ±25% jitter
-  const backoffMs = Math.min(baseBackoffMs + jitterMs, 300_000); // cap 5min
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (prisma as any).backgroundJob.update({
-    where: { id: jobId },
-    data: {
-      status: isDead ? 'DEAD' : 'PENDING',
-      error,
-      retryCount: nextRetry,
-      scheduledAt: isDead ? undefined : new Date(Date.now() + backoffMs),
-      finishedAt: isDead ? new Date() : undefined,
-    },
-  });
+  const baseBackoffMs = Math.pow(2, nextRetry) * 5_000;
+  const jitterMs = Math.floor(Math.random() * baseBackoffMs * 0.25);
+  const backoffMs = Math.min(baseBackoffMs + jitterMs, 300_000);
+
+  if (isDead) {
+    await prisma.$executeRaw`
+      UPDATE background_jobs
+      SET status = 'DEAD', error = ${error}, "retryCount" = ${nextRetry}, "finishedAt" = NOW(), "updatedAt" = NOW()
+      WHERE id = ${jobId}
+    `;
+  } else {
+    const scheduledAt = new Date(Date.now() + backoffMs);
+    await prisma.$executeRaw`
+      UPDATE background_jobs
+      SET status = 'PENDING', error = ${error}, "retryCount" = ${nextRetry}, "scheduledAt" = ${scheduledAt}, "updatedAt" = NOW()
+      WHERE id = ${jobId}
+    `;
+  }
   if (isDead) {
     logger.error({ type: 'job_dead', jobId, error, retryCount: nextRetry });
   }

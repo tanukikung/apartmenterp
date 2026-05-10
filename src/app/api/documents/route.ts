@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthSession } from '@/lib/auth/guards';
-import { asyncHandler, type ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler } from '@/lib/utils/errors';
 import { getDocumentGenerationService } from '@/modules/documents/generation.service';
 import { documentListQuerySchema } from '@/modules/documents/types';
+import { formatPaginatedSuccess } from '@/lib/api-response';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   requireAuthSession(req);
@@ -23,8 +24,12 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
   const service = getDocumentGenerationService();
   const result = await service.listDocuments(query);
 
-  return NextResponse.json({
-    success: true,
-    data: result,
-  } as ApiResponse<typeof result>);
+  return NextResponse.json(
+    formatPaginatedSuccess(
+      result.data,
+      result.page,
+      result.pageSize,
+      result.total
+    )
+  );
 });

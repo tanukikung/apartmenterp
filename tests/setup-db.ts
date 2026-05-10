@@ -64,6 +64,12 @@ beforeAll(async () => {
       },
     });
 
+    // Keep the ad-hoc local test database compatible with the current Prisma
+    // client when developers have not run migrations yet.
+    await getRealPrisma().$executeRawUnsafe(
+      'ALTER TABLE "billing_periods" ADD COLUMN IF NOT EXISTS "gracePeriodDays" INTEGER NOT NULL DEFAULT 0',
+    );
+
     // Seed a default billing period for tests.
     // Use a random month so multiple test runs don't collide on (year, month).
     // Tests that specifically need a certain month handle that themselves.

@@ -2,8 +2,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { Decimal } from '@prisma/client/runtime/library';
 import { Prisma } from '@prisma/client';
 import { prisma, EventBus, logger, EventTypes } from '@/lib';
-const sql = Prisma.sql;
-const join = Prisma.join;
 import { BILLING_STATUS, BILLING_PERIOD_STATUS, INVOICE_STATUS, IMPORT_BATCH_STATUS } from '@/lib/constants';
 import {
   assertBillingPeriodAllowsBillingEdit,
@@ -31,6 +29,9 @@ import {
   ConflictError,
   BadRequestError,
 } from '@/lib/utils/errors';
+
+const sql = Prisma.sql;
+const join = Prisma.join;
 
 // ============================================================================
 // Helpers

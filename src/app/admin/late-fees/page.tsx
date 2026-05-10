@@ -247,7 +247,16 @@ export default function LateFeesPage() {
       ) : null}
 
       {/* Stats */}
-      {stats ? (
+      {isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5 space-y-2">
+              <div className="shimmer-wave h-3 w-24 rounded" style={{ animationDelay: `${i * 80}ms` }} />
+              <div className="shimmer-wave h-7 w-16 rounded" style={{ animationDelay: `${i * 80 + 40}ms` }} />
+            </div>
+          ))}
+        </div>
+      ) : stats ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl p-5">
             <div className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">ใบแจ้งหนี้ค้างชำระ</div>
@@ -334,8 +343,26 @@ export default function LateFeesPage() {
       {/* Table */}
       <section className="bg-[hsl(var(--color-surface))] border border-[hsl(var(--color-border))] rounded-xl overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--primary))]" />
+          <div className="overflow-auto">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="bg-[hsl(var(--color-surface))]/50">
+                  <th className="px-4 py-3" />
+                  {['ห้อง', 'รอบบิล', 'สถานะ', 'วันครบกำหนด', 'ค่าค้างชำระ', 'ค่าปรับล่าช้า', 'กฏค่าปรับ', 'ปรับแต่ง'].map((h) => (
+                    <th key={h} className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--color-text))]/40">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.05]">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={`skl-${i}`}>
+                    <td colSpan={9} className="px-4 py-3">
+                      <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : data && data.invoices.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">

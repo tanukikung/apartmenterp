@@ -113,6 +113,7 @@ model BillingPeriod {
   month                 Int
   status                BillingPeriodStatus       @default(OPEN)
   dueDay                Int                       @default(25)
+  gracePeriodDays       Int                       @default(0)
   note                  String?
   // Common area water billing — the bulk meter reading for the whole building
   commonAreaWaterUnits  Decimal?                  @db.Decimal(10, 2) // bulk units consumed this period
@@ -343,6 +344,7 @@ model ImportBatch {
   errorLog        Json?
   importedBy      String
   createdAt       DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
   billingPeriod   BillingPeriod     @relation(fields: [billingPeriodId], references: [id])
 
   @@index([billingPeriodId])
@@ -721,6 +723,7 @@ model UploadedFile {
   archivedAt                   DateTime?                 @db.Timestamptz(6)
   uploadedBy                   String?
   createdAt                    DateTime                  @default(now()) @db.Timestamptz(6)
+  updatedAt                    DateTime                  @updatedAt @db.Timestamptz(6)
   documentGenerationJobBundles DocumentGenerationJob[]   @relation("GenerationJobBundleFile")
   templateVersions             DocumentTemplateVersion[] @relation("TemplateVersionSourceFile")
   generatedDocumentFiles       GeneratedDocumentFile[]
@@ -1595,7 +1598,6 @@ model Broadcast {
   @@index([sentAt])
   @@index([target])
   @@index([status])
-  @@index([idempotencyKey])
   @@map("broadcasts")
 }
 

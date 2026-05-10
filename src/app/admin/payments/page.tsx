@@ -235,7 +235,7 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
-function LoadingState({ message }: { message: string }) {
+function _LoadingState({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
       <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--on-surface-variant))]" />
@@ -362,7 +362,16 @@ function PaymentsPanel({ payments, loading, selectedPaymentId, onSelect, onRefre
       <PanelHeader title="การชำระที่ต้องจับคู่" count={payments.length} loading={loading} onRefresh={onRefresh} />
       <SearchInput value={search} onChange={setSearch} placeholder="ค้นหาอ้างอิงหรือจำนวน..." />
       <div className="flex-1 overflow-y-auto">
-        {loading ? <LoadingState message="กำลังโหลด..." />
+        {loading ? (
+          <ul className="divide-y divide-[hsl(var(--color-border))] px-3 pb-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <li key={`skl-${i}`} className="py-3">
+                <div className="shimmer-wave h-4 rounded-md mb-1.5" style={{ animationDelay: `${i * 60}ms`, width: `${55 + (i * 17) % 35}%` }} />
+                <div className="shimmer-wave h-3 rounded-md" style={{ animationDelay: `${i * 60 + 30}ms`, width: `${35 + (i * 13) % 25}%` }} />
+              </li>
+            ))}
+          </ul>
+        )
           : filtered.length === 0 ? <EmptyState message={search ? 'ไม่พบรายการที่ค้นหา' : 'ไม่มีการชำระที่รอจับคู่'} />
           : <ul className="divide-y divide-[hsl(var(--color-border))] px-3 pb-3">
             {filtered.map((payment) => {
@@ -431,7 +440,16 @@ function InvoicesPanel({ invoices, loading, selectedPayment, onMatchRequest, onR
         ))}
       </div>
       <div className="flex-1 overflow-y-auto">
-        {loading ? <LoadingState message="กำลังโหลด..." />
+        {loading ? (
+          <ul className="divide-y divide-[hsl(var(--color-border))] px-3 pb-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <li key={`skl-${i}`} className="py-3">
+                <div className="shimmer-wave h-4 rounded-md mb-1.5" style={{ animationDelay: `${i * 60}ms`, width: `${55 + (i * 17) % 35}%` }} />
+                <div className="shimmer-wave h-3 rounded-md" style={{ animationDelay: `${i * 60 + 30}ms`, width: `${35 + (i * 13) % 25}%` }} />
+              </li>
+            ))}
+          </ul>
+        )
           : filtered.length === 0 ? <EmptyState message={search ? 'ไม่พบรายการที่ค้นหา' : 'ไม่มีใบแจ้งหนี้ค้างชำระ'} />
           : <ul className="divide-y divide-[hsl(var(--color-border))] px-3 pb-3">
             {filtered.map((invoice) => {

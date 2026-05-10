@@ -361,10 +361,15 @@ export default function SystemJobsPage() {
 
       {/* Loading state */}
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-gray-400 text-sm">
-          <RotateCw className="w-5 h-5 animate-spin mr-2" />
-          กำลังโหลดงาน...
-        </div>
+        <section className="space-y-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-5 space-y-3">
+              <div className="shimmer-wave h-5 w-48 rounded-md" style={{ animationDelay: `${i * 80}ms` }} />
+              <div className="shimmer-wave h-4 w-full rounded-md" style={{ animationDelay: `${i * 80 + 40}ms` }} />
+              <div className="shimmer-wave h-4 w-32 rounded-md" style={{ animationDelay: `${i * 80 + 80}ms` }} />
+            </div>
+          ))}
+        </section>
       ) : (
         <section className="space-y-4">
           {jobs.map((job) => {

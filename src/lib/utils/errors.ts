@@ -413,7 +413,15 @@ export function asyncHandler<
           });
           if (count > maxPerWindow) {
             return NextResponse.json(
-              { success: false, error: 'Too Many Requests' },
+              {
+                success: false,
+                error: {
+                  name: 'RateLimitError',
+                  message: 'Too Many Requests',
+                  code: 'RATE_LIMIT_EXCEEDED',
+                  statusCode: 429,
+                },
+              },
               { status: 429 }
             );
           }

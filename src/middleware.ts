@@ -3,7 +3,6 @@ import type { NextRequest } from 'next/server';
 import { verifySessionTokenEdge, refreshSessionEdgeIfNeeded } from '@/lib/auth/session-edge';
 import { resolveAuthSecret } from '@/lib/config/env';
 import { isCsrfExemptApiRoute } from '@/lib/auth/api-policy';
-import { logger } from '@/lib/utils/logger';
 // Edge runtime: avoid Node-only imports here (no node-cron or fs/net)
 
 // ============================================================================
@@ -111,7 +110,7 @@ function sameOrigin(req: NextRequest): boolean {
     }
     return false;
   } catch (err) {
-    logger.error({ type: 'isAllowedOrigin_parse_failed', source, err });
+    console.error(JSON.stringify({ type: 'isAllowedOrigin_parse_failed', source, err: String(err) }));
     return false;
   }
 }
@@ -298,23 +297,23 @@ export async function middleware(req: NextRequest) {
   res.headers.set('Referrer-Policy', 'no-referrer');
   res.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   res.headers.set('X-XSS-Protection', '0');
-  // Only apply strict CSP to API routes; page routes need 'unsafe-inline' for Next.js hydration.
+  // Only apply strict CSP to API routes in production; skip for development
   // Skip CSP for embeddable routes — CSP only applies to HTML documents, not PDFs or iframes.
-  if (url.pathname.startsWith('/api/') && !isEmbeddableRoute) {
+  if (process.env.NODE_ENV === 'production' && url.pathname.startsWith('/api/') && !isEmbeddableRoute) {
     res.headers.set('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline'");
   }
   // Log all API requests with requestId for correlation in all environments.
   // Middleware cannot observe the final route status code (next() always returns 200),
   // so we log the request ingress here; route handlers log egress with actual status.
   if (url.pathname.startsWith('/api/')) {
-    logger.info({
+    console.info(JSON.stringify({
       type: 'api_ingress',
       method: req.method,
       path: url.pathname,
       requestId,
       ip,
       duration: `${Date.now() - start}ms`,
-    });
+    }));
   }
   return res;
 }

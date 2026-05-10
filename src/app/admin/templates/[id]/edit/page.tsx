@@ -21,7 +21,7 @@ import {
 import { TemplateWordEditor } from '@/components/document-editor/TemplateWordEditor';
 import { VersionHistoryModal } from '@/components/document-editor/extensions/VersionHistoryModal';
 import { CommentPanel } from '@/components/document-editor/extensions/CommentPanel';
-import { createRepeatBlockMarkup, createScalarFieldMarkup } from '@/modules/documents/field-catalog';
+import { createRepeatBlockMarkup } from '@/modules/documents/field-catalog';
 import { ClientOnly } from '@/components/ui/ClientOnly';
 import { ErrorBoundary } from '@/components/error/ErrorBoundary';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
@@ -33,6 +33,7 @@ type TemplateField = {
   description: string | null;
   isCollection: boolean;
   isRequired: boolean;
+  sampleValue?: string | null;
 };
 
 type TemplateVersion = {
@@ -348,10 +349,13 @@ export default function TemplateEditPage() {
   }
 
   async function insertFieldMarkup(field: TemplateField) {
-    const markup = field.isCollection
-      ? createRepeatBlockMarkup(field.key)
-      : createScalarFieldMarkup(field.key, field.label);
-    activeEditorRef.current?.chain().focus().insertContent(markup).run();
+    const editor = activeEditorRef.current;
+    if (!editor) return;
+    if (field.isCollection) {
+      editor.chain().focus().insertContent(createRepeatBlockMarkup(field.key)).run();
+    } else {
+      editor.chain().focus().insertContent({ type: 'text', text: `{{${field.key}}}` }).run();
+    }
     setMessage(`แทรก ${field.label} แล้ว`);
   }
 
@@ -455,8 +459,8 @@ export default function TemplateEditPage() {
     <main className="space-y-6">
       {/* Hero Header */}
       <div className="relative overflow-hidden rounded-2xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] shadow-[0_4px_16px_rgba(0,0,0,0.08)] px-6 py-5">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-violet-500/10 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-violet-500/10 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
         <div className="relative flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link href={isNew ? '/admin/templates' : `/admin/templates/${params.id}`} className="inline-flex items-center gap-2 rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))]/70 hover:bg-[hsl(var(--primary))]/10 hover:text-[hsl(var(--card-foreground))] px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98]">
@@ -464,9 +468,13 @@ export default function TemplateEditPage() {
               กลับ
             </Link>
             <div>
-              <h1 className="text-base font-semibold text-[hsl(var(--card-foreground))]">{isNew ? 'สร้างเทมเพลต' : 'พื้นที่แก้ไขเทมเพลต'}</h1>
+              <h1 className="text-base font-semibold text-[hsl(var(--card-foreground))]">
+                {isNew ? 'สร้างเทมเพลตใหม่' : (template?.name || 'พื้นที่แก้ไขเทมเพลต')}
+              </h1>
               <p className="text-xs text-[hsl(var(--card-foreground))]/50 mt-0.5">
-                จัดการข้อมูลเมตา เวอร์ชัน ฟิลด์ที่กำหนดโครงสร้าง และแก้ไขเนื้อหาด้วย TipTap
+                {isNew
+                  ? 'จัดการข้อมูลเมตา เวอร์ชัน ฟิลด์ที่กำหนดโครงสร้าง และแก้ไขเนื้อหาด้วย TipTap'
+                  : `ประเภท ${template?.type ?? ''} · แก้ไขเนื้อหาด้วย TipTap`}
               </p>
             </div>
             {/* Presence indicator */}
@@ -530,10 +538,10 @@ export default function TemplateEditPage() {
               <button
                 type="button"
                 onClick={() => selectStarter({ name: '', type: 'GENERAL_NOTICE', subject: '', description: '', body: '<p></p>' })}
-                className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] p-6 gap-3 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all duration-300 group"
+                className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] p-6 gap-3 hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 group"
               >
                 <div className="h-14 w-14 rounded-xl bg-[hsl(var(--card))] flex items-center justify-center border border-[hsl(var([hsl(var(--color-border))]))]">
-                  <FilePlus2 className="h-7 w-7 text-[hsl(var(--card-foreground))]/30 group-hover:text-blue-600 transition-colors" />
+                  <FilePlus2 className="h-7 w-7 text-[hsl(var(--card-foreground))]/30 group-hover:text-primary transition-colors" />
                 </div>
                 <div className="text-center">
                   <div className="font-semibold text-[hsl(var(--card-foreground))]">เทมเพลตเปล่า</div>
@@ -546,10 +554,10 @@ export default function TemplateEditPage() {
                   key={s.type}
                   type="button"
                   onClick={() => selectStarter(s)}
-                  className="flex flex-col items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] p-5 gap-3 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all duration-300 group text-left"
+                  className="flex flex-col items-center justify-center rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] p-5 gap-3 hover:border-primary/30 hover:bg-primary/5 transition-all duration-300 group text-left"
                 >
-                  <div className="h-12 w-full rounded-lg bg-gradient-to-br from-blue-500/10 to-violet-500/10 flex items-center justify-center border border-[hsl(var([hsl(var(--color-border))]))]">
-                    <div className="text-sm font-bold text-blue-600">{s.type.replace(/_/g, ' ')}</div>
+                  <div className="h-12 w-full rounded-lg bg-gradient-to-br from-primary/10 to-violet-500/10 flex items-center justify-center border border-[hsl(var([hsl(var(--color-border))]))]">
+                    <div className="text-sm font-bold text-primary">{s.type.replace(/_/g, ' ')}</div>
                   </div>
                   <div className="text-center w-full">
                     <div className="font-semibold text-[hsl(var(--card-foreground))] text-sm">{s.name}</div>
@@ -571,7 +579,8 @@ export default function TemplateEditPage() {
               <div className="lg:col-span-2">
                 <label className="mb-1.5 block text-sm font-medium text-[hsl(var(--card-foreground))]/70">ชื่อเทมเพลต</label>
                 <input
-                  className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--card-foreground))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                  className="admin-input"
+                  style={{ backgroundColor: '#ffffff' }}
                   value={form.name}
                   onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
                   placeholder="ใบแจ้งหนี้รายเดือน"
@@ -580,7 +589,8 @@ export default function TemplateEditPage() {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-[hsl(var(--card-foreground))]/70">ประเภท</label>
                 <select
-                  className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                  className="admin-select"
+                  style={{ backgroundColor: '#ffffff' }}
                   value={form.type}
                   onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))}
                 >
@@ -594,7 +604,8 @@ export default function TemplateEditPage() {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-[hsl(var(--card-foreground))]/70">หัวข้อ</label>
                 <input
-                  className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--card-foreground))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                  className="admin-input"
+                  style={{ backgroundColor: '#ffffff' }}
                   value={form.subject}
                   onChange={(event) => setForm((current) => ({ ...current, subject: event.target.value }))}
                   placeholder="ใบแจ้งหนี้สำหรับห้อง {{room.number}}"
@@ -603,7 +614,8 @@ export default function TemplateEditPage() {
               <div className="lg:col-span-4">
                 <label className="mb-1.5 block text-sm font-medium text-[hsl(var(--card-foreground))]/70">รายละเอียด</label>
                 <textarea
-                  className="w-full rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--card-foreground))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 min-h-[96px]"
+                  className="admin-textarea min-h-[96px]"
+                  style={{ backgroundColor: '#ffffff' }}
                   value={form.description}
                   onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
                   placeholder="รายละเอียดว่าเทมเพลตนี้ใช้สำหรับอะไรและเมื่อใดควรสร้าง"
@@ -614,7 +626,7 @@ export default function TemplateEditPage() {
               <button
                 type="button"
                 onClick={() => void saveMetadata()}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-600 px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 hover:bg-blue-500/30 hover:border-blue-500/50 active:scale-[0.98] disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 text-primary px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 hover:bg-primary/20 hover:border-primary/30 active:scale-[0.98] disabled:opacity-50"
                 disabled={saving}
               >
                 <Save className="h-4 w-4" />
@@ -631,34 +643,34 @@ export default function TemplateEditPage() {
                   <div className="px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))]">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--card-foreground))]">
-                        <Layers3 className="h-4 w-4 text-blue-600" />
+                        <Layers3 className="h-4 w-4 text-primary" />
                         เวอร์ชัน
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => void createDraft()}
-                          className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
+                          title={working === 'draft' ? 'กำลังสร้าง...' : 'ร่างใหม่'}
+                          className="inline-flex items-center justify-center rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] h-7 w-7 text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
                           disabled={working === 'draft'}
                         >
-                          <FilePlus2 className="h-3.5 w-3.5" />
-                          {working === 'draft' ? 'กำลังสร้าง...' : 'ร่างใหม่'}
+                          {working === 'draft' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FilePlus2 className="h-3.5 w-3.5" />}
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowHistory(true)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
+                          title="ประวัติเวอร์ชัน"
+                          className="inline-flex items-center justify-center rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] h-7 w-7 text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
                         >
                           <History className="h-3.5 w-3.5" />
-                          ประวัติ
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowComments(true)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
+                          title="ความเห็น"
+                          className="inline-flex items-center justify-center rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] h-7 w-7 text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
                         >
                           <MessageSquare className="h-3.5 w-3.5" />
-                          ความเห็น
                         </button>
                         <input
                           ref={fileRef}
@@ -681,7 +693,7 @@ export default function TemplateEditPage() {
                         key={version.id}
                         className={`rounded-xl border px-4 py-4 transition-all duration-200 ${
                           selectedVersionId === version.id
-                            ? 'border-blue-500/30 bg-blue-500/10 shadow-[0_4px_16px_rgba(99,102,241,0.15)]'
+                            ? 'border-primary/30 bg-primary/10 shadow-[0_4px_16px_rgba(var(--color-primary)/0.15)]'
                             : 'border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] hover:border-[hsl(var([hsl(var(--color-border))]))]'
                         }`}
                       >
@@ -705,7 +717,7 @@ export default function TemplateEditPage() {
                             <button
                               type="button"
                               onClick={() => void activateVersion(version.id)}
-                              className="inline-flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-600 shadow-sm transition-all duration-200 hover:bg-blue-500/20 flex-1 active:scale-[0.98]"
+                              className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary shadow-sm transition-all duration-200 hover:bg-primary/20 flex-1 active:scale-[0.98]"
                               disabled={working === version.id}
                             >
                               {working === version.id ? 'กำลังเปิดใช้งาน...' : 'เปิดใช้งาน'}
@@ -737,11 +749,12 @@ export default function TemplateEditPage() {
                         value={fieldSearch}
                         onChange={(e) => setFieldSearch(e.target.value)}
                         placeholder="ค้นหาฟิลด์..."
-                        className="w-full rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] pl-9 pr-3 py-2 text-sm text-[hsl(var(--card-foreground))] placeholder:text-[hsl(var(--card-foreground))]/30 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                        className="admin-input pl-9"
+                        style={{ backgroundColor: '#ffffff' }}
                       />
                     </div>
                   </div>
-                  <div className="space-y-1 p-3">
+                  <div className="space-y-0.5 p-2 max-h-80 overflow-y-auto">
                     {filteredGroupedFields.map(([group, fields]) => {
                       const isExpanded = expandedGroups.has(group) || !fieldSearch;
                       return (
@@ -756,42 +769,37 @@ export default function TemplateEditPage() {
                                 return next;
                               });
                             }}
-                            className="flex w-full items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[hsl(var(--card))] transition-colors"
+                            className="flex w-full items-center justify-between px-2 py-1 rounded-lg hover:bg-[hsl(var(--card))] transition-colors"
                           >
-                            <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[hsl(var(--card-foreground))]/30">{group}</span>
-                            <ChevronDown className={`h-3.5 w-3.5 text-[hsl(var(--card-foreground))]/30 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[hsl(var(--card-foreground))]/30">{group}</span>
+                            <ChevronDown className={`h-3 w-3 text-[hsl(var(--card-foreground))]/30 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           </button>
                           {isExpanded && (
-                            <div className="mt-1 space-y-1.5 pl-1">
+                            <div className="space-y-0.5">
                               {fields.map((field) => (
-                                <div key={field.key} className="rounded-xl border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-3 py-2.5">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                      <div className="font-medium text-[hsl(var(--card-foreground))] text-sm leading-tight">{field.label}</div>
-                                      <div className="mt-0.5 font-mono text-[10px] text-blue-600">{field.key}</div>
-                                      {field.description ? (
-                                        <div className="mt-1 text-xs text-[hsl(var(--card-foreground))]/40 leading-snug line-clamp-2">{field.description}</div>
-                                      ) : null}
-                                    </div>
-                                    <div className="flex flex-col gap-1 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() => void insertFieldMarkup(field)}
-                                        className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-2 py-1 text-xs font-medium text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
-                                      >
-                                        <Copy className="h-3 w-3" />
-                                        แทรก
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => jumpToField(field)}
-                                        className="inline-flex items-center gap-1 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-2 py-1 text-xs font-medium text-[hsl(var(--card-foreground))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--primary))]/10 active:scale-[0.98]"
-                                        title="ไปที่ฟิลด์ในเอกสาร"
-                                      >
-                                        <MapPin className="h-3 w-3" />
-                                        ไปที่
-                                      </button>
-                                    </div>
+                                <div key={field.key} className="flex items-center gap-2 rounded-lg border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] px-2.5 py-1.5 hover:bg-primary/5 transition-colors">
+                                  <div className="min-w-0 flex-1">
+                                    <span className="font-medium text-[hsl(var(--card-foreground))] text-xs leading-tight">{field.label}</span>
+                                    <span className="ml-1.5 font-mono text-[9px] text-primary/60">{field.key}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => void insertFieldMarkup(field)}
+                                      className="inline-flex items-center gap-1 rounded bg-primary/10 border border-primary/20 text-primary px-1.5 py-0.5 text-[10px] font-medium hover:bg-primary/20 active:scale-[0.98] transition-all"
+                                      title="แทรกฟิลด์นี้"
+                                    >
+                                      <Copy className="h-2.5 w-2.5" />
+                                      แทรก
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => jumpToField(field)}
+                                      className="inline-flex items-center justify-center rounded border border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))] w-5 h-5 text-[hsl(var(--card-foreground))]/50 hover:bg-primary/10 transition-colors"
+                                      title="ไปที่ฟิลด์ในเอกสาร"
+                                    >
+                                      <MapPin className="h-2.5 w-2.5" />
+                                    </button>
                                   </div>
                                 </div>
                               ))}
@@ -811,7 +819,7 @@ export default function TemplateEditPage() {
                   <div className="px-5 py-4 border-b border-[hsl(var([hsl(var(--color-border))]))] bg-[hsl(var(--card))]">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--card-foreground))]">
-                        <Layers3 className="h-4 w-4 text-blue-600" />
+                        <Layers3 className="h-4 w-4 text-primary" />
                         รูปภาพในเทมเพลต
                       </div>
                       <div className="flex items-center gap-2">
@@ -974,7 +982,7 @@ export default function TemplateEditPage() {
                         <TemplateWordEditor
                           value={versionContent}
                           subject={versionSubject}
-                          previewValues={Object.fromEntries((template?.fields ?? []).map((f) => [f.key, f.label]))}
+                          previewValues={Object.fromEntries((template?.fields ?? []).map((f) => [`{{${f.key}}}`, f.sampleValue ?? f.label]))}
                           templateId={isNew ? undefined : params.id}
                           editorRef={activeEditorRef}
                           onChange={(html) => {
@@ -1007,7 +1015,7 @@ export default function TemplateEditPage() {
                   <div className="text-sm font-semibold text-[hsl(var(--card-foreground))]">ตัวแก้ไขเทมเพลต (TipTap)</div>
                 </div>
                 <div className="p-5 flex flex-col items-center justify-center py-20 min-h-[400px]">
-                  <Layers3 className="h-10 w-10 text-blue-600/40 mb-4" />
+                  <Layers3 className="h-10 w-10 text-primary/40 mb-4" />
                   <p className="font-semibold text-lg text-[hsl(var(--card-foreground))] mb-2">เริ่มสร้างเทมเพลตเอกสาร</p>
                   <p className="text-sm text-[hsl(var(--card-foreground))]/40 text-center max-w-sm">
                     กรุณาระบุชื่อและข้อมูลเทมเพลตในกล่องด้านบน จากนั้นกดปุ่ม <strong className="text-[hsl(var(--card-foreground))]/70">สร้างเทมเพลต</strong> เพื่อบันทึกและเปิดใช้งานหน้าต่างแก้ไขเนื้อหาเอกสาร (TipTap)

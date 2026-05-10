@@ -34,7 +34,42 @@ export default function UploadStatementPage() {
       const response = await fetch('/api/payments/statement-upload', { method: 'POST', body: formData });
       const json = await response.json();
       if (!response.ok || !json.success) throw new Error(json.error?.message ?? 'ไม่สามารถอัปโหลด Statement');
-      setResult(json.data as UploadResult);
+
+      const { jobId, totalEntries, storageKey } = json.data as { jobId: string; totalEntries: number; storageKey: string };
+
+      // Poll until the async job completes
+      const pollInterval = 1000;
+      const maxAttempts = 60;
+      let attempts = 0;
+      let jobResult: { imported: number; matched: number } | null = null;
+
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        const pollRes = await fetch(`/api/payments/statement-upload/${jobId}`);
+        const pollJson = await pollRes.json();
+        if (!pollJson.success) throw new Error(pollJson.error?.message ?? 'ไม่สามารถดึงสถานะงาน');
+
+        const status = pollJson.data.status;
+        if (status === 'DONE') {
+          jobResult = pollJson.data.result as { imported: number; matched: number } | null;
+          break;
+        } else if (status === 'FAILED' || status === 'DEAD') {
+          throw new Error(pollJson.data.error?.message ?? 'การประมวลผลล้มเหลว');
+        }
+        // PENDING or RUNNING — keep polling
+        attempts++;
+      }
+
+      if (!jobResult) throw new Error('งานใช้เวลานานเกินไป กรุณาลองใหม่');
+
+      const unmatched = jobResult.imported - jobResult.matched;
+      setResult({
+        totalEntries,
+        imported: jobResult.imported,
+        matched: jobResult.matched,
+        unmatched,
+        storageKey,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถอัปโหลด Statement ธนาคาร');
     } finally { setLoading(false); }

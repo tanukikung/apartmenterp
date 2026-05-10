@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { asyncHandler, ApiResponse, UnauthorizedError } from '@/lib/utils/errors';
+import { asyncHandler, UnauthorizedError } from '@/lib/utils/errors';
+import { formatSuccess } from '@/lib/api-response';
 import { prisma } from '@/lib/db/client';
 import { verifyPassword, hashPassword, needsRehash } from '@/lib/auth/password';
 import { logger } from '@/lib/utils/logger';
@@ -94,28 +95,18 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
   const baseUrl = `${protocol}://${host}`;
   const res = isForm
     ? NextResponse.redirect(new URL(redirectTo, baseUrl), 303)
-    : NextResponse.json({
-    success: true,
-    data: {
-      user: {
-        id: user.id,
-        username: user.username,
-        displayName: user.displayName,
-        role: user.role,
-        forcePasswordChange: user.forcePasswordChange,
-        buildingId: user.buildingId,
-      },
-    },
-  } as ApiResponse<{
-    user: {
-      id: string;
-      username: string;
-      displayName: string;
-      role: typeof user.role;
-      forcePasswordChange: boolean;
-      buildingId: string | null;
-    };
-  }>);
+    : NextResponse.json(
+      formatSuccess({
+        user: {
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          role: user.role,
+          forcePasswordChange: user.forcePasswordChange,
+          buildingId: user.buildingId,
+        },
+      })
+    );
 
   const token = await signSessionToken({
     sub: user.id,

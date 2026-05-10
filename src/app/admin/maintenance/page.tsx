@@ -478,7 +478,7 @@ function MaintenancePage() {
               description={searchDebounced || statusFilter !== 'ALL' ? 'ลองเปลี่ยนตัวกรองหรือล้างการค้นหา' : 'ยังไม่มีการแจ้งซ่อมในระบบ'}
             />
           ) : tickets.map(ticket => (
-            <GlassCard key={ticket.id} hover className={`p-4 ${selected?.id === ticket.id ? 'ring-2 ring-indigo-500/50 shadow-[0_0_0_1px_rgba(99,102,241,0.3),0_12px_40px_rgba(0,0,0,0.5)]' : ''}`}>
+            <GlassCard key={ticket.id} hover className={`p-4 ${selected?.id === ticket.id ? 'ring-2 ring-[hsl(var(--primary)/0.5)] shadow-[0_0_0_1px_hsl(var(--primary)/0.3),0_12px_40px_rgba(0,0,0,0.5)]' : ''}`}>
               <div
                 onClick={() => setSelected(ticket)}
                 className="cursor-pointer"

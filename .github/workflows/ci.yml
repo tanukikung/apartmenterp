@@ -1,59 +1,100 @@
-name: CI
+name: CI/CD
 
 on:
   push:
     branches: [master, develop]
   pull_request:
     branches: [master, develop]
+  workflow_dispatch:
+    inputs:
+      deploy_production:
+        description: 'Deploy to production after staging'
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# ---------------------------------------------------------------------------
+# Shared environment used by jobs that need a real database
+# ---------------------------------------------------------------------------
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+  REDIS_URL: redis://localhost:6379
+  NEXTAUTH_SECRET: ci-nextauth-secret-32byteslong-ok
+  NEXTAUTH_URL: http://localhost:3001
+  APP_BASE_URL: http://localhost:3001
+  AUTH_SECRET: ci-auth-secret-32byteslong-okayy
+  INVOICE_ACCESS_SECRET: ci-invoice-access-secret-32byteok
+  FILE_ACCESS_SECRET: ci-file-access-secret-32bytesokk
+  LINE_CHANNEL_ID: '0000000000'
+  LINE_CHANNEL_SECRET: ci_line_channel_secret_placeholder
+  LINE_ACCESS_TOKEN: ci_line_access_token_placeholder
+  NODE_ENV: test
+
+# ---------------------------------------------------------------------------
+# Reusable service definitions (referenced via YAML anchors where supported)
+# ---------------------------------------------------------------------------
+
 jobs:
-  lint-and-typecheck:
+  # ─────────────────────────────────────────────────────────────────────────
+  # 1. Lint + TypeScript — fast gate, runs in parallel with unit tests
+  # ─────────────────────────────────────────────────────────────────────────
+  lint-typecheck:
     name: Lint & Type Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
       - name: ESLint
         run: npm run lint
 
-      - name: TypeScript check
+      - name: TypeScript (no-emit)
         run: npx tsc --noEmit
 
+  # ─────────────────────────────────────────────────────────────────────────
+  # 2. Unit tests — no database, fast feedback
+  # ─────────────────────────────────────────────────────────────────────────
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
       - name: Run unit tests
-        run: npx vitest run --config vitest.unit.config.ts --reporter=dot
+        run: npx vitest run --config vitest.unit.config.ts --reporter=verbose
 
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage
+          path: coverage/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 3. Integration tests — real PostgreSQL + Redis
+  # ─────────────────────────────────────────────────────────────────────────
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: [lint-and-typecheck]
+    needs: [lint-typecheck]
+
     services:
       postgres:
         image: postgres:16-alpine
@@ -66,8 +107,7 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-        ports:
-          - 5432:5432
+        ports: ['5432:5432']
 
       redis:
         image: redis:7-alpine
@@ -76,46 +116,112 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 5
-        ports:
-          - 6379:6379
+        ports: ['6379:6379']
 
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
-      REDIS_URL: redis://localhost:6379
-      NEXTAUTH_SECRET: test-secret-for-ci
-      NEXTAUTH_URL: http://localhost:3001
-      APP_BASE_URL: http://localhost:3001
-      NODE_ENV: test
       USE_PRISMA_TEST_DB: 'true'
-      LINE_CHANNEL_ID: '0000000000'
-      LINE_CHANNEL_SECRET: test_channel_secret_for_ci
-      LINE_ACCESS_TOKEN: test_access_token_for_ci
-      INVOICE_ACCESS_SECRET: test-invoice-access-secret-key-32char
-      FILE_ACCESS_SECRET: test-file-access-secret-key-32char
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: Run migrations
+      - name: Apply migrations
         run: npx prisma migrate deploy
 
-      - name: Run integration tests
-        run: npx vitest run --config vitest.integration.config.ts --reporter=dot
+      - name: Seed test data
+        run: npx prisma db seed
 
-  smoke-test:
-    name: E2E Smoke Test
+      - name: Run integration + security + stabilization tests
+        run: npx vitest run --config vitest.integration.config.ts --reporter=verbose
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-results
+          path: test-results/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 4. Build Docker image + security scan
+  #    Runs on every push to master/develop (not on PRs to save time)
+  # ─────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build & Scan Image
     runs-on: ubuntu-latest
-    needs: [lint-and-typecheck, unit-tests]
-    if: github.ref == 'refs/heads/master'
+    needs: [lint-typecheck, unit-tests]
+    if: github.event_name == 'push'
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.push.outputs.digest }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.REGISTRY_IMAGE || 'apartment-erp' }}
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to registry
+        if: secrets.REGISTRY_USERNAME != ''
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY_URL }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build image
+        id: push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: ${{ secrets.REGISTRY_USERNAME != '' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: NODE_ENV=production
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.REGISTRY_IMAGE || 'apartment-erp' }}:sha-${{ github.sha }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+        continue-on-error: true
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+        continue-on-error: true
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 5. Smoke test against built app — master only
+  #    Boots the compiled Next.js server with a real DB, runs 13 API checks
+  # ─────────────────────────────────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    needs: [build, integration-tests]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
 
     services:
       postgres:
@@ -129,81 +235,152 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-        ports:
-          - 5432:5432
-
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
-      NEXTAUTH_SECRET: test-secret-for-ci
-      NEXTAUTH_URL: http://localhost:3001
-      APP_BASE_URL: http://localhost:3001
-      NODE_ENV: test
+        ports: ['5432:5432']
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: Run migrations
-        run: npx prisma migrate deploy
+      - name: Apply migrations + seed
+        run: |
+          npx prisma migrate deploy
+          npx prisma db seed
 
-      - name: Install Playwright
-        run: npx playwright install --with-deps chromium
+      - name: Build Next.js
+        run: npm run build
+        env:
+          NODE_ENV: production
+          SKIP_ENV_VALIDATION: '1'
 
       - name: Start server
-        run: npm run start &
+        run: node .next/standalone/server.js &
         env:
           PORT: 3001
+          NODE_ENV: production
+          HOSTNAME: 0.0.0.0
 
-      - name: Wait for server
+      - name: Wait for server ready
         run: |
-          for i in {1..30}; do
-            curl -s http://localhost:3001/api/health && break
-            sleep 2
+          echo "Waiting for server on :3001..."
+          for i in $(seq 1 40); do
+            curl -sf http://localhost:3001/api/health && echo " ready" && break
+            echo -n "."
+            sleep 3
           done
 
-      - name: Run smoke test
+      - name: Run smoke tests
         run: npx tsx tests/smoke-test.ts
+        env:
+          APP_BASE_URL: http://localhost:3001
+          SMOKE_USERNAME: owner
+          SMOKE_PASSWORD: Owner@12345
 
-  build:
-    name: Build Docker Image
+      - name: Upload server logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-server-logs
+          path: '*.log'
+          retention-days: 3
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 6. Deploy to staging — auto on every master push that passes smoke test
+  # ─────────────────────────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy → Staging
     runs-on: ubuntu-latest
-    needs: [lint-and-typecheck, unit-tests]
-    if: github.ref == 'refs/heads/master'
+    needs: [smoke-test]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.STAGING_APP_DIR }}
 
-      - name: Build image
+            # Pull latest image or code
+            git fetch origin master
+            git reset --hard origin/master
+
+            # Update image tag in compose env
+            echo "IMAGE_TAG=sha-${{ github.sha }}" > .deploy-env
+
+            # Rolling restart: migrate first, then restart app
+            docker compose -f deploy/docker-compose.prod.yml pull app
+            docker compose -f deploy/docker-compose.prod.yml run --rm app npx prisma migrate deploy
+            docker compose -f deploy/docker-compose.prod.yml up -d --no-deps app
+
+            # Health check after deploy
+            sleep 10
+            curl -sf http://localhost:3001/api/health || exit 1
+            echo "Staging deploy OK — sha ${{ github.sha }}"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 7. Deploy to production — requires manual approval via GitHub Environment
+  #    Trigger: workflow_dispatch with deploy_production=true
+  #    OR: automatic after staging if PRODUCTION_AUTO_DEPLOY secret = 'true'
+  # ─────────────────────────────────────────────────────────────────────────
+  deploy-production:
+    name: Deploy → Production
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: |
+      github.ref == 'refs/heads/master' &&
+      (
+        (github.event_name == 'workflow_dispatch' && inputs.deploy_production == true) ||
+        vars.PRODUCTION_AUTO_DEPLOY == 'true'
+      )
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.PRODUCTION_APP_DIR }}
+
+            git fetch origin master
+            git reset --hard origin/master
+
+            echo "IMAGE_TAG=sha-${{ github.sha }}" > .deploy-env
+
+            # Zero-downtime: migrate → pull → restart
+            docker compose -f deploy/docker-compose.prod.yml pull app
+            docker compose -f deploy/docker-compose.prod.yml run --rm app npx prisma migrate deploy
+            docker compose -f deploy/docker-compose.prod.yml up -d --no-deps app
+
+            sleep 15
+            curl -sf http://localhost:3001/api/health || exit 1
+            echo "Production deploy OK — sha ${{ github.sha }}"
+
+      - name: Tag release
         run: |
-          docker build \
-            --tag apartment-erp:${{ github.sha }} \
-            --tag apartment-erp:latest \
-            --build-arg NODE_ENV=production \
-            .
-        env:
-          DOCKER_BUILDKIT: 1
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'apartment-erp:${{ github.sha }}'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-        continue-on-error: true
-
-      - name: Upload Trivy results
-        uses: github/upload-sarif-action@v3
-        with:
-          sarif_file: 'trivy-results.sarif'
-        continue-on-error: true
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "release-$(date +%Y%m%d)-${{ github.sha }}" \
+                  -m "Production deploy ${{ github.sha }}"
+          git push origin --tags

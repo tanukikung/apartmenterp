@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/guards';
 import { getServiceContainer } from '@/lib/service-container';
 import { updateTenantSchema } from '@/modules/tenants/types';
-import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler } from '@/lib/utils/errors';
+import { formatSuccess } from '@/lib/api-response';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
@@ -21,13 +22,34 @@ export const GET = asyncHandler(
     await requireRole(req, ['ADMIN', 'STAFF', 'OWNER']);
     const { id } = params;
 
-    const { tenantService } = getServiceContainer();
+    const url = new URL(req.url);
+    const includeContracts = url.searchParams.get('include') === 'contracts';
+
+    const { tenantService, contractService } = getServiceContainer();
     const tenant = await tenantService.getTenantById(id);
 
-    return NextResponse.json({
-      success: true,
-      data: tenant,
-    } as ApiResponse<typeof tenant>);
+    if (includeContracts) {
+      const contractsResult = await contractService.listContracts({
+        tenantId: id,
+        status: undefined,
+        page: 1,
+        pageSize: 50,
+        sortBy: 'startDate',
+        sortOrder: 'desc',
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          ...tenant,
+          contracts: contractsResult.data,
+        },
+      } as ApiResponse<typeof tenant & { contracts: unknown[] }>);
+    }
+
+    return NextResponse.json(
+      formatSuccess(tenant)
+    );
   }
 );
 

@@ -148,9 +148,10 @@ function computeTieredCharge(
 
   // Tier 2
   if (s2Upto && s2Rate) {
-    const tier2Units = Math.min(remainingAfterTier1, s2Upto);
+    const tier2Capacity = (s2Upto ?? s1Upto) - s1Upto;
+    const tier2Units = Math.min(remainingAfterTier1, tier2Capacity);
     charge += tier2Units * s2Rate;
-    const remainingAfterTier2 = remainingAfterTier1 - s2Upto;
+    const remainingAfterTier2 = remainingAfterTier1 - tier2Capacity;
     if (remainingAfterTier2 > 0 && s3Rate) {
       charge += remainingAfterTier2 * s3Rate;
     }

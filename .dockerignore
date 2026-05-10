@@ -2,56 +2,56 @@
 node_modules
 .npm
 
-# Next.js build output
+# Next.js and build outputs
 .next
 out
 dist
+coverage
 
-# Environment files (keep .env.example)
+# Environment files
 .env
 .env.local
 .env.development
 .env.production
 
-# Git
+# Git and local tooling
 .git
+.gitignore
+.claude
+.minimax
+.cursor
+.windsurf
+.vscode
+.idea
 
 # Logs
 *.log
-npm-debug.log*
+logs/
+.codex-*.log
+.next-dev.*
 
-# Test artifacts
-test-results/
-coverage/
+# Tests and generated reports
+tests/
 playwright-report/
-*.test-results/
+test-results/
+screenshots/
+uat-screenshots/
+stitch_apartment_erp_admin_prd/
 
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Deploy
-# (entrypoint.sh is needed, exclude docker-compose variants)
-deploy/docker-compose*.yml
-deploy/docker-compose*.yaml
-
-# Turborepo / cache
-.turbo/
-
-# Runtime data
+# Local runtime data
 .data/
+.runtime/
+deploy/
+memory/
 tmp/
-*.csv
-uploads/
 
-# Docker files (keep Dockerfile and docker-compose.yml in root)
-docker-compose*.yml
-docker-compose*.yaml
-.dockerignore
+# Unneeded local artifacts
+cookies.txt
+thai_test.pdf
+sample-invoice.pdf
+invoice_thai_test.pdf
+xlsx_structure.json
+tsconfig.tsbuildinfo
+*.map
+Thumbs.db
+*.DS_Store

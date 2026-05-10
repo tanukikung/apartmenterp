@@ -14,6 +14,10 @@
 # ── Stage 1: Install dependencies ──────────────────────────────────────────────
 FROM node:20-slim AS deps
 
+FROM node:20-bookworm-slim AS base
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates gzip openssl postgresql-client tzdata \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
@@ -32,48 +36,35 @@ COPY . .
 
 RUN npx prisma generate
 
-RUN npm run build
+# Build Next.js (output: standalone) using the same release gate we verify locally.
+RUN npx next build --no-lint
 
-# ── Stage 3: Runtime ─────────────────────────────────────────────────────────────
-FROM node:20-slim AS runner
-
+# ── Stage 3: Production runtime ───────────────────────────────────
+FROM node:20-bookworm-slim AS runner
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates gzip openssl postgresql-client tzdata \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+# Create non-root user
+RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nodejs --create-home nextjs
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/src/lib ./src/lib
-COPY --from=builder /app/src/modules ./src/modules
-COPY --from=builder /app/src/app/api ./src/app/api
+COPY --from=builder /app/scripts/customer-healthcheck.js ./scripts/customer-healthcheck.js
 
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-RUN cp -r /app/node_modules/@prisma ./node_modules/@prisma 2>/dev/null || true
+# Keep the full dependency tree from the builder stage so first-boot
+# migrations and seeding use the same generated Prisma client as the app bundle.
+COPY --from=builder /app/node_modules ./node_modules
 
-RUN echo '#!/bin/sh\n\
-set -e\n\
-echo "======================================"\n\
-echo "  Apartment ERP Starting..."\n\
-echo "======================================"\n\
-echo "[1/3] Database migrations..."\n\
-./node_modules/.bin/prisma migrate deploy || true\n\
-echo "[2/3] Checking seed data..."\n\
-USER_COUNT=$(node -e "\n\
-const { PrismaClient } = require(\"@prisma/client\");\n\
-const p = new PrismaClient();\n\
-p.adminUser.count()\n\
-  .then(n => { process.stdout.write(String(n)); return p.\$disconnect(); })\n\
-  .catch(() => { process.stdout.write(\"0\"); });\n\
-" 2>/dev/null || echo "0")\n\
-if [ "${USER_COUNT:-0}" = "0" ]; then\n\
-  echo "     First run — seeding database..."\n\
-  ./node_modules/.bin/tsx prisma/seed.ts || true\n\
-fi\n\
-echo "[3/3] Starting app on port ${PORT:-3001}..."\n\
-exec "$@"' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+# Copy startup script
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh \
+  && mkdir -p /app/data/uploads /app/data/backups /app/data/logs \
+  && chown -R nextjs:nodejs /app
 
 EXPOSE 3001
 

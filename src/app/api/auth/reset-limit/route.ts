@@ -6,7 +6,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const allowedSecret = process.env.RATE_LIMIT_RESET_SECRET;
   // Require the env var to be set; reject in production if missing
   if (!allowedSecret || secret !== allowedSecret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ success: false, error: { name: 'UnauthorizedError', message: 'Unauthorized', code: 'UNAUTHORIZED', statusCode: 401 } }, { status: 401 });
   }
 
   // Reset all rate limiters

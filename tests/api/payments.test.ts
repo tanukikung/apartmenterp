@@ -2,6 +2,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { makeRequestLike } from '../helpers/auth';
 import { getServiceContainer } from '@/lib/service-container';
 
+vi.mock('@/lib/utils/idempotency', () => ({
+  IDEMPOTENCY_HEADER: 'Idempotency-Key',
+  withIdempotency: async (_req: unknown, _resourceType: string, handler: () => Promise<Response>) => handler(),
+}));
+
 describe('Payment API routes', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -53,7 +58,8 @@ describe('Payment API routes', () => {
       makeRequestLike({
         url: 'http://localhost/api/payments/match/confirm',
         method: 'POST',
-        role: 'STAFF',
+        role: 'ADMIN',
+        headers: { 'Idempotency-Key': 'confirm-pay-1' },
         body: {
           transactionId: 'txn-1',
           invoiceId: 'inv-789',
@@ -80,6 +86,7 @@ describe('Payment API routes', () => {
         url: 'http://localhost/api/payments/match/reject',
         method: 'POST',
         role: 'ADMIN',
+        headers: { 'Idempotency-Key': 'reject-pay-1' },
         body: {
           transactionId: 'txn-2',
           rejectReason: 'Invalid',
@@ -109,6 +116,7 @@ describe('Payment API routes', () => {
       makeRequestLike({
         url: 'http://localhost/api/payments/match/reject',
         method: 'POST',
+        headers: { 'Idempotency-Key': 'reject-pay-invalid-role' },
         role: 'TENANT' as any,
         body: { transactionId: 't', rejectReason: 'x' },
       }) as any,

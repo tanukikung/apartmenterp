@@ -19,6 +19,7 @@ import {
   Package,
   Receipt,
   RefreshCw,
+  Save,
   Send,
   Users,
   XCircle,
@@ -31,13 +32,15 @@ const LockIcon: React.FC<{ className?: string }> = Lock as React.FC<{ className?
 // Types
 // ---------------------------------------------------------------------------
 
-type CycleStatus = 'OPEN' | 'IMPORTED' | 'LOCKED' | 'INVOICED' | 'CLOSED';
+type CycleStatus = 'DRAFT' | 'OPEN' | 'IMPORTED' | 'LOCKED' | 'INVOICED' | 'CLOSED' | 'ARCHIVED';
 
 type BillingCycle = {
   id: string;
   year: number;
   month: number;
   status: CycleStatus;
+  dueDay?: number;
+  gracePeriodDays?: number;
   importBatchId?: string | null;
   totalRecords?: number;
   totalAmount?: number;
@@ -147,11 +150,13 @@ function fmtDateTime(iso: string | null | undefined): string {
 
 function cycleBadgeClass(status: CycleStatus): string {
   switch (status) {
+    case 'DRAFT':    return statusBadgeClassWithBorder('warning');
     case 'CLOSED':   return statusBadgeClassWithBorder('neutral');
     case 'IMPORTED':  return statusBadgeClassWithBorder('success');
     case 'LOCKED':    return statusBadgeClassWithBorder('info');
     case 'INVOICED':  return statusBadgeClassWithBorder('violet');
     case 'OPEN':      return statusBadgeClassWithBorder('warning');
+    case 'ARCHIVED':  return statusBadgeClassWithBorder('neutral');
     default:          return statusBadgeClassWithBorder('neutral');
   }
 }
@@ -851,6 +856,9 @@ export default function BillingCycleDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
   const [bulkMessage, setBulkMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [policyForm, setPolicyForm] = useState({ dueDay: 25, gracePeriodDays: 0 });
+  const [policySaving, setPolicySaving] = useState(false);
+  const [policyMessage, setPolicyMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const load = useCallback(async () => {
     if (!billingId) return;
@@ -885,6 +893,14 @@ export default function BillingCycleDetailPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!cycle) return;
+    setPolicyForm({
+      dueDay: cycle.dueDay ?? 25,
+      gracePeriodDays: cycle.gracePeriodDays ?? 0,
+    });
+  }, [cycle]);
 
   if (loading) {
     return (
@@ -927,6 +943,30 @@ export default function BillingCycleDetailPage() {
 
   const building = 'รอบบิล';
   const batchId = cycle?.importBatchId;
+  const canEditPolicy = cycle?.status === 'DRAFT' || cycle?.status === 'OPEN';
+
+  async function savePolicy() {
+    if (!cycle) return;
+    setPolicySaving(true);
+    setPolicyMessage(null);
+    try {
+      const res = await fetch(`/api/billing-cycles/${cycle.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(policyForm),
+      });
+      const json = await res.json().catch(() => null) as { success?: boolean; error?: { message?: string } } | null;
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.error?.message ?? 'Unable to save billing policy');
+      }
+      setPolicyMessage({ type: 'success', text: 'Billing policy saved.' });
+      await load();
+    } catch (e) {
+      setPolicyMessage({ type: 'error', text: e instanceof Error ? e.message : 'Unable to save billing policy' });
+    } finally {
+      setPolicySaving(false);
+    }
+  }
 
   return (
     <main className="space-y-6">
@@ -1071,6 +1111,54 @@ export default function BillingCycleDetailPage() {
             {bulkMessage.text}
           </div>
         )}
+      </section>
+
+      <section className="rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-6 py-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[hsl(var(--on-surface-variant))]">Due day</span>
+              <input
+                type="number"
+                min={1}
+                max={31}
+                value={policyForm.dueDay}
+                disabled={!canEditPolicy || policySaving}
+                onChange={(e) => setPolicyForm((prev) => ({ ...prev, dueDay: Math.max(1, Math.min(31, Number(e.target.value) || 1)) }))}
+                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm text-[hsl(var(--on-surface))] outline-none transition focus:border-[hsl(var(--primary))] disabled:opacity-50"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[hsl(var(--on-surface-variant))]">Grace period days</span>
+              <input
+                type="number"
+                min={0}
+                max={365}
+                value={policyForm.gracePeriodDays}
+                disabled={!canEditPolicy || policySaving}
+                onChange={(e) => setPolicyForm((prev) => ({ ...prev, gracePeriodDays: Math.max(0, Math.min(365, Number(e.target.value) || 0)) }))}
+                className="w-full rounded-xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-2 text-sm text-[hsl(var(--on-surface))] outline-none transition focus:border-[hsl(var(--primary))] disabled:opacity-50"
+              />
+            </label>
+          </div>
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+            {policyMessage && (
+              <span className={`text-sm ${policyMessage.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
+                {policyMessage.text}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => void savePolicy()}
+              disabled={!canEditPolicy || policySaving}
+              title={canEditPolicy ? 'Save billing period policy' : 'Billing policy is locked after the period is closed'}
+              className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[hsl(var(--primary))]/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Save className="h-4 w-4" />
+              {policySaving ? 'Saving...' : 'Save policy'}
+            </button>
+          </div>
+        </div>
       </section>
 
       {error && (

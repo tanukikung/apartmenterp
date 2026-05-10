@@ -214,7 +214,13 @@ export default function OutboxDeadLetterPage() {
           </thead>
           <tbody className="divide-y divide-[hsl(var([hsl(var(--color-border))]))]">
             {loading && items.length === 0 ? (
-              <tr><td colSpan={7} className="p-8 text-center text-[hsl(var(--on-surface-variant))]">กำลังโหลด...</td></tr>
+              Array.from({ length: 6 }).map((_, i) => (
+                <tr key={`skl-${i}`}>
+                  <td colSpan={7} className="px-4 py-3">
+                    <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
+                  </td>
+                </tr>
+              ))
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={7} className="p-12 text-center">

@@ -6,7 +6,7 @@ import {
 } from '@/modules/moveouts/types';
 import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
 import { requireRole } from '@/lib/auth/guards';
-import { logger } from '@/lib/utils/logger';
+import { logger, auditLogger } from '@/lib/utils/logger';
 import { getLoginRateLimiter } from '@/lib/utils/rate-limit';
 
 const ADMIN_WINDOW_MS = 60 * 1000;
@@ -72,6 +72,8 @@ export const POST = asyncHandler(async (req: NextRequest): Promise<NextResponse>
     moveOutId: moveOut.id,
     contractId: moveOut.contractId,
   });
+
+  auditLogger.info('moveout.create', 'MoveOut', moveOut.id, { contractId: moveOut.contractId });
 
   return NextResponse.json({
     success: true,

@@ -62,25 +62,26 @@ export default function BroadcastPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/invoices?status=OVERDUE&pageSize=200', { cache: 'no-store' });
+      const res = await fetch('/api/invoices?status=OVERDUE&pageSize=100', { cache: 'no-store' });
       const json = await res.json();
       if (!json.success) throw new Error(json.error?.message ?? 'ไม่สามารถโหลดข้อมูล');
       const now = new Date();
-      const items = (json.data?.items ?? json.data ?? []).map((inv: Record<string, unknown>) => {
+      const items = (json.data?.data ?? []).map((inv: Record<string, unknown>) => {
         const dueDate = new Date(inv.dueDate as string);
         const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-        const tenant = (inv as Record<string, unknown>).tenant as { firstName?: string; lastName?: string; lineUserId?: string | null } | null;
+        const roomData = (inv as Record<string, unknown>).room as { floorNo?: number; tenants?: Array<{ tenant: { firstName?: string; lastName?: string; lineUserId?: string | null } }> } | null;
+        const primaryTenant = roomData?.tenants?.[0]?.tenant ?? null;
         return {
           id: inv.id as string,
           invoiceNumber: inv.invoiceNumber as string ?? `INV-${inv.year}-${inv.month}-${inv.roomNo}`,
           roomNo: inv.roomNo as string,
-          floorNo: (inv as Record<string, unknown>).room ? ((inv as Record<string, unknown>).room as { floorNo?: number }).floorNo ?? 0 : 0,
+          floorNo: roomData?.floorNo ?? 0,
           totalAmount: (inv.totalAmount as { toString(): string }).toString(),
           dueDate: inv.dueDate as string,
           daysOverdue: Math.max(0, daysOverdue),
           lastReminderAt: null,
-          tenantName: tenant ? `${tenant.firstName ?? ''} ${tenant.lastName ?? ''}`.trim() : null,
-          lineUserId: tenant?.lineUserId ?? null,
+          tenantName: primaryTenant ? `${primaryTenant.firstName ?? ''} ${primaryTenant.lastName ?? ''}`.trim() : null,
+          lineUserId: primaryTenant?.lineUserId ?? null,
         };
       });
       setOverdueInvoices(items);
@@ -240,8 +241,18 @@ export default function BroadcastPage() {
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center p-10">
-              <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--on-surface-variant))]" />
+            <div className="overflow-auto max-h-[500px]">
+              <table className="w-full text-sm">
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={`skl-${i}`} className="border-t border-[hsl(var(--color-border))]">
+                      <td colSpan={6} className="px-4 py-3">
+                        <div className="shimmer-wave h-5 rounded-md" style={{ animationDelay: `${i * 60}ms` }} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : overdueInvoices.length === 0 ? (
             <div className="p-10 text-center text-sm text-[hsl(var(--on-surface-variant))]">ไม่พบใบแจ้งหนี้ค้างชำระ</div>
