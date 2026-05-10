@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { asyncHandler, ApiResponse } from '@/lib/utils/errors';
+import { asyncHandler } from '@/lib/utils/errors';
 import { getSessionFromRequest } from '@/lib/auth/session';
+import { formatSuccess } from '@/lib/api-response';
 
 export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> => {
   const session = await getSessionFromRequest(req);
 
-  return NextResponse.json({
-    success: true,
-    data: session
+  return NextResponse.json(
+    formatSuccess(session
       ? {
           authenticated: true,
           user: {
@@ -21,21 +21,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
         }
       : {
           authenticated: false,
-        },
-  } as ApiResponse<
-    | {
-        authenticated: true;
-        user: {
-          id: string;
-          username: string;
-          displayName: string;
-          role: string;
-          forcePasswordChange: boolean;
-          buildingId: string | null;
-        };
-      }
-    | {
-        authenticated: false;
-      }
-  >);
+        }
+    )
+  );
 });
