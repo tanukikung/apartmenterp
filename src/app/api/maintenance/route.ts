@@ -66,7 +66,7 @@ export const GET = asyncHandler(async (req: NextRequest): Promise<NextResponse> 
 
   return NextResponse.json(
     formatPaginatedSuccess(
-      result.data,
+      result.tickets,
       result.page,
       result.pageSize,
       result.total

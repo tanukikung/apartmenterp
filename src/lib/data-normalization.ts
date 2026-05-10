@@ -127,8 +127,7 @@ export function normalizeTenant(tenant: any) {
     updatedAt: normalizeDate(tenant.updatedAt),
   };
 
-  // Remove if exists: fullName (computed), displayName, etc.
-  return removeDuplicateFields(normalized, ['fullName', 'displayName']);
+  return normalized;
 }
 
 // Normalize invoice data - remove duplicate/derived fields
@@ -149,13 +148,7 @@ export function normalizeInvoice(invoice: any) {
     createdAt: normalizeDate(invoice.createdAt),
   };
 
-  // Remove: computed fields like paidStatus, isOverdue, periodLabel, etc.
-  return removeDuplicateFields(normalized, [
-    'paidStatus',
-    'isOverdue',
-    'periodLabel',
-    'daysOverdue',
-  ]);
+  return normalized;
 }
 
 // Normalize contract data
@@ -172,12 +165,7 @@ export function normalizeContract(contract: any) {
     createdAt: normalizeDate(contract.createdAt),
   };
 
-  return removeDuplicateFields(normalized, [
-    'displayStatus',
-    'isActive',
-    'daysRemaining',
-    'statusColor',
-  ]);
+  return normalized;
 }
 
 // Normalize payment data
@@ -192,7 +180,7 @@ export function normalizePayment(payment: any) {
     createdAt: normalizeDate(payment.createdAt),
   };
 
-  return removeDuplicateFields(normalized, ['displayStatus', 'matchedCount']);
+  return normalized;
 }
 
 // Normalize room data
@@ -211,14 +199,7 @@ export function normalizeRoom(room: any) {
     createdAt: normalizeDate(room.createdAt),
   };
 
-  return removeDuplicateFields(normalized, [
-    'displayStatus',
-    'displayName',
-    'activeContracts',
-    'activeContractsCount',
-    'maintenanceMode',
-    'statusColor',
-  ]);
+  return normalized;
 }
 
 // Batch normalize array of items
