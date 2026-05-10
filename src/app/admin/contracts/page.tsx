@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, Search, Plus, X, ChevronRight, FileSignature, AlertCircle, CheckCircle2, Clock, XCircle, Pencil, RefreshCw } from 'lucide-react';
+import { FileText, Search, Plus, X, ChevronRight, FileSignature, AlertCircle, CheckCircle2, Clock, XCircle, Pencil, RefreshCw, FilePlus } from 'lucide-react';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { ThaiDateInput } from '@/components/ui/ThaiDateInput';
 import { statusBadgeClassWithBorder } from '@/lib/status-colors';
@@ -662,6 +663,14 @@ export default function AdminContractsPage() {
                         <Pencil size={11} />
                         แก้ไข
                       </button>
+                      <Link
+                        href={`/admin/documents/generate?rooms=${encodeURIComponent(c.roomNo)}&type=CONTRACT&from=contract`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-400 shadow-sm transition-all duration-200 hover:bg-indigo-500/20 hover:border-indigo-500/50 active:scale-[0.98]"
+                      >
+                        <FilePlus size={11} />
+                        สร้างเอกสาร
+                      </Link>
                     </div>
                   </div>
                 );
@@ -743,16 +752,26 @@ export default function AdminContractsPage() {
                           <StatusBadge status={displayStatus} />
                         </td>
                         <td className="pr-4 text-right">
-                          <button
-                            className="inline-flex items-center gap-2 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-4 py-2 text-sm font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--color-surface))]/[0.1] hover:border-[hsl(var(--color-border))] hover:text-[hsl(var(--on-surface))] active:scale-[0.98] flex items-center gap-1 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEdit(c);
-                            }}
-                          >
-                            <Pencil size={11} />
-                            แก้ไข
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Link
+                              href={`/admin/documents/generate?rooms=${encodeURIComponent(c.roomNo)}&type=CONTRACT&from=contract`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-400 shadow-sm transition-all duration-200 hover:bg-indigo-500/20 hover:border-indigo-500/50 active:scale-[0.98]"
+                            >
+                              <FilePlus size={11} />
+                              สร้างเอกสาร
+                            </Link>
+                            <button
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-3 py-1.5 text-xs font-medium text-[hsl(var(--on-surface))]/70 shadow-sm transition-all duration-200 hover:bg-[hsl(var(--color-surface))]/[0.1] hover:text-[hsl(var(--on-surface))] active:scale-[0.98]"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEdit(c);
+                              }}
+                            >
+                              <Pencil size={11} />
+                              แก้ไข
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { FileOutput, Layers3, Search, Wand2 } from 'lucide-react';
+import { FileOutput, Layers3, Search, Wand2, ArrowLeft } from 'lucide-react';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 type TemplateOption = {
@@ -92,9 +93,16 @@ async function fetchRooms(): Promise<{ data: RoomOption[] }> {
 }
 
 export default function GenerateDocumentsPage() {
+  const searchParams = useSearchParams();
+  const presetRoom = searchParams.get('rooms') ?? '';
+  const presetType = searchParams.get('type') ?? '';
+  const fromContract = searchParams.get('from') === 'contract';
+
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [scope, setScope] = useState<(typeof SCOPES)[number]['value']>('ELIGIBLE_FOR_MONTH');
-  const [selectedRoomId, setSelectedRoomId] = useState('');
+  const [scope, setScope] = useState<(typeof SCOPES)[number]['value']>(
+    presetRoom ? 'SINGLE_ROOM' : 'ELIGIBLE_FOR_MONTH'
+  );
+  const [selectedRoomId, setSelectedRoomId] = useState(presetRoom);
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
   const [floorNumber, setFloorNumber] = useState<number | ''>('');
   const [search, setSearch] = useState('');
@@ -128,10 +136,17 @@ export default function GenerateDocumentsPage() {
   const rooms: RoomOption[] = useMemo(() => roomsRaw?.data ?? [], [roomsRaw?.data]);
   const isLoading = templatesLoading || floorsLoading || roomsLoading;
 
-  if (!initRef.current && templates.length > 0 && !selectedTemplateId) {
+  // Auto-select template: prefer matching type from URL param, else first available
+  useEffect(() => {
+    if (initRef.current || templates.length === 0) return;
     initRef.current = true;
-    setSelectedTemplateId(templates[0].id);
-  }
+    if (presetType) {
+      const match = templates.find(t => t.type === presetType);
+      setSelectedTemplateId(match?.id ?? templates[0].id);
+    } else {
+      setSelectedTemplateId(templates[0].id);
+    }
+  }, [templates, presetType]);
 
   const filteredRooms = useMemo(() => {
     return rooms.filter((room) => room.roomNo.toLowerCase().includes(search.toLowerCase()));
@@ -215,6 +230,17 @@ export default function GenerateDocumentsPage() {
 
   return (
     <main className="space-y-6">
+      {/* Breadcrumb — shown when navigated from contract */}
+      {fromContract && (
+        <Link
+          href="/admin/contracts"
+          className="inline-flex items-center gap-1.5 text-sm text-[hsl(var(--on-surface-variant))] hover:text-[hsl(var(--on-surface))] transition-colors group"
+        >
+          <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+          กลับไปหน้าสัญญา
+        </Link>
+      )}
+
       {/* Hero Header */}
       <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--color-border))] bg-[hsl(var(--color-surface))] px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[hsl(var(--primary))]/6 rounded-full blur-3xl pointer-events-none" />
@@ -226,7 +252,9 @@ export default function GenerateDocumentsPage() {
             <div>
               <h1 className="text-base font-semibold text-[hsl(var(--on-surface))]">สร้างเอกสาร</h1>
               <p className="text-xs text-[hsl(var(--on-surface-variant))] mt-0.5">
-                สร้างเอกสารแบบ mail-merge ที่สร้างเอกสารที่บันทึกหนึ่งฉบับต่อห้องจากข้อมูล ERP จริง
+                {fromContract && presetRoom
+                  ? `สร้างเอกสารสำหรับห้อง ${presetRoom}`
+                  : 'สร้างเอกสารแบบ mail-merge ที่สร้างเอกสารที่บันทึกหนึ่งฉบับต่อห้องจากข้อมูล ERP จริง'}
               </p>
             </div>
           </div>
@@ -266,6 +294,14 @@ export default function GenerateDocumentsPage() {
               </div>
             </div>
             <div className="space-y-4 p-5">
+              {/* Pre-fill banner — shown when navigated from contract */}
+              {fromContract && presetRoom && (
+                <div className="flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2.5 text-xs text-indigo-300">
+                  <ArrowLeft size={12} className="shrink-0" />
+                  <span>กำลังสร้างเอกสารสำหรับห้อง <span className="font-bold text-indigo-200">{presetRoom}</span> — ห้องถูกเลือกไว้แล้ว</span>
+                </div>
+              )}
+
               {/* Template Select */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-white/70">เทมเพลต</label>
