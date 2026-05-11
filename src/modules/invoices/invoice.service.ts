@@ -8,6 +8,7 @@ import { buildInvoiceAccessUrl } from '@/lib/invoices/access';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/modules/audit';
 import { logFinancialAudit } from '@/modules/financial-audit';
+import { createDocumentAccessToken, DOCUMENT_ACCESS_PURPOSE } from '@/modules/documents/document-access.service';
 import { assertInvoiceStatusTransitionValid } from '@/lib/invariants/financial-guards';
 import { INVOICE_STATUS } from '@/lib/constants';
 import { getEffectiveInvoiceStatus } from './status';
@@ -571,6 +572,15 @@ export class InvoiceService {
     }
 
     const lineConfigured = isLineConfigured();
+    // For LINE: create a secure token URL for the invoice PDF (never expose raw signed URL to LINE)
+    const { rawToken: _rawToken, tokenUrl: documentAccessUrl } = await createDocumentAccessToken({
+      invoiceId: id,
+      purpose: DOCUMENT_ACCESS_PURPOSE.LINE_INVOICE_DOWNLOAD,
+      expiresInDays: Number(process.env.DOCUMENT_LINK_TTL_DAYS || 60),
+      createdBy: sentBy ?? undefined,
+      metadata: { channel: 'LINE' },
+    });
+    // pdfUrl is admin-facing only — kept for the return value, not used in LINE messages
     const pdfUrl = buildInvoiceAccessUrl(id, {
       absoluteBaseUrl: process.env.APP_BASE_URL || '',
       signed: true,
@@ -679,7 +689,7 @@ export class InvoiceService {
             invoiceId: id,
             deliveryId,
             lineUserId,
-            pdfUrl,
+            pdfUrl: documentAccessUrl,
             imageUrl: `${process.env.APP_BASE_URL || ''}/api/invoices/${id}/image`,
             format: input.format ?? 'pdf',
             roomNo: invoice.roomNo,

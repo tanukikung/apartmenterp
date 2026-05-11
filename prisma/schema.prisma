@@ -943,6 +943,27 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+model DocumentAccessToken {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique
+  documentId String?
+  invoiceId  String?
+  purpose    String    @default("DOCUMENT_DOWNLOAD")
+  expiresAt  DateTime? @db.Timestamptz(6)
+  revokedAt  DateTime? @db.Timestamptz(6)
+  useCount   Int       @default(0)
+  lastUsedAt DateTime? @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  createdBy  String?
+  metadata   Json?
+
+  @@index([tokenHash])
+  @@index([documentId])
+  @@index([invoiceId])
+  @@index([expiresAt])
+  @@map("document_access_tokens")
+}
+
 model StaffRegistrationRequest {
   id           String                  @id @default(uuid())
   username     String

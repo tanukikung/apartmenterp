@@ -8,6 +8,7 @@ export interface InvoiceTemplateData {
   dueDate: string;
   invoiceNumber: string;
   paymentLink?: string;
+  downloadUrl?: string; // Secure app URL for PDF download (e.g., /d/:token)
   bankAccountNo?: string;
   bankName?: string;
   bankAccountName?: string;
@@ -86,6 +87,23 @@ export function buildInvoiceFlex(data: InvoiceTemplateData): object {
         ] : []),
       ],
     },
+    footer: data.downloadUrl ? {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'sm',
+      contents: [
+        {
+          type: 'button',
+          style: 'primary',
+          action: {
+            type: 'uri',
+            label: 'เปิดใบแจ้งหนี้ PDF',
+            uri: data.downloadUrl!,
+          },
+        },
+      ],
+      flex: 0,
+    } : undefined,
   };
 }
 

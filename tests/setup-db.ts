@@ -70,6 +70,28 @@ beforeAll(async () => {
       'ALTER TABLE "billing_periods" ADD COLUMN IF NOT EXISTS "gracePeriodDays" INTEGER NOT NULL DEFAULT 0',
     );
 
+    // Create document_access_tokens table for secure document download tokens
+    await getRealPrisma().$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "document_access_tokens" (
+        "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        "tokenHash" TEXT UNIQUE NOT NULL,
+        "documentId" TEXT,
+        "invoiceId" TEXT,
+        "purpose" TEXT DEFAULT 'DOCUMENT_DOWNLOAD',
+        "expiresAt" TIMESTAMPTZ(6),
+        "revokedAt" TIMESTAMPTZ(6),
+        "useCount" INTEGER DEFAULT 0,
+        "lastUsedAt" TIMESTAMPTZ(6),
+        "createdAt" TIMESTAMPTZ(6) DEFAULT NOW(),
+        "createdBy" TEXT,
+        "metadata" JSONB
+      )
+    `);
+    await getRealPrisma().$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "document_access_tokens_token_hash_idx" ON "document_access_tokens" ("tokenHash")`);
+    await getRealPrisma().$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "document_access_tokens_document_id_idx" ON "document_access_tokens" ("documentId")`);
+    await getRealPrisma().$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "document_access_tokens_invoice_id_idx" ON "document_access_tokens" ("invoiceId")`);
+    await getRealPrisma().$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "document_access_tokens_expires_at_idx" ON "document_access_tokens" ("expiresAt")`);
+
     // Seed a default billing period for tests.
     // Use a random month so multiple test runs don't collide on (year, month).
     // Tests that specifically need a certain month handle that themselves.
