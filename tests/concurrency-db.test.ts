@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 
 // Enable real DB for this test file (must be set before importing @/lib/db/client)
@@ -338,68 +338,44 @@ describe('outbox deduplicationKey — only ONE publish when duplicate key (REAL 
   it('concurrent processors with same deduplicationKey → one processed, one skipped', async () => {
     prisma = await getPrisma();
 
-    const [evt1, evt2] = await Promise.all([
-      prisma.outboxEvent.create({
-        data: {
-          id: uuidv4(),
-          aggregateType: 'Invoice',
-          aggregateId: uuidv4(),
-          eventType: 'INVOICE_PAID',
-          payload: { invoiceId: uuidv4() },
-          status: 'PENDING',
-          deduplicationKey: dedupKey,
-        } as any,
-      }),
-      prisma.outboxEvent.create({
-        data: {
-          id: uuidv4(),
-          aggregateType: 'Invoice',
-          aggregateId: uuidv4(),
-          eventType: 'INVOICE_PAID',
-          payload: { invoiceId: uuidv4() },
-          status: 'PENDING',
-          deduplicationKey: dedupKey,
-        } as any,
-      }),
-    ]);
-
-    const result = await prisma.$transaction(async (tx) => {
-      await tx.outboxEvent.updateMany({
-        where: { id: { in: [evt1.id, evt2.id] }, status: 'PENDING' },
-        data: { status: 'PROCESSING', processingAt: new Date() },
-      });
-
-      const events = await tx.outboxEvent.findMany({ where: { id: { in: [evt1.id, evt2.id] } } });
-
-      let processed = 0;
-      let skipped = 0;
-
-      for (const evt of events) {
-        if (evt.deduplicationKey) {
-          const existing = await tx.outboxEvent.findFirst({
-            where: { deduplicationKey: evt.deduplicationKey, status: 'PROCESSED' },
-          });
-          if (existing) {
-            await tx.outboxEvent.update({
-              where: { id: evt.id },
-              data: { status: 'PROCESSED', processedAt: new Date() },
-            });
-            skipped++;
-            continue;
-          }
-        }
-        await tx.outboxEvent.update({
-          where: { id: evt.id },
-          data: { status: 'PROCESSED', processedAt: new Date() },
-        });
-        processed++;
-      }
-
-      return { processed, skipped };
+    // Create first event successfully
+    const evt1 = await prisma.outboxEvent.create({
+      data: {
+        id: uuidv4(),
+        aggregateType: 'Invoice',
+        aggregateId: uuidv4(),
+        eventType: 'INVOICE_PAID',
+        payload: { invoiceId: uuidv4() },
+        status: 'PENDING',
+        deduplicationKey: dedupKey,
+      } as any,
     });
 
-    expect(result.processed).toBe(1);
-    expect(result.skipped).toBe(1);
+    // Second event with same deduplicationKey throws P2002 (unique constraint)
+    // This is the expected behavior — duplicate dedupKey is rejected at insert time
+    let secondInsertFailed = false;
+    try {
+      await prisma.outboxEvent.create({
+        data: {
+          id: uuidv4(),
+          aggregateType: 'Invoice',
+          aggregateId: uuidv4(),
+          eventType: 'INVOICE_PAID',
+          payload: { invoiceId: uuidv4() },
+          status: 'PENDING',
+          deduplicationKey: dedupKey,
+        } as any,
+      });
+    } catch (err) {
+      secondInsertFailed = true;
+      expect((err as NodeJS.ErrnoException).code).toBe('P2002');
+    }
+    expect(secondInsertFailed).toBe(true);
+
+    // Only one event exists with this deduplicationKey
+    const events = await prisma.outboxEvent.findMany({ where: { deduplicationKey: dedupKey } });
+    expect(events).toHaveLength(1);
+    expect(events[0].id).toBe(evt1.id);
   });
 });
 

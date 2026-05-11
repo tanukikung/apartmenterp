@@ -285,11 +285,11 @@ export function TemplateWordEditor({
   const [activeRegion, setActiveRegion] = useState<RegionKey>('body');
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [puppeteerPreviewUrl, setPuppeteerPreviewUrl] = useState<string | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewError, _setPreviewError] = useState<string | null>(null);
   const [showPageSetup, setShowPageSetup] = useState(false);
   const [, setShowFindReplace] = useState(false);
   const [undoToast, setUndoToast] = useState<string | null>(null);
-  const [_previewFlash, _setPreviewFlash] = useState(false);
+  const [_previewFlash, setPreviewFlash] = useState(false);
   const [_showHistory, _setShowHistory] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInputValue, setUrlInputValue] = useState('');

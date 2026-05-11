@@ -94,6 +94,21 @@ services:
     volumes:
       - app_backups:/app/data/backups
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel run --token ${CLOUDFLARED_TOKEN}
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - apartment_net
+
+networks:
+  apartment_net:
+    name: ${DOCKER_NETWORK:-apartment_net}
+    driver: bridge
+
 volumes:
   pgdata:
     driver: local

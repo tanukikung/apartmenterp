@@ -103,7 +103,6 @@ async function createRoomBilling(roomNo: string, billingPeriodId: string, ruleId
       rentAmount: 5000,
       waterMode: 'NORMAL',
       electricMode: 'NORMAL',
-      effectiveRuleId: ruleId,
       status: 'DRAFT',
       ...overrides,
     },
@@ -332,7 +331,6 @@ describe('Flow E+F — Late Fee grace period and max penalty', () => {
           rentAmount: 5000,
           waterMode: 'NORMAL',
           electricMode: 'NORMAL',
-          effectiveRuleId: rule.id,
           status: 'DRAFT',
         },
       });
@@ -412,7 +410,6 @@ describe('Flow E+F — Late Fee grace period and max penalty', () => {
           rentAmount: 5000,
           waterMode: 'NORMAL',
           electricMode: 'NORMAL',
-          effectiveRuleId: rule.id,
           status: 'DRAFT',
         },
       });

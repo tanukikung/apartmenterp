@@ -44,11 +44,18 @@ function createMockPrismaClient(initialEvents: MockOutboxEvent[] = []) {
 
   return {
     outboxEvent: {
-      findFirst: vi.fn(async ({ where }: { where: { messageHash?: string; status?: { in: string[] }; id?: { not: string } } }) => {
-        if (where.messageHash && where.status) {
-          return events.find(
-            e => e.messageHash === where.messageHash && where.status!.in.includes(e.status)
-          ) || null;
+      findFirst: vi.fn(async ({ where }: { where: { messageHash?: string; status?: string | { in: string[] }; id?: { not: string } } }) => {
+        if (where.messageHash) {
+          return events.find(e => {
+            if (e.messageHash !== where.messageHash) return false;
+            if (typeof where.status === 'string') {
+              return e.status === where.status;
+            }
+            if (where.status && typeof where.status === 'object' && 'in' in where.status) {
+              return where.status.in.includes(e.status);
+            }
+            return false;
+          }) || null;
         }
         return null;
       }),
@@ -63,6 +70,12 @@ function createMockPrismaClient(initialEvents: MockOutboxEvent[] = []) {
       }),
 
       create: vi.fn(async ({ data }: { data: Partial<MockOutboxEvent> }) => {
+        // Check for unique constraint violation on messageHash
+        if (data.messageHash && events.some(e => e.messageHash === data.messageHash)) {
+          const err = new Error('Unique constraint violation') as NodeJS.ErrnoException;
+          err.code = 'P2002';
+          throw err;
+        }
         const event: MockOutboxEvent = {
           id: data.id!,
           aggregateType: data.aggregateType!,

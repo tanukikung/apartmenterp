@@ -57,6 +57,7 @@ vi.mock('@/lib', async () => {
   return {
     ...actual,
     prisma: {
+      $transaction: vi.fn((fn) => fn(prisma)),
       bankAccount:   { upsert: vi.fn() },
       billingRule:   { upsert: vi.fn() },
       room:          { upsert: vi.fn(), findUnique: vi.fn(), findMany: vi.fn() },
